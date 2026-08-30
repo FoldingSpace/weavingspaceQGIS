@@ -107,11 +107,12 @@ def counts_for(probe, elements, spacing):
   suite = probe.suite
   probe.clear()
   dlg, _layer, _tid = probe.dialog()
-  offered = [dlg.n_combo.itemText(i) for i in range(dlg.n_combo.count())]
+  offered = [str(n) for n in
+             range(dlg.n_spin.minimum(), dlg.n_spin.maximum() + 1)]
   if str(elements) not in offered:
     dlg.close()
     return None
-  dlg.n_combo.setCurrentText(str(elements))
+  dlg.n_spin.setValue(elements)
   suite._tick(600)
   dlg.spacing_spin.setValue(spacing)
   suite._generate_and_wait(dlg)

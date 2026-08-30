@@ -157,7 +157,7 @@ def grab_dialog():
   dlg.live_check.setChecked(False)
   # a design with several elements, so the table shows what the
   # plugin is actually for rather than a single empty row
-  dlg.n_combo.setCurrentText("4")
+  dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
   dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
   dlg.show()

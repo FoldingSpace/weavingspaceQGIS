@@ -86,6 +86,8 @@ from qgis.PyQt.QtWidgets import (
   QMessageBox,
   QProgressBar,
   QPushButton,
+  QSizePolicy,
+  QSlider,
   QSpinBox,
   QStyle,
   QStyleOptionComboBox,
@@ -225,7 +227,12 @@ WORKING_STATE_VERSION = 1
 # replaced. `_apply_working_state` sets those three itself, in order,
 # and walks the rest of the table plainly.
 WORKING_STATE_DESIGN = (
-  ("n", "n_combo", "data"),
+  # THE ELEMENT COUNT IS READ FROM THE BOX rather than the slider they
+  # sit beside, and either would answer, since the two are kept in
+  # step. Naming ONE of them here is what stops a later reader picking
+  # the other and the two coming to disagree -- and the box is the one
+  # that holds an exact number a person typed.
+  ("n", "n_spin", "number"),
   ("kind", "kind_combo", "text"),
   ("family", "family_combo", "text"),
   ("spacing", "spacing_spin", "number"),
@@ -909,7 +916,55 @@ class SpacingSpinBox(TrimmedSpinBox):
   written in `category_editor.py` before anybody noticed the two would
   have to learn about locales separately. This class keeps only what
   is about SPACING; the shared behaviour is documented where it lives.
+
+  AND IT ASKS FOR LESS ROOM THAN ITS RANGE, added 2026-08-30. A spin
+  box's size hint is computed from its MAXIMUM's text, and this one's
+  maximum is 1e12 at six decimals -- twenty characters, which is a
+  large part of why the maintainer met a Design tab whose every
+  control ran the width of the window. The range is right and must not
+  shrink: spanning twelve orders of magnitude is exactly what lets one
+  control serve a floor plan and a country. What is wrong is reserving
+  room to show a number nobody types.
   """
+
+  # Seven significant figures and three decimals: wide enough for a
+  # spacing in metres over a country and for a fine one over a floor
+  # plan, which is the range anybody actually types. A longer number
+  # still fits -- the box scrolls, as every text field does -- and
+  # nothing about what it HOLDS changes.
+  _HINT_TEXT = "1000000.000"
+
+  def _room_for_a_realistic_number(self, hint):
+    """One size hint, re-measured for a plausible value.
+
+    Args:
+      hint: the hint the base class computed, sized from the maximum.
+
+    Returns:
+      A QSize with the same height and the text allowance swapped for
+      `_HINT_TEXT`'s. The chrome -- frame, arrows, margins -- is kept
+      by subtracting only what the maximum's TEXT was asking for, so
+      this stays a claim about the text rather than about a font on
+      one machine.
+    """
+    metrics = self.fontMetrics()
+    widest = metrics.horizontalAdvance(self.textFromValue(self.maximum()))
+    wanted = metrics.horizontalAdvance(self._HINT_TEXT)
+    return QSize(max(hint.width() - widest + wanted, wanted), hint.height())
+
+  def sizeHint(self):  # noqa: N802 (Qt API)
+    """The width this box would like: room for a realistic spacing."""
+    return self._room_for_a_realistic_number(super().sizeHint())
+
+  def minimumSizeHint(self):  # noqa: N802 (Qt API)
+    """The width below which the box stops being usable.
+
+    Overridden beside `sizeHint` deliberately: a layout honours the
+    MINIMUM even where it ignores the preferred size, so leaving this
+    one sized from 1e12 would have kept the whole row wide while the
+    hint said otherwise.
+    """
+    return self._room_for_a_realistic_number(super().minimumSizeHint())
 
 
 class ModeCombo(QComboBox):
@@ -1542,11 +1597,19 @@ class WeavingSpaceDialog(QDialog):
   manages the layer-tree group across regenerations.
   """
 
-  # element counts offered (the catalogue's keys: every count from 2
-  # to 256 for TILINGS, whose ids run a..z then aa..zz, and 2 to 26
-  # for weaves, which name their strands one character at a time --
-  # see catalog.MAX_ELEMENTS_WEAVE and MAX_ELEMENTS_TILING, which
-  # differ on purpose and say why at length)
+  # Element counts offered: the catalogue's own keys, every count from
+  # 2 to 256, contiguous. Every one of them has at least one TILING
+  # family.
+  #
+  # WEAVES STOP AT TWELVE, WHICH IS NOT `MAX_ELEMENTS_WEAVE`, and the
+  # difference matters to anything reading this list. That constant is
+  # 26 because a weave names its strands one character at a time, so
+  # an alphabet is the ID ceiling; the CATALOGUE is thinner than the
+  # ceiling, and measured on 2026-08-30 it holds weave families only
+  # for n = 2..12. No count is weave-ONLY, so the kind flips in one
+  # direction alone: choosing thirteen or more while on "weave" moves
+  # the toggle to "tiling", which is how somebody on a weave reaches a
+  # large tiling, and `test_design_cascade` states it as a contract.
   N_CHOICES = sorted(catalog.TILINGS_BY_N)
   # entries of the per-row Style dropdown; "Quant: X" rows all mean a
   # graduated (classed numeric) renderer, differing in break method
@@ -2414,28 +2477,86 @@ class WeavingSpaceDialog(QDialog):
     self.group_combo.activated.connect(self._on_group_chosen)
     form.addRow("QGIS Layer Group", self.group_combo)
 
-    self.n_combo = QComboBox()
-    for n in self.N_CHOICES:
-      self.n_combo.addItem(str(n), n)
-    self.n_combo.setCurrentText("4")
-    self.n_combo.setToolTip(
+    # THE ELEMENT COUNT IS A SLIDER (maintainer's ask, 2026-08-29),
+    # and the box beside it is part of the control rather than a
+    # readout: the catalogue offers 255 counts, so a couple of hundred
+    # pixels of track is about one value per pixel. The slider is for
+    # roughing a design out and the box for saying exactly which count
+    # -- and the box is what a keyboard reaches.
+    #
+    # THE TRACK SPANS THE WHOLE CATALOGUE, 2 to 256, rather than
+    # stopping at what the current KIND offers. The design note asked
+    # for a ceiling that moves with the kind, 256 for tilings and 26
+    # for weaves; measured on 2026-08-30, 26 is the wrong number for
+    # that purpose. `MAX_ELEMENTS_WEAVE` is an ID ceiling and the
+    # catalogue holds weave families only to n=12, so a weave-capped
+    # track would offer thirteen counts with no weave family behind
+    # any of them. It would also retire the contract
+    # `test_design_cascade` states in as many words -- a count
+    # offering only one kind flips the toggle silently -- which is how
+    # somebody on a weave reaches a thirteen-element tiling. So the
+    # track means "what the catalogue offers", the kind follows the
+    # count as it always has, and the flip stays visible in the combo
+    # a few pixels below.
+    self.n_slider = QSlider(Qt.Orientation.Horizontal)
+    self.n_slider.setRange(self.N_CHOICES[0], self.N_CHOICES[-1])
+    self.n_slider.setValue(4)
+    # A page step of one alphabet: Page Up and Page Down then move by
+    # something a person can name, and the arrow keys still step by
+    # one, which is what the fine end of this range needs.
+    self.n_slider.setPageStep(26)
+    self.n_slider.setToolTip(
       "How many variables the pattern can carry.")
-    self.n_combo.currentIndexChanged.connect(self._on_n_changed)
-    form.addRow("Number of elements", self.n_combo)
+    self.n_spin = QSpinBox()
+    self.n_spin.setRange(self.N_CHOICES[0], self.N_CHOICES[-1])
+    self.n_spin.setValue(4)
+    self.n_spin.setToolTip(
+      "Type an exact element count.")
+    # ONE CONTROL IN TWO WIDGETS. Both report to the same handler,
+    # which puts the other one right with signals blocked -- setting a
+    # control right would otherwise fire the handler that set it
+    # right, which is the care `_sync_pin_controls` already takes over
+    # the two pin controls, and for the same reason.
+    self.n_slider.valueChanged.connect(self._on_element_count_moved)
+    self.n_spin.valueChanged.connect(self._on_element_count_moved)
+    n_row = QHBoxLayout()
+    n_row.setContentsMargins(0, 0, 0, 0)
+    # The slider is the one control on this tab that SHOULD take the
+    # width going: a short track is a coarse track.
+    n_row.addWidget(self.n_slider, 1)
+    n_row.addWidget(self.n_spin)
+    form.addRow("Number of elements", n_row)
 
+    # KIND, FAMILY, SPACING AND AUTO SHARE ONE LINE (maintainer,
+    # 2026-08-29). They were four full-width rows; together they are
+    # one sentence about the pattern, and a single row is what stops
+    # each of them running the width of the window.
     self.kind_combo = QComboBox()
     self.kind_combo.addItems(["tiling", "weave"])
     self.kind_combo.setToolTip(
       "Tilings give side-by-side patches; weaves give strands "
       "the eye can follow.")
     self.kind_combo.currentIndexChanged.connect(self._on_kind_changed)
-    form.addRow("Tiling or weave", self.kind_combo)
 
     self.family_combo = QComboBox()
     self.family_combo.setToolTip(
       "The pattern catalogue for the chosen element count.")
+    # A COMBO THAT RESIZES UNDER THE POINTER is why this asks for a
+    # fixed number of CHARACTERS rather than adjusting to its
+    # contents. The family list is rebuilt on every step of the
+    # element slider, so a width following the longest current name
+    # would shuffle the spacing box and the Auto button sideways while
+    # somebody drags. The number comes from the catalogue itself
+    # rather than a guess, so it cannot drift as families are added,
+    # and it is in characters -- a claim about the text rather than
+    # about the font on one machine, which is the distinction this
+    # project paid a Windows round to learn.
+    self.family_combo.setSizeAdjustPolicy(
+      QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    self.family_combo.setMinimumContentsLength(
+      max(len(name) for families in catalog.TILINGS_BY_N.values()
+          for name in families))
     self.family_combo.currentIndexChanged.connect(self._on_family_changed)
-    form.addRow("Family", self.family_combo)
 
     self.spacing_spin = SpacingSpinBox()
     self.spacing_spin.setRange(1e-6, 1e12)
@@ -2449,13 +2570,23 @@ class WeavingSpaceDialog(QDialog):
     # queued or after, it makes no difference: both connections fire on
     # the same signal and neither reads the other's work.
     self.spacing_spin.valueChanged.connect(self._spacing_typed)
-    spacing_row = QHBoxLayout()
-    spacing_row.addWidget(self.spacing_spin)
     auto = QPushButton("Auto")
     auto.setToolTip("A coarse value from the layer extent, good for iterating")
     auto.clicked.connect(self._auto_spacing)
-    spacing_row.addWidget(auto)
-    form.addRow("Spacing (map units)", spacing_row)
+    pattern_row = QHBoxLayout()
+    pattern_row.setContentsMargins(0, 0, 0, 0)
+    for control in (self.kind_combo, self.family_combo,
+                    QLabel("Spacing (map units)"), self.spacing_spin, auto):
+      pattern_row.addWidget(control)
+    # AND THE STRETCH IS THE REPAIR. A form layout stretches its field
+    # column to whatever width is going, which is the single cause of
+    # every control on this tab having been "comically wide": nothing
+    # set a width and nothing needed to, the row builder decided. A
+    # stretch at the end of the row absorbs the surplus instead, so
+    # each control sits at the width it asks for. The alternative --
+    # a width on each control -- would be a claim about a font.
+    pattern_row.addStretch(1)
+    form.addRow("Pattern", pattern_row)
 
     # family-specific options
     self.opt_offset = TrimmedSpinBox()
@@ -2501,6 +2632,18 @@ class WeavingSpaceDialog(QDialog):
     self.opt_over_under.setPlaceholderText("e.g. 2 or 1,2 or 1,2,2,1")
     self.opt_over_under.setToolTip(
       "How many crossing strands each strand passes over, then under.")
+    # A LINE EDIT IS EXPANDING BY DEFAULT and therefore beats the
+    # stretch that keeps every other option row snug -- measured at
+    # 640px where its own hint is 108. Its width is asked for here
+    # instead, from the FONT and the longest pattern the placeholder
+    # offers, so it holds what somebody types without reserving a
+    # window for it, and without a pixel constant that would be a
+    # claim about this machine.
+    self.opt_over_under.setSizePolicy(
+      QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+    self.opt_over_under.setMinimumWidth(
+      self.opt_over_under.fontMetrics().horizontalAdvance(
+        "e.g. 2 or 1,2 or 1,2,2,1") + 16)
     self.opt_over_under.textChanged.connect(self._queue_preview)
     self.opt_over_under_row = self._form_row(
       form, "Over-under", self.opt_over_under)
@@ -2590,8 +2733,12 @@ class WeavingSpaceDialog(QDialog):
         None; the row is added to the modifiers form.
       """
       row = QHBoxLayout()
+      row.setContentsMargins(0, 0, 0, 0)
       row.addWidget(a)
       row.addWidget(b)
+      # The same stretch the Design tab's rows carry, for the same
+      # reason: without it these boxes take half a window each.
+      row.addStretch(1)
       mform.addRow(label, row)
 
     # A FULL TURN EITHER WAY (maintainer's request, 2026-08-25). It
@@ -2608,7 +2755,14 @@ class WeavingSpaceDialog(QDialog):
     self.mod_rotate.setToolTip(
       "Turn the whole pattern; 15–75° usually suits two-direction "
       "weaves.")
-    mform.addRow("Rotate (°)", self.mod_rotate)
+    # Rotate has no partner, so it goes through `pair` with nothing
+    # beside it rather than straight onto the form: that is what gives
+    # it the same stretch, and the same width, as the pairs below.
+    rotate_row = QHBoxLayout()
+    rotate_row.setContentsMargins(0, 0, 0, 0)
+    rotate_row.addWidget(self.mod_rotate)
+    rotate_row.addStretch(1)
+    mform.addRow("Rotate (°)", rotate_row)
     # NEGATIVE SCALES MIRROR THE PATTERN, and are allowed as of
     # 2026-08-16 at a user's request. Measured before widening the
     # range: `Tileable.transform_scale` is a plain GeoSeries.scale, so
@@ -2627,19 +2781,26 @@ class WeavingSpaceDialog(QDialog):
     # direction the user is travelling.
     self.mod_scale_x = spin(-4.0, 4.0, 1.0, 0.02)
     self.mod_scale_x.setToolTip(
-      "Stretch the pattern right-left; negative mirrors it.")
+      "Stretch the pattern left-right; negative mirrors it.")
     self.mod_scale_y = spin(-4.0, 4.0, 1.0, 0.02)
     self.mod_scale_y.setToolTip(
       "Stretch the pattern up-down; negative mirrors it.")
     for box in (self.mod_scale_x, self.mod_scale_y):
       box.valueChanged.connect(
         lambda value, b=box: self._skip_zero_scale(b, value))
-    pair("Scale EW / NS", self.mod_scale_x, self.mod_scale_y)
+    # LEFT-RIGHT AND UP-DOWN RATHER THAN EW AND NS (maintainer,
+    # 2026-08-29). These two labels were the last place in the
+    # interface that spoke in compass points, and they contradicted
+    # the sentence attached to them: both tooltips already described
+    # the screen rather than the ground. A pattern is turned and
+    # stretched on a screen, and a map that has been rotated in a
+    # layout has no east.
+    pair("Scale Left-Right / Up-Down", self.mod_scale_x, self.mod_scale_y)
     self.mod_skew_x = spin(-45, 45, 0, 1)
-    self.mod_skew_x.setToolTip("Slant the pattern right-left.")
+    self.mod_skew_x.setToolTip("Slant the pattern left-right.")
     self.mod_skew_y = spin(-45, 45, 0, 1)
     self.mod_skew_y.setToolTip("Slant the pattern up-down.")
-    pair("Skew EW / NS (°)", self.mod_skew_x, self.mod_skew_y)
+    pair("Skew Left-Right / Up-Down (°)", self.mod_skew_x, self.mod_skew_y)
     self.mod_p_inset = spin(0, 10, 0, 0.1)
     self.mod_p_inset.setToolTip(
       "Opens a gap around each whole unit (tilings only).")
@@ -2952,9 +3113,22 @@ class WeavingSpaceDialog(QDialog):
       (label widget, control) so ``_on_family_changed`` can show and
       hide the pair together — hiding a control while its label stays
       is the classic way a dialog ends up looking broken.
+
+    THE CONTROL IS LAID OUT SNUGLY, not across the row. A form
+    layout's field column stretches to whatever width is going, so
+    every family option — an offset between -1 and 1, an angle, a
+    strand width — was drawn as wide as the window (maintainer,
+    2026-08-29). A stretch after the control absorbs the surplus
+    instead. It is done HERE rather than at the six call sites because
+    one place cannot fall out of step with itself, and a family option
+    added next year is snug without anybody remembering.
     """
     lab = QLabel(label)
-    form.addRow(lab, widget)
+    row = QHBoxLayout()
+    row.setContentsMargins(0, 0, 0, 0)
+    row.addWidget(widget)
+    row.addStretch(1)
+    form.addRow(lab, row)
     return (lab, widget)
 
   # ------------------------------------------------------------- UI dynamics
@@ -2964,8 +3138,44 @@ class WeavingSpaceDialog(QDialog):
     the currently selected element count and family, or None while the
     combos are being repopulated."""
     name = self.family_combo.currentText()
-    n = self.n_combo.currentData()
-    return catalog.TILINGS_BY_N.get(n, {}).get(name)
+    return catalog.TILINGS_BY_N.get(self._element_count(), {}).get(name)
+
+  def _element_count(self) -> int:
+    """How many elements the design asks for.
+
+    Returns:
+      The count as an int, read from the box beside the slider.
+
+    ONE OWNER FOR THE QUESTION. The slider and the box are kept in
+    step, so either would answer -- which is exactly the arrangement
+    that lets two readers come to disagree, this repository's
+    commonest defect shape. Everything asks here.
+    """
+    return int(self.n_spin.value())
+
+  def _on_element_count_moved(self, value: int):
+    """One of the two element-count widgets moved; bring the other up.
+
+    Args:
+      value: the count the widget that fired now holds.
+
+    Returns:
+      None. Puts the other widget right with its signals blocked, then
+      runs the cascade the count has always driven -- repopulate the
+      family list, flip the kind if this count has only the other one,
+      and queue a preview.
+
+    SIGNALS ARE BLOCKED FOR THE SYNC, or setting a control right fires
+    the handler that set it right and each widget answers for the
+    other for ever. `_sync_pin_controls` takes the same care over the
+    two controls that name a pinned end, and says so.
+    """
+    for widget in (self.n_slider, self.n_spin):
+      if widget.value() != value:
+        widget.blockSignals(True)
+        widget.setValue(value)
+        widget.blockSignals(False)
+    self._on_n_changed()
 
   def _on_n_changed(self):
     """Repopulate the family list for the chosen element count.
@@ -2974,7 +3184,7 @@ class WeavingSpaceDialog(QDialog):
     kind has no families the kind combo is flipped silently
     (blockSignals prevents that flip from re-triggering this handler).
     """
-    n = self.n_combo.currentData()
+    n = self._element_count()
     families = catalog.TILINGS_BY_N.get(n, {})
     kind = self.kind_combo.currentText()
     names = [name for name, spec in families.items()
@@ -3607,7 +3817,7 @@ class WeavingSpaceDialog(QDialog):
         # what repopulates the family list for the new count and picks
         # its default, and driving that any other way would be a
         # second implementation of the rule.
-        self.n_combo.setCurrentText(str(count))
+        self.n_spin.setValue(count)
 
   def _skip_zero_scale(self, box, value):
     """Step a scale control over zero rather than onto it.
@@ -13161,7 +13371,7 @@ class WeavingSpaceDialog(QDialog):
     kwargs.pop("spec", None)
     return (
       layer.id() if layer is not None else None,
-      self.family_combo.currentText(), self.n_combo.currentData(),
+      self.family_combo.currentText(), self._element_count(),
       tuple(sorted(kwargs.items())),
       self.mod_rotate.value(), self.mod_scale_x.value(),
       self.mod_scale_y.value(), self.mod_skew_x.value(),
@@ -14455,7 +14665,7 @@ class WeavingSpaceDialog(QDialog):
     kwargs.pop("spec", None)
     return (
       layer.id() if layer is not None else None,
-      self.family_combo.currentText(), self.n_combo.currentData(),
+      self.family_combo.currentText(), self._element_count(),
       tuple(sorted(kwargs.items())),
       self.mod_rotate.value(), self.mod_scale_x.value(),
       self.mod_scale_y.value(), self.mod_skew_x.value(),
@@ -14748,7 +14958,7 @@ class WeavingSpaceDialog(QDialog):
     # 2026-08-13, which is what makes the comparison safe to gate a
     # refusal on.
     collapse = bridge.inset_collapse_message(
-      int(self.n_combo.currentData() or 0), len(self._tile_ids()),
+      self._element_count(), len(self._tile_ids()),
       self.mod_t_inset.value()) if self.mod_t_inset.value() else None
     if collapse is not None:
       _dump("GEN-GATE", "inset-collapse")

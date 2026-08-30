@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Install the built zip into a QGIS profile and load the plugin from it.
 
-    <qgis python> tools/install_and_load.py dist/weavingspace_qgis.zip
+    <qgis python> tools/install_and_load.py
+    <qgis python> tools/install_and_load.py <path to a zip>
 
 WHY THIS EXISTS, and why it is not covered by anything else. The suite
 imports the plugin from the CHECKOUT. The release builds a zip and
@@ -170,9 +171,24 @@ def main():
     because a later step's failure would be a consequence rather
     than a finding.
   """
-  if len(sys.argv) < 2:
-    sys.exit("usage: install_and_load.py <path to the built zip>")
-  archive = sys.argv[1]
+  # THE PATH IS OPTIONAL, AND ASKING build.py IS THE DEFAULT. Every
+  # artefact carries its version in its name (maintainer's rule,
+  # 2026-08-29), so the zip is no longer at a fixed path -- and the
+  # alternative to this was teaching three platforms' shells to
+  # compose the same name, including a cmd `for /f` loop on Windows.
+  # One owner for what a build is called, asked rather than repeated,
+  # which is the rule this repository already applies to
+  # `shipped_files` and to candidate numbering.
+  if len(sys.argv) >= 2:
+    archive = sys.argv[1]
+  else:
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location(
+      "build_rules", os.path.join(root, "build.py"))
+    build = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(build)
+    archive = build.release_zip_path()
   if not os.path.exists(archive):
     sys.exit(f"no archive at {archive}; build it with build.py first")
 

@@ -77,7 +77,7 @@ def main():
   # N BEFORE THE FAMILY: picking n repopulates the family list, whose
   # entries carry the count in their names ("grid 23"), so a family
   # chosen first is silently reset to the first entry.
-  dlg.n_combo.setCurrentText(str(n))
+  dlg.n_spin.setValue(n)
   rt._tick(500)
   dlg.family_combo.setCurrentText(f"grid {n}")
   rt._tick(500)

@@ -107,7 +107,7 @@ jobs:
         # the QGIS plugin repository requires -- one top-level folder
         # carrying __init__.py and metadata.txt. build.py is stdlib
         # only, so this needs no container.
-        run: python3 build.py
+        run: python3 build.py --check
 
   # The suite, inside QGIS's own image. The matrix is the entire point
   # of this job: three QGIS versions, so a change that only works on the
@@ -338,7 +338,7 @@ jobs:
       - name: Build the zip a user would install
         run: python3 build.py
       - name: Install it into a profile and load it
-        run: python3 -u tools/install_and_load.py dist/weavingspace_qgis.zip
+        run: python3 -u tools/install_and_load.py
 
   # The same question as `install`, asked on WINDOWS. One job, one
   # script, one QGIS -- see the WINDOWS paragraph at the top of this
@@ -528,7 +528,7 @@ jobs:
         # prove the script it names still exists.
         shell: cmd
         run: |
-          call "%QGIS_SHIM%" -u tools/install_and_load.py dist/weavingspace_qgis.zip
+          call "%QGIS_SHIM%" -u tools/install_and_load.py
 
       - name: Provision the scientific stack, through the plugin's own code
         # AFTER the load test above, deliberately: that step's whole
@@ -755,7 +755,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          "$QGIS_PY" -u tools/install_and_load.py dist/weavingspace_qgis.zip
+          "$QGIS_PY" -u tools/install_and_load.py
 
       - name: What the stack looks like here, before anything is added
         # REPORTED, never fatal. Whether the cask ships geopandas is

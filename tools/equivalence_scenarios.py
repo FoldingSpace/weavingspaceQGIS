@@ -112,7 +112,8 @@ def snapshot(dlg):
   # insets, the rotation, the skews, the scales -- was invisible
   # here. They are discovered rather than listed now, so a control
   # added next year is observed the day it appears.
-  REQUIRED = ("n_combo", "kind_combo", "family_combo", "spacing_spin",
+  REQUIRED = ("n_slider", "n_spin", "kind_combo", "family_combo",
+              "spacing_spin",
               "shells_spin", "live_check", "opt_over_under",
               "opt_grid_rows", "opt_grid_cols")
   absent = [name for name in REQUIRED if getattr(dlg, name, None) is None]
@@ -177,7 +178,7 @@ def scenario_a_working_session(rt):
   dlg.layer_combo.setLayer(layer)
   rt._tick(400)
 
-  dlg.n_combo.setCurrentText("4")
+  dlg.n_spin.setValue(4)
   rt._tick(200)
   dlg.kind_combo.setCurrentText("tiling")
   rt._tick(200)
@@ -212,7 +213,7 @@ def scenario_a_working_session(rt):
   choose(0, 1, "v1")
   choose(1, 1, "landcover")
   choose(0, 2, "Quant: Quantiles")
-  dlg.n_combo.setCurrentText("2")
+  dlg.n_spin.setValue(2)
   rt._tick(300)
   dlg.kind_combo.setCurrentText("weave")
   rt._tick(200)
@@ -246,7 +247,7 @@ def scenario_a_table_rebuild(rt):
   dlg._category_colours.setdefault(tid, {}).setdefault(
     "landcover", {})["forest"] = "#ff0000"
   rt._tick(200)
-  dlg.n_combo.setCurrentText("5")
+  dlg.n_spin.setValue(5)
   rt._tick(800)
   taken = snapshot(dlg)
   dlg.close()

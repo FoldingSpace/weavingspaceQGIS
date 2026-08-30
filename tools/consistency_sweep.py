@@ -303,7 +303,7 @@ class Session:
     self.dlg.live_check.setChecked(False)   # manual paths, deterministically
     self.dlg.layer_combo.setLayer(self.region)
     h.tick(200)
-    self.dlg.n_combo.setCurrentText(str(self.ELEMENTS))
+    self.dlg.n_spin.setValue(self.ELEMENTS)
     self.dlg.family_combo.setCurrentText(self.FAMILY)
     self.dlg.spacing_spin.setValue(self.SPACING)
     h.settle(self.dlg)
@@ -695,7 +695,7 @@ def read_design(session):
   """
   from weavingspace_qgis.dialog import WORKING_STATE_PROPERTY
   dlg = session.dlg
-  wanted = {"n": ("n_combo", "data"), "family": ("family_combo", "text"),
+  wanted = {"n": ("n_spin", "number"), "family": ("family_combo", "text"),
             "spacing": ("spacing_spin", "number")}
   row = {}
   for fact, (attribute, kind) in wanted.items():

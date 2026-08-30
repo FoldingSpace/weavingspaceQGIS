@@ -12,10 +12,10 @@ dlg.live_check.setChecked(False)
 dlg.layer_combo.setLayer(layer)
 rt._tick(400)
 for n in (20, 21, 26):
-  i = dlg.n_combo.findText(str(n))
+  i = n if dlg.n_spin.minimum() <= n <= dlg.n_spin.maximum() else -1
   if i < 0:
     print(f"n={n}: NOT OFFERED"); continue
-  dlg.n_combo.setCurrentIndex(i); dlg.n_combo.activated.emit(i)
+  dlg.n_spin.setValue(i)
   rt._tick(600)
   ids = [dlg.table.item(r, 0).text() for r in range(dlg.table.rowCount())]
   print(f"n={n}: family={dlg.family_combo.currentText()!r} "

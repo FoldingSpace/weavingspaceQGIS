@@ -108,7 +108,7 @@ def build():
   project.addMapLayer(T.make_region_layer(n=12))
   dlg = WeavingSpaceDialog(iface=T._Iface())
   dlg.live_check.setChecked(False)
-  dlg.n_combo.setCurrentText("4")
+  dlg.n_spin.setValue(4)
   dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(1200)
   dlg.table.cellWidget(0, 1).setCurrentText("v3")

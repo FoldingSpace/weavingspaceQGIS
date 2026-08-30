@@ -31,9 +31,10 @@ this.
 
 1. Go to the
    [latest release](https://github.com/FoldingSpace/weavingspaceQGIS/releases/latest)
-   and download the file named `weavingspace_qgis.zip`. It will be
-   under a heading called *Assets*; save it somewhere you can find it
-   again, such as your Downloads folder.
+   and download the zip file under the heading *Assets*. Its name
+   carries the version, so it will look like
+   `weavingspace_qgis-0.24.4.zip`; save it somewhere you can find
+   it again, such as your Downloads folder.
 2. In QGIS, choose **Plugins ▸ Manage and Install Plugins… ▸ Install
    from ZIP**, click the **…** button to pick the file you just
    downloaded, and click **Install Plugin**. QGIS may warn you that the

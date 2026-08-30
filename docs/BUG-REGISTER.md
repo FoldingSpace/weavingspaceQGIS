@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-430 defect(s) with a regression test.
+433 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -497,6 +497,10 @@ there is no separate list to remember.
   guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
 - **live update's tile-count gate measured the region's bounding box rather than its ground, so it paused on sparse data and quoted a count many times what the map draws. Found by the size-guard hunt, 2026-08-27.**  
   guarded by `test_live_update_measures_the_ground_not_the_box`
+- **the push gate rebuilt an unversioned zip into dist/, and one such build was installed over a gated candidate.**  
+  guarded by `test_no_artefact_is_named_without_its_version`
+- **every control on the Design tab was drawn as wide as the window, because a form layout stretches its field column under the style QGIS actually uses.**  
+  guarded by `test_no_design_control_is_stretched_to_the_window`
 - **nothing stopped a weave family being offered above the 26 counts its one-character-per-strand format can express. Guarded when the tiling ceiling rose, 2026-08-27.**  
   guarded by `test_no_weave_is_offered_past_the_single_alphabet`
 - **on Windows a reopened project whose output GeoPackage had moved could not be rebuilt -- re-pointing the output at its own path and pressing Generate produced no file, no layers and no message, because the region stamps and the region source were compared as strings and a project save had respelt one of them. Six CI rounds, always alone. Found by the wintest probe of 2026-08-26 once every exit from _generate was made to name itself.**  
@@ -525,6 +529,8 @@ there is no separate list to remember.
   guarded by `test_the_catalogue_gate_refuses_an_ambiguous_anchor`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
+- **the two element-count widgets could disagree, and nothing read the count off the design that was actually built.**  
+  guarded by `test_the_element_count_is_one_control_in_two_widgets`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
   guarded by `test_the_file_carries_the_design_the_map_is_wearing`
 - **none yet -- this guards the boundary the `kept` map created the day it was born, because the file's record is written from the same capture and would otherwise inherit the key.**  
@@ -912,7 +918,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 131
-- the mutation campaign: 121
+- the mutation campaign: 124
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

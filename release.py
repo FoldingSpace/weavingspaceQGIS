@@ -27,7 +27,7 @@ produce a zip unless everything passes. Steps, in order:
    .venv-reference/ (created automatically on first use — this cannot
    run under QGIS's Python because macOS code-signing refuses PyPI C
    extensions in the signed QGIS process);
-4. build.py, producing dist/weavingspace_qgis.zip.
+4. build.py, producing dist/weavingspace_qgis-<version>.zip.
 
 Environment discovery: on macOS the newest /Applications/QGIS*.app is
 used, deriving the interpreter and the env vars its Python needs
@@ -1417,7 +1417,10 @@ def commit_and_tag(version, report_dir, push):
   else:
     git("tag", "-a", tag, "-m", f"WeavingSpace plugin {tag}")
 
-  assets = [os.path.join(ROOT, "dist", "weavingspace_qgis.zip"),
+  # THE ASSET CARRIES ITS VERSION, asked of build.py rather than
+  # composed here: one owner for what a build is called means the
+  # release cannot attach a name the builder did not write.
+  assets = [build_module().release_zip_path(),
             os.path.join(report_dir, "testing-report.md"),
             os.path.join(report_dir, "visual-comparison.pdf")]
   assets = [a for a in assets if os.path.exists(a)]
@@ -1483,9 +1486,11 @@ def build_module():
   one. A rule with several live copies is a rule nobody can ask a
   question of.
 
-  ONE OWNER FOR TWO QUESTIONS THAT USED TO HAVE THREE ANSWERS: which
-  files ship (`shipped_files`, digested into the receipt) and how a
-  candidate is numbered (`latest_candidate`). The numbering was
+  ONE OWNER FOR THREE QUESTIONS THAT USED TO HAVE MORE ANSWERS: which
+  files ship (`shipped_files`, digested into the receipt), how a
+  candidate is numbered (`latest_candidate`), and what the release
+  zip is CALLED (`release_zip_path`, added 2026-08-30 so the release
+  cannot attach a name the builder did not write). The numbering was
   re-derived here by sorting dist/ as TEXT, which put `rc10` between
   `rc1` and `rc2` and named the tenth candidate's dossier and receipt
   after the ninth. A rule with two implementations has two behaviours
@@ -1620,7 +1625,7 @@ def main():
   gallery, comparison PDF, testing report -- no coverage, that stage
   having left the release path), refreshed
   images in docs/img/, possibly a mended CITATION.cff,
-  dist/weavingspace_qgis.zip, and a commit and tag. With --push, also
+  dist/weavingspace_qgis-<version>.zip, and a commit and tag. With --push, also
   a pushed branch and tag and a GitHub Release with the zip, report
   and PDF attached; --push is the single point at which anything
   leaves this machine.
@@ -1768,7 +1773,7 @@ def main():
     print(stage_chart(RELEASE_STARTED))
     print(f"\nRelease v{version} complete (promoted from "
           f"{receipt['label']})."
-          f"\n  zip:        dist/weavingspace_qgis.zip"
+          f"\n  zip:        {os.path.relpath(build_module().release_zip_path(), ROOT)}"
           f"\n  report:     reports/v{version}/index.html")
     return 0
 
@@ -2058,7 +2063,7 @@ def main():
   progress.set()
   print(stage_chart(RELEASE_STARTED, final=True))
   print(f"\nRelease v{version} complete."
-        f"\n  zip:        dist/weavingspace_qgis.zip"
+        f"\n  zip:        {os.path.relpath(build_module().release_zip_path(), ROOT)}"
         f"\n  report:     reports/v{version}/index.html"
         f"\n  tests:      reports/v{version}/testing-report.md"
         f"\n  comparison: reports/v{version}/visual-comparison.pdf")

@@ -179,8 +179,8 @@ def main():
     lines += ["## What was measured", ""] + facts + [""]
   lines += [
     "## In this release", "",
-    "- `weavingspace_qgis.zip` — install through Plugins > Manage and "
-    "Install Plugins... > Install from ZIP",
+    f"- `weavingspace_qgis-{version}.zip` — install through Plugins > "
+    f"Manage and Install Plugins... > Install from ZIP",
     "- `testing-report.md` — every test with its result and measured "
     "values",
     "- `visual-comparison.pdf` — each rendered map scored against the "

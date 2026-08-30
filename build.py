@@ -3,7 +3,7 @@
 
 Usage: python3 build.py   (any Python 3; nothing QGIS-specific here)
 
-Produces dist/weavingspace_qgis.zip, installable in QGIS via
+Produces dist/weavingspace_qgis-<version>.zip, installable in QGIS via
 Plugins > Manage and Install Plugins... > Install from ZIP. The zip
 must contain the plugin folder as its top-level entry (QGIS unzips it
 straight into the profile's python/plugins directory), so paths are
@@ -19,6 +19,7 @@ import argparse
 import os
 import re
 import shutil
+import tempfile
 import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -226,6 +227,18 @@ def write_zip(out, version_override=None):
     return out
 
 
+def release_zip_path():
+  """Where the release zip goes, named for the version it carries.
+
+  Returns:
+    An absolute path under ``dist/``, of the form
+    ``weavingspace_qgis-<version>.zip``, with the version read from
+    ``metadata.txt`` -- the same source the candidate path uses, so
+    the two cannot drift apart about what a build is called.
+  """
+  return os.path.join(DIST, f"weavingspace_qgis-{declared_version()}.zip")
+
+
 def installed_copies():
     """Every QGIS profile that already has this plugin installed.
 
@@ -312,6 +325,18 @@ def main():
         help="with --rc, do not update the copies already installed "
              "in QGIS profiles on this machine")
     parser.add_argument(
+        "--check", action="store_true",
+        help="only ask whether the archive still forms, building into "
+             "a temporary directory that is removed afterwards. This "
+             "is what CI's packaging step and the push gate run: a "
+             "CHECK must not write into dist/, which holds gated "
+             "artefacts")
+    parser.add_argument(
+        "--path-only", action="store_true",
+        help="print where the release zip would be written and build "
+             "nothing, so a caller that needs the path does not have "
+             "to know how it is composed")
+    parser.add_argument(
         "--candidate", type=int, metavar="N",
         help="build this candidate NUMBER rather than the next unused "
              "one. For a number spent by something this tree cannot "
@@ -320,6 +345,20 @@ def main():
              "at or below one already spent is refused, because a gap "
              "confuses nobody and a reused name confuses everybody.")
     args = parser.parse_args()
+
+    # A PACKAGING CHECK ASKS ONE QUESTION -- does the archive still
+    # form -- and a temporary directory answers it exactly as well as
+    # `dist/` does. Until 2026-08-30 it did not have that choice, so
+    # the PUSH GATE rebuilt an artefact into the directory holding the
+    # gated ones, from whatever tree it happened to be run against,
+    # on every invocation.
+    if args.check:
+        with tempfile.TemporaryDirectory() as folder:
+            out = write_zip(os.path.join(folder, "packaging-check.zip"))
+            size = os.path.getsize(out) / 1e6
+            print(f"the plugin still packages ({size:.1f} MB), built in a "
+                  f"temporary directory and discarded")
+        return
 
     if args.rc:
         version = declared_version()
@@ -370,7 +409,24 @@ def main():
                       "candidates will land in place automatically.")
         return
 
-    out = write_zip(os.path.join(DIST, "weavingspace_qgis.zip"))
+    # EVERY ARTEFACT CARRIES ITS VERSION IN ITS NAME (maintainer's
+    # rule, 2026-08-29, on finding the newest file in `dist/` was an
+    # unversioned zip). The candidate path always did this; only the
+    # plain path did not, so the convention existed and had been
+    # applied to half the process. Sorted by date -- which is what a
+    # person does in a file browser -- the first thing in a directory
+    # of gated artefacts was the one with no version, no receipt and
+    # no gate behind it, and it was not even byte-identical to the
+    # candidate beside it.
+    # IT WAS NOT MERELY UNTIDY. Measured 2026-08-30: the copy that
+    # unversioned zip left in a QGIS profile was byte-identical to it
+    # across all 31 members, so an ungated build had been installed
+    # over a gated candidate and the plugin's title bar had been
+    # faithfully reporting it ever since.
+    if args.path_only:
+      print(release_zip_path())
+      return
+    out = write_zip(release_zip_path())
     size = os.path.getsize(out) / 1e6
     print(f"wrote {out} ({size:.1f} MB)")
 

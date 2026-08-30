@@ -944,7 +944,11 @@ in `weavingspace_qgis/metadata.txt` first; the script then runs the
 functional suite and the visual gallery under QGIS's Python and writes
 `reports/v<version>/index.html` (a self-contained page with the
 functional results and the rendered gallery), and only if every step
-passed builds `dist/weavingspace_qgis.zip`. A failing step aborts with
+passed builds the versioned zip in `dist/`, named
+`weavingspace_qgis-<version>.zip` — every artefact carries its version,
+and `build.py --check` is what a packaging CHECK runs, building into a
+temporary directory so a gate never writes into `dist/` at all. A
+failing step aborts with
 no zip, so a bad release cannot be cut absent-mindedly. `build.py`
 alone still exists for local experiments, not for releases.
 

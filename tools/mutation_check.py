@@ -49,6 +49,10 @@ WIDGETS = "weavingspace_qgis/widgets.py"
 # the release driver: not shipped, but it decides whether a candidate
 # exists at all, so its guards earn the same proof as the plugin's
 RELEASE = "release.py"
+# the builder: it decides what an artefact is CALLED and where a
+# packaging check writes, and an unversioned build of its making was
+# found installed over a gated candidate (2026-08-30)
+BUILD = "build.py"
 # the incremental mutation guard: it runs on somebody else's machine
 # and reports rather than gates, so its ONE safeguard against
 # answering a question it could not look at earns a proof too
@@ -1642,7 +1646,7 @@ MUTATIONS = [
         # what repopulates the family list for the new count and picks
         # its default, and driving that any other way would be a
         # second implementation of the rule.
-        self.n_combo.setCurrentText(str(count))""",
+        self.n_spin.setValue(count)""",
        new="""      if answer == QMessageBox.StandardButton.Yes:
         pass  # mutation: agree, then do nothing""",
        test="test_a_dataset_that_cannot_fill_the_design_asks_first",
@@ -2056,8 +2060,14 @@ MUTATIONS = [
        why="the spacing a first-time user is given, before any layer "
            "can auto-size it"),
   dict(name="auto-spacing-button", file=DIALOG,
-       old="spacing_row.addWidget(auto)",
-       new="pass  # mutation: the button is never added to a layout",
+       # RE-ANCHORED 2026-08-30, when kind, family, spacing and Auto
+       # moved onto one row: the button is added by a loop over that
+       # row's controls now, so dropping it from the tuple is what
+       # "never added to a layout" means here.
+       old='                    QLabel("Spacing (map units)"), '
+           'self.spacing_spin, auto):',
+       new='                    QLabel("Spacing (map units)"), '
+           'self.spacing_spin):',
        test="test_design_controls_are_usable_as_designed",
        why="a control constructed but never added is a feature no "
            "user can reach"),
@@ -2066,6 +2076,65 @@ MUTATIONS = [
        new="pass  # mutation: whole-unit steps",
        test="test_design_controls_are_usable_as_designed",
        why="nudging a rotation or an inset, rather than lurching"),
+  # THE THREE STRETCHES THAT KEEP THE DESIGN TAB SNUG. Each is
+  # anchored on the line ABOVE its own `addStretch`, because the three
+  # calls are spelt identically and an anchor matching more than once
+  # is refused -- rightly, since mutating the first would leave the
+  # others doing the work.
+  dict(name="the-release-zip-carries-its-version", file=BUILD,
+       old="    out = write_zip(release_zip_path())",
+       new='    out = write_zip(os.path.join(DIST, "weavingspace_qgis.zip"))',
+       test="test_no_artefact_is_named_without_its_version",
+       why="an artefact with no version in its name has no receipt "
+           "and no gate behind it, and one such build was measured "
+           "installed over a gated candidate on 2026-08-30"),
+  dict(name="a-packaging-check-writes-nowhere", file=BUILD,
+       old='            out = write_zip(os.path.join(folder, '
+           '"packaging-check.zip"))',
+       new='            out = write_zip(release_zip_path())',
+       test="test_no_artefact_is_named_without_its_version",
+       why="the push gate replays this step, so a check that writes "
+           "into dist/ mutates the artefact directory from an ungated "
+           "tree on every invocation"),
+  dict(name="design-option-rows-do-not-stretch", file=DIALOG,
+       old="""    row.addWidget(widget)
+    row.addStretch(1)""",
+       new="""    row.addWidget(widget)""",
+       test="test_no_design_control_is_stretched_to_the_window",
+       why="a form layout stretches its field column under the style "
+           "QGIS actually uses, so without this a strand width "
+           "between 0.083 and 1.0 is drawn 1013px wide -- measured "
+           "2026-08-30 under Fusion, where the macOS style the "
+           "harness takes by default shows nothing at all"),
+  dict(name="modifier-pairs-do-not-stretch", file=DIALOG,
+       old="""      row.addWidget(b)
+      # The same stretch the Design tab's rows carry, for the same
+      # reason: without it these boxes take half a window each.
+      row.addStretch(1)""",
+       new="""      row.addWidget(b)""",
+       test="test_no_design_control_is_stretched_to_the_window",
+       why="the paired modifier boxes take half a window each without "
+           "it, which is what the maintainer met on 2026-08-29"),
+  dict(name="the-pattern-row-does-not-stretch", file=DIALOG,
+       old="    pattern_row.addStretch(1)",
+       new="    pass  # mutation: the pattern row fills the window",
+       test="test_no_design_control_is_stretched_to_the_window",
+       why="kind, family, spacing and Auto share one line precisely "
+           "so none of them runs the width of the window"),
+  dict(name="the-count-widgets-are-kept-in-step", file=DIALOG,
+       old="    for widget in (self.n_slider, self.n_spin):",
+       new="    for widget in ():  # mutation: neither follows the other",
+       test="test_the_element_count_is_one_control_in_two_widgets",
+       why="the slider and the box are one control; a sync written in "
+           "one direction only is how two widgets come to disagree "
+           "about what the design asks for"),
+  dict(name="the-count-slider-spans-the-catalogue", file=DIALOG,
+       old="    self.n_slider.setRange(self.N_CHOICES[0], self.N_CHOICES[-1])",
+       new="    self.n_slider.setRange(2, 26)  # mutation: an id ceiling",
+       test="test_the_element_count_is_one_control_in_two_widgets",
+       why="26 is the ID ceiling for a weave's strand letters, not a "
+           "ceiling on the catalogue, which runs to 256; a track that "
+           "stops there puts the larger tilings out of reach"),
   dict(name="point-angle-connection", file=DIALOG,
        old="self.opt_point_angle.valueChanged.connect(self._queue_preview)",
        new="pass  # mutation: the control reaches nothing",
@@ -2678,7 +2747,8 @@ MUTATIONS = [
        why="a cancelled run handing the dialog back at once, rather "
            "than when the abandoned work happens to finish"),
   dict(name="scale-controls-in-a-layout", file=DIALOG,
-       old='    pair("Scale EW / NS", self.mod_scale_x, self.mod_scale_y)',
+       old='    pair("Scale Left-Right / Up-Down", self.mod_scale_x, '
+           'self.mod_scale_y)',
        new="    pass  # mutation: the Scale controls reach no layout",
        test="test_every_design_control_is_reachable",
        why="controls being reachable by a user and not only by a test "
