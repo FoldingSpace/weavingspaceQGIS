@@ -773,6 +773,39 @@ the one the sessions that produced designs that stuck all followed.
    that basis) -- so changing what the rest of the layout needs
    invalidates that bracket, and the two must be re-derived together
    rather than one moved on its own.
+5. **IS "CREATE AS NEW GROUP" REDUNDANT NOW?** (Maintainer's question,
+   2026-08-29.) MEASURED, AND THE ANSWER IS NO IN FUNCTION AND YES IN
+   INTENT -- which is the more interesting answer, because the pair is
+   already costing this project defects.
+   THEY DIFFER IN SCOPE AND NOTHING SAYS SO ON SCREEN. The chooser's
+   "create new" entry sets `_new_group_chosen`, which is ONE-SHOT: the
+   next run builds its own group and the flag is cleared the moment a
+   real group is selected. The checkbox is a STANDING preference read
+   at every landing through `force_new`, so while it is ticked EVERY
+   run makes a new group. A person meeting "Create as new group (keep
+   the previous result)" beside a chooser entry called "create new" has
+   nothing to tell them one means once and the other means always.
+   AND THE READERS DISAGREE ABOUT WHICH DOOR TO ASK, which is this
+   repository's commonest defect shape sitting in the open: of seven
+   sites, FIVE read only the checkbox (`dialog.py` at 5023, 12351,
+   13935, 14363 and `force_new` at 19798), ONE reads only the flag
+   (14700, the restyle fast path), and exactly one reads BOTH (15862)
+   -- and that last one reads both only because ledger row 36 was
+   fixed this morning, where the chooser went on describing a landing
+   that would not happen because it knew the flag and not the box.
+   SO THE QUESTION TO SETTLE is whether the standing behaviour is
+   wanted at all. Ruling 1 of 2026-08-25 made the GROUP the unit of
+   work and gave the chooser the job of saying where a run lands,
+   observing that the group "was already being chosen on every run by
+   a rule the user could neither see nor override" -- and a standing
+   checkbox is a second such rule, visible but easy to leave ticked.
+   Retiring it makes the chooser the only door and deletes the
+   asymmetry; keeping it means the five-one-one split has to be made
+   one question with one owner, as the two doors of row 36 now are.
+   WHAT MUST NOT HAPPEN is retiring it quietly: somebody comparing
+   several attempts in a row is relying on the standing behaviour, and
+   that is a real use rather than a hypothetical one -- it is the
+   session the whole group-as-unit ruling came from.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did
