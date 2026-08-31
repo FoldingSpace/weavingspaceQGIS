@@ -2666,6 +2666,20 @@ class WeavingSpaceDialog(QDialog):
     self.opt_aspect.setRange(0.083, 1.0)
     self.opt_aspect.setSingleStep(0.083)
     self.opt_aspect.setDecimals(3)
+    # 0.75 AND NOT 1.0, WHICH WAS TRIED AND CANCELLED on 2026-08-30.
+    # A weave's strand width decides whether its tiles MEET, and
+    # `Topology` needs a gap-free tiling -- measured, aspect 1.0
+    # carries one and 0.95, 0.9 and 0.75 all raise -- so at this
+    # default the Topology tab is unavailable for weaves. Raising the
+    # default would have bought that, and it costs the thing a weave
+    # is FOR: at 1.0 the strands meet, so a plain weave reads as a
+    # chequerboard rather than as strands with daylight between them,
+    # and every weave map the plugin draws out of the box would have
+    # changed. The maintainer cancelled it.
+    # THE TAB EXPLAINS ITSELF INSTEAD. `topology_edits.can_build`
+    # names this control in its refusal, so somebody who wants a
+    # topology for a weave is told to set the strand width to 1.0
+    # rather than left wondering why the tab is dark.
     self.opt_aspect.setValue(0.75)
     self.opt_aspect.setToolTip(
       "Strand width as a fraction of spacing; 1.0 leaves no gaps.")

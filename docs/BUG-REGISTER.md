@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-439 defect(s) with a regression test.
+440 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -467,6 +467,8 @@ there is no separate list to remember.
   guarded by `test_a_switched_variable_leaves_no_orphan_in_the_file`
 - **element ids were capped at 26 for every family, so a tiling could not carry more variables than the lowercase alphabet has letters. Raised for tilings at the maintainer's asking, 2026-08-27.**  
   guarded by `test_a_tiling_may_carry_two_letter_elements`
+- **an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control.**  
+  guarded by `test_a_topology_edit_reaches_the_map`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27.**  
@@ -930,7 +932,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 131
-- the mutation campaign: 130
+- the mutation campaign: 131
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

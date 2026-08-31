@@ -945,6 +945,159 @@ two different questions and a tab that shows both must say which it is
 answering. Everything both notebooks use is already in our vendor at
 0.0.7.89, so none of it waits on upstream.
 
+**THE TOPOLOGY TAB WAS GRILLED ON 2026-08-30 AND FIVE THINGS ARE
+SETTLED.** The maintainer asked for an interactive tab with numeric and
+click-and-drag editing, round-tripping through the GeoPackage, built
+when the map is generated and kept up to date, with the races checked.
+Each decision below was put with the measurement under it, which
+changed three of them.
+
+1. **THE TOPOLOGY IS OF THE UN-MODIFIED UNIT**, built before aspect and
+   insets are applied, and the tab says so. `Topology` needs a GAP-FREE
+   tiling and the plugin's ordinary settings do not give it one -- the
+   default weave aspect is 0.75 and ANY tile inset makes even laves
+   3.3.4.3.4 raise -- so the alternative was a tab that is dark for
+   most designs anybody actually makes. Edits land on the motif and the
+   modifiers apply over the top, which is the order the pipeline
+   already uses.
+2. **IT IS BUILT ON EVERY GENERATE ONCE THE EXPERIMENTAL BOX IS
+   TICKED**, off the main thread beside the tiling, and NEVER on a
+   colour or ramp change (the maintainer's own correction). The hook is
+   narrower than `_geometry_signature`, which also carries the region
+   layer, the output path and the mapped variables: the topology
+   depends on the UNIT alone, so it rebuilds with whatever rebuilds the
+   preview -- family, kind, element count and the family's own options.
+   MEASURED: a build costs 0.75s on laves 3.3.4.3.4 and 2.1-4.4s on
+   hex-slice 6 and square-colouring 5, which is why it is not built for
+   people who have not asked for it.
+3. **AN EDIT LIST GOVERNS, AND THE UNIT AND DUAL ARE WRITTEN AS LAYERS
+   BESIDE IT.** Two edits are 125 bytes against 546 for the edited
+   geometry of four tiles -- but size is not the argument. The
+   geometry's coordinates SCALE WITH SPACING, so stored geometry is
+   wrong the moment somebody changes it, while a class label was
+   measured stable across rebuilds AND across spacings 500 and 1300.
+   The layers make the file self-describing, which is the argument that
+   put the element tables and their styles in there.
+   THE CAVEAT IS THE CRS: the unit lives in unit space, so those two
+   layers carry NO CRS and say what they are in their names, or they
+   land off the coast of Africa -- this project's own recorded hazard
+   about a memory layer handed EPSG:4326, arriving through a new door.
+4. **EDITS ARE SHELVED BY FAMILY AND ELEMENT COUNT**, going idle when
+   the design moves away and returning if it comes back. Never replayed
+   by label alone: laves 3.3.4.3.4 has edge classes `a,b` and
+   hex-slice 4 has `a,b,c,d`, so `a` means a different edge in each and
+   a blind replay would land somebody's edit on the wrong one. That is
+   the shape already settled twice here -- the scheme shelf keyed by
+   field, and `_re_range_remembering` holding a modifier number until a
+   family can wear it.
+5. **ALL FIVE MANIPULATIONS ARE OFFERED, AND ZIGZAG REFUSES IN WORDS
+   WHEN IT CANNOT DRAW.** Measured on four designs: `push_vertex`,
+   `nudge_vertex`, `scale_edge` and `rotate_edge` each produce a
+   tiling that draws, at 0.04-0.05s. `zigzag_edge` produced none as
+   first called -- and the correction is worth keeping, because it was
+   nearly filed as a defect in the library: THE AUTHORS PASS A STRING
+   OF MANY CLASS LABELS as the selector, not one, and add
+   `smoothness=3`. Through their own call shape it still needs
+   `shapely.make_valid` to draw at all, which rescues hex-slice 4 at
+   382 tiles and makes laves 3.3.4.3.4 worse (159 invalid geometries
+   becoming 343). So it attempts the repair and refuses in the terms of
+   the control where it cannot, which is `inset_collapse_message`'s
+   shape rather than the library's raw ValueError.
+
+**THE DEFAULT STRAND WIDTH STAYS AT 0.75, having been changed to 1.0
+and changed back the same day** (maintainer, 2026-08-30). Recorded
+rather than quietly reverted, because the reasoning that prompted it
+is sound and somebody will propose it again.
+
+THE CASE FOR RAISING IT: aspect is a family OPTION rather than one of
+the modifiers ruling 1 builds before, so at 0.75 the Topology tab is
+unavailable for every weave by default. Measured 2026-08-29, aspect
+1.0 carries a topology and 0.95, 0.9 and 0.75 all raise.
+
+THE CASE AGAINST, WHICH WON: at 1.0 the strands meet, so a plain weave
+reads as a chequerboard rather than as strands with daylight between
+them. That is the thing a weave is FOR, and the change would have
+altered every weave map the plugin draws out of the box, the published
+gallery images with them -- a large, visible cost paid by everybody to
+unlock a tab most people will not open.
+
+AND IT WOULD NOT HAVE BOUGHT WHAT IT LOOKED LIKE BUYING. Measured over
+the first fourteen weave families at 1.0, EIGHT carry a topology and
+SIX do not. NO CLEAN PREDICTOR WAS ESTABLISHED, and the attempt is kept
+because it was wrong in an instructive way: "a strand code containing a
+dash" held on eight cases chosen four-and-four, and that sample had
+excluded two counter-examples already in hand -- `twill weave a|b 1,2`
+and `a|b 1,2,2,1` carry no dash and still fail. At least two causes,
+then, and a rule quoted from that sample would have been a uniform
+verdict produced by the instrument rather than a fact about weaves.
+
+WHAT ANSWERS IT INSTEAD IS THE REFUSAL. `topology_edits.can_build`
+decides by TRYING to build a topology, never by inspecting the spec, so
+it is right about every design whether or not anybody can say in
+advance which those are -- and its sentence names the CONTROL: set the
+strand width to 1.0, or the tile inset to 0. Somebody who wants a
+topology for a weave is told what to move rather than left in front of
+a dark tab.
+
+**ZIGZAG DOES NOT WORK EVEN ON THE AUTHORS' OWN EXAMPLE, and the
+notebook does not show that it does.** (Measured 2026-08-30, on the
+maintainer's challenge -- "zigzag should work where the two ipynb shows
+it working right?" -- which was the right question to put and is why
+this is written down rather than left as a general claim about four
+designs.)
+
+DRIVEN EXACTLY AS `topology-working.ipynb` DRIVES IT: `TileUnit(
+tiling_type="chavey", code="K")`, every edge class as the selector,
+`n=2, h=0.25, smoothness=3`. The result has TWELVE OF ITS TWENTY TILES
+SELF-INTERSECTING, and one of the self-intersections is at coordinates
+of about 1e-14 -- a degenerate point rather than an amplitude problem,
+which is why h=0.1 and h=0.05 do not help either. `shapely.make_valid`
+does not rescue it into anything that tiles.
+
+WHAT THE NOTEBOOK ACTUALLY SHOWS is the result being PLOTTED:
+`tile_unit.plot(r=1, ...)`. matplotlib draws self-intersecting polygons
+without complaint, so a picture is a weaker test than laying the tiles
+out, and nothing in either notebook tiles the result or asks whether it
+is valid. The authors' own markdown says as much in passing -- "some
+tiles around the outside might not get 'deformed' correctly because
+they are unconstrained by neighbours" -- and the measurement says the
+CENTRAL unit is affected too, which that note does not claim.
+
+SO THE DECISION STANDS AND ITS REASON IS SHARPER: zigzag is offered,
+attempts the repair, and refuses in words. What changes is that this is
+now a fact about the manipulation rather than about the four designs
+first tried, and it belongs in "Two conversations to have" -- a
+self-intersection at 1e-14 looks like a numerical defect worth
+reporting upstream rather than a limit anybody chose.
+
+**AND CLICK-AND-DRAG IS AFFORDABLE, which the first reading of the cost
+said it was not.** One edit costs 1.23s end to end on the fastest
+design -- 0.15s for the transform and 1.08s to rebuild the Topology,
+which upstream's own caution requires ("new Topology will probably not
+be correctly labelled ... rebuild from the tileable"). But the rebuild
+is only needed to go on EDITING. Applying a transform from the
+pre-drag topology and redrawing the motif is 0.04-0.05s, so a drag runs
+at roughly 20 frames a second and pays the rebuild once, on release.
+The parameter is re-applied from the ORIGINAL topology each frame
+rather than accumulated, or a drag would compose a hundred transforms.
+
+**WHAT THE NOTEBOOKS GAVE, on the maintainer's instruction to mine them
+for the workflows their authors imagined.** `topology-working.ipynb`
+plots with seven toggles -- original tiles, tile centres, vertex
+labels, edge labels, edges, offset edges, dual tiles -- which is the
+view the tab owes; it plots tiling symmetries
+(`plot_tiling_symmetries`); and it promotes the dual to a TileUnit of
+its own, calling `_setup_regularised_prototile(override=True)`, which
+is the step `transform_geometry` does not do and which the tab will
+need. `symmetry-working.ipynb` reads `Symmetries(polygon)
+.symmetry_group` over six deliberately awkward shapes -- C1, D1, C2,
+D2, C4, D4 -- and matches one shape onto another with
+`ShapeMatcher(p).get_polygon_matches(q)`. Its finding is the one to
+carry into any interface: a reflection appears alongside a rotation
+WITHIN a shape, while matching one shape to ANOTHER admits reflections
+for shapes with no internal symmetry at all. Two different questions,
+and a tab showing both must say which it is answering.
+
 **AND THE MAINTAINER'S DESIGN NOTE -- build the topology when the
 tiling is built, and store it in the transportable GeoPackage -- MEETS
 TWO MEASUREMENTS, taken 2026-08-29 before any of it is designed.**
@@ -1397,6 +1550,17 @@ note was sent (`docs/process/upstream-note-large-plain-weaves.md`
 supersedes the first, which blamed a commit wrongly), and the WEAVE
 half of the element-id ceiling above, which is upstream's decision
 rather than ours now that the tiling half is built.
+
+**AND A THIRD, RAISED 2026-08-30: `zigzag_edge` LEAVES
+SELF-INTERSECTING TILES**, including on `chavey` code K, which is the
+design their own `topology-working.ipynb` demonstrates it on. Twelve of
+that unit's twenty tiles self-intersect, one of them at coordinates of
+about 1e-14, and gentler amplitudes do not help -- which reads as a
+numerical defect rather than a limit anybody chose. The notebook plots
+the result rather than tiling it, and matplotlib draws an invalid
+polygon without complaint, so this is invisible from where they were
+looking. Worth sending with the measurement and the design, since it is
+the one manipulation the plugin cannot let reach a map.
 
 ## Later, or never
 

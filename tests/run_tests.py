@@ -3040,6 +3040,105 @@ def test_the_window_never_grows_past_the_screen():
     dlg.close()
 
 
+def test_a_topology_edit_reaches_the_map():
+  """An edit to the unit's topology produces a tiling that still draws.
+
+  The Topology tab lets somebody take an edge class or a vertex class
+  of the repeating unit and move it. What makes that worth having is
+  that the edit reaches the MAP, so this drives the model end to end:
+  build a topology, apply each manipulation, and require the result
+  both to have MOVED and to lay out.
+
+  THE MOVED ASSERTION IS NOT DECORATION. It is the whole reason this
+  test is trustworthy, and it was written after an early probe of mine
+  reported four manipulations working when none had run: the library
+  filters supplied kwargs to the ones its function accepts, so
+  `push_vertex(d=...)` silently dropped the argument, and a lowercase
+  selector matched no vertex at all. The unchanged unit drew perfectly
+  and read exactly like success.
+
+  AND ZIGZAG IS THE ONE THAT REFUSES. Measured across four designs, it
+  produces tiles the tiling machinery will not lay out even through
+  the call shape upstream's own notebook uses. It is offered anyway on
+  the maintainer's decision, and must refuse IN WORDS and leave the
+  map as it was, rather than reaching a worker where somebody would
+  meet it as a run that did nothing.
+
+  Regression: an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control. [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+  unit = catalog.make_unit(spec, spacing=500, crs=3857)
+
+  can, why = topology_edits.can_build(unit)
+  assert can, f"PREMISE: this design carries no topology at all: {why}"
+  topology, _ = topology_edits.build(unit)
+  assert topology is not None, "PREMISE: nothing was built"
+  groups = topology_edits.classes(topology)
+  assert groups["edge"] and groups["vertex"], \
+    f"PREMISE: no classes to aim an edit at: {groups}"
+
+  before = unit.tiles.geometry.iloc[0].wkt
+  moved_by = []
+  for how, args in (("push_vertex", {"push_d": 0.1}),
+                    ("nudge_vertex", {"dx": 0.05, "dy": 0.05}),
+                    ("rotate_edge", {"angle": 15}),
+                    ("scale_edge", {"sf": 1.1})):
+    classes = groups[topology_edits.MANIPULATIONS[how]["target"]]
+    tileable, refusals = topology_edits.apply(
+      topology, [{"classes": classes, "how": how, "args": args}])
+    assert not refusals, f"{how} was refused: {refusals}"
+    assert tileable.tiles.geometry.iloc[0].wkt != before, \
+      f"{how} was reported applied and moved nothing, which is what a " \
+      f"dropped argument or a selector matching nothing looks like"
+    assert topology_edits._tiles_lay_out(tileable), \
+      f"{how} left a unit that cannot be laid out"
+    moved_by.append(how)
+  assert len(moved_by) == 4, f"only {moved_by} were exercised"
+
+  # THE REFUSAL, and that the map is left alone
+  tileable, refusals = topology_edits.apply(
+    topology, [{"classes": groups["edge"], "how": "zigzag_edge",
+                "args": {"n": 2, "h": 0.25, "smoothness": 3}}])
+  assert refusals, \
+    "zigzag produced a drawable tiling here, so this test's account " \
+    "of it is out of date -- check whether upstream has improved it"
+  assert "Zigzag" in refusals[0] and "cannot be laid out" in refusals[0], \
+    f"the refusal does not name the control and what happened: " \
+    f"{refusals[0]!r}"
+  assert tileable.tiles.geometry.iloc[0].wkt == before, \
+    "a refused edit changed the map anyway"
+
+  # A LIST COMPOSES, which is what makes it a record rather than one act
+  two = [{"classes": groups["vertex"], "how": "push_vertex",
+          "args": {"push_d": 0.08}},
+         {"classes": groups["vertex"], "how": "nudge_vertex",
+          "args": {"dx": 0.03, "dy": 0.0}}]
+  tileable, refusals = topology_edits.apply(topology, two)
+  assert not refusals, f"a two-edit list was refused: {refusals}"
+  assert tileable.tiles.geometry.iloc[0].wkt != before
+
+  # AND A WEAVE AT THE PLUGIN'S OWN DEFAULT CANNOT, which is the case
+  # the refusal exists for: the sentence must name the CONTROL, since
+  # the library's own words quote its internals.
+  weave = next(s for s in catalog.TILINGS_BY_N[4].values()
+               if s["type"] == "weave")
+  can, why = topology_edits.can_build(
+    catalog.make_unit(weave, spacing=500, crs=3857))
+  assert not can, \
+    "a weave at the default strand width now carries a topology, so " \
+    "the refusal below is describing something that cannot happen"
+  assert "strand width" in why and "inset" in why, \
+    f"the refusal does not say which control to move: {why!r}"
+
+  # the shelf keeps designs apart, which is what stops an edit made on
+  # one family being replayed onto another
+  assert topology_edits.shelf_key("hex-slice 4", 4) != \
+    topology_edits.shelf_key("laves 3.3.4.3.4", 4)
+  assert topology_edits.shelf_key("hex-slice 4", 4) != \
+    topology_edits.shelf_key("hex-slice 4", 3)
+
+
 def test_the_experimental_box_gates_its_tabs():
   """An experimental tab is greyed and unusable until the box is ticked.
 
@@ -74426,6 +74525,8 @@ def main():
         test_everything_the_plugin_says_reaches_the_record)
   check("the window never grows past the screen",
         test_the_window_never_grows_past_the_screen)
+  check("a topology edit reaches the map",
+        test_a_topology_edit_reaches_the_map)
   check("the experimental box gates its tabs",
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",

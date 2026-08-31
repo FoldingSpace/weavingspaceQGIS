@@ -8250,6 +8250,28 @@ MUTATIONS = [
   # test_the_group_chooser_is_the_only_door_to_a_new_group, which
   # asserts the STRUCTURE -- no second checkbox, the chooser arms,
   # a real group releases -- rather than two records agreeing.
+  dict(name="a-topology-edit-must-still-tile",
+       file="weavingspace_qgis/topology_edits.py",
+       old="""  if _tiles_lay_out(unit):
+    return unit, False""",
+       new="""  return unit, False  # mutation: never check that it tiles""",
+       test="test_a_topology_edit_reaches_the_map",
+       why="a manipulation can leave tiles the tiling machinery will "
+           "not lay out -- measured on four designs for zigzag -- and "
+           "without this the failure reaches a worker, where the user "
+           "meets it as a run that did nothing"),
+  dict(name="the-topology-refusal-names-the-control",
+       file="weavingspace_qgis/topology_edits.py",
+       old="""  return (
+    "This design has gaps between its tiles, and a topology can only "
+    "be worked out for a design whose tiles meet. Set the strand "
+    "width to 1.0, or the tile inset to 0, to work on its topology.")""",
+       new="""  return str(exc)  # mutation: hand back the library's own words""",
+       test="test_a_topology_edit_reaches_the_map",
+       why="the library says 'Vertex ... Tiles: [] is not in list', "
+           "which names its internals and tells nobody which control "
+           "to move; the plugin's sentence names the strand width and "
+           "the inset, which are what actually opened the gaps"),
   dict(name="the-window-is-bounded-by-its-screen", file=DIALOG,
        old="""    return (min(width, int(room.width() * SCREEN_SHARE)),
             min(height, int(room.height() * SCREEN_SHARE)))""",
