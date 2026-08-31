@@ -3057,12 +3057,22 @@ def test_a_topology_edit_reaches_the_map():
   selector matched no vertex at all. The unchanged unit drew perfectly
   and read exactly like success.
 
-  AND ZIGZAG IS THE ONE THAT REFUSES. Measured across four designs, it
-  produces tiles the tiling machinery will not lay out even through
-  the call shape upstream's own notebook uses. It is offered anyway on
-  the maintainer's decision, and must refuse IN WORDS and leave the
-  map as it was, rather than reaching a worker where somebody would
-  meet it as a run that did nothing.
+  AND ZIGZAG ANSWERS BOTH WAYS, which is why both are asserted here.
+  It leaves tiles the tiling machinery refuses -- on `chavey` code K,
+  the design upstream's own notebook zigzags, TWELVE of twenty come
+  back invalid. Most of that is a construction artefact rather than
+  anything anybody asked for: repeated vertices, which are zero-length
+  segments, which shapely reports as self-intersections. Dropping them
+  is exact, leaves every area unchanged to a part in 1e9, and takes
+  twelve to one; mending the genuine residue takes it to none, and
+  chavey K then tiles at 1802 tiles.
+  IT IS NOT AMPLITUDE AND IT IS NOT FLOATING POINT, both of which were
+  believed here first: h from 0.25 down to 0.001 leaves 12-13 tiles
+  invalid, and the coordinates in shapely's message are WHERE a
+  self-intersection is rather than how large an error is.
+  SOME DESIGNS STILL CANNOT, and those must refuse IN WORDS and leave
+  the map as it was, rather than reaching a worker where somebody
+  would meet it as a run that did nothing.
 
   Regression: an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control. [mutation]
   """
@@ -3096,7 +3106,26 @@ def test_a_topology_edit_reaches_the_map():
     moved_by.append(how)
   assert len(moved_by) == 4, f"only {moved_by} were exercised"
 
-  # THE REFUSAL, and that the map is left alone
+  # ZIGZAG WHERE IT WORKS. Without the repeated-vertex repair this
+  # design refuses too, so a green here is the repair working rather
+  # than the manipulation being harmless.
+  three = catalog.make_unit(catalog.TILINGS_BY_N[3]["hex-slice 3"],
+                            spacing=500, crs=3857)
+  three_topology, _ = topology_edits.build(three)
+  assert three_topology is not None, "PREMISE: hex-slice 3 has no topology"
+  was = three.tiles.geometry.iloc[0].wkt
+  zigzagged, refusals = topology_edits.apply(
+    three_topology,
+    [{"classes": topology_edits.classes(three_topology)["edge"],
+      "how": "zigzag_edge", "args": {"n": 2, "h": 0.25, "smoothness": 3}}])
+  assert not refusals, \
+    f"zigzag was refused on a design where it works: {refusals}"
+  assert zigzagged.tiles.geometry.iloc[0].wkt != was, \
+    "zigzag was reported applied and moved nothing"
+  assert topology_edits._tiles_lay_out(zigzagged), \
+    "zigzag was reported applied and left a unit that cannot lay out"
+
+  # AND WHERE IT CANNOT, the refusal, with the map left alone
   tileable, refusals = topology_edits.apply(
     topology, [{"classes": groups["edge"], "how": "zigzag_edge",
                 "args": {"n": 2, "h": 0.25, "smoothness": 3}}])

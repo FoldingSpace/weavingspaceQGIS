@@ -1039,36 +1039,52 @@ strand width to 1.0, or the tile inset to 0. Somebody who wants a
 topology for a weave is told what to move rather than left in front of
 a dark tab.
 
-**ZIGZAG DOES NOT WORK EVEN ON THE AUTHORS' OWN EXAMPLE, and the
-notebook does not show that it does.** (Measured 2026-08-30, on the
-maintainer's challenge -- "zigzag should work where the two ipynb shows
-it working right?" -- which was the right question to put and is why
-this is written down rather than left as a general claim about four
-designs.)
+**ZIGZAG'S TROUBLE IS REPEATED VERTICES, AND IT IS PROPERLY
+COMPENSABLE.** (Measured 2026-08-30 across two maintainer challenges,
+each of which corrected a reading of mine: "zigzag should work where
+the two ipynb shows it working right?" and then "are the zigzag
+problems floating point errors? And if so can you compensate
+properly?")
 
-DRIVEN EXACTLY AS `topology-working.ipynb` DRIVES IT: `TileUnit(
-tiling_type="chavey", code="K")`, every edge class as the selector,
-`n=2, h=0.25, smoothness=3`. The result has TWELVE OF ITS TWENTY TILES
-SELF-INTERSECTING, and one of the self-intersections is at coordinates
-of about 1e-14 -- a degenerate point rather than an amplitude problem,
-which is why h=0.1 and h=0.05 do not help either. `shapely.make_valid`
-does not rescue it into anything that tiles.
+WHAT THE NOTEBOOK ACTUALLY SHOWS. Driven exactly as
+`topology-working.ipynb` drives it -- `TileUnit(tiling_type="chavey",
+code="K")`, every edge class, `n=2, h=0.25, smoothness=3` -- TWELVE OF
+TWENTY tiles come back invalid. The notebook PLOTS the result rather
+than tiling it, and matplotlib draws a self-intersecting polygon
+without complaint, so this was invisible from where the authors were
+looking; their own markdown half-catches it, noting that outer tiles
+"might not get 'deformed' correctly".
 
-WHAT THE NOTEBOOK ACTUALLY SHOWS is the result being PLOTTED:
-`tile_unit.plot(r=1, ...)`. matplotlib draws self-intersecting polygons
-without complaint, so a picture is a weaker test than laying the tiles
-out, and nothing in either notebook tiles the result or asks whether it
-is valid. The authors' own markdown says as much in passing -- "some
-tiles around the outside might not get 'deformed' correctly because
-they are unconstrained by neighbours" -- and the measurement says the
-CENTRAL unit is affected too, which that note does not claim.
+IT IS NEITHER AMPLITUDE NOR FLOATING POINT, and both were believed here
+first. h from 0.25 down to 0.001 leaves 12-13 tiles invalid, so it is
+not a matter of asking for too much. And the number in shapely's
+message is WHERE a self-intersection is, not how large an error is: one
+sat at 1e-14 from the origin and was read as a degenerate value, while
+the rest sit at an ordinary 134 units out.
 
-SO THE DECISION STANDS AND ITS REASON IS SHARPER: zigzag is offered,
-attempts the repair, and refuses in words. What changes is that this is
-now a fact about the manipulation rather than about the four designs
-first tried, and it belongs in "Two conversations to have" -- a
-self-intersection at 1e-14 looks like a numerical defect worth
-reporting upstream rather than a limit anybody chose.
+WHAT IT IS: REPEATED VERTICES. One invalid tile carried six coincident
+point pairs among thirty-seven points. A repeated vertex is a
+zero-length segment and shapely reports every one as a
+self-intersection.
+
+SO THE REPAIR IS IN TWO STAGES AND THE FIRST IS EXACT. Dropping
+consecutive coincident vertices takes twelve invalid tiles to ONE with
+every area unchanged to a part in 1e9 -- the boundary does not move,
+because a null segment has no length. Mending the single genuine
+residue takes it to none, and measured on that case moved no tile's
+area either. Chavey K then tiles at 1802 tiles.
+
+WHAT THAT BUYS, and it is not everything. With the repair, zigzag
+applies on chavey K and hex-slice 3 and is still refused on laves
+3.3.4.3.4 and hex-slice 4. So ruling 5 stands exactly as decided --
+offer it, attempt the repair, refuse in words where it cannot -- and
+what changed is that the refusal is now the minority case rather than
+the only one.
+
+AND IT IS STILL WORTH TELLING UPSTREAM, in "Two conversations to have"
+below: a manipulation that emits coincident vertices is a defect
+whatever the caller does about it, and the fix belongs in
+`zigzag_between_points` rather than in every consumer's repair.
 
 **AND CLICK-AND-DRAG IS AFFORDABLE, which the first reading of the cost
 said it was not.** One edit costs 1.23s end to end on the fastest
@@ -1551,16 +1567,18 @@ supersedes the first, which blamed a commit wrongly), and the WEAVE
 half of the element-id ceiling above, which is upstream's decision
 rather than ours now that the tiling half is built.
 
-**AND A THIRD, RAISED 2026-08-30: `zigzag_edge` LEAVES
-SELF-INTERSECTING TILES**, including on `chavey` code K, which is the
-design their own `topology-working.ipynb` demonstrates it on. Twelve of
-that unit's twenty tiles self-intersect, one of them at coordinates of
-about 1e-14, and gentler amplitudes do not help -- which reads as a
-numerical defect rather than a limit anybody chose. The notebook plots
-the result rather than tiling it, and matplotlib draws an invalid
-polygon without complaint, so this is invisible from where they were
-looking. Worth sending with the measurement and the design, since it is
-the one manipulation the plugin cannot let reach a map.
+**AND A THIRD, RAISED 2026-08-30: `zigzag_edge` EMITS REPEATED
+VERTICES**, which shapely reports as self-intersections and which make
+the result untileable. On `chavey` code K -- the design their own
+`topology-working.ipynb` zigzags -- twelve of twenty tiles come back
+invalid, and one of them carries six coincident point pairs among
+thirty-seven points. Dropping the repeats is exact, leaves every area
+unchanged to a part in 1e9, and takes twelve invalid tiles to one.
+The notebook plots the result rather than tiling it, and matplotlib
+draws an invalid polygon without complaint, which is why this is
+invisible from where they were looking. Worth sending with the
+measurement, the design and the two-line repair, since the fix belongs
+in `zigzag_between_points` rather than in every consumer.
 
 ## Later, or never
 
