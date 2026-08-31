@@ -112,6 +112,8 @@ Files you will actually touch:
 | `weavingspace_qgis/deps.py` | Checks/downloads Python dependencies on QGIS builds that lack them. Version floors and pinned candidates at the top. |
 | `weavingspace_qgis/help_content.py` | The Help tab text. Keep in step with `docs/USER-GUIDE.md`. |
 | `weavingspace_qgis/said.py` | Everything the plugin has said, for the Messages tab. Its own module because `plugin.py` speaks before any dialog exists, and it imports nothing but `time` so that holding four strings does not drag the vendored library into QGIS start-up. |
+| `weavingspace_qgis/topology_edits.py` | What a topology edit IS, with no Qt in it: the five manipulations upstream offers, whether a design can carry a topology at all, and how an edit is replayed onto a unit. Separate from the tab so the model can be tested without a window. |
+| `weavingspace_qgis/topology_tab.py` | The experimental Topology tab: the drawing, the class picking, the drag, and the numeric boxes. Talks to the dialog through one signal. |
 | `weavingspace_qgis/vendor/weavingspace/` | The upstream library, vendored and patched; see below before touching. |
 
 ## When a new QGIS version breaks things
@@ -805,6 +807,66 @@ so it does not belong in a group's working state — putting it there
 would carry one person's appetite for experiments into another
 person's project through a saved file. That is the two-relationships
 framing in CLAUDE.md, applied to a control.
+
+## The topology tab: where an edit lives between being made and being drawn
+
+The Topology tab lets somebody move the EDGES and VERTICES of the tile
+unit itself — zigzag an edge, rotate or scale it, push or nudge a
+vertex — either by typing a number or by dragging on the drawing. It is
+experimental and behind the box above.
+
+**The topology is built off the main thread**, in `_topology_task`,
+because `Topology.__init__` is eager: eight setup passes and a dual
+graph, measured between 0.75s and 4.4s across the designs in the
+catalogue. It is queued by whatever rebuilds the UNIT and never by a
+colour or a ramp, which is the same boundary `_geometry_signature`
+already draws for re-tiling — a restyle changes no edge, so asking for
+a topology on one would cost seconds for a picture that cannot have
+moved. `_topology_stamp` is what tells a landing whose topology it is
+holding, so a build that finishes after the design has moved on is
+discarded rather than drawn against a unit it does not describe.
+
+**Not every design has a topology.** `Topology` needs a GAP-FREE
+tiling, so a design with insetting or a family that does not close up
+refuses, and `can_build` says which it is in words rather than letting
+the constructor raise. Zigzag additionally needs its unit REPAIRED
+first: the manipulation emits repeated vertices — six coincident pairs
+among thirty-seven points on the case measured — which is what makes
+the result invalid, not floating point and not the amplitude. The
+repair is two stages, an exact dedupe and then `make_valid` on
+whatever survives it, and it moves no area (agreement to 1e-9).
+`chavey K` tiles at 1802 tiles afterwards where it refused before;
+`laves 3.3.4.3.4` and `hex-slice 4` still refuse, and that is recorded
+rather than worked around.
+
+**Edits are SHELVED by design**, under `topology_edits.shelf_key`,
+which is the family and the element count. Move the design away and
+the edits go quiet; bring it back and they return. This is the same
+shape as the per-field scheme memory: what stays ACTIVE changes, what
+is REMEMBERED does not.
+
+**And the shelf rides the working state**, so a saved project brings
+back what somebody did to the topology rather than only the design
+they did it to. That needed BOTH halves of the record in one commit —
+`_capture_working_state` writing `topology_edits`, and
+`_restore_recorded_topology_edits` reading it — because writing here is
+permissive and READING IS STRICT: a key captured with no matching
+restore travels to the file faithfully and is dropped in silence on the
+way back. This project has now written that rule down four times, for
+`_adopt_dock_bounds`, for the copy, for `mode`, and here.
+
+Two details of the restore that are easy to get wrong. **The key comes
+from the RECORD, not from the controls** — the restore runs while the
+controls are being written, so reading the family off the combo would
+file the edits under whatever the dialog held at that instant. And
+**the restore runs BEFORE `_apply_element_records`**, because
+`_rebuild_unit` is what asks the shelf for them; a list put back
+afterwards would describe a map already drawn without it.
+
+`WORKING_STATE_VERSION` is deliberately NOT bumped for this. An added
+key is invisible to an older reader, which iterates its own whitelist
+and simply does not look; bumping the version would make every older
+plugin refuse a file it could otherwise open perfectly well.
 
 ## The door that arms a new group
 

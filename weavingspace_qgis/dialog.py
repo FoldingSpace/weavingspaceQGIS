@@ -5702,6 +5702,35 @@ class WeavingSpaceDialog(QDialog):
     # widens it back towards the old flat value on its own.
     self._last_rebuild_ms = (time.monotonic() - started) * 1000.0
 
+  def _restore_recorded_topology_edits(self, design: dict) -> None:
+    """Put a saved design's topology edits back on their shelf.
+
+    Args:
+      design: the design half of a working-state record.
+
+    Returns:
+      None. Files the recorded list under the family and element count
+      the record itself names, so it is found again by the ordinary
+      shelf lookup rather than by a second rule.
+
+    THE KEY COMES FROM THE RECORD, NOT FROM THE CONTROLS. This runs
+    while the controls are being written, and reading them here would
+    file the edits under whatever the dialog happened to hold at that
+    instant -- which is how a record comes to be filed under a design
+    it was not made on. The record knows what it is about.
+    """
+    edits = design.get("topology_edits")
+    if not edits:
+      return
+    from . import topology_edits
+    family = design.get("family") or self.family_combo.currentText()
+    count = design.get("n") or self._element_count()
+    try:
+      key = topology_edits.shelf_key(str(family), int(count))
+    except (TypeError, ValueError):
+      return
+    self._topology_shelf[key] = [dict(edit) for edit in edits]
+
   def _restore_topology_edits(self) -> None:
     """Put this design's own edits back into the tab.
 
@@ -16832,6 +16861,29 @@ class WeavingSpaceDialog(QDialog):
       # the control where it is.
       if widget is not None:
         design[key] = self._read_control(widget, kind)
+    # THE TOPOLOGY EDITS, which are NOT a widget and so cannot ride
+    # WORKING_STATE_DESIGN's table. They are written here and read in
+    # `_apply_working_state`, and the two must move together: writing
+    # is permissive and READING IS STRICT, so a key captured without a
+    # matching restore travels to the file and is dropped in silence
+    # on the way back -- this project's own rule, said three times
+    # already about `_adopt_dock_bounds`, the copy and `mode`.
+    #
+    # WHAT IS RECORDED IS THIS DESIGN'S OWN LIST rather than the whole
+    # shelf. The record describes THE MAP THAT WAS DRAWN, and the
+    # shelf's other entries belong to designs this map is not; sending
+    # them would put one design's edits into a file about another,
+    # which is the cross-contamination ruling 8 forbids for data and
+    # which has no better claim here.
+    #
+    # NO VERSION BUMP, deliberately. `WORKING_STATE_VERSION` is for a
+    # shape an older plugin could not READ, and a record from a future
+    # version is refused WHOLE. An added key is invisible to an older
+    # reader, which iterates its own whitelist; bumping would make
+    # every older plugin refuse a file it could otherwise open.
+    panel = getattr(self, "topology_panel", None)
+    if panel is not None and panel.edits():
+      design["topology_edits"] = panel.edits()
     elements = [{key: assignment.get(key)
                  for key in WORKING_STATE_ELEMENT}
                 for assignment in self._assignments()]
@@ -17322,6 +17374,12 @@ class WeavingSpaceDialog(QDialog):
       self._spacing_is_mine = True
     finally:
       blocked(False)
+
+    # THE TOPOLOGY EDITS COME BACK BEFORE THE REBUILD, because
+    # `_rebuild_unit` is what asks for them: it restores this design's
+    # shelf entry and queues the topology, so a list put back after it
+    # would describe a map already drawn without it.
+    self._restore_recorded_topology_edits(design)
 
     self._apply_element_records(record, keep_adopted, from_file)
     # The table is rebuilt ONCE, here, reading the record rather than

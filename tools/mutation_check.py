@@ -2406,6 +2406,35 @@ MUTATIONS = [
        test="test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt",
        why="a reopened project finding the output group its own "
            "dataset made, rather than piling a second one beside it"),
+  dict(name="the-edit-list-is-written-into-the-working-state", file=DIALOG,
+       # The WRITE half of the pair. Without it the record is silent
+       # about the topology, so a saved map comes home with the design
+       # intact and none of what somebody did to it -- and silently,
+       # because a missing key is indistinguishable from a design
+       # nobody edited.
+       old="""    panel = getattr(self, "topology_panel", None)
+    if panel is not None and panel.edits():
+      design["topology_edits"] = panel.edits()""",
+       new="""    panel = getattr(self, "topology_panel", None)
+    if panel is not None and panel.edits():
+      pass""",
+       test="test_topology_edits_survive_the_working_state",
+       why="what somebody did to the topology being written down when "
+           "the map is saved"),
+  dict(name="the-edit-list-is-read-back-out-of-it", file=DIALOG,
+       # The READ half, and the reason this project writes the rule
+       # down as BOTH WHITELISTS IN ONE COMMIT: writing is permissive
+       # and reading is strict, so removing this call leaves a record
+       # that is written faithfully, travels through the file intact,
+       # and is dropped in SILENCE on the way back. Anchored with its
+       # neighbour so a call moved rather than deleted still fails.
+       old="""    self._restore_recorded_topology_edits(design)
+
+    self._apply_element_records(record, keep_adopted, from_file)""",
+       new="""    self._apply_element_records(record, keep_adopted, from_file)""",
+       test="test_topology_edits_survive_the_working_state",
+       why="a topology edit that was saved actually coming back, "
+           "rather than being read past without complaint"),
   dict(name="a-queued-press-is-a-press-not-a-live-tick", file=DIALOG,
        # The defect this restores, measured 2026-08-28: a press queued
        # on `_live_pending` is honoured by starting the LIVE timer,

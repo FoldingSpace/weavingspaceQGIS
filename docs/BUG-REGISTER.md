@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-440 defect(s) with a regression test.
+441 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -579,6 +579,8 @@ there is no separate list to remember.
   guarded by `test_the_window_never_grows_past_the_screen`
 - **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
   guarded by `test_the_zigzag_needs_no_scipy`
+- **an edit list captured with no matching restore is dropped in silence when the project reopens.**  
+  guarded by `test_topology_edits_survive_the_working_state`
 - **two column names that sanitise to one table name left the earlier column's saved style in the GeoPackage, so its hand-picked colours and field name travelled to whoever the file was sent to. Found by the kept-map hunt, 2026-08-27.**  
   guarded by `test_two_columns_sharing_a_table_leave_one_style_of_ours`
 - **two elements drawing one column with different class counts produced a single emptiness notice, true of one of them and quoting a class count the other does not have, while the second element was never mentioned. Open as row 41 of the 2026-08-17 ledger; found again and measured by the notices hunt, 2026-08-27.**  
@@ -931,8 +933,8 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
+- the mutation campaign: 132
 - a bug hunt pointed in a named direction: 131
-- the mutation campaign: 131
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

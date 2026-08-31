@@ -3168,6 +3168,103 @@ def test_a_topology_edit_reaches_the_map():
     topology_edits.shelf_key("hex-slice 4", 3)
 
 
+def test_topology_edits_survive_the_working_state():
+  """What somebody did to the topology comes home with the map.
+
+  The edit list is NOT a widget, so it cannot ride
+  WORKING_STATE_DESIGN's table, and is written and read by hand. Those
+  two halves must move together: writing is permissive and READING IS
+  STRICT, so a key captured without a matching restore travels to the
+  file and is dropped in SILENCE on the way back. This project has
+  written that rule down three times -- for `_adopt_dock_bounds`, for
+  the copy, and for `mode` -- and each time it was found by a record
+  that was right all session and wrong the moment the project came
+  back.
+
+  THE RECORD GOES THROUGH JSON HERE, deliberately, because that is
+  what the GeoPackage does to it: a tuple would come home a list, and
+  a key that cannot survive `json.dumps` would pass a test that handed
+  the dict straight back.
+
+  AND THE KEY COMES FROM THE RECORD. The restore runs while the
+  controls are being written, so reading the family off the combo
+  would file the edits under whatever the dialog held at that instant
+  rather than under the design the record is about.
+
+  Regression: an edit list captured with no matching restore is dropped in silence when the project reopens. [mutation]
+  """
+  import json
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(300)
+    _settle_topology(dlg)
+    assert dlg.topology_panel._topology is not None, \
+      "PREMISE: no topology was built, so there is nothing to edit"
+    dlg.topology_panel._apply()
+    _settle_topology(dlg)
+    made = dlg.topology_panel.edits()
+    assert made, "PREMISE: Apply recorded no edit"
+
+    record = dlg._capture_working_state()
+    carried = (record.get("design") or {}).get("topology_edits")
+    assert carried, \
+      "the working state carries no topology edits, so a saved map " \
+      "would come back without what somebody did to it"
+    # exactly what the file does to it
+    travelled = json.loads(json.dumps(record))
+  finally:
+    dlg.close()
+
+  second = WeavingSpaceDialog(iface=_Iface())
+  try:
+    second.live_check.setChecked(False)
+    second.opt_experimental.setChecked(True)
+    second.show()
+    _tick(300)
+    assert not second.topology_panel.edits(), \
+      "PREMISE: a fresh dialog already holds edits"
+    second._apply_working_state(travelled)
+    _tick(600)
+    assert second.topology_panel.edits() == made, \
+      f"the edits did not come home: {second.topology_panel.edits()} " \
+      f"against {made}"
+    # filed under the design the RECORD names, which is what makes the
+    # ordinary shelf lookup find them
+    from weavingspace_qgis import topology_edits
+    key = topology_edits.shelf_key(
+      (travelled["design"])["family"], (travelled["design"])["n"])
+    assert key in second._topology_shelf, \
+      f"the edits were filed under {sorted(second._topology_shelf)} " \
+      f"rather than under {key!r}"
+  finally:
+    second.close()
+
+
+def _settle_topology(dlg, seconds: int = 30):
+  """Wait for a topology build to finish, or give up saying so.
+
+  Args:
+    dlg: the dialog whose build to wait on.
+    seconds: how long to wait before giving up.
+
+  Returns:
+    None. Waits on the EVENT -- the task clearing -- rather than on a
+    number of milliseconds, which is this suite's standing rule: a
+    fixed wait is a bet on how loaded the machine is, and a build here
+    costs 0.75s on one design and 4.4s on another.
+  """
+  for _ in range(seconds * 5):
+    _tick(200)
+    if getattr(dlg, "_topology_task", None) is None:
+      return
+
+
 def test_the_experimental_box_gates_its_tabs():
   """An experimental tab is greyed and unusable until the box is ticked.
 
@@ -74556,6 +74653,8 @@ def main():
         test_the_window_never_grows_past_the_screen)
   check("a topology edit reaches the map",
         test_a_topology_edit_reaches_the_map)
+  check("topology edits survive the working state",
+        test_topology_edits_survive_the_working_state)
   check("the experimental box gates its tabs",
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",

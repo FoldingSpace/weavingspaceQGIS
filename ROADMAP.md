@@ -1004,6 +1004,42 @@ changed three of them.
    the control where it cannot, which is `inset_collapse_message`'s
    shape rather than the library's raw ValueError.
 
+**WHAT OF THE FIVE IS BUILT, as of 2026-08-30.** Recorded against the
+rulings rather than as a narrative, so the gap is readable at a glance.
+WHICH VERSION IT SHIPS IN IS THE MAINTAINER'S DECISION and the entry
+stays in this section until they make it; the code is on
+`for-0.24.4/copy-select-all` behind the experimental box, which is what
+makes that decision cheap either way.
+
+- Ruling 1, the un-modified unit: BUILT. `topology_edits.build` takes
+  the motif before aspect and insets, and the tab says so on its face.
+- Ruling 2, built on Generate off the main thread and never on colour:
+  BUILT. `_queue_topology` hangs off whatever rebuilds the unit, and
+  `_topology_stamp` throws away a build whose design has moved on.
+- Ruling 3, an edit list governs: BUILT. The edit list is the record,
+  it is shelved, and since today it rides the working state so a saved
+  project brings the edits home. THE UNIT AND DUAL AS CRS-LESS LAYERS
+  AT SAVE ARE STILL OWED -- that is the half of ruling 3 that makes the
+  file self-describing, and the CRS caveat above is the trap waiting
+  in it.
+- Ruling 4, shelved by family and element count: BUILT, keyed by
+  `topology_edits.shelf_key`, idle when the design moves away and back
+  when it returns.
+- Ruling 5, all five manipulations with zigzag refusing in words:
+  BUILT, and the zigzag half is better than the ruling promised --
+  see the repeated-vertices finding below, which was measured after
+  the ruling was written and replaces `make_valid` alone.
+
+STILL OWED BESIDES THE LAYERS: the four race families named in the
+grilling -- a stale topology landing, an edit aimed at a class that has
+gone, an edit made during a run, and the restore dropping the record in
+silence. THE LAST OF THOSE IS CLOSED, by
+`test_topology_edits_survive_the_working_state` and two catalogue
+entries standing on the write and the read separately, because writing
+here is permissive and reading is strict and the pair is exactly what
+this project has been caught by four times. The other three are
+unmeasured, and unmeasured is not the same as absent.
+
 **THE DEFAULT STRAND WIDTH STAYS AT 0.75, having been changed to 1.0
 and changed back the same day** (maintainer, 2026-08-30). Recorded
 rather than quietly reverted, because the reasoning that prompted it

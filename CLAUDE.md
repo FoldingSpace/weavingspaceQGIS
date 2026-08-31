@@ -2884,6 +2884,18 @@ Confirmed with the user via an explicit design review:
   tests going red is how that was found. WIDEN THE WHITELIST IN THE
   SAME COMMIT AS THE CODE THAT READS IT -- said here for the third
   time, after `_adopt_dock_bounds` and the copy.
+  A FOURTH ON 2026-08-30, and the first where the rule was applied
+  BEFORE the defect rather than after it: the topology edit list is
+  not a widget, so it rides neither whitelist's table and is written
+  and read by hand -- `_capture_working_state` and
+  `_restore_recorded_topology_edits` went in together, with a test
+  that sends the record through `json.dumps` because that is what the
+  GeoPackage does to it, and a catalogue entry standing on the write
+  and the read SEPARATELY. Two entries rather than one deliberately:
+  either half alone leaves a record that is faithful in the file and
+  dropped in silence on the way back, and an entry that can be
+  satisfied by its sibling is an entry that reports `caught` about
+  nothing.
 
 - **WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
   THAT ALREADY HELD THAT FACT.** (Same day, the round's last two
