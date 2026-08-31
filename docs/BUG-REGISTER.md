@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-436 defect(s) with a regression test.
+437 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -569,6 +569,8 @@ there is no separate list to remember.
   guarded by `test_the_size_guard_warns_where_it_used_to_refuse`
 - **the switch notice flattened its per-element pairs, so an element left with nothing was affirmatively covered by a sentence about the elements that landed somewhere -- and the re-point path lacked the `or fields` fallback its deleted-column twin has carried since 2026-08-20, which is what made the mixed case reachable only here. Found by the switchdoor hunt of round nine (2026-08-26).**  
   guarded by `test_the_switch_notice_owns_every_element`
+- **nothing bounded the dialog's height, so a tall design on a small display put its own buttons off the screen.**  
+  guarded by `test_the_window_never_grows_past_the_screen`
 - **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
   guarded by `test_the_zigzag_needs_no_scipy`
 - **two column names that sanitise to one table name left the earlier column's saved style in the GeoPackage, so its hand-picked colours and field name travelled to whoever the file was sent to. Found by the kept-map hunt, 2026-08-27.**  
@@ -924,7 +926,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 131
-- the mutation campaign: 127
+- the mutation campaign: 128
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

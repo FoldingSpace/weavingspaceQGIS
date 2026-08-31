@@ -2754,6 +2754,85 @@ def test_live_update_gates():
   dlg.close()
 
 
+def test_the_window_never_grows_past_the_screen():
+  """The dialog is bounded by the display it is on, not by a constant.
+
+  The maintainer asked on 2026-08-29 that the window not take up the
+  whole screen, and said plainly that no clearance figure was owed and
+  today's size was fine -- "no shorter than now". So this is a CEILING
+  ON GROWTH: on a roomy display nothing changes at all.
+
+  WHAT IT FIXES IS WORSE THAN FILLING THE SCREEN. `_fit_to_design` had
+  no upper bound on height whatever, so a tall design on a small
+  display could put the dialog's own buttons off the bottom edge.
+  Width was bounded by `MAX_WINDOW_WIDTH`, a constant standing in for
+  "the narrowest screen still in use" rather than a reading of the
+  screen in front of somebody; nothing called `availableGeometry`.
+
+  WHAT THIS GUARD CAN AND CANNOT SEE, said out loud because a layout
+  test that asserts three things and can only check one reads as
+  though it checked three. The ASSEMBLED window is measurable only on
+  a real desktop -- offscreen reports 1279px where cocoa gives 1334 --
+  so what a person actually meets is measured by
+  `tools/platform_probe.py`, which runs first on every CI leg. What is
+  checkable anywhere, and is what this asserts, is the RULE: a size
+  larger than the available screen comes back smaller, a size that
+  fits comes back untouched, and the clamp is applied on every path
+  that grows the window.
+
+  Regression: nothing bounded the dialog's height, so a tall design on a small display put its own buttons off the screen. [mutation]
+  """
+  from qgis.PyQt.QtWidgets import QApplication
+  from weavingspace_qgis.dialog import SCREEN_SHARE, WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    screen = dlg.screen() or QApplication.primaryScreen()
+    assert screen is not None, \
+      "PREMISE: no screen at all, so nothing here can be bounded"
+    room = screen.availableGeometry()
+    allowed = (int(room.width() * SCREEN_SHARE),
+               int(room.height() * SCREEN_SHARE))
+
+    # A SIZE THAT FITS IS UNTOUCHED: this is a ceiling, not a resize,
+    # and a clamp that shrank an ordinary window would be the fault
+    # the maintainer explicitly ruled out.
+    modest = (min(1180, allowed[0]), min(560, allowed[1]))
+    assert dlg._within_the_screen(*modest) == modest, \
+      f"a window of {modest} was moved to " \
+      f"{dlg._within_the_screen(*modest)}, and today's size is fine"
+
+    # A SIZE LARGER THAN THE SCREEN COMES BACK SMALLER, on BOTH axes,
+    # and the height is the one that had no bound at all.
+    huge = (room.width() * 3, room.height() * 3)
+    bounded = dlg._within_the_screen(*huge)
+    assert bounded[0] <= allowed[0], \
+      f"a window {huge[0]}px wide came back {bounded[0]}, over the " \
+      f"{allowed[0]} this screen allows"
+    assert bounded[1] <= allowed[1], \
+      f"a window {huge[1]}px tall came back {bounded[1]}, over the " \
+      f"{allowed[1]} this screen allows -- which is the axis that had " \
+      f"no bound at all"
+    assert bounded[1] < room.height(), \
+      "the window may be exactly as tall as the screen, which is the " \
+      "whole screen and what the maintainer asked against"
+
+    # AND EVERY PATH THAT GROWS THE WINDOW GOES THROUGH IT. Read off
+    # the source, because a path that resizes without the clamp is
+    # exactly how this returns: three sites call `resize`, and any new
+    # one has to say why it is not bounded.
+    source = open(os.path.join(
+      ROOT, "weavingspace_qgis", "dialog.py"), encoding="utf-8").read()
+    unbounded = [line.strip() for line in source.splitlines()
+                 if re.search(r"self\.resize\(", line)
+                 and "_within_the_screen" not in line]
+    assert not unbounded, \
+      "a window resize that the screen does not bound: " + "; ".join(unbounded)
+  finally:
+    dlg.close()
+
+
 def test_the_experimental_box_gates_its_tabs():
   """An experimental tab is greyed and unusable until the box is ticked.
 
@@ -74110,6 +74189,8 @@ def main():
         test_live_update_gates)
   check("design cascade (n/kind/family/options/fit)",
         test_design_cascade)
+  check("the window never grows past the screen",
+        test_the_window_never_grows_past_the_screen)
   check("the experimental box gates its tabs",
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",

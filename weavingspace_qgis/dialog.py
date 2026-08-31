@@ -698,6 +698,26 @@ def _ramp_icon(name: str, reverse: bool = False):
 # it replaces.
 MAX_WINDOW_WIDTH = 1480
 
+# HOW MUCH OF THE SCREEN THE WINDOW MAY TAKE, on each axis, of the
+# area the window manager leaves free (which already excludes a menu
+# bar, a dock or a taskbar).
+#
+# THE MAINTAINER DECLINED TO GIVE A FIGURE, and was right to: their ask
+# on 2026-08-29 was that the window "not take up the whole screen",
+# with today's size explicitly fine -- "no shorter than now". So this
+# is a CEILING ON GROWTH rather than a resize, and on any roomy
+# display it does nothing at all. Some number is needed to make "not
+# the whole screen" mean something, and 0.95 is chosen rather than
+# measured: it leaves a visible margin on every side without moving a
+# window anybody currently has. It is one constant, in one place, for
+# whoever wants it different.
+#
+# WHAT THIS FIXES IS WORSE THAN FILLING THE SCREEN. `_fit_to_design`
+# had NO upper bound on height at all, so on a display smaller than
+# this one the window could be taller than the screen -- with the
+# buttons along its bottom edge unreachable.
+SCREEN_SHARE = 0.95
+
 # THE WIDTH EACH COLUMN MAY NEVER GO BELOW, which is the width the
 # constructor gives it. `_fit_table_width` grows a column to what its
 # content needs and, where the window would then be wider than the
@@ -3156,7 +3176,10 @@ class WeavingSpaceDialog(QDialog):
 
     # wider than tall: room for the table's columns, height set by the
     # Design tab so the map stays visible behind the dialog
-    self.resize(1180, 560)
+    # The opening size, bounded by the screen it opens on: on any
+    # ordinary display this is exactly 1180x560, and on a small one it
+    # is what fits rather than what overhangs.
+    self.resize(*self._within_the_screen(1180, 560))
 
     # any of these should refresh the live map too (design controls
     # already funnel through _queue_preview)
@@ -3194,7 +3217,50 @@ class WeavingSpaceDialog(QDialog):
       layout.invalidate()
       layout.activate()
     height = self._design_wrapper.sizeHint().height() + 96
-    self.resize(max(self.width(), 1180), max(400, height))
+    self.resize(*self._within_the_screen(
+      max(self.width(), 1180), max(400, height)))
+
+  def _within_the_screen(self, width: int, height: int):
+    """Bound a size the window is about to take by the screen it is on.
+
+    Args:
+      width: the width the layout would like.
+      height: the height it would like.
+
+    Returns:
+      (width, height), each no more than `SCREEN_SHARE` of the area
+      the window manager leaves free. Unchanged where the size already
+      fits, which on an ordinary desktop is always -- this is a
+      ceiling on growth, not a resize (maintainer, 2026-08-29).
+
+    ASKED OF THE SCREEN THE WINDOW IS ON, not of a constant. The width
+    was bounded by `MAX_WINDOW_WIDTH`, a number standing in for "the
+    narrowest screen still in use", and the height was not bounded at
+    all -- so a design tall enough could put the dialog's own buttons
+    off the bottom of a small display, which is worse than filling it.
+
+    AND THE HEIGHT IS BOUNDED BY BOUNDING WHAT DRIVES IT. A window
+    opens at its sizeHint and a MINIMUM never bounds a preferred size,
+    which is the lesson four failed repairs bought on 2026-08-29, so
+    the assignment table scrolls VERTICALLY where the room runs out.
+    That is the acceptable direction: a vertical scrollbar is ordinary
+    where a horizontal one is what the layout rule of 2026-08-09
+    exists to avoid.
+
+    NO GUARD HERE OR ON CI CAN SEE THE ASSEMBLED WINDOW -- offscreen
+    reports 1279px where cocoa gives 1334 -- so what this promises is
+    measured by `tools/platform_probe.py` on a real desktop, and the
+    unit test can only ask that a size larger than the screen comes
+    back smaller.
+    """
+    screen = self.screen() or QApplication.primaryScreen()
+    if screen is None:
+      # A window with no screen is a headless one; there is nothing to
+      # be too large for, and inventing a bound would be a fixture.
+      return width, height
+    room = screen.availableGeometry()
+    return (min(width, int(room.width() * SCREEN_SHARE)),
+            min(height, int(room.height() * SCREEN_SHARE)))
 
   def _form_row(self, form: QFormLayout, label: str, widget: QWidget):
     """Add a labelled row to a form.
@@ -6812,8 +6878,12 @@ class WeavingSpaceDialog(QDialog):
     self.table.setMinimumWidth(needed)
     shortfall = needed - self.table.width()
     if shortfall > 0 and self.width() < MAX_WINDOW_WIDTH:
-      self.resize(min(MAX_WINDOW_WIDTH, self.width() + shortfall),
-                  self.height())
+      # THE SCREEN BOUNDS THIS TOO, and it is the growth path most
+      # likely to meet a small display: the table asks for room, the
+      # window gives it, and past the screen the columns give back
+      # what they can instead (COLUMN_SUM_BUDGET above).
+      self.resize(*self._within_the_screen(
+        min(MAX_WINDOW_WIDTH, self.width() + shortfall), self.height()))
 
   def _shelve_scheme(self, tile_id, prev):
     """Put an element's scheme on the shelf and take it out of force.

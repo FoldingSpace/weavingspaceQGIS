@@ -51,6 +51,14 @@ PLATFORM_TESTS = [
   "test_the_ceiling_holds_when_the_columns_want_more_than_it",
   "test_the_window_fits_the_narrowest_screen",
   "test_the_table_copes_with_the_largest_element_count",
+  # The ASSEMBLED window against the screen it opens on, which is the
+  # one thing no runner here can measure: offscreen reports 1279px
+  # where cocoa gives 1334, and `availableGeometry` on a headless
+  # platform is not a claim about anybody's desk. The unit test can
+  # only ask that the RULE holds -- a size larger than the screen
+  # comes back smaller -- so what a person actually meets is measured
+  # here. (Added 2026-08-30 with the ceiling itself.)
+  "test_the_window_never_grows_past_the_screen",
   # Locale changes the text in every control, so it changes the widths
   # too -- German and Arabic both reported the 2026-08-29 fault, and
   # the right-to-left case exercises the layout a second way.

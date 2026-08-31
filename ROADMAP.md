@@ -696,41 +696,53 @@ SAME DAY:
    own 0.24.5 entry asked to have decided; the wrappers are thin, so
    the suite's modal shim intercepts them unchanged.
 
-**WHAT IS STILL OWED, AND IT IS THE ONLY THING BLOCKING THE
-DECLARATION:**
+**AND THE SIXTH IS BUILT TOO, WHICH CLEARS THE SECTION.**
 
-**THE WINDOW MUST NOT TAKE UP THE WHOLE SCREEN.** The intent is
-written in the source and enforced nowhere: the constructor's
-`resize(1180, 560)` carries the comment "height set by the Design tab
-so the map stays visible behind the dialog", while `_fit_to_design`
-ends `resize(max(self.width(), 1180), max(400, height))` with NO upper
-bound on height at all, and `MAX_WINDOW_WIDTH = 1480` is a constant
-standing in for "the narrowest screen still in use" rather than a
-reading of the screen in front of somebody. Nothing calls
-`availableGeometry`.
-THE ASK IS SMALLER THAN IT FIRST LOOKS, and the maintainer said so
-when this entry asked them for a clearance figure: it is not a
-question about screen height and no number is owed. **The window
-simply must not take up the whole screen**, and today's size is fine
--- "no shorter than now". So this is a CEILING ON GROWTH and not a
-resize.
-THAT MAKES IT AN ORDINARY REPAIR RATHER THAN A RULING. The settled
-layout rule of 2026-08-09 keeps its three priorities and gains no
-fourth; the width clause simply stops standing on `MAX_WINDOW_WIDTH`
-as a guess and asks the display in front of the person instead.
-AND TODAY'S LESSON APPLIES DIRECTLY: a window opens at its sizeHint
-and a MINIMUM NEVER BOUNDS A PREFERRED SIZE, so bounding the height
-means bounding whatever DRIVES it -- which on a display too small to
-hold today's window means the assignment table scrolling VERTICALLY.
-That is the acceptable direction, a vertical scrollbar being ordinary
-where a horizontal one is what the 2026-08-09 rule exists to avoid.
-AND NO GUARD HERE OR ON CI CAN SEE THE ASSEMBLED WINDOW -- offscreen
-reports 1279 where cocoa gives 1334 -- so this belongs in
-`tools/platform_probe.py`, measuring `dlg.width()` and `dlg.height()`
-after `show()` against `availableGeometry()`, which is the quantity a
-failure would print. The Design tab now asks for far less width than
-it did, which is what this entry predicted would make the ceiling
-nearly free.
+8. **THE WINDOW IS BOUNDED BY THE SCREEN IT IS ON.** `_within_the_
+   screen` clamps every path that resizes the dialog to
+   `SCREEN_SHARE` of `availableGeometry`, and all three resize sites
+   go through it -- the opening size, the fit to the Design tab, and
+   the growth the assignment table asks for. On a roomy display it
+   does nothing, which is what "no shorter than now" asks.
+   WHAT IT REALLY FIXES IS WORSE THAN FILLING THE SCREEN: the height
+   had NO upper bound at all, so a tall design on a small display
+   could put the dialog's own buttons off the bottom edge. Width was
+   bounded by `MAX_WINDOW_WIDTH`, a constant standing in for "the
+   narrowest screen still in use"; nothing called `availableGeometry`.
+   THE ONE NUMBER IS CHOSEN AND SAID SO. The maintainer declined to
+   give a clearance figure and was right to -- the ask was a ceiling
+   on growth, not a resize -- but "not the whole screen" needs some
+   margin to mean anything, so 0.95 of the free area sits in one
+   constant with the reasoning at the line, for whoever wants it
+   different.
+   AND THE GUARD SAYS WHICH HALF IT HOLDS. No runner here can measure
+   the ASSEMBLED window -- offscreen reports 1279px where cocoa gives
+   1334 -- so the unit test asserts the RULE (a size larger than the
+   screen comes back smaller, a size that fits is untouched, and no
+   `resize` call escapes the clamp), and the assembled window is
+   measured by `tools/platform_probe.py`, which this joins.
+
+nothing outstanding in code.
+
+WHAT REMAINS IS THE MAINTAINER'S OWN, and neither is work on the
+software: the CHANGELOG LINE for everything above, which is a sentence
+a person writes and approves, and the FOURTEEN REVIEWED SENTENCES in
+the text-review queue -- the slider's box, the two renamed transform
+labels, the experimental box, the Messages tab and the prose about
+them, and the three download sentences that now describe a versioned
+artefact. CI will fail until those are approved, which is the gate
+working: approving prose is nobody else's act.
+
+AND ONE THING IS FLAGGED RATHER THAN DECIDED. The element slider's
+track spans the whole catalogue, 2 to 256, where this section's own
+design note asked for a ceiling that moves with the kind. The note's
+number was wrong -- 26 is the ID ceiling for a weave's strand letters
+and the catalogue holds weave families only to n=12 -- so a
+weave-capped track would offer thirteen counts with no weave family
+behind them AND retire the contract `test_design_cascade` states
+outright, that a count offering only one kind flips the toggle
+silently. If the track should stop where the weaves do, that is a
+ruling and it retires that contract; it is one line either way.
 
 IT IS WITHDRAWN RATHER THAN LEFT STANDING BECAUSE THE GATE READS THE
 PHRASE. `check_roadmap` decides a section is clear by looking for

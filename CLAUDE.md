@@ -4872,8 +4872,22 @@ here, and the decision to add one is the maintainer's. Recorded
   before the plain path, so the packaging check cannot have overwritten
   a profile, and the gate's own log confirmed it printed no `updated`
   line. The profiles are also not symlinks or hard links into the
-  working tree. WHAT WROTE THAT PROFILE IS STILL UNIDENTIFIED and is
-  recorded as open rather than guessed at a third time.
+  working tree.
+  IT WAS IDENTIFIED ON 2026-08-30, by taking a reading BEFORE
+  overwriting the evidence -- the maintainer had asked for the
+  candidate to be put back, which would have destroyed it. The build
+  in that profile was BYTE-IDENTICAL to the unversioned
+  `dist/weavingspace_qgis.zip` across all 31 members, against exactly
+  one differing member versus the rc5 zip. So an UNGATED artefact had
+  been installed over a gated candidate, and the title bar had been
+  reporting it faithfully ever since. Nothing in the tree installs an
+  unversioned zip, so it was a hand-run of `install_into`.
+  THE LESSON IS THE ORDER. A fix that overwrites the evidence is a
+  diagnosis you will never make: the reading cost five minutes and
+  turned an open ledger row into a closed one, and it turned the
+  unversioned-artefact rule from a tidiness argument into a measured
+  harm. When an instruction would destroy the state a question is
+  about, take the measurement first and say that you did.
 - **A CLAIM'S MECHANISM IS USUALLY RIGHT AND ITS HARM USUALLY IS NOT,
   AND THE DOOR IT NAMES IS WHEREVER THE HUNT WAS STANDING.**
   (2026-08-29, taking sixteen owed claims to the end.) This file

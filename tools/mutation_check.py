@@ -8244,6 +8244,15 @@ MUTATIONS = [
   # test_the_group_chooser_is_the_only_door_to_a_new_group, which
   # asserts the STRUCTURE -- no second checkbox, the chooser arms,
   # a real group releases -- rather than two records agreeing.
+  dict(name="the-window-is-bounded-by-its-screen", file=DIALOG,
+       old="""    return (min(width, int(room.width() * SCREEN_SHARE)),
+            min(height, int(room.height() * SCREEN_SHARE)))""",
+       new="""    return width, height  # mutation: the screen bounds nothing""",
+       test="test_the_window_never_grows_past_the_screen",
+       why="the height had no bound at all, so a tall design on a "
+           "small display put the dialog's own buttons off the bottom "
+           "edge -- which is worse than filling the screen, and is "
+           "what the maintainer's ask of 2026-08-29 stops"),
   dict(name="an-experimental-tab-starts-greyed", file=DIALOG,
        old="    self.opt_experimental.setChecked(False)",
        new="    self.opt_experimental.setChecked(True)",

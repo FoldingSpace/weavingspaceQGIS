@@ -27,6 +27,15 @@ EMPTY project, which is the rule that makes a failure name the test
 that is actually broken -- so a slice is a legitimate subset rather
 than a different suite. It took the suite from 32 minutes to 11.
 
+**AND A SHARD'S VERDICT IS NOT ITS LAST LINE.** (2026-08-30.) A watcher
+reporting `tail -1` showed a GDAL warning where a shard had in fact
+finished — "231 passed, 0 failed" sits several lines above, because
+OGR writes an auxiliary-file warning on the way out. Read for the
+verdict LINE, not for the end of the file, and where there is no
+verdict line say so in those words: a shard that died and a shard
+whose last line is noise look identical to a naive tail, and only one
+of them is a problem.
+
 **AND A SHARD CAN DIE AT STARTUP, WHICH LOOKS LIKE NOTHING AT ALL.**
 (2026-08-28.) Recording per-test coverage three ways, shard 0 was gone
 before it ran a single test: `main()` cleared its scenario record with

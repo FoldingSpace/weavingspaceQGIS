@@ -67,6 +67,47 @@ not open. The tell is that the entry's site and the test's acts have
 no path between them -- which is a question about the product, not
 about the assertions, and reading the test again will never answer it.
 
+## THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
+
+2026-08-30, and it is the font lesson below arriving through a
+different property of the same widget stack.
+
+The maintainer reported that every control on the Design tab ran the
+width of the window. Two binding documents named the cause: a
+QFormLayout stretches its field column. Measured on both trees in one
+run, under the harness this project actually uses, EVERY CONTROL
+ALREADY SAT AT ITS OWN HINT BEFORE THE REPAIR -- nothing stretched,
+and the first guard written for the fix passed on the unrepaired code.
+
+**WHETHER A FIELD COLUMN STRETCHES IS DECIDED BY THE STYLE.** The
+macOS style's default `fieldGrowthPolicy` is `FieldsStayAtSizeHint`;
+Fusion's is `AllNonFixedFieldsGrow`. A bare QApplication in the suite
+takes the macOS style on this machine; QGIS ships Fusion as a style
+people select. Under Fusion the same tree drew a strand width between
+0.083 and 1.0 at 1013px against a hint of 63.
+
+So the report was real, the cause was real, and the harness could see
+none of it. THE GUARD SETS THE STYLE NOW, restoring it in a `finally`,
+which is the same move as setting a font to reach a column
+measurement: ask what the other machine has more of, and set that
+quantity directly.
+
+TWO THINGS TO CARRY. **Ask what a harness supplies that a user does
+not** -- this project already knows the answer for `QT_QPA_PLATFORM`
+and for the font, and the STYLE is a third with the same shape and its
+own defaults. And **a stated cause that nobody measured reads exactly
+like a measured one**: the sentence had reached ROADMAP.md and
+MAINTAINING.md and was repeated into code comments before anything
+checked it, which is this project's own rule about a site named by
+reading, arriving at a CAUSE instead of a location.
+
+AND THE FIRST READING WAS TAKEN TOO EARLY, which is what made the
+wrong cause look confirmed. A single `processEvents()` after `show()`
+reported the region chooser at 861px with a hint of 33; pumped
+properly it reads 53 and 53. `sizeHint` is stale before a real layout
+pass, and so is `width()` -- so a width read one event after showing
+is a measurement of a half-assembled window.
+
 ## A GUARD CAN CHECK WHAT A COLUMN NEEDS AND NOT WHAT A WINDOW DOES
 
 2026-08-29, and it is the sharpest thing about measuring a layout
