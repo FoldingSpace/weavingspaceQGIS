@@ -4335,6 +4335,26 @@ def test_an_edit_for_a_class_that_has_gone_is_reported():
     "design the map does not have")
   assert gone in refusals[0], \
     f"the refusal does not name the class it could not find: {refusals[0]}"
+  # ...AND IT SAYS WHAT THIS DESIGN DOES HAVE, which is the difference
+  # between a refusal somebody can act on and one they cannot.
+  # IT IS ALSO WHAT KEEPS THE EXACT CHECK GUARDED. Since `_same_shape`
+  # was repaired the no-op report covers this journey too -- an edit
+  # matching nothing changes nothing, and that is now said -- so the
+  # first two assertions pass with the selector check deleted
+  # outright, and its catalogue entry duly SURVIVED on 2026-08-31.
+  # Only the exact check can name the classes the design holds.
+  edges = have.get("edge") or ""
+  assert edges, "PREMISE: this design has no edge classes to name"
+  # THE WHOLE PHRASE, NOT THE LABELS. A first draft asserted that the
+  # class letters appeared anywhere in the sentence, and `ab` is inside
+  # "changed nothing ABout it" -- so the no-op report satisfied it and
+  # the entry went on surviving. A one or two letter label is a
+  # substring of ordinary English, which makes it useless as evidence
+  # about which sentence was composed.
+  assert f"classes are {edges}" in refusals[0], (
+    f"the refusal does not say which edge classes this design has, so "
+    f"somebody is told what did not work and never what would: "
+    f"{refusals[0]!r}")
   # ...and the design is left alone, which is the other half: a refusal
   # that had also mangled the unit would be worse than the silence.
   assert edited is not None, "the refusal threw the design away"

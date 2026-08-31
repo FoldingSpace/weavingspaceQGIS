@@ -744,12 +744,26 @@ committed and guarded, and this is where it stands.
   CLOSED -- see the entry above, which is two faults and their
   measurements.
 
-WHAT IS LEFT BEFORE THE PHRASE GOES BACK: the full sharded suite over
-this tree, which `release.py --rc` performs as its fourth stage, so a
-candidate is where it happens rather than a separate run. Whether the
-interface work belongs in 0.24.4 or moves to 0.24.5 remains the
-maintainer's decision and no tool may make it; it has stayed here by
-default, which is the status quo rather than a choice anybody made.
+**AND THE DECLARATION GOES BACK ON 2026-08-31.**
+There is nothing outstanding in code for 0.24.4.
+Every item this paragraph listed is
+built, guarded by a registered test and proved by a catalogue entry;
+what remains below is the maintainer's own and changes no software.
+
+WHAT THE PHRASE IS RESTING ON, said plainly so it can be checked
+rather than believed. Ten topology and interface tests green, eight
+catalogue entries proved `caught` -- four new, two re-anchored where
+the drop's line moved, one re-aimed and one narrowed -- and the two
+that SURVIVED first were both mutations of mine aimed at the wrong
+thing, repaired rather than accepted. The full sharded suite is the
+one thing not yet run over this tree, and it is the candidate's fourth
+stage: running it standalone first buys no earlier warning and doubles
+the wait, which is this project's own rule.
+
+Whether the interface work belongs in 0.24.4 or moves to 0.24.5
+remains the maintainer's decision and no tool may make it; it has
+stayed here by default, which is the status quo rather than a choice
+anybody made.
 
 WHAT REMAINS IS THE MAINTAINER'S OWN, and neither is work on the
 software: the CHANGELOG LINE for everything above, which is a sentence
@@ -771,12 +785,14 @@ outright, that a count offering only one kind flips the toggle
 silently. If the track should stop where the weaves do, that is a
 ruling and it retires that contract; it is one line either way.
 
-IT IS WITHDRAWN RATHER THAN LEFT STANDING BECAUSE THE GATE READS THE
+IT WAS WITHDRAWN RATHER THAN LEFT STANDING BECAUSE THE GATE READS THE
 PHRASE. `check_roadmap` decides a section is clear by looking for
 "nothing outstanding" with quoted spans stripped, so a section
 carrying the declaration AND a list of work would clear a candidate
 that owes both -- which is this file's own recorded fault about a
-gate satisfied by a sentence, arriving from the other side.
+gate satisfied by a sentence, arriving from the other side. That is
+why it went back only once the list was empty rather than once the
+work felt close.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did

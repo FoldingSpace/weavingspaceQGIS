@@ -2546,12 +2546,15 @@ MUTATIONS = [
        # after it, a landing about the wrong design was shown rather
        # than discarded, and the file's own key could not tell the two
        # apart either. Found 2026-08-31 while giving the file that key.
-       # Bound to the line above, which differs: `_edited_unit_key`
-       # carries a modifier tuple of its own a few lines away.
-       old="""            tuple(sorted(kwargs.items())),
-            (self.mod_rotate.value(),""",
-       new="""            tuple(sorted(kwargs.items())),
-            (0.0 * self.mod_rotate.value(),""",
+       # RE-AIMED 2026-08-31, having SURVIVED: it neutralised ROTATE,
+       # and the test that names it moves the TILE INSET, so the stamp
+       # went on changing through a term the mutation never touched. A
+       # mutation aimed at the wrong member of a tuple is a verdict
+       # about nothing -- this project's own rule that a treatment
+       # whose control also holds has measured nothing, met inside the
+       # catalogue.
+       old="""             self.mod_t_inset.value(), self.mod_p_inset.value()))""",
+       new="""             0.0, self.mod_p_inset.value()))""",
        test="test_a_design_without_a_topology_leaves_none_in_the_file",
        why="a topology answer being about the design in front of you, "
            "modifiers included, rather than about the one before the "
