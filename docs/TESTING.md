@@ -3917,6 +3917,14 @@ longer wait would have cured nothing, and the reach for one would have
 been a fix invented for a cause nobody had found. Recording that the
 cause is still open is worth more than a repair that happens to go
 green.
+AND SLOWNESS ALONE DOES NOT REPRODUCE IT HERE, which narrows what is
+left rather than closing it. The one thing that runner has more of is
+time, so ten busy loops were started -- load average about twelve --
+and the test passed three times out of three under them. So this is
+not the counting fault above wearing different clothes; something
+about that PLATFORM, or a far rarer interleaving, is still unaccounted
+for. A direction tried and empty is worth more to the next person than
+a direction untried.
 
 ## A probe that cannot reach its own case (2026-08-31)
 
