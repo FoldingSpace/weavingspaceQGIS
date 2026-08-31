@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-452 defect(s) with a regression test.
+460 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -20,6 +20,11 @@ there is no separate list to remember.
   guarded by `test_the_ramp_cell_agrees_with_the_map`
 - **nothing compared a row's stated field and style against the renderer the run produced, so a map could carry a different field from the one the table named.**  
   guarded by `test_the_row_agrees_with_the_map_about_what_it_shows`
+
+## Found by re-reading the procedural documents
+
+- **the inline-span pass read the document RAW, and a ``` fence line carries three backticks -- the pattern needs a non-backtick between a pair, so the first two cannot pair and the third opened a span running to the next backtick. Everything quoted after a fence was invisible and scraps of prose were collected as commands instead. Measured 2026-08-31: MAINTAINING.md contributed ONE command reference where it carries thirteen, and the one the gate could not see named `dev/instruments/probe_zigzag_cleaners.py`, a gitignored path that does not exist -- the same defect whose sibling in ROADMAP.md failed CI and superseded rc6, left standing because the repair went to the instance CI named. Fifteen references were hidden across the gated documents. The per-document check could not catch it either: a document that contributes SOMETHING passes.**  
+  guarded by `test_every_documented_command_still_exists`
 
 ## Found by a family audit of the claims the software makes
 
@@ -359,6 +364,8 @@ there is no separate list to remember.
   guarded by `test_a_dataset_switch_says_what_it_re_points`
 - **removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word.**  
   guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
+- **a topology edit plus a tile inset deferred every Generate for ever, four builds a second, and the map never drew.**  
+  guarded by `test_a_design_that_cannot_carry_its_edits_still_draws`
 - **a design that stopped carrying a topology left the previous one's unit in the file.**  
   guarded by `test_a_design_without_a_topology_leaves_none_in_the_file`
 - **a plugin the user had disabled went on writing to the project and speaking into QGIS's message bar. Found by the two-dialogs hunt, 2026-08-27.**  
@@ -383,6 +390,8 @@ there is no separate list to remember.
   guarded by `test_a_fields_return_wears_its_own_style_and_keeps_its_picks`
 - **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
   guarded by `test_a_file_already_open_resumes_completely`
+- **a dialog built at one font and met at a larger one kept its old field width, and the Pattern chooser could not tell two weaves apart.**  
+  guarded by `test_a_font_change_moves_the_design_tab_s_fields`
 - **setting an output path made every Generate write the GeoPackage, so a file chosen for later was written to at once and a live update rewrote somebody's file on every keystroke.**  
   guarded by `test_a_generate_draws_and_only_a_save_writes`
 - **the graduated copy moved positional colours only (digit keys), so the hand-picked No data colour stayed behind and the target's twin drew default grey where the categorical copy carries its catch-all. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
@@ -457,6 +466,8 @@ there is no separate list to remember.
   guarded by `test_a_resumed_layer_is_named_as_a_fresh_one_is`
 - **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
   guarded by `test_a_retired_dialogs_landing_is_discarded`
+- **a save made between a topology edit and its Generate wrote a motif the record named another design for, and the next reopen deleted it.**  
+  guarded by `test_a_save_with_an_edit_outstanding_leaves_the_motif_alone`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
   guarded by `test_a_saved_map_can_be_opened_and_carried_on`
 - **a pin or hand-picked colour made for one field died at every persistence boundary the moment the row was saved showing another field -- the group record and stamps carried the displayed field alone. Found by the oscillation-and-persistence hunt of 2026-08-26, the byte-grep of the .qgz as its second route; ruled the same day.**  
@@ -471,10 +482,14 @@ there is no separate list to remember.
   guarded by `test_a_switched_variable_leaves_no_orphan_in_the_file`
 - **a text column's shared classification source came back empty, so one colour meant different values on different elements.**  
   guarded by `test_a_text_column_shares_one_classification`
+- **a live tick that fired while a save was writing was discarded, so the map silently stopped following the controls.**  
+  guarded by `test_a_tick_dropped_by_a_save_comes_back`
 - **element ids were capped at 26 for every family, so a tiling could not carry more variables than the lowercase alphabet has letters. Raised for tilings at the maintainer's asking, 2026-08-27.**  
   guarded by `test_a_tiling_may_carry_two_letter_elements`
 - **an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control.**  
   guarded by `test_a_topology_edit_reaches_the_map`
+- **a Generate pressed during a topology build left a live tick standing, and every later Save was deferred for ever.**  
+  guarded by `test_a_topology_landing_does_not_strand_a_live_tick`
 - **a topology built for one design was shown against another, so the tab described a unit the map was not made of.**  
   guarded by `test_a_topology_that_lands_late_is_discarded`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
@@ -553,6 +568,8 @@ there is no separate list to remember.
   guarded by `test_the_element_slider_follows_a_restore`
 - **experimental tabs shipped reachable, so work still being designed was offered as though it were settled.**  
   guarded by `test_the_experimental_box_gates_its_tabs`
+- **the Topology tab stayed reachable with the box off after the design moved, showing another design's classes.**  
+  guarded by `test_the_experimental_exemption_closes_again`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
   guarded by `test_the_file_carries_the_design_the_map_is_wearing`
 - **none yet -- this guards the boundary the `kept` map created the day it was born, because the file's record is written from the same capture and would otherwise inherit the key.**  
@@ -565,6 +582,8 @@ there is no separate list to remember.
   guarded by `test_the_map_survives_its_file_being_deleted`
 - **a run refused through a modal left the message bar empty, so the user had no way to see what the plugin had told them.**  
   guarded by `test_the_messages_tab_records_what_the_plugin_said`
+- **the Messages tab's answer column sat off the right-hand edge, which is the one thing that tab is for.**  
+  guarded by `test_the_messages_tab_shows_the_answer_beside_the_question`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **the no-data count included areas with no geometry, which draw nothing at all, so the sentence promised more no-data areas than the map contains. Found by the notices hunt, 2026-08-27.**  
@@ -955,7 +974,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 142
+- the mutation campaign: 149
 - a bug hunt pointed in a named direction: 131
 - not written down at the time: 88
 - reported by a user: 30
@@ -969,3 +988,4 @@ there is no separate list to remember.
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
 - comparing rendered output against the reference in Lab space: 1
+- re-reading the procedural documents: 1

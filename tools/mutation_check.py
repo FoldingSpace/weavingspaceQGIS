@@ -2595,6 +2595,202 @@ MUTATIONS = [
        test="test_the_design_tab_lines_up_and_opens_narrow",
        why="Region layer, QGIS Layer Group, Number of elements and "
            "Pattern ending at one edge rather than four"),
+  dict(name="the-labels-follow-the-font-too",
+       file=DIALOG,
+       # The sibling entry's repair moved the field width and the
+       # modifier boxes and MISSED three more snapshots: the label
+       # column, the margin that lines the two form blocks up, and the
+       # Over-under box. Found by a hunt aimed at that repair, hours
+       # after it was written, with a built-at-that-font control arm.
+       # Measured at 20pt on a dialog built at 9: the two label
+       # columns split by 138px against a control of 0, and "Number of
+       # elements" was cut to "Number of elem" WITH NO ELLIPSIS, which
+       # a QLabel does silently.
+       # MUTATED AWAY, the labels keep their construction width and
+       # the test's "does any label lose text" arm goes red.
+       old="""      self._align_the_label_columns(*forms)""",
+       new="""      pass""",
+       test="test_a_font_change_moves_the_design_tab_s_fields",
+       why="labels that still say what they say at the font somebody "
+           "reads them in, rather than cut off with no ellipsis"),
+  dict(name="the-fields-follow-the-font-they-are-shown-at",
+       file=DIALOG,
+       # `_field_width` is a PIXEL taken once at construction, and a
+       # holder's fixed width is what the control inside it actually
+       # gets -- so it silently overrides the two choosers' own
+       # character-based widths the moment the font moves. Measured:
+       # a dialog built at 9pt and met at 20pt kept its 250px Pattern
+       # chooser, where one BUILT at 20pt is 522px, and two pairs of
+       # weave names elided to one string apiece.
+       # MUTATED AWAY, the font change is ignored and the reused
+       # dialog stops matching the freshly built one, which is what
+       # the test compares.
+       old="""    if event.type() == QEvent.Type.FontChange:""",
+       new="""    if False:""",
+       test="test_a_font_change_moves_the_design_tab_s_fields",
+       why="a Pattern chooser that can tell two designs apart at the "
+           "font somebody actually reads it in"),
+  dict(name="a-full-message-log-does-not-freeze-the-dialog",
+       file=DIALOG,
+       # The sibling entry's repair -- three columns set to
+       # ResizeToContents so the answer stays in the viewport -- cost
+       # ten to eighteen SECONDS per message once the log reached its
+       # 500-row ceiling, because Qt measures every row by default and
+       # the refresh rewrites every cell. Found by a hunt aimed at
+       # that repair, hours after it was written; the two entries are
+       # the two halves of one control and both must hold.
+       # MUTATED BACK TO QT'S DEFAULT of 1000 rows, the bound stops
+       # binding and the cost returns. The test compares the cost at
+       # the ceiling against the cost below it, so contention cannot
+       # produce a false verdict either way.
+       # RE-AIMED 2026-08-31, having SURVIVED once at the precision
+       # bound. Two reasons, and both are worth keeping. The test
+       # filled the log PAST its ceiling, where the row count still
+       # changes and the table takes a cheap path -- so the probe
+       # could not reach its own case. And the bound alone was not
+       # the fix: at the ceiling it gave 412ms against Qt default's
+       # 8,563ms, which is better and still a visible hitch. What
+       # takes it to 5ms is suspending the modes across the rewrite,
+       # so this stands on that.
+       old="""      header.setSectionResizeMode(
+        column, QHeaderView.ResizeMode.Interactive)""",
+       new="""      pass""",
+       test="test_the_messages_tab_shows_the_answer_beside_the_question",
+       why="a dialog that keeps answering while the plugin talks, "
+           "rather than one that freezes for ten seconds a message"),
+  dict(name="the-answer-column-stays-inside-the-viewport",
+       file=DIALOG,
+       # The Messages tab exists to put the ANSWER beside the
+       # question. Its refresh ended in `resizeColumnsToContents()`
+       # with nothing to bound it, and column 2 holds whole sentences:
+       # measured at 1253px for "What it said", with "Your answer"
+       # beginning at 1372px inside a 513px viewport.
+       # MUTATED, the long column stops stretching and goes back to
+       # taking whatever its contents want, which pushes the answer
+       # off the right-hand edge again.
+       old="""    mheader.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)""",
+       new="""    mheader.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)""",
+       test="test_the_messages_tab_shows_the_answer_beside_the_question",
+       why="the answer beside the question, which is the whole reason "
+           "that tab exists, rather than 859px off the edge"),
+  dict(name="the-experimental-exemption-closes-again",
+       file=DIALOG,
+       # The Topology tab is exempt from the unticked box while the
+       # design in force holds edits, and that answer is keyed by
+       # family AND element count -- so it goes false when the design
+       # moves. Nothing re-asked it: the gate had four callers and a
+       # design change was none of them. Left open, the panel goes on
+       # offering the PREVIOUS design's class list (laves showing
+       # A/B/AB/a/b/ab beside a design with only A and a), and an edit
+       # applied there is shelved under the design now on screen.
+       # MUTATED AWAY at the element-count door, the exemption stays
+       # open and the guard's second half finds the tab reachable.
+       # AIMED AT THE DECISION, NOT AT A DOOR, and it took two
+       # survivals to get there. The gate is asked from three sites --
+       # the shelf writer, the family handler and the element-count
+       # handler -- and changing the element count REPOPULATES the
+       # family list, so the family handler re-asks anyway: an entry
+       # on any single door survives while the other two do the work.
+       # That is this project's own "break every route at once, or the
+       # catalogue measures the other one". The three calls are kept
+       # as defence in depth, because which door fires today is
+       # incidental; the ENTRY stands on the one place the answer is
+       # decided.
+       # MUTATED, `holding_work` is always true, so the exemption can
+       # never close however many callers ask.
+       old="""    holding_work = bool(self._topology_edit_key())""",
+       new="""    holding_work = True""",
+       test="test_the_experimental_exemption_closes_again",
+       why="a tab that greys again when it has nothing left to "
+           "protect, rather than one offering another design's classes"),
+  dict(name="a-tick-dropped-by-a-save-is-armed-again",
+       file=DIALOG,
+       # `_live_timer` is single-shot and has just FIRED to reach the
+       # save gate, and the only two `start()` sites are a fresh
+       # control change and `_finish_run`. Returning without arming it
+       # again DISCARDS the tick -- while `_preview_timer` is not
+       # gated, so the preview and the assignment table follow the new
+       # design and the map does not, with nothing said. The comment
+       # at that gate claimed the opposite for hours, which is the
+       # worse half: a false comment is believed rather than checked.
+       # MUTATED AWAY, the tick is dropped again and the guard's
+       # treated arm finds the timer idle.
+       old="""      self._live_timer.start()
+      _dump("LIVE-GATE", "a-save-is-writing")""",
+       new="""      _dump("LIVE-GATE", "a-save-is-writing")""",
+       test="test_a_tick_dropped_by_a_save_comes_back",
+       why="a map that goes on following the controls after a save, "
+           "rather than one that silently stops"),
+  dict(name="a-topology-landing-clears-the-live-tick-it-supersedes",
+       file=DIALOG,
+       # The tiling landing in `_finish_run` clears `_live_pending`
+       # when it honours `_press_pending`, and says why at the line.
+       # The TOPOLOGY landing did not, so a press consumed there left
+       # the tick standing -- and `_honour_a_queued_save` refuses
+       # while one is outstanding, so every later Save was deferred
+       # for ever. Driven with a control arm: the treated journey
+       # wrote NO FILE AT ALL while the plugin said the map was about
+       # to be redrawn and saved afterwards, with nothing coming.
+       # MUTATED AWAY, the flag is stranded again and the guard's Save
+       # writes nothing. Anchored on the assignment rather than on the
+       # branch, because the branch is shared with the twin.
+       old="""        self._live_pending = False
+        QTimer.singleShot(0, self._generate)""",
+       new="""        QTimer.singleShot(0, self._generate)""",
+       test="test_a_topology_landing_does_not_strand_a_live_tick",
+       why="a Save that writes a file, rather than one deferred behind "
+           "a redraw that is never coming"),
+  dict(name="a-promise-the-design-cannot-keep-is-not-renewed",
+       file=DIALOG,
+       # The gate that ends the topology livelock. `_generate` defers
+       # whenever this design has edits and the edited unit cannot be
+       # put back; where the design cannot carry a topology AT ALL --
+       # a tile inset opens gaps and `Topology` needs a gap-free
+       # tiling -- the build lands with nothing to restore, so the
+       # condition is as true as it was and the re-pressed run walks
+       # straight back in. Measured at 81 builds in twenty seconds
+       # with no map drawn.
+       # MUTATED AWAY, the record is never consulted and the deferral
+       # renews for ever, which is exactly the defect. The test's
+       # control arm -- the same journey with no edit -- is what makes
+       # the bounded count mean anything.
+       old="""      if answered_already == self._edited_unit_key():""",
+       new="""      if False:""",
+       test="test_a_design_that_cannot_carry_its_edits_still_draws",
+       why="a map that draws without the changes it cannot carry, and "
+           "says so, rather than a Generate deferred for ever"),
+  dict(name="a-save-before-a-redraw-leaves-the-motif-alone",
+       file=DIALOG,
+       # The guard that stops one record's two halves naming two
+       # different designs. `topology_design` is composed from the
+       # LIVE panel while `design.topology_edits` beside it is carried
+       # from the group and only a landing may move -- so a Save made
+       # between a topology edit and the Generate that draws it wrote
+       # a motif the record named another design for, and the next
+       # reopen read the disagreement as staleness and deleted it.
+       # MUTATED AWAY, the guard never fires and the edited design's
+       # motif is written over a file whose tiles are of the previous
+       # one. THE FIRST REPAIR ASKED `_geometry_signature`, which an
+       # edited landing legitimately moves, so it refused the control
+       # journey too and wrote no motif at all; the entry stands on
+       # the record comparison that replaced it.
+       # RE-ANCHORED 2026-08-31, hours after it was written, because
+       # the comparison it stood on was WIDENED. The first version
+       # compared family, element count and the edit list; two hunts
+       # found independently that the key beside the motif hashes the
+       # spacing and every modifier too, so a design term outside
+       # those three moved the key while the guard reported agreement.
+       # It now compares the WHOLE design mapping, asked of
+       # `_capture_design` -- the same owner the record is written
+       # with. Mutating the comparison to always-agree restores the
+       # defect in both its directions: a motif rebuilt for a design
+       # nothing drew, and a motif DELETED from a file whose tiles
+       # carry it.
+       old="""    same = (json.dumps(on_screen, sort_keys=True, default=str)""",
+       new="""    same = True or (json.dumps(on_screen, sort_keys=True, default=str)""",
+       test="test_a_save_with_an_edit_outstanding_leaves_the_motif_alone",
+       why="a file whose motif and tiles are of one design, rather "
+           "than a motif for a design nothing has drawn"),
   dict(name="a-design-with-no-topology-leaves-none-in-the-file",
        file=DIALOG,
        # The other half of one method, and the reason it IS one method:
@@ -8922,6 +9118,21 @@ def child_environment():
   saved = environment.get("QGIS_PYTHONHOME")
   if saved:
     environment["PYTHONHOME"] = saved
+  # AND AN OFFSCREEN PLATFORM UNLESS THE CALLER CHOSE ONE, because the
+  # documented invocation of this module does not set it and the
+  # SUITE always does. (2026-08-31, and it cost three diagnostic
+  # rounds.) `env -u PYTHONHOME -u PYTHONPATH python3
+  # tools/mutation_check.py` -- the command CLAUDE.md gives -- passes
+  # no QT_QPA_PLATFORM, so the child ran on cocoa while every other
+  # way of running that test ran offscreen. Most entries do not care.
+  # A test that measures LAYOUT does: this project's own record says a
+  # font is not a platform, offscreen and cocoa assembling windows
+  # differently, so the two font entries came back UNJUDGEABLE and
+  # read exactly like a broken test. They caught on the first run with
+  # this line in place.
+  # `setdefault` RATHER THAN AN ASSIGNMENT, so anybody deliberately
+  # judging against a real window still can.
+  environment.setdefault("QT_QPA_PLATFORM", "offscreen")
   return environment
 
 

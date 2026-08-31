@@ -70,11 +70,11 @@ cheap.
 
 How many variables to map is a design question more than a technical
 one. Two to four supports genuine value-by-value reading. The catalogue
-runs to twenty-six elements for a weave and to two hundred and
-fifty-six for a tiling, and nothing stops you using them all, but at
-some point the map stops being a table you look things up in and
-becomes a texture you scan for pattern and exception. That may be
-exactly what you want; it is better decided than discovered.
+runs to twelve elements for a weave and to two hundred and fifty-six
+for a tiling, and nothing stops you using them all, but at some point
+the map stops being a table you look things up in and becomes a
+texture you scan for pattern and exception. That may be exactly what
+you want; it is better decided than discovered.
 
 If the final spacing is near the typical width of your polygons, areas
 much smaller than the repeating unit will not show every element at any

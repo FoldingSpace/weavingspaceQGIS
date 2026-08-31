@@ -3467,6 +3467,31 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   # open, since the default design tiles faster than the press.
   in_flight = aftermath == "with a run in flight"
 
+  # THE BASELINE IS DRAWN BEFORE THE CHOOSING, NOT BETWEEN IT AND THE
+  # CLICK, and that ordering is the whole of a defect this matrix hid
+  # from itself. (2026-08-31, found by a hunt auditing this harness.)
+  # `_generate_past_the_topology` lands a topology build, the landing
+  # calls `set_unit`, and `_refresh_classes` then resets `class_combo`
+  # to the first vertex class and refills `how_combo` with vertex
+  # verbs only. Run after the selection, it silently replaced every
+  # chosen EDGE verb with `push_vertex` -- so the three cells
+  # `after re-Generate` x rotate_edge / scale_edge / zigzag_edge could
+  # not fail: the hunt broke all three manipulations into no-ops and
+  # every verdict was identical, while the `immediately` cell went red
+  # under the same mutation.
+  # IT IS THE SELECT-THEN-ACT FAULT THE BLOCK BELOW RECORDS AS FIXED,
+  # re-entering through a baseline added later. When you add a step to
+  # a sequence, ask what it RESETS.
+  if aftermath == "after re-Generate":
+    # A BASELINE OF THIS DESIGN, DRAWN BEFORE THE EDIT. Without one the
+    # comparison below stands on whatever map is in the project when
+    # this cell starts -- and every cell shares one region layer, so a
+    # fresh dialog ADOPTS the previous cell's output, which was another
+    # design entirely. The harm must be measured where it would happen,
+    # and "the edit never reached the map" means nothing when the map
+    # it is compared against was never of this design.
+    _generate_past_the_topology(dlg)
+
   # SELECT, THEN ACT -- the tab's own order since the interaction was
   # rebuilt on 2026-08-30, and this cell has to drive it the way a
   # person does. The VERB list is narrowed by the class in front of
@@ -3493,19 +3518,6 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
     return ("SKIPPED", f"{route} is not offered for a {target}")
   panel.how_combo.setCurrentIndex(index)
   _tick(120)
-
-  if aftermath == "after re-Generate":
-    # A BASELINE OF THIS DESIGN, DRAWN BEFORE THE EDIT. Without one the
-    # comparison below stands on whatever map is in the project when
-    # this cell starts -- and every cell shares one region layer, so a
-    # fresh dialog ADOPTS the previous cell's output, which was another
-    # design entirely. The harm must be measured where it would happen,
-    # and "the edit never reached the map" means nothing when the map
-    # it is compared against was never of this design. Measured
-    # 2026-08-31: driven end to end with a baseline of its own, the
-    # cell's own complaint does not reproduce -- `crosses 4` moves
-    # 1.5e-1 of the unit's ground under a zigzag and the map follows.
-    _generate_past_the_topology(dlg)
 
   # THE RUN IS LAUNCHED HERE, AFTER THE CHOOSING AND BEFORE THE PRESS,
   # which is the fourth race family: an edit made while a tiling is
@@ -3952,6 +3964,667 @@ def test_a_reopen_does_not_take_the_motif_out_of_the_file():
   QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_save_with_an_edit_outstanding_leaves_the_motif_alone():
+  """A file's two halves never name two different designs.
+
+  The file carries a motif, a dual, and a record saying WHICH design
+  those tables are of. The record's `topology_design` was composed
+  from the LIVE panel, while `design.topology_edits` in the same
+  record is carried from the group and only a landing may move it --
+  so a Save made after a topology edit but BEFORE the Generate that
+  draws it wrote two halves describing different designs. The next
+  reopen reads that disagreement as staleness and deletes the motif,
+  which is the file losing something nobody was told about.
+
+  BOTH ANSWERS ARE ASSERTED, because a reader meeting either alone
+  would take it for the whole rule. With no Generate between, the
+  honest act is to touch NEITHER table: the motif already in the file
+  describes the tiles already in the file, and rebuilding the edited
+  design's motif during a save would cost a topology build on the
+  main thread. With a Generate between, the two halves agree and the
+  motif must be written and must survive somebody reopening the file
+  at the plugin's own defaults.
+
+  THE FIRST REPAIR ASKED THE GEOMETRY SIGNATURE and was too wide: an
+  edited landing adopts its unit AFTER the run, so the signature
+  legitimately differs from the one the map was drawn at and NOTHING
+  was written on either journey -- the control arm went from writing
+  a motif to writing none, which is a worse file than the one the
+  defect produced. What the defect is actually about is a
+  disagreement between two halves of ONE record, so that is what is
+  compared.
+
+  Regression: a save made between a topology edit and its Generate wrote a motif the record named another design for, and the next reopen deleted it. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def journey(generate_after_the_edit, out):
+    """Edit, optionally Generate, Save; then reopen and Save again."""
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), \
+        "PREMISE: this design carries no topology, so nothing is written"
+      _generate_and_wait(dlg)
+      panel = dlg.topology_panel
+      wanted = next(
+        i for i in range(panel.class_combo.count())
+        if (panel.class_combo.itemData(i) or ("", ""))[0] == "vertex")
+      panel.class_combo.setCurrentIndex(wanted)
+      _tick(150)
+      panel.how_combo.setCurrentIndex(
+        panel.how_combo.findData("nudge_vertex"))
+      _tick(150)
+      panel.apply_button.click()
+      _settle_topology(dlg, seconds=30)
+      _tick(400)
+      assert panel.edits(), \
+        "PREMISE: no edit was recorded, so there is no disagreement"
+      if generate_after_the_edit:
+        _generate_past_the_topology(dlg)
+      dlg.gpkg_widget.setFilePath(out)
+      assert press_save(dlg), "PREMISE: the save wrote nothing"
+    finally:
+      dlg.close()
+    held = bridge.gpkg_tables(out)
+    got = bridge.read_working_state(out) or {}
+    # ...and now somebody opens it tomorrow, at the defaults, and
+    # presses Save without touching anything.
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      assert not second.opt_experimental.isChecked(), \
+        "PREMISE: the box is not at its default"
+      second.live_check.setChecked(False)
+      second.show()
+      _tick(300)
+      second._resume_from_gpkg(out)
+      _settle(second)
+      second.gpkg_widget.setFilePath(out)
+      press_save(second, expect=False)
+    finally:
+      second.close()
+    QgsProject.instance().removeAllMapLayers()
+    return held, got, bridge.gpkg_tables(out)
+
+  with _temp_dir() as td:
+    # THE DEFECT'S OWN JOURNEY: no Generate between the edit and the
+    # save, so the design on screen is not the one the map was drawn
+    # at and neither table may be touched.
+    held, got, after = journey(False, os.path.join(td, "no-generate.gpkg"))
+    assert bridge.UNIT_TABLE_NAME not in held, (
+      "a save made with a topology edit still outstanding wrote a "
+      "motif for a design nothing has drawn, so the file's tiles and "
+      f"its motif are of two different designs: {sorted(held)}")
+    assert got.get("topology_design") is None, (
+      "the record names a design for a motif that was never written: "
+      f"{got.get('topology_design')!r}")
+
+    # THE CONTROL: the same journey with the Generate that draws the
+    # edit, where the two halves agree and the motif must survive.
+    held, got, after = journey(True, os.path.join(td, "with-generate.gpkg"))
+    assert bridge.UNIT_TABLE_NAME in held, (
+      "a save made after the edit was drawn wrote no motif at all, so "
+      "the guard is refusing the journey it exists to permit: "
+      f"{sorted(held)}")
+    assert got.get("topology_design"), (
+      "the motif was written with no record of which design it is of, "
+      "so the next reopen cannot tell whether it is stale")
+    assert (got.get("design") or {}).get("topology_edits"), \
+      "PREMISE: the record carries no edits, so the halves cannot agree"
+    assert bridge.UNIT_TABLE_NAME in after, (
+      "reopening the file at the plugin's defaults and pressing Save "
+      f"deleted a motif whose record agrees with it: {sorted(after)}")
+
+    # AND A THIRD AXIS, WHICH THE FIRST TWO DO NOT REACH. The guard
+    # used to compare family, element count and the edit list -- three
+    # of the design's twenty-six terms -- while the key it writes
+    # hashes `_topology_stamp()`, spacing and modifiers included. So
+    # every arm above agreed while a spacing change slipped straight
+    # past. Two hunts found it independently on 2026-08-31, by
+    # different routes, and this arm is what the two arms above could
+    # not have caught: move ONE term the old comparison never read,
+    # and require the file to be left exactly as it was.
+    # THE HARM RUNS BOTH WAYS, which is why the assertion is equality
+    # rather than presence: measured, a spacing change wrote a unit of
+    # area 797,396 beside tiles drawn at 246,110, and a tile-inset
+    # change DELETED motif and dual from a file whose tiles carry them.
+    third = os.path.join(td, "spacing-moved.gpkg")
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), "PREMISE: no topology"
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(third)
+      assert press_save(dlg), "PREMISE: the first save wrote nothing"
+      settled = bridge.gpkg_tables(third)
+      settled_key = (bridge.read_working_state(third)
+                     or {}).get("topology_design")
+      assert bridge.UNIT_TABLE_NAME in settled, \
+        "PREMISE: no motif was written, so none can be spoiled"
+      assert settled_key, "PREMISE: the motif was written with no key"
+      # ...now move a term the OLD guard never looked at, and save
+      # again with no Generate between.
+      was = dlg.spacing_spin.value()
+      dlg.spacing_spin.setValue(was * 1.8)
+      _tick(400)
+      assert dlg.spacing_spin.value() != was, \
+        "PREMISE: the spacing did not move, so nothing is being tested"
+      assert press_save(dlg), "PREMISE: the second save wrote nothing"
+    finally:
+      dlg.close()
+      QgsProject.instance().removeAllMapLayers()
+    now_held = bridge.gpkg_tables(third)
+    now_key = (bridge.read_working_state(third)
+               or {}).get("topology_design")
+    assert bridge.UNIT_TABLE_NAME in now_held, (
+      "moving the spacing and saving DELETED the motif from a file "
+      f"whose tiles still carry it: {sorted(now_held)}")
+    assert now_key == settled_key, (
+      f"moving the spacing and saving rebuilt the motif for the design "
+      f"on screen: the file's key went from {settled_key!r} to "
+      f"{now_key!r} while its tiles were never redrawn, so a colleague "
+      f"opening the pair gets another design's motif")
+
+
+def test_a_design_that_cannot_carry_its_edits_still_draws():
+  """A promise the design cannot keep is not renewed for ever.
+
+  `_generate`'s topology gate defers whenever this design has edits
+  and `_restore_the_edited_unit` cannot put them back: it queues a
+  build, keeps the press, and says the map will be redrawn when the
+  changes are ready. The landing then re-presses. Where the design
+  CANNOT carry a topology at all the build comes back with no edited
+  unit, so the gate's condition is exactly as true as it was and the
+  re-pressed run walks straight back into it -- measured at 81 builds
+  in twenty seconds, with the map never drawn, the file never saved,
+  and the plugin saying it was working the whole time.
+
+  A TILE INSET IS THE ORDINARY WAY IN, and it is not exotic: insetting
+  shrinks every tile by a fixed distance, which opens gaps, and
+  `Topology` needs a gap-free tiling. So this is a person with a
+  topology edit reaching for a control on another tab.
+
+  THE CONTROL ARM IS THE SAME JOURNEY WITH NO EDIT, where one build
+  and one redraw is the whole of it -- without it a bounded count
+  proves nothing, since a design that never defers cannot livelock
+  whatever the gate does.
+
+  AND THE SENTENCE IS ASSERTED, not merely the drawing. This is the
+  one path where what the Topology tab lists and what the map draws
+  legitimately differ, so a person who is not told reads the map as
+  their edit having done nothing.
+
+  Regression: a topology edit plus a tile inset deferred every Generate for ever, four builds a second, and the map never drew. [mutation]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  builds = {"n": 0}
+  real_build = topology_edits.build
+
+  def counted(unit):
+    builds["n"] += 1
+    return real_build(unit)
+
+  def journey(with_an_edit):
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), \
+        "PREMISE: this design carries no topology to edit"
+      _generate_and_wait(dlg)
+      if with_an_edit:
+        panel = dlg.topology_panel
+        wanted = next(
+          i for i in range(panel.class_combo.count())
+          if (panel.class_combo.itemData(i) or ("", ""))[0] == "vertex")
+        panel.class_combo.setCurrentIndex(wanted)
+        _tick(150)
+        panel.how_combo.setCurrentIndex(
+          panel.how_combo.findData("nudge_vertex"))
+        _tick(150)
+        panel.apply_button.click()
+        _settle_topology(dlg, seconds=30)
+        _tick(400)
+        assert panel.edits(), "PREMISE: no edit was recorded"
+      # THE INSET, which opens the gaps that leave this design with no
+      # topology at all.
+      dlg.mod_t_inset.setValue(25.0)
+      _tick(400)
+      BAR_MESSAGES.clear()
+      MODALS.clear()
+      builds["n"] = 0
+      dlg._generate()
+      _settle(dlg)
+      # ...and let a little more time pass, pumping as a person's
+      # window would be pumped, so a loop has room to show itself.
+      for _ in range(25):
+        _tick(200)
+      return builds["n"], dict(dlg._element_layer_ids), _said(dlg)
+    finally:
+      dlg.close()
+      QgsProject.instance().removeAllMapLayers()
+
+  topology_edits.build = counted
+  try:
+    quiet_builds, quiet_layers, _quiet_said = journey(False)
+    edited_builds, edited_layers, edited_said = journey(True)
+  finally:
+    topology_edits.build = real_build
+
+  assert quiet_layers, \
+    "PREMISE: the control arm drew nothing, so the inset alone " \
+    "refuses this design and the edited arm proves nothing"
+  # A CEILING SIZED FROM THE CONTROL rather than written down: what
+  # matters is that the edited arm does not run away, and the control
+  # says what "not running away" costs on this machine.
+  ceiling = max(4, (quiet_builds + 1) * 4)
+  assert edited_builds <= ceiling, (
+    f"a design carrying topology edits and a tile inset started "
+    f"{edited_builds} topology builds where the same journey without "
+    f"an edit started {quiet_builds}: the Generate is being deferred "
+    f"and re-pressed against a build that can never answer it")
+  assert edited_layers, (
+    "a design carrying topology edits and a tile inset drew no map at "
+    "all, so every press was deferred and none was ever honoured")
+  # ASSERTED AS "SOMETHING OTHER THAN THE PROMISE" rather than by
+  # quoting the sentence. That sentence is user-facing prose and so is
+  # the maintainer's to reword at the review queue; a test pinned to
+  # its words would go red on an approved edit, which is how a guard
+  # teaches people to weaken it. What must hold is that the person is
+  # told SOMETHING, and that it is not the deferral's own promise --
+  # which is exactly what the livelock said, over and over, while
+  # nothing was drawn.
+  # THE DEFERRAL'S OWN PROMISE IS SAID FIRST AND THAT IS CORRECT: the
+  # first press has no build to consult yet, so it defers and says so,
+  # and the landing then falls through and explains. Asserting the
+  # promise's ABSENCE was this guard's first draft and it was simply
+  # wrong -- what distinguishes the fix from the defect is that the
+  # explanation ARRIVES, not that the promise was never made.
+  # ASKED FOR THE TAB'S NAME rather than for the sentence, because the
+  # sentence is user-facing prose the maintainer may reword at the
+  # review queue, and a guard pinned to prose goes red on an approved
+  # edit -- which is how a guard teaches people to weaken it. The tab
+  # is called Topology whatever the sentence says, and naming it is
+  # the part a person needs: it is where the changes they cannot see
+  # are still listed.
+  assert "Topology" in edited_said, (
+    "the map was drawn without the changes the Topology tab still "
+    "lists, and nothing told the person where those changes went; "
+    f"the plugin said: {edited_said!r}")
+
+  # AND IT IS SAID ONCE WHILE SOMEBODY WORKS THE SLIDER, which is a
+  # guard against a regression rather than a reproduction of a defect.
+  # NO DEDUPE STANDS BEHIND IT, and that is the finding: `_report_
+  # quietly` does not deduplicate, so the natural fear is a warning per
+  # live tick. A dedupe was written for that fear and deleted, because
+  # driving it with the gate dumps on produced no second arrival at all
+  # -- `_edited_unit_key` carries the modifiers, so moving the inset
+  # changes the key, and the run defers and re-asks instead of
+  # re-explaining. The mutation aimed at the dedupe duly SURVIVED,
+  # which is what a fix applied where the fault is not looks like.
+  # WHAT THIS ARM IS FOR, then: it holds the property the deletion
+  # rests on. Make `_edited_unit_key` coarser than the design -- drop
+  # the modifiers from it -- and every slider move would land on the
+  # same key, the branch would match each time, and this count would
+  # climb. It is the guard on a load-bearing assumption, not on a line.
+  # DRIVEN THROUGH THE LIVE PATH rather than by pressing the button,
+  # because it is the live tick's ten gates that decide whether this is
+  # reached at all.
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  live_dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    live_dlg.opt_experimental.setChecked(True)
+    live_dlg.show()
+    _tick(200)
+    live_dlg.n_spin.setValue(4)
+    _tick(200)
+    live_dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(live_dlg), \
+      "PREMISE: this design carries no topology to edit"
+    live_dlg.live_check.setChecked(False)
+    _generate_and_wait(live_dlg)
+    panel = live_dlg.topology_panel
+    wanted = next(
+      i for i in range(panel.class_combo.count())
+      if (panel.class_combo.itemData(i) or ("", ""))[0] == "vertex")
+    panel.class_combo.setCurrentIndex(wanted)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(
+      panel.how_combo.findData("nudge_vertex"))
+    _tick(150)
+    panel.apply_button.click()
+    _settle_topology(live_dlg, seconds=30)
+    _tick(400)
+    assert panel.edits(), "PREMISE: no edit was recorded"
+    live_dlg.mod_t_inset.setValue(25.0)
+    _tick(400)
+    live_dlg._generate()
+    _settle(live_dlg)
+    for _ in range(15):
+      _tick(200)
+    # ...now turn live update ON and nudge the design repeatedly, which
+    # is the journey that repeated the sentence.
+    BAR_MESSAGES.clear()
+    MODALS.clear()
+    live_dlg.live_check.setChecked(True)
+    for value in (26.0, 27.0, 28.0, 29.0):
+      live_dlg.mod_t_inset.setValue(value)
+      _settle(live_dlg)
+      for _ in range(4):
+        _tick(200)
+    spoken = sum(1 for _kind, text in BAR_MESSAGES
+                 if "cannot carry" in text)
+    assert spoken <= 1, (
+      f"the plugin said the design cannot carry its edits {spoken} "
+      f"times while somebody moved one slider; it is one fact and it "
+      f"has not changed, so it belongs said once")
+  finally:
+    live_dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
+def test_the_experimental_exemption_closes_again():
+  """The Topology tab greys again once this design holds no edits.
+
+  The tab is exempt from the unticked Experimental box while the
+  design in force is HOLDING WORK, so somebody's edits are never
+  stranded behind a preference. That answer is keyed by family AND
+  element count -- so it goes false the moment the design moves, and
+  until 2026-08-31 nothing re-asked it: the gate had four callers, the
+  checkbox, construction, and the two ends of the edit restore.
+
+  WHAT THE OPEN EXEMPTION COSTS IS NOT NOTHING, which is why this is a
+  defect and not untidiness. With the box off `_queue_topology`
+  refuses to run, so the panel goes on showing the PREVIOUS design's
+  topology and its class list -- laves 3.3.4.3.4 offering A, B, AB, a,
+  b, ab while a design with only A and a is on screen. An edit applied
+  there is shelved under the NEW design's key, enters
+  `_topology_edit_key`, reaches the record a Save writes, and moves
+  the geometry. An edit aimed with one design's labels, landing on
+  another.
+
+  BOTH ANSWERS ARE ASSERTED, because a reader meeting either alone
+  would take it for the whole rule: exempt while the design holds
+  edits, greyed again once it does not.
+
+  Regression: the Topology tab stayed reachable with the box off after the design moved, showing another design's classes. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def topology_enabled(dlg):
+    tabs = dlg._tabs
+    index = dlg._topology_tab_index
+    return tabs.isTabEnabled(index)
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), "PREMISE: no topology to edit"
+    _generate_and_wait(dlg)
+
+    panel = dlg.topology_panel
+    wanted = next(
+      i for i in range(panel.class_combo.count())
+      if (panel.class_combo.itemData(i) or ("", ""))[0] == "vertex")
+    panel.class_combo.setCurrentIndex(wanted)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("nudge_vertex"))
+    _tick(150)
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=30)
+    _tick(400)
+    assert panel.edits(), "PREMISE: no edit was recorded"
+
+    # Now put the box back to its default. The tab must STAY reachable,
+    # because this design is holding work somebody would otherwise be
+    # unable to undo.
+    dlg.opt_experimental.setChecked(False)
+    _tick(300)
+    assert topology_enabled(dlg), (
+      "the Topology tab was greyed while this design still holds "
+      "edits, so the controls that could undo them are unreachable")
+
+    # ...and now move the design to one that holds none. The exemption
+    # has nothing left to protect and must close.
+    dlg.n_spin.setValue(6)
+    _tick(400)
+    assert not dlg._topology_edit_key(), \
+      "PREMISE: the new design holds edits too, so the exemption is " \
+      "still legitimately open and nothing is being tested"
+    assert not topology_enabled(dlg), (
+      "the Topology tab is still reachable with the Experimental box "
+      "unticked and this design holding no edits: the exemption never "
+      "closes, so the panel goes on offering the PREVIOUS design's "
+      "classes and an edit applied there is shelved under this one")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_tick_dropped_by_a_save_comes_back():
+  """A live tick refused while a save is writing is late, not lost.
+
+  The save pumps the event loop once per element so the window keeps
+  painting, and a live run firing mid-write would replace the layers
+  the loop has not reached yet -- so `_maybe_live_generate` refuses
+  while `_saving_now` stands. The refusal was written as a DROP, with
+  a comment saying the timer "is armed by the change itself and fires
+  again on the next quiet moment, so the redraw is a moment late
+  rather than lost".
+
+  THAT SENTENCE WAS FALSE. `_live_timer` is single-shot; it has just
+  FIRED to reach the gate, and the only two `start()` sites are a
+  fresh control change and `_finish_run`. So the tick was discarded,
+  and `_preview_timer` is not gated -- the preview and the assignment
+  table went on describing the new design while the map kept the old
+  one, with nothing said. A false comment is worse than none, because
+  the next reader believes it instead of checking.
+
+  ASKED OF THE TIMER rather than by driving a whole save, because the
+  property is exactly "is this tick coming back": the save's own pump
+  is what makes the window, and a test that tried to land inside it
+  would be measuring how often it got lucky. Both answers are here --
+  refused while saving, and armed again afterwards.
+
+  Regression: a live tick that fired while a save was writing was discarded, so the map silently stopped following the controls. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(300)
+    _settle(dlg)
+
+    # THE CONTROL: with no save in flight the gate does not fire, so
+    # the timer's state afterwards is whatever the run left -- this
+    # arm exists to show the flag is what decides, not the call.
+    dlg._saving_now = False
+    dlg._live_timer.stop()
+    dlg._maybe_live_generate()
+    refused_quietly = dlg._live_timer.isActive()
+
+    # THE TREATED ARM: a save is writing, the timer has just fired.
+    dlg._saving_now = True
+    dlg._live_timer.stop()
+    assert not dlg._live_timer.isActive(), \
+      "PREMISE: the timer is already armed, so re-arming proves nothing"
+    dlg._maybe_live_generate()
+    assert dlg._live_timer.isActive(), (
+      "a live tick that fired while a save was writing was dropped and "
+      "not armed again: the timer is single-shot, so nothing will ask "
+      "again, and the map stops following the controls with nothing "
+      "said")
+  finally:
+    dlg._saving_now = False
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+  assert not refused_quietly, (
+    "PREMISE: the gate armed the timer even with no save in flight, "
+    "so this test cannot tell the refusal apart from ordinary work")
+
+
+def test_a_topology_landing_does_not_strand_a_live_tick():
+  """A press consumed at a topology landing takes the live tick with it.
+
+  The tiling landing in `_finish_run` clears `_live_pending` when it
+  honours `_press_pending`, and says why at the line: the press
+  supersedes a live tick. The TOPOLOGY landing consumed the press and
+  left the tick standing -- two writers of one fact, disagreeing,
+  which is this project's most familiar shape.
+
+  WHAT A STRANDED FLAG COSTS IS EVERY LATER SAVE, and that is the
+  assertion here rather than the flag itself.
+  `_honour_a_queued_save` refuses while a live tick is outstanding and
+  `_a_queued_run_would_redraw` answers True, so the queued save can
+  never fire: driven with a control arm, the treated journey wrote NO
+  FILE AT ALL while the plugin repeated that the map was about to be
+  redrawn and saved afterwards, with no run, no timer and nothing
+  coming. The control arm saved normally.
+
+  A FLAG NOBODY CLEARS IS WORSE THAN ONE NOBODY SETS, because
+  everything downstream reads it as a promise still being kept.
+
+  Regression: a Generate pressed during a topology build left a live tick standing, and every later Save was deferred for ever. [mutation]
+  """
+  import os
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as td:
+    out = os.path.join(td, "stranded.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.opt_experimental.setChecked(True)
+      dlg.live_check.setChecked(False)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), "PREMISE: no topology"
+      _generate_and_wait(dlg)
+
+      panel = dlg.topology_panel
+      wanted = next(
+        i for i in range(panel.class_combo.count())
+        if (panel.class_combo.itemData(i) or ("", ""))[0] == "vertex")
+      panel.class_combo.setCurrentIndex(wanted)
+      _tick(150)
+      panel.how_combo.setCurrentIndex(
+        panel.how_combo.findData("nudge_vertex"))
+      _tick(150)
+      panel.apply_button.click()
+
+      # LIVE UPDATE ON, so a tick is armed alongside the press -- which
+      # is the state the topology landing has to resolve. Turned on
+      # AFTER the edit so the arming is the edit's own.
+      dlg.live_check.setChecked(True)
+      dlg._live_pending = True
+
+      # CAUGHT AT THE MOMENT THE LANDING RE-PRESSES, not afterwards.
+      # The first draft asserted on `_live_pending` once everything
+      # had settled, and the mutation SURVIVED: the tiling landing's
+      # own `_finish_run` clears the flag a moment later, so the
+      # defect is masked by the very twin whose disagreement is the
+      # defect. That is this project's "held redundantly" shape, and
+      # the answer is not to sample the window but to CLOSE it --
+      # here by recording what the landing left at the instant it
+      # hands control back, which is deterministic and needs no race.
+      seen = []
+      real_generate = dlg._generate
+
+      def watched_generate(*a, **kw):
+        seen.append(dlg._live_pending)
+        return real_generate(*a, **kw)
+
+      dlg._generate = watched_generate
+      try:
+        dlg._generate()
+        _settle_topology(dlg, seconds=30)
+        _settle(dlg)
+        for _ in range(10):
+          _tick(200)
+      finally:
+        dlg._generate = real_generate
+
+      assert len(seen) >= 2, (
+        "PREMISE: the landing never re-pressed Generate, so there is "
+        f"no moment at which to read what it left: {seen}")
+      assert not seen[1], (
+        "the topology landing consumed the press and left a live tick "
+        "standing: at the moment it re-pressed Generate, "
+        "`_live_pending` was still True. Everything that asks whether "
+        "a redraw is coming now answers yes, and the queued save "
+        "behind it can never fire")
+      dlg.gpkg_widget.setFilePath(out)
+      wrote = press_save(dlg)
+      _settle(dlg)
+      for _ in range(10):
+        _tick(200)
+    finally:
+      dlg.close()
+      QgsProject.instance().removeAllMapLayers()
+
+    assert wrote, "the Save was refused outright"
+    assert os.path.exists(out), (
+      "pressing Save after a topology landing wrote no file at all: "
+      "the save was deferred behind a live tick that is never coming, "
+      f"and the plugin said so as though it were: {sorted(os.listdir(td))}")
+    from weavingspace_qgis import bridge
+    held = [t for t in bridge.gpkg_tables(out) if "tiles_" in t]
+    assert held, \
+      f"the file exists but holds no element tables: {sorted(held)}"
+
+
 def test_the_saved_dual_belongs_to_the_saved_unit():
   """The two tables in a file describe ONE design.
 
@@ -4021,9 +4694,26 @@ def test_the_saved_dual_belongs_to_the_saved_unit():
       dlg.close()
     QgsProject.instance().removeAllMapLayers()
 
-    import geopandas as gpd
-    in_file = gpd.read_file(out, layer=bridge.DUAL_TABLE_NAME)
-    got = round(float(in_file.geometry.area.sum()), 2)
+    # READ THROUGH OGR, which every other reader in this suite uses,
+    # rather than through `geopandas.read_file`. (2026-08-31, found by
+    # the Linux coverage leg.) That call needs `pyogrio` or `fiona`,
+    # and CI provisions NEITHER -- geopandas itself is there, so the
+    # in-memory frames below work perfectly and only the FILE read
+    # fails, with an ImportError that reads like a product fault. It
+    # was the suite's one and only use of that function, introduced
+    # with this test; the fix removes a CI dependency rather than
+    # adding one.
+    # THE LAYER IS RELEASED BEFORE ANYTHING ELSE TOUCHES THE FILE,
+    # because an instrument that holds a GeoPackage open changes what
+    # the next reader sees -- measured on this project twice.
+    from qgis.core import QgsVectorLayer
+    dual_layer = QgsVectorLayer(
+      f"{out}|layername={bridge.DUAL_TABLE_NAME}", "dual", "ogr")
+    assert dual_layer.isValid(), \
+      "PREMISE: the file carries no dual table to read"
+    got = round(
+      sum(f.geometry().area() for f in dual_layer.getFeatures()), 2)
+    del dual_layer
 
     plain = catalog.make_unit(spec, 500.0, None)
     topology, _why = topology_edits.build(plain)
@@ -5319,6 +6009,326 @@ def _the_design_tab_lines_up(under):
       f"under {under} the window shrank back to {dlg.width()}px on "
       f"returning to Design, so it resizes under the pointer on every "
       f"tab click; growth is deliberate and contraction is not")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_font_change_moves_the_design_tab_s_fields():
+  """The Pattern chooser can still tell two designs apart at any font.
+
+  Three of this dialog's widths were measured ONCE, at construction,
+  and then fixed: `_field_width`, taken from the region chooser's own
+  size hint, and the seven modifier boxes equalised to the widest of
+  them. The two choosers ask for their width in CHARACTERS and so
+  follow the font -- but a holder's FIXED width is what the control
+  inside it actually gets, so the pixel snapshot silently overrode
+  them and the chooser stayed at its construction size for ever.
+
+  THE VERDICT IS ABOUT TEXT, NOT PIXELS. Qt elides to fit, so two
+  family names that elide to ONE string are two designs a person
+  cannot choose between -- which is a fact about what the widget can
+  show rather than about a screenshot. Measured before the repair: a
+  dialog built at 9pt and met at 20pt kept its 250px chooser, and
+  `twill weave ab|cd 1,2` and `twill weave ab|cd 1,2,2,1` both read
+  `twill weave ab|cd 1...`, as did the two basket weaves.
+
+  THE CONTROL ARM IS A DIALOG BUILT AT EACH FONT, which was healthy
+  throughout -- 250px at 9pt, 341 at 13, 522 at 20. Measuring that arm
+  FIRST is this project's own probe-cannot-reach-its-case trap, and it
+  was fallen into once while confirming this. Both arms are here so
+  the reused dialog is required to match the freshly built one, which
+  is a stronger claim than "wide enough".
+
+  AND IT IS ASSERTED IDEMPOTENT. `_follow_the_font` re-measures a size
+  hint and writes a fixed width onto a DIFFERENT widget, so nothing it
+  adjusts feeds what it measures -- unlike the assignment table's
+  width, where four repairs ran away because widening a label grew the
+  column the label was measured against. A second pass must compute
+  the same number, and this says so rather than trusting it.
+
+  Regression: a dialog built at one font and met at a larger one kept its old field width, and the Pattern chooser could not tell two weaves apart. [mutation]
+  """
+  from qgis.PyQt.QtCore import Qt as _Qt
+  from qgis.PyQt.QtWidgets import QApplication
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def unreadable(dlg):
+    """Family names that another name elides to the same string as."""
+    combo = dlg.family_combo
+    metrics = combo.fontMetrics()
+    room = combo.width() - 30
+    seen = {}
+    for i in range(combo.count()):
+      name = combo.itemText(i)
+      shown = metrics.elidedText(name, _Qt.TextElideMode.ElideRight, room)
+      seen.setdefault(shown, []).append(name)
+    return {k: v for k, v in seen.items() if len(v) > 1}
+
+  def _design_labels(dlg):
+    """Every label widget in the Design tab's two form blocks."""
+    from qgis.PyQt.QtWidgets import QFormLayout
+    out = []
+    for form in getattr(dlg, "_design_forms", ()):
+      for row in range(form.rowCount()):
+        item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+        if item is not None and item.widget() is not None:
+          out.append(item.widget())
+    return out
+
+  def _label_column_split(dlg):
+    """How far apart the two blocks' label columns end, in pixels."""
+    from qgis.PyQt.QtWidgets import QFormLayout
+    forms = getattr(dlg, "_design_forms", ())
+    if len(forms) < 2:
+      return None
+    edges = []
+    for form in forms:
+      item = form.itemAt(0, QFormLayout.ItemRole.LabelRole)
+      w = item.widget() if item is not None else None
+      if w is None or w.width() <= 0:
+        return None
+      edges.append(w.mapTo(dlg, w.rect().topLeft()).x())
+    return max(edges) - min(edges)
+
+  def at(points):
+    font = QApplication.font()
+    font.setPointSize(points)
+    QApplication.setFont(font)
+
+  was = QApplication.font()
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  sizes = (9, 13, 20)
+  try:
+    # THE REUSE ARM: one dialog, built small, met larger.
+    at(9)
+    reused = WeavingSpaceDialog(iface=_Iface())
+    widths_reused = {}
+    try:
+      reused.live_check.setChecked(False)
+      reused.n_spin.setValue(4)
+      _tick(200)
+      reused.kind_combo.setCurrentText("weave")
+      _tick(200)
+      reused.show()
+      _tick(400)
+      for points in sizes:
+        at(points)
+        _tick(400)
+        clash = unreadable(reused)
+        widths_reused[points] = reused.family_combo.width()
+        assert not clash, (
+          f"at {points}pt the Pattern chooser is "
+          f"{reused.family_combo.width()}px and cannot tell "
+          f"{len(clash)} pair(s) of designs apart: "
+          f"{ {k: v for k, v in list(clash.items())[:2]} }")
+        # AND THE LABELS, which were the half the first repair missed.
+        # (2026-08-31, found by a hunt at that repair.) Three more
+        # widths are font metrics taken once: the label column, the
+        # margin that lines the two form blocks up, and the Over-under
+        # box. Measured at 20pt on a dialog built at 9: the columns
+        # split by 138px against a control of 0, and two labels were
+        # CLIPPED WITH NO ELLIPSIS -- "Number of elements" became
+        # "Number of elem", which a reader is not told about.
+        # ASKED AS "DOES ANY LABEL LOSE TEXT", because that is the
+        # user-facing fact; a QLabel narrower than its own sizeHint
+        # simply cuts. The column split is allowed a few pixels: the
+        # margin pass runs through a `singleShot` and a reused dialog
+        # can be measured a beat before it lands, which is a timing
+        # artefact rather than anything a person could see.
+        short = [(lab.text(), lab.width(), lab.sizeHint().width())
+                 for lab in _design_labels(reused)
+                 if 0 < lab.width() < lab.sizeHint().width()]
+        assert not short, (
+          f"at {points}pt these labels are narrower than their own "
+          f"text and are cut with no ellipsis: {short[:3]}")
+        split = _label_column_split(reused)
+        assert split is None or split <= 8, (
+          f"at {points}pt the two label columns of the Design tab end "
+          f"{split}px apart, which is the ragged tab the alignment "
+          f"pass exists to prevent")
+      # The claim the repair's own docstring makes: a second pass
+      # computes the same number, so this is not a feedback loop.
+      settled = reused._field_width
+      reused._follow_the_font()
+      assert reused._field_width == settled, (
+        f"re-measuring moved the field width from {settled} to "
+        f"{reused._field_width}: the pass feeds what it measures, "
+        f"which is the runaway four repairs to the assignment table "
+        f"already found")
+    finally:
+      reused.close()
+
+    # THE CONTROL ARM: a dialog BUILT at each font, already healthy,
+    # and the standard the reused one has to meet.
+    widths_built = {}
+    for points in sizes:
+      at(points)
+      fresh = WeavingSpaceDialog(iface=_Iface())
+      try:
+        fresh.live_check.setChecked(False)
+        fresh.n_spin.setValue(4)
+        _tick(200)
+        fresh.kind_combo.setCurrentText("weave")
+        _tick(200)
+        fresh.show()
+        _tick(400)
+        widths_built[points] = fresh.family_combo.width()
+        assert not unreadable(fresh), (
+          f"PREMISE: a dialog BUILT at {points}pt cannot tell two "
+          f"designs apart either, so this test is measuring something "
+          f"other than the font change")
+      finally:
+        fresh.close()
+  finally:
+    QApplication.setFont(was)
+    QgsProject.instance().removeAllMapLayers()
+
+  assert widths_reused == widths_built, (
+    f"a dialog met at a larger font does not size its Pattern chooser "
+    f"the way one built at that font does: reused {widths_reused} "
+    f"against built {widths_built}")
+  assert widths_built[20] > widths_built[9], (
+    "PREMISE: the chooser does not grow with the font at all, so "
+    "there is nothing here for a font change to follow")
+
+
+def test_the_messages_tab_shows_the_answer_beside_the_question():
+  """The answer column is where somebody can see it.
+
+  The Messages tab exists because half this plugin's modals DECIDE
+  something, and a log holding the question without the answer
+  describes a decision nobody can reconstruct. Its fourth column is
+  "Your answer".
+
+  It could not do that job until 2026-08-31. The refresh ended in
+  `resizeColumnsToContents()` with nothing to bound it, and column 2
+  holds whole sentences -- several of this plugin's messages run past
+  two hundred characters. Measured with four real messages in it:
+  "What it said" took 1253px and "Your answer" began at 1372px inside
+  a 513px viewport, 859px beyond the right-hand edge and reachable
+  only by scrolling sideways in a table nobody expects to scroll.
+
+  ASKED OF THE WIDGET rather than of a character count, because a
+  width argued from characters is a claim about a font. The question
+  is where column 3 actually starts and whether the viewport reaches
+  it.
+
+  Regression: the Messages tab's answer column sat off the right-hand edge, which is the one thing that tab is for. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtWidgets import QTabWidget
+
+  # A REAL SENTENCE THIS PLUGIN SAYS. A probe that stages a short
+  # message measures a case the defect is not about.
+  long_one = (
+    "Missing or too old: geopandas, shapely, pyproj, mapclassify. The "
+    "plugin can download these from pypi.org into its own libs folder. "
+    "Nothing else on your system is touched, and you can undo it by "
+    "deleting that folder.")
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(400)
+    # COUNTED AS A GROWTH, not against an empty tab: opening the
+    # plugin in a project with a layer in it legitimately produces a
+    # notice or two, and a premise demanding a clean slate fails on
+    # the plugin doing its job. Measured 2026-08-31, where the tab
+    # already held one row before anything here was recorded.
+    before = dlg.messages_table.rowCount()
+    for i in range(4):
+      dlg._record_said("question" if i % 2 else "notice", long_one,
+                       "Install them" if i % 2 else "")
+    _tick(300)
+    # A QTabWidget lays out only its CURRENT page, so a page nobody has
+    # looked at reports its container's size rather than its own.
+    tabs = dlg.findChildren(QTabWidget)[0]
+    for i in range(tabs.count()):
+      if tabs.tabText(i) == "Messages":
+        tabs.setCurrentIndex(i)
+        break
+    _tick(600)
+
+    table = dlg.messages_table
+    assert table.rowCount() == before + 4, \
+      f"PREMISE: the tab holds {table.rowCount()} rows where " \
+      f"{before + 4} were expected, so the long messages this test " \
+      f"is about did not reach it and nothing here is being measured"
+    viewport = table.viewport().width()
+    starts, x = [], 0
+    for c in range(table.columnCount()):
+      starts.append(x)
+      x += table.columnWidth(c)
+    answer = table.columnCount() - 1
+    right_edge = starts[answer] + table.columnWidth(answer)
+    assert right_edge <= viewport, (
+      f"the {table.horizontalHeaderItem(answer).text()!r} column runs "
+      f"from {starts[answer]}px to {right_edge}px in a {viewport}px "
+      f"viewport, so the answer this tab exists to show sits off the "
+      f"right-hand edge")
+    assert table.columnWidth(answer) > 0, \
+      "the answer column has no width at all, which hides it just as " \
+      "thoroughly as putting it off the edge"
+
+    # AND SAYING SOMETHING STAYS CHEAP ONCE THE LOG IS FULL. The
+    # repair above set three columns to ResizeToContents, and Qt's
+    # default is to measure EVERY row: `_refresh_messages_tab`
+    # rewrites all four columns of every row on each new message, and
+    # at the 500-row ceiling the row count stops changing, so each
+    # write lands in an existing cell and re-measures its whole
+    # column. Measured before the bound: 4ms at 400 rows and
+    # 10,250-17,927ms at 500. Live update makes the plugin speak on
+    # every tweak, so the dialog froze for ten seconds a message, on
+    # the main thread, with the tab a person had deliberately opened.
+    # ASSERTED AS A RATIO, NOT A TIME. An absolute ceiling sized on
+    # this machine is a claim about this machine, and CI runs three
+    # shards against each other; both readings here suffer whatever
+    # contention there is, so their RATIO is the contention-proof
+    # question. Healthy they are equal; the defect is a factor of
+    # thousands.
+    import time as _time
+    said_now = dlg._said
+
+    def cost_of_one_more():
+      _tick(100)
+      start = _time.monotonic()
+      dlg._record_said("notice", long_one, "")
+      return _time.monotonic() - start
+
+    while len(said_now) < 400:
+      said_now.append({"at": "00:00:00", "kind": "notice",
+                       "text": long_one, "answer": ""})
+    dlg._refresh_messages_tab()
+    below = cost_of_one_more()
+    # EXACTLY AT THE CEILING, which is the whole case. `said.record`
+    # trims to 500, so a log already at 500 keeps its ROW COUNT
+    # UNCHANGED and every write is an overwrite into an existing cell
+    # -- that is what makes the columns re-measure. Filling PAST it
+    # makes the count change on the next message and takes the cheap
+    # rebuild path instead: a first draft filled to 560, measured
+    # 4.8ms either way, and the catalogue entry duly SURVIVED. The
+    # probe could not reach its own case.
+    while len(said_now) < 500:
+      said_now.append({"at": "00:00:00", "kind": "notice",
+                       "text": long_one, "answer": ""})
+    dlg._refresh_messages_tab()
+    at_ceiling = cost_of_one_more()
+    assert len(said_now) >= 500, (
+      "PREMISE: the log never reached its ceiling, so the case this "
+      f"is about was not exercised: {len(said_now)} rows")
+    # A GENEROUS FACTOR, because the honest signal is enormous: the
+    # defect was thousands of times slower, and anything under fifty
+    # is a table that is simply doing its work.
+    assert at_ceiling <= max(below, 0.005) * 50, (
+      f"a message costs {at_ceiling * 1000:.0f}ms once the log is full "
+      f"against {below * 1000:.0f}ms below the ceiling: the columns "
+      f"are re-measuring every row on every write, and the dialog "
+      f"freezes on the main thread each time the plugin speaks")
   finally:
     dlg.close()
     QgsProject.instance().removeAllMapLayers()
@@ -45446,6 +46456,35 @@ def _command_parts(text):
   return script, flags
 
 
+def _prose_outside_fences(text):
+  """A copy of a document with every fenced block blanked out.
+
+  Args:
+    text: the whole document, as written.
+
+  Returns:
+    A string of exactly the same length, in which every line inside a
+    ``` fence -- and the fence lines themselves -- has been replaced by
+    spaces. Nothing else is touched, so a character offset into the
+    result is the same offset into the original and a line number
+    counted from it is the line number a reader would quote.
+
+  Why the length must not change: the caller finds inline spans by
+  regular expression and turns `match.start()` into a line number by
+  counting newlines before it. A shorter copy would move every one of
+  those numbers, so a failure would name the wrong line -- which is
+  worse than not reporting it, because somebody would go and look.
+  """
+  out, in_fence = [], False
+  for raw in text.splitlines():
+    if raw.strip().startswith("```"):
+      in_fence = not in_fence
+      out.append(" " * len(raw))
+      continue
+    out.append(" " * len(raw) if in_fence else raw)
+  return "\n".join(out)
+
+
 def _documented_commands():
   """Every shell command the maintenance documents quote.
 
@@ -45478,6 +46517,23 @@ def _documented_commands():
     with open(os.path.join(ROOT, relative), encoding="utf-8") as handle:
       text = handle.read()
     newlines = [match.start() for match in re.finditer(r"\n", text)]
+    # THE INLINE PASS BELOW READS A COPY WITH THE FENCED BLOCKS BLANKED,
+    # and that is correctness rather than tidiness. A ``` fence line
+    # carries THREE backticks; the span pattern needs a non-backtick
+    # between a pair, so the first two cannot pair and the THIRD becomes
+    # an OPENER that swallows text to the next backtick -- after which
+    # every real span reads as prose and every piece of prose reads as a
+    # span. Measured 2026-08-31 on a three-line document: after one
+    # fence, `tools/second.py` and `tools/third.py` were invisible while
+    # "Then" and "and" were collected as commands. Across the documents
+    # this gate reads it hid fifteen references, twelve of them in
+    # MAINTAINING.md -- which contributed ONE where it carries thirteen,
+    # so a path that does not exist sat in the project's own
+    # architecture document past the gate that names exactly that.
+    # Blanked with SPACES rather than removed: every offset below is a
+    # character offset into this text, and a shorter copy would move
+    # every line number the failures quote.
+    prose = _prose_outside_fences(text)
     fenced = False
     for number, raw in enumerate(text.splitlines(), 1):
       if raw.strip().startswith("```"):
@@ -45493,7 +46549,7 @@ def _documented_commands():
       if script:
         found.append((relative, number, line, script, flags))
         last_script[relative] = (script, number)
-    for match in re.finditer(r"`([^`]+)`", text):
+    for match in re.finditer(r"`([^`]+)`", prose):
       span = match.group(1)
       if "\n\n" in span:
         continue
@@ -45889,19 +46945,59 @@ def test_the_documents_numbers_match_the_code():
   # what the plugin will draw for them. This test failed on the first
   # full suite that ever reached it, which is what a full suite is
   # for.
-  words = {"twenty": 20, "twenty-one": 21, "twenty-two": 22,
-           "twenty-three": 23, "twenty-four": 24, "twenty-five": 25,
-           "twenty-six": 26, "thirty": 30, "fifty": 50,
-           "two hundred and fifty-six": 256}
+  # AND THE WEAVE HALF IS ASKED OF THE CATALOGUE, NOT OF
+  # `MAX_ELEMENTS_WEAVE`. (2026-08-31, found by a hunt and confirmed by
+  # counting the entries directly.) That constant is 26 because a weave
+  # names its strands one character at a time, so an alphabet is the ID
+  # ceiling -- and the CATALOGUE is thinner than the ceiling: weave
+  # families exist for n = 2..12 and nowhere above. The guide's
+  # sentence says "the catalogue runs to", so comparing it against the
+  # ID ceiling let a sentence overstating the weave side by fourteen
+  # elements pass this gate. `dialog.N_CHOICES` and the element
+  # slider's own note both had it right; only the guide and this check
+  # did not.
+  # COUNTED RATHER THAN CONSTANTED, deliberately: a number written here
+  # would be a third store of a fact the catalogue already holds, and
+  # the next family added at n=13 would move the truth and leave both
+  # the guide and this line behind.
+  weave_ceiling = max(
+    n for n, designs in catalog.TILINGS_BY_N.items()
+    if any(d.get("type") == "weave" for d in designs.values()))
+  assert weave_ceiling < catalog.MAX_ELEMENTS_WEAVE, (
+    "PREMISE: the weave catalogue now reaches its ID ceiling, so this "
+    "check can no longer tell the two numbers apart and the comment "
+    "above it is stale")
+  words = {"twelve": 12, "twenty": 20, "twenty-one": 21,
+           "twenty-two": 22, "twenty-three": 23, "twenty-four": 24,
+           "twenty-five": 25, "twenty-six": 26, "thirty": 30,
+           "fifty": 50, "two hundred and fifty-six": 256}
   guide = read("docs/USER-GUIDE.md")
+  # EVERY GAP IS `\s+`, NOT A LITERAL SPACE. (2026-08-31, and the
+  # guard caught it on me within the hour.) The pattern used to spell
+  # most of its gaps as plain spaces, so it could only find the
+  # sentence while the paragraph happened to be wrapped the way it was
+  # when the pattern was written. Correcting the weave number made
+  # "twelve" shorter than "twenty-six", the paragraph was re-wrapped to
+  # tidy the ragged line, and the newline landed between "fifty-six"
+  # and "for a tiling" -- where a literal space cannot match it. The
+  # test then failed with its own "this check has silently stopped
+  # checking anything", which is the right words in the right place and
+  # is why that assertion exists.
+  # THE LESSON IS ABOUT PROSE GATES GENERALLY: a pattern that reads a
+  # sentence spanning a line break must not depend on WHERE the break
+  # falls, because re-wrapping a paragraph is an edit nobody thinks of
+  # as semantic. This is the roadmap gate's own family -- there a
+  # declaration was invisible because it had been wrapped through the
+  # middle.
   claim = re.search(
-    r"catalogue\s+runs to ([a-z-]+(?:\s+[a-z-]+)*?) elements for a "
-    r"weave and to ([a-z-]+(?:\s+[a-z-]+)*?) for a tiling", guide)
+    r"catalogue\s+runs\s+to\s+([a-z-]+(?:\s+[a-z-]+)*?)"
+    r"\s+elements\s+for\s+a\s+weave\s+and\s+to\s+"
+    r"([a-z-]+(?:\s+[a-z-]+)*?)\s+for\s+a\s+tiling", guide)
   assert claim, \
     "the user guide no longer states BOTH catalogue ceilings, so " \
     "this check has silently stopped checking anything"
   for said, ceiling, family in (
-      (claim.group(1), catalog.MAX_ELEMENTS_WEAVE, "weave"),
+      (claim.group(1), weave_ceiling, "weave"),
       (claim.group(2), catalog.MAX_ELEMENTS_TILING, "tiling")):
     stated = words.get(" ".join(said.split()))
     assert stated is not None, \
@@ -45971,6 +47067,20 @@ def test_every_documented_command_still_exists():
   The count is asserted as well as the checks, because the way this
   test dies quietly is a parser that stops recognising commands: three
   commands found and all three fine is a failure wearing a pass.
+
+  Regression: the inline-span pass read the document RAW, and a ``` fence
+  line carries three backticks -- the pattern needs a non-backtick
+  between a pair, so the first two cannot pair and the third opened a
+  span running to the next backtick. Everything quoted after a fence was
+  invisible and scraps of prose were collected as commands instead.
+  Measured 2026-08-31: MAINTAINING.md contributed ONE command reference
+  where it carries thirteen, and the one the gate could not see named
+  `dev/instruments/probe_zigzag_cleaners.py`, a gitignored path that
+  does not exist -- the same defect whose sibling in ROADMAP.md failed
+  CI and superseded rc6, left standing because the repair went to the
+  instance CI named. Fifteen references were hidden across the gated
+  documents. The per-document check could not catch it either: a
+  document that contributes SOMETHING passes. [docs-reading]
   """
   commands = _documented_commands()
   # A parser that has lost its grip is the failure mode to fear here,
@@ -46034,6 +47144,37 @@ def test_every_documented_command_still_exists():
   assert "--not-a-real-flag" not in accepted, \
     "the flag reader accepts flags that do not exist, so every flag " \
     "check above passed for free"
+
+  # AND THE SCANNER MUST STILL SEE A COMMAND QUOTED AFTER A FENCE.
+  # A ``` line carries three backticks and the span pattern needs a
+  # non-backtick between a pair, so the first two cannot pair and the
+  # third opens a span that runs to the next backtick -- after which
+  # every real span reads as prose and every scrap of prose reads as a
+  # span. It is invisible in this test's own totals, because a document
+  # that contributes SOMETHING passes the per-document check above.
+  # Measured 2026-08-31: MAINTAINING.md contributed ONE reference where
+  # it carries thirteen, and the one it could not see named a file that
+  # does not exist. Guarded as a property of the PARSER rather than by
+  # pinning any document, because the next fence somebody writes is the
+  # one that would hide the next stale path.
+  planted = ("Run `tools/first.py` to start.\n\n"
+             "```bash\n"
+             "python3 release.py --rc\n"
+             "```\n\n"
+             "Then `tools/second.py` and `tools/third.py`.\n")
+  seen = [" ".join(span.split()) for span
+          in re.findall(r"`([^`]+)`", _prose_outside_fences(planted))]
+  for hidden in ("tools/second.py", "tools/third.py"):
+    assert hidden in seen, \
+      f"the inline scan cannot see {hidden}, quoted after a fenced " \
+      f"block: a fence has shifted the pairing and everything below " \
+      f"it in every document is going unchecked. It read {seen}"
+  assert "tools/first.py" in seen, \
+    f"the inline scan stopped seeing a span BEFORE the fence too, so " \
+    f"the blanking is removing more than the fences: {seen}"
+  assert not any("release.py" in span for span in seen), \
+    f"fenced content is being read as an inline span, so the two " \
+    f"passes are double-counting the same command: {seen}"
 
   # AND THE FLAGS QUOTED WITHOUT THEIR SCRIPT BESIDE THEM, which is how
   # most of these documents actually read: a paragraph names release.py
@@ -76424,6 +77565,16 @@ def main():
         test_a_text_column_shares_one_classification)
   check("a reopen does not take the motif out of the file",
         test_a_reopen_does_not_take_the_motif_out_of_the_file)
+  check("a save with an edit outstanding leaves the motif alone",
+        test_a_save_with_an_edit_outstanding_leaves_the_motif_alone)
+  check("a design that cannot carry its edits still draws",
+        test_a_design_that_cannot_carry_its_edits_still_draws)
+  check("a topology landing does not strand a live tick",
+        test_a_topology_landing_does_not_strand_a_live_tick)
+  check("a tick dropped by a save comes back",
+        test_a_tick_dropped_by_a_save_comes_back)
+  check("the experimental exemption closes again",
+        test_the_experimental_exemption_closes_again)
   check("the saved dual belongs to the saved unit",
         test_the_saved_dual_belongs_to_the_saved_unit)
   check("the element slider follows a restore",
@@ -76438,6 +77589,10 @@ def main():
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",
         test_the_messages_tab_records_what_the_plugin_said)
+  check("a font change moves the design tab's fields",
+        test_a_font_change_moves_the_design_tab_s_fields)
+  check("the messages tab shows the answer beside the question",
+        test_the_messages_tab_shows_the_answer_beside_the_question)
   check("the zigzag needs no scipy",
         test_the_zigzag_needs_no_scipy)
   check("no artefact is named without its version",

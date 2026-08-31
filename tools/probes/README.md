@@ -42,3 +42,14 @@ asked — read that roadmap entry before believing a result.
 value, step and decimals. Written for the three-significant-figures
 rule; useful whenever a control's precision is in question, since
 reading the list is faster than reasoning about five rules.
+
+**`zigzag_cleaners.py`** is the measurement behind ruling 5's refusal
+being rare rather than usual: each design is zigzagged twice in one
+run, once with our own exact dedupe alone and once with upstream's
+`get_clean_polygon` in front of it. Ours alone refuses laves 3.3.4.3.4
+and hex-slice 4; upstream's cleaner first draws all four designs with
+nothing invalid, because it removes corners that are merely very close
+and then the colinear ones where ours removed only exact repeats. Both
+arms run together deliberately -- one arm says nothing about the other,
+and this project has been caught believing one before. Re-run it after
+any change to the manipulation repair.

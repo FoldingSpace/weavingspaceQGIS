@@ -5392,3 +5392,143 @@ here, and the decision to add one is the maintainer's. Recorded
   fifteen-minute diagnosis and an hour of waiting, and it is what the
   platform probe's speed is worth in practice. Pass
   `--allow-escape-sequences` and strip them.
+
+- **A GUARD THAT COMPARES THREE OF TWENTY-SIX FIELDS IS A SECOND
+  DEFINITION OF THE THING IT GUARDS, AND IT GOES STALE.**
+  (2026-08-31, and TWO hunts found it independently by different
+  routes -- the most this method has converged here.) The save's
+  staleness guard asked whether "the design on screen is the one the
+  map was drawn at" by comparing family, element count and the
+  topology edit list, while the KEY it writes beside the motif hashes
+  `_topology_stamp()` -- the spacing and every modifier included. So
+  any design term outside those three moved the key while the guard
+  reported agreement, and the two harms are opposite and both silent:
+  measured, spacing 500 to 900 with no Generate then Save kept a unit
+  of area 797,396 beside tiles drawn at 246,110 with the record still
+  saying 500, and the same journey moving the tile inset DELETED motif
+  and dual from a file whose tiles carry them.
+  THE REPAIR IS ONE OWNER, NOT A WIDER LIST. `_capture_design` is now
+  the single answer to "what is the design", and both the record's
+  writer and the guard call it -- so the comparison cannot drift the
+  day somebody adds a modifier, which is exactly how the narrow
+  version was born. A guard that ENUMERATES the fields of a record is
+  a copy of that record's definition; ask instead whether the owner
+  can be called.
+  ITS FIRST REPAIR WAS WORSE THAN THE DEFECT, and only a two-arm
+  verification caught it: asking `_geometry_signature` instead refused
+  the CONTROL journey too, so no motif was written on either path. An
+  edited landing adopts its unit AFTER the run, so that signature
+  legitimately differs from the one the map was drawn at.
+
+- **A SINGLE-SHOT TIMER THAT IS "DROPPED" IS LOST, NOT LATE -- AND THE
+  COMMENT SAYING OTHERWISE IS THE WORSE HALF.** (Same day, in a repair
+  written hours earlier by the same hand.) A gate refusing a live tick
+  while a save writes returned without re-arming `_live_timer`, which
+  is `setSingleShot(True)` and had just FIRED to reach the gate; its
+  only two `start()` sites are a fresh control change and
+  `_finish_run`. Meanwhile `_preview_timer` is not gated, so the
+  preview and the assignment table followed the new design while the
+  map did not, with nothing said -- measured, element count 4 to 6
+  left the table showing a..f over a map holding a..d.
+  THE COMMENT CLAIMED "the redraw is a moment late rather than lost".
+  A false comment is worse than none: the next reader believes it
+  instead of checking, and this one was believed for hours by its own
+  author. When you write that something recovers by itself, name the
+  mechanism that recovers it and check that mechanism can still fire.
+
+- **A `ResizeToContents` COLUMN RE-MEASURES ON EVERY `setItem`.**
+  (Same day, and it was a regression introduced by that morning's own
+  fix.) The Messages tab's answer column was pushed off the viewport,
+  so three columns were given resize MODES -- which cured the layout
+  and cost ten to eighteen SECONDS per message once the log reached
+  its 500-row ceiling, on the main thread, with live update making the
+  plugin speak on every tweak. Measured at the ceiling: 8,563ms at
+  Qt's default precision, 412ms with `setResizeContentsPrecision(20)`,
+  and 5ms once the modes are SUSPENDED across the bulk rewrite and
+  restored in a `finally`. Below the ceiling every arrangement is 4ms.
+  THE CEILING IS THE CASE, AND A PROBE THAT FILLS PAST IT MEASURES
+  NOTHING. `said.record` trims to 500, so a log already at 500 keeps
+  its ROW COUNT UNCHANGED and every write is an overwrite -- which is
+  what makes the columns re-measure. A first probe filled to 560, read
+  4.8ms either way, and the catalogue entry aimed at the bound duly
+  SURVIVED. The probe could not reach its own case, which is this
+  file's oldest testing fault wearing a row count.
+
+- **AN ENTRY MUST BREAK THE ROUTE THE GUARD WALKS, NOT A ROUTE.**
+  (Same day, twice, and it cost four attempts on one entry.) A gate
+  was given three callers -- the shelf writer, the family handler and
+  the element-count handler -- and an entry mutating any ONE of them
+  survived, because changing the element count REPOPULATES the family
+  list and the family handler re-asks anyway. The three calls are kept
+  as defence in depth, because which door fires today is incidental;
+  the ENTRY was re-aimed at the single line where the answer is
+  DECIDED. When an entry survives, ask whether it is aimed at a door
+  or at the decision.
+
+- **`mutation_check` MUST RUN ITS CHILD OFFSCREEN, AND THE DOCUMENTED
+  INVOCATION DID NOT.** (Same day, three diagnostic rounds.) The
+  command this file gives -- `env -u PYTHONHOME -u PYTHONPATH python3
+  tools/mutation_check.py` -- passes no `QT_QPA_PLATFORM`, while the
+  suite always sets `offscreen`. Most entries do not care; one that
+  measures LAYOUT does, this project's own record saying a font is not
+  a platform. Two font entries came back UNJUDGEABLE and read exactly
+  like broken tests; they caught on the first run once the child got
+  an offscreen platform. `child_environment()` now `setdefault`s it,
+  so the trap is closed at the tool rather than remembered here.
+
+- **WHEN YOU ADD A STEP TO A SEQUENCE, ASK WHAT IT RESETS.**
+  (Same day, found by a hunt auditing a harness rather than a
+  product.) The topology matrix grew a baseline Generate, placed
+  between choosing a manipulation and clicking Apply. That Generate
+  lands a topology build, the landing calls `set_unit`, and
+  `_refresh_classes` then resets the class combo to the first vertex
+  class and refills the verb list with vertex verbs only -- so every
+  chosen EDGE verb was silently replaced by `push_vertex` and three
+  cells could not fail. Demonstrated by breaking all three edge
+  manipulations into no-ops: identical verdicts, while the sibling
+  `immediately` cell went red under the same mutation.
+  IT IS THE SELECT-THEN-ACT FAULT THE CELL'S OWN DOCSTRING RECORDS AS
+  FIXED, re-entering through a step added later. A sequence that
+  encodes an order is broken by anything inserted into it, and the
+  insertion looks harmless because it is about something else.
+
+- **A DEDUPE WRITTEN FOR AN UNREACHABLE HARM IS DELETED, NOT KEPT.**
+  (Same day.) `_report_quietly` does not deduplicate, so a new notice
+  on a gate reachable from every live tick looked certain to repeat --
+  a warning that fires constantly being one people learn to ignore. A
+  guard went in. The catalogue reported SURVIVED, and driving the live
+  path with the gate dumps on said why: the key that gate compares
+  carries the MODIFIERS, so moving the control changes it and each
+  move honestly re-defers rather than re-explaining; four slider moves
+  produced no second arrival at all. The mechanism was right and the
+  harm was not, which is this project's own calibration arriving on
+  its own repair. The dedupe was removed, with the measurement left at
+  the site and the property it rested on held by a test arm.
+
+- **RE-WRAPPING A PARAGRAPH DISARMED A PROSE GATE.** (Same day.) A
+  guard finds a sentence in the user guide with a regular expression
+  whose gaps were mostly literal spaces. Correcting a number made the
+  word shorter, the paragraph was re-wrapped to tidy the ragged line,
+  and the newline landed between "fifty-six" and "for a tiling" --
+  where a literal space cannot match. The test failed with its own
+  "this check has silently stopped checking anything", which is the
+  right words in the right place and is why that assertion exists.
+  EVERY GAP IS `\s+` NOW. A pattern that reads a sentence spanning a
+  line break must not depend on WHERE the break falls, because
+  re-wrapping is an edit nobody thinks of as semantic. Same family as
+  the roadmap gate, from the other side: there a declaration was
+  invisible because it had been wrapped through the middle.
+
+- **A DOWNLOADED ARTEFACT HAS A FRESH MTIME AND AN OLD RESULT.**
+  (Same day, the nineteenth watcher fault here and a new road.) The
+  night's beat picks the newest failing log with `find -mmin -240`,
+  which is the right guard against a glob sweeping up every run there
+  has ever been -- and it assumes mtime is when the WORK happened.
+  Pulling CI's shard logs down with `gh run download` put three files
+  carrying a superseded run's failures into the beat's own directory,
+  stamped with the minute they arrived, and the beat reported a fixed
+  rc6 failure as tonight's trouble. The window filter cannot see it,
+  because every fact it reads is genuinely fresh. Put somebody else's
+  log where your watcher does not read, or name it so the pattern
+  misses it -- and retire your OWN superseded logs, since a directory
+  of stale failing logs makes any watcher lie.

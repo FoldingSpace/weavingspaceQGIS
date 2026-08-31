@@ -751,23 +751,58 @@ built, guarded by a registered test and proved by a catalogue entry;
 what remains below is the maintainer's own and changes no software.
 
 WHAT THE PHRASE IS RESTING ON, said plainly so it can be checked
-rather than believed. Ten topology and interface tests green, eight
-catalogue entries proved `caught` -- four new, two re-anchored where
-the drop's line moved, one re-aimed and one narrowed -- and the two
-that SURVIVED first were both mutations of mine aimed at the wrong
-thing, repaired rather than accepted. The full sharded suite is the
-one thing not yet run over this tree, and it is the candidate's fourth
-stage: running it standalone first buys no earlier warning and doubles
-the wait, which is this project's own rule.
+rather than believed, and REWRITTEN LATE ON 2026-08-31 because the
+ground moved under it. rc6 was built and gated on the tree this
+paragraph originally described, and it is SUPERSEDED: CI's whole-suite
+coverage leg failed two tests on it, and a hunt round aimed at that
+same tree found a livelock the local gates could not see. Nine further
+defects were found, repaired and guarded after it.
+
+The declaration rests on this, all of it re-measured since rc6: SEVEN
+new registered tests; NINE catalogue entries proved `caught`, of which
+three had to be re-aimed after SURVIVING -- one at a door rather than
+the decision, one at a bound that was not the fix, and one at a harm
+that turned out to be unreachable and was deleted instead; a full
+sharded suite of 713 tests at 712 passed, its one failure a prose gate
+this work had disarmed by re-wrapping a paragraph, since repaired and
+re-proved; and the topology matrix green after three of its cells were
+shown UNABLE TO FAIL and mended.
+
+THE FULL SHARDED SUITE IS OWED AGAIN over the current tree, which
+carries substantially more than rc6 did. It is the candidate's fourth
+stage, so it runs there rather than standalone.
 
 Whether the interface work belongs in 0.24.4 or moves to 0.24.5
 remains the maintainer's decision and no tool may make it; it has
 stayed here by default, which is the status quo rather than a choice
 anybody made.
 
-WHAT REMAINS IS THE MAINTAINER'S OWN, and neither is work on the
-software: the CHANGELOG LINE for everything above, which is a sentence
-a person writes and approves, and the FOURTEEN REVIEWED SENTENCES in
+TWO QUESTIONS ARE OPEN AND BOTH ARE THE MAINTAINER'S, recorded here
+rather than settled because each is two settled rules colliding.
+
+THE RECORD CAN LIST MORE ELEMENTS THAN ITS OWN DESIGN HAS.
+`_stamp_working_state` carries `design` from the landing -- only a
+landing may move it, which is the ruling of 2026-08-26 -- and re-reads
+`elements` LIVE, because everything the colour editor writes must be
+re-read at the landing, which this project learned three times. So a
+Save can write `n=4` beside `elements a..f`, reachable in three
+presses with live update off, and a recipient's Load auto-assigns the
+extra two. TRIMMING WOULD BE WRONG: the surplus entries are the
+per-element, per-field memory ruling 6 of 2026-08-21 says must survive
+a switch and come back. The likely answer is at the READER -- a Load
+assigning only the first `design.n` elements and leaving the rest as
+memory -- but that is a decision about what the record MEANS.
+
+THE TOPOLOGY TAB DRAWS THE UN-EDITED MOTIF. `set_unit` is handed
+`built["unit"]` and `built["topology"]`, never `edited`, so the
+picture somebody judges an edit by is the design before it. Drawing
+the edited motif is easy; the labels an edit is AIMED with must go on
+coming from the un-edited topology, so which one the hit test follows
+is the ruling.
+
+WHAT REMAINS BESIDES IS THE MAINTAINER'S OWN, and neither is work on
+the software: the CHANGELOG LINE for everything above, which is a
+sentence a person writes and approves, and the SENTENCES in
 the text-review queue -- the slider's box, the two renamed transform
 labels, the experimental box, the Messages tab and the prose about
 them, and the three download sentences that now describe a versioned
@@ -1310,7 +1345,7 @@ is a function ALREADY IN OUR VENDOR that does the job better than the
 repair written here.
 
 MEASURED AS A PAIR, both arms in one run
-(`dev/instruments/probe_zigzag_cleaners.py`): ours alone refuses laves
+(`tools/probes/zigzag_cleaners.py`): ours alone refuses laves
 3.3.4.3.4 and hex-slice 4; upstream's cleaner first draws ALL FOUR
 designs with nothing invalid. It removes corners that are merely VERY
 CLOSE and then the COLINEAR ones, where ours removed only exact

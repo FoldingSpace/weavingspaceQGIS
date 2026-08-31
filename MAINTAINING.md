@@ -845,7 +845,7 @@ this project had measured independently, confirmed from the side that
 wrote the manipulation.
 
 MEASURED AS A PAIR, both arms in one run
-(`dev/instruments/probe_zigzag_cleaners.py`): with our dedupe alone,
+(`tools/probes/zigzag_cleaners.py`): with our dedupe alone,
 `laves 3.3.4.3.4` and `hex-slice 4` REFUSE and `hex-slice 3` and
 `chavey K` draw. With upstream's cleaner first, ALL FOUR draw with no
 invalid geometry. So the sentence that used to stand here — that two of
@@ -1318,6 +1318,40 @@ dataset's own map, asked of the layers' `weavingspace_region` stamps:
 `_group_of_our_layers` answers where this dialog's layers are, which
 is the group the last run LANDED in and not necessarily the group of
 the dataset being left.
+
+AND THE CONSEQUENCE NOBODY HAS DECIDED YET, recorded 2026-08-31 so it
+is not rediscovered as a bug. Because the design half is carried and
+the elements half is live, a Save can write `n=4` beside `elements
+a..f` -- reachable in three presses with live update off. Trimming the
+list would be wrong: the surplus entries are the per-element,
+per-field memory ruling 6 of 2026-08-21 says must survive a switch and
+come back. The likely answer is at the READER, a Load assigning only
+the first `design.n` elements, but that is a decision about what the
+record MEANS and it is the maintainer's. It sits in ROADMAP.md under
+0.24.4.
+
+## What a design IS, and why one function owns the answer
+
+`_capture_design` returns every design term -- WORKING_STATE_DESIGN's
+widgets plus this design's own topology edits -- and it is the ONLY
+answer to that question. `_capture_working_state` puts its result
+under "design"; the save's staleness guard compares it against the
+record it is about to write.
+
+IT WAS EXTRACTED ON 2026-08-31 BECAUSE A SECOND DEFINITION HAD DRIFTED.
+The guard deciding whether the file's motif still describes the file's
+tiles enumerated three terms -- family, element count, edit list --
+while the key it writes beside the motif hashes `_topology_stamp()`,
+the spacing and every modifier included. Any term outside those three
+moved the key while the guard reported agreement. Measured: spacing
+500 to 900 with no Generate then Save kept a unit of area 797,396
+beside tiles drawn at 246,110, its record still saying 500; the same
+journey moving the tile inset DELETED motif and dual from a file whose
+tiles carry them. Two hunts found it independently.
+
+So a guard that ENUMERATES the fields of a record is a copy of that
+record's definition, and it goes stale the day somebody adds a
+control. Ask whether the owner can be called instead.
 
 ## Colours kept for a file that has gone
 

@@ -3837,3 +3837,67 @@ so. And when two of your own probes disagree, do not pick the
 likelier: find what differs between them and vary it alone. Here the
 disagreement was worth more than either verdict, since it named a
 constraint neither probe had been looking for.
+
+## A probe that cannot reach its own case (2026-08-31)
+
+Three of the day's findings were probes, not products, and all three
+had the same shape: the instrument was aimed a little to one side of
+the thing it was about, and it reported health.
+
+**A ceiling is the case, and filling PAST it measures the other
+path.** The Messages log trims at 500. A log already at 500 keeps its
+ROW COUNT UNCHANGED on the next message, so every cell write is an
+overwrite -- which is what makes a `ResizeToContents` column
+re-measure. A probe that filled to 560 made the count CHANGE on the
+next message, took the cheap rebuild path, and read 4.8ms where the
+real case reads 8,563ms. The catalogue entry aimed at the repair duly
+SURVIVED. Fill to exactly the boundary, and say in the test why that
+number and not a rounder one.
+
+**A baseline inserted into a sequence can reset the sequence.** The
+topology matrix chooses a class, chooses a verb, then clicks Apply.
+A baseline Generate was added between the choosing and the click; it
+lands a topology build whose landing resets the class combo and
+refills the verb list, so every chosen EDGE verb became
+`push_vertex`. Three cells could not fail. The demonstration is the
+technique worth copying: break the three manipulations into no-ops
+and check the verdicts MOVE -- they did not, while the sibling cell
+under the same mutation went red.
+
+**A control arm that also fails has measured nothing, and a treatment
+that shares a route with its control measures the route.** An entry
+mutating one of three callers of a gate survived, because changing
+the element count repopulates the family list and the family handler
+re-asks anyway. Aim an entry at the line where the answer is DECIDED,
+not at a door into it; keep the other doors as defence in depth and
+say so at the entry.
+
+## The mutation runner needs the suite's own platform (2026-08-31)
+
+`tools/mutation_check.py` is documented as `env -u PYTHONHOME -u
+PYTHONPATH python3 tools/mutation_check.py`, which passes no
+`QT_QPA_PLATFORM` -- while every other way of running a test sets
+`offscreen`. Most entries do not care. An entry whose test measures
+LAYOUT does, because offscreen and cocoa assemble a window
+differently, and two font entries came back UNJUDGEABLE reading
+exactly like broken tests. `child_environment()` now `setdefault`s
+`QT_QPA_PLATFORM=offscreen`, so the trap is closed in the tool.
+
+The general question for any harness: which environment variables does
+the SUITE set that this harness does not, and which of them could
+change an answer rather than merely a speed?
+
+## Restore in a `finally`, and check the restore ran (2026-08-31)
+
+A proof that a guard can fail works by breaking the product, running
+the test, and putting the product back. On this day one such run was
+launched as a single shell chain whose last step was the restore --
+and the command timed out at ten minutes, so the kill landed between
+the run and the restore and left a deliberate no-op in shipped source.
+Nothing but the next `git status` would have said so.
+
+Write the restore so it cannot be skipped: a `finally`, a trap, or a
+separate command issued immediately and verified by reading the file
+back. This project's own rule already says a mutating job must ASSERT
+that it put the file back; the addition is that a TIMEOUT is one of
+the ways it fails to.

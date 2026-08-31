@@ -62,6 +62,14 @@ HOW = {
                     "machine it was written on",
   "user": "reported by a user",
   "review": "reading the code",
+  # Reading the DOCUMENTS is its own direction and has its own row in
+  # docs/process/HUNT-RECORD.md: it found a method defined twice in one
+  # class, an uncached swatch redrawn 306,558 times, and on 2026-08-31 a
+  # release gate blind to everything quoted after a fenced block. None
+  # of those came from a question about the code, so filing them under
+  # "reading the code" would blur the one signal this register exists
+  # to give -- which shape of work is actually catching defects.
+  "docs-reading": "re-reading the procedural documents",
   "hunt": "a bug hunt pointed in a named direction",
   "differential": "a randomised differential sweep",
   # Not a shape of test at all: a defect whose provenance was not
