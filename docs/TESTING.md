@@ -3879,6 +3879,25 @@ now records WHO called and refuses to judge a call from
 `_maybe_live_generate`, so if a competitor ever returns it says which
 mechanism it met rather than failing about the other one.
 
+AND IT WAS REPRODUCED HERE ON DEMAND, which turned a remote failure
+into a staged condition. The runners have one thing this Mac does not:
+a live tick landing BEFORE the topology build. Setting that quantity
+directly -- starting the live timer at zero instead of waiting for a
+slower machine to do it -- reproduces the CI failure every time, and
+the two arms in one run say the whole thing:
+
+    ARM A  timer fired at once   seen[1] = _maybe_live_generate,
+                                 live_pending True   -> old test FAILS
+    ARM B  timer stopped         seen[1] = a timer,
+                                 live_pending False  -> both pass
+
+`tools/probes/a_live_tick_racing_the_topology_landing.py` is that
+measurement, committed, because the instrument that names one defect
+is the one that names the next. Its arms run in ONE process and each
+clears the project first, since two arms sharing a QgsProject is how a
+control gets contaminated -- which cost two wrong readings earlier the
+same day.
+
 ASK OF ANY TEST THAT READS A MOMENT: does it NAME that moment, or
 count to it? Where it counts, the count is a claim about how many
 things happen first, and that is a claim about the machine.
