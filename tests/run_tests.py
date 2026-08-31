@@ -3217,14 +3217,30 @@ def test_a_topology_edit_reaches_the_map():
   assert tileable.tiles.geometry.iloc[0].wkt == hard_before, \
     "a refused edit changed the map anyway"
 
-  # A LIST COMPOSES, which is what makes it a record rather than one act
-  two = [{"classes": groups["vertex"], "how": "push_vertex",
-          "args": {"push_d": 0.08}},
-         {"classes": groups["vertex"], "how": "nudge_vertex",
-          "args": {"dx": 0.03, "dy": 0.0}}]
+  # A LIST COMPOSES, which is what makes it a record rather than one
+  # act. BOTH EDITS HAVE TO MOVE THIS DESIGN or the leg asserts that a
+  # true report is absent: `push_vertex` was the first of the two until
+  # 2026-08-31, and its displacement at a symmetric vertex is exactly
+  # zero, so the list was correctly reported as having changed nothing
+  # and this asserted there was no such report.
+  two = [{"classes": groups["vertex"], "how": "nudge_vertex",
+          "args": {"dx": 0.03, "dy": 0.0}},
+         {"classes": groups["edge"], "how": "rotate_edge",
+          "args": {"angle": 10.0}}]
   tileable, refusals = topology_edits.apply(topology, two)
   assert not refusals, f"a two-edit list was refused: {refusals}"
-  assert tileable.tiles.geometry.iloc[0].wkt != before
+  composed = _ground_between(topology.tileable, tileable)
+  assert composed > 1e-7, \
+    f"a two-edit list moved {composed:.3e} of the unit's own area"
+  # ...AND THE SECOND ONE HAPPENED, which is the claim this leg is
+  # really about: a list that quietly applied only its first edit
+  # would satisfy everything above.
+  first_only, _ = topology_edits.apply(topology, two[:1])
+  alone = _ground_between(topology.tileable, first_only)
+  assert composed > alone, (
+    f"two edits moved {composed:.3e} of the unit's ground where the "
+    f"first alone moved {alone:.3e}, so the second was not applied "
+    f"and the list is not composing")
 
   # AND A WEAVE AT THE PLUGIN'S OWN DEFAULT CANNOT, which is the case
   # the refusal exists for: the sentence must name the CONTROL, since
@@ -3250,13 +3266,20 @@ def test_a_topology_edit_reaches_the_map():
 TOPOLOGY_MATRIX_AFTERMATHS = ("immediately", "after re-Generate",
                               "with a run in flight",
                               "after save and reload")
-# "with a run in flight" is on the SPINE rather than in the sample: it
-# is the fourth of the race families the grilling of 2026-08-30 named,
-# the last one left owed, and a race sampled at random is a race that
-# usually is not run. It is a PRELUDE rather than an aftermath -- the
-# run is launched before the edit is made -- and the cell says so.
-TOPOLOGY_MATRIX_SPINE_AFTERMATHS = ("immediately", "after re-Generate",
-                                    "with a run in flight")
+TOPOLOGY_MATRIX_SPINE_AFTERMATHS = ("immediately", "after re-Generate")
+# "with a run in flight" is added by NAME, on one shape and two
+# routes, rather than crossed with the spine. It is the fourth of the
+# race families the grilling of 2026-08-30 named and the last one
+# owed, so it must not be left to the random sample -- a race sampled
+# at random is a race that usually is not run. But it is also much the
+# most expensive thing here: each cell launches a REAL tiling at a
+# finer spacing to hold the window open, and ten of them took this
+# test past ELEVEN MINUTES, where the suite's slowest is under two.
+# The question it asks is about the LANDING rather than about which
+# manipulation was made, so one edge route and one vertex route
+# answers it. It is a PRELUDE and not an aftermath -- the run is
+# launched before the edit -- and the cell says so at the line.
+TOPOLOGY_MATRIX_RACE_ROUTES = 2
 
 
 def _ground_between(one, two) -> float:
@@ -3321,6 +3344,73 @@ def _topology_matrix_shapes():
   return builds + refuses
 
 
+def _wait_for_the_topology(dlg, seconds: float = 40.0) -> bool:
+  """Wait until the tab has a topology, or has said why it has none.
+
+  Args:
+    dlg: the dialog.
+    seconds: how long to wait before giving up.
+
+  Returns:
+    True where the panel now holds a topology or has said in words
+    that this design carries none; False where neither ever happened,
+    which is a real complaint rather than a slow machine.
+
+  `_settle_topology` WAITS ON THE ABSENCE OF A BUILD TASK, which is
+  true before the build is QUEUED as well as after it lands -- so a
+  caller that changes the design, settles, and reads the panel is
+  reading it before anything has been asked of it. That is a fault
+  this matrix's own docstring records as fixed, and it was fixed for
+  one path only: measured again on 2026-08-31 with a probe that
+  changed the family, settled twenty times over a hundred seconds, and
+  found `_topology` still None with no build ever queued.
+
+  SO THIS WAITS ON THE ANSWER RATHER THAN ON QUIET, which is this
+  suite's standing rule for exactly this shape.
+  """
+  import time as _time
+  deadline = _time.monotonic() + seconds
+  while _time.monotonic() < deadline:
+    panel = getattr(dlg, "topology_panel", None)
+    if panel is None:
+      return False
+    if panel._topology is not None:
+      return True
+    if (panel.note.text() or "").strip():
+      return True
+    _settle_topology(dlg, seconds=5)
+    _tick(200)
+  return False
+
+
+def _generate_past_the_topology(dlg):
+  """Press Generate and wait for the run the DEFERRAL eventually makes.
+
+  Args:
+    dlg: the dialog.
+
+  Returns:
+    None.
+
+  A GENERATE WITH AN EDIT LIST OUTSTANDING IS DEFERRED, deliberately:
+  `_generate` waits while an edit exists and the edited unit has not
+  been restored, so the map is drawn from the edited unit rather than
+  the unedited one, and it says in words that the map will be redrawn
+  when the changes are ready. The run that matters is therefore the
+  SECOND one, which the topology build's landing re-presses -- so a
+  caller that settles once has waited for a run that declined.
+
+  Measured 2026-08-31: cells on the slowest design reported "the edit
+  never reached the map" and "the save did not write" for exactly this
+  reason, which is a harness fault rather than a defect and is tallied
+  as one. Settle, let the build land, then settle again.
+  """
+  dlg._generate()
+  _settle(dlg, seconds=60)
+  _settle_topology(dlg)
+  _settle(dlg, seconds=60)
+
+
 def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   """Drive one manipulation on the design in front of us, and judge it.
 
@@ -3343,6 +3433,13 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   """
   import os
   panel = dlg.topology_panel
+  # ASK ONLY ONCE THE PANEL CAN ANSWER. A design change queues a build
+  # that takes 0.75-4.4s, and settling for quiet returns before it is
+  # even asked for.
+  if not _wait_for_the_topology(dlg):
+    return ("the tab neither built a topology nor said why not, so "
+            "somebody is left in front of a panel that never answers",
+            "")
   if panel._topology is None:
     # The refusing shape: the promise here is that the tab SAYS SO.
     said = (panel.note.text() or "").strip()
@@ -3357,7 +3454,6 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
 
   before_edits = len(panel.edits())
   before_note = (panel.note.text() or "").strip()
-  before_unit = _unit_fingerprint(dlg)
   before_tiles = _unit_tiles(dlg)
 
   # THE RUN IS LAUNCHED BEFORE THE EDIT, which is what makes this
@@ -3370,14 +3466,6 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   # not reach its own case. A finer spacing is what holds the window
   # open, since the default design tiles faster than the press.
   in_flight = aftermath == "with a run in flight"
-  if in_flight:
-    dlg.spacing_spin.setValue(max(dlg.spacing_spin.value() / 8.0, 1.0))
-    _tick(400)
-    dlg._generate()
-    _tick(30)
-    if dlg._task is None:
-      return ("SKIPPED", "the run had landed before the edit could be "
-                         "made, so the window was missed")
 
   # SELECT, THEN ACT -- the tab's own order since the interaction was
   # rebuilt on 2026-08-30, and this cell has to drive it the way a
@@ -3405,7 +3493,59 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
     return ("SKIPPED", f"{route} is not offered for a {target}")
   panel.how_combo.setCurrentIndex(index)
   _tick(120)
+
+  if aftermath == "after re-Generate":
+    # A BASELINE OF THIS DESIGN, DRAWN BEFORE THE EDIT. Without one the
+    # comparison below stands on whatever map is in the project when
+    # this cell starts -- and every cell shares one region layer, so a
+    # fresh dialog ADOPTS the previous cell's output, which was another
+    # design entirely. The harm must be measured where it would happen,
+    # and "the edit never reached the map" means nothing when the map
+    # it is compared against was never of this design. Measured
+    # 2026-08-31: driven end to end with a baseline of its own, the
+    # cell's own complaint does not reproduce -- `crosses 4` moves
+    # 1.5e-1 of the unit's ground under a zigzag and the map follows.
+    _generate_past_the_topology(dlg)
+
+  # THE RUN IS LAUNCHED HERE, AFTER THE CHOOSING AND BEFORE THE PRESS,
+  # which is the fourth race family: an edit made while a tiling is
+  # already going.
+  # IT LAUNCHES NOTHING AND CHANGES NOTHING FIRST, which is what took
+  # three attempts. The first draft made the spacing finer to hold the
+  # window open, and that rebuilt the unit, which emptied the class
+  # list until the seconds-long topology build landed -- so the cell
+  # skipped on having no class to move, and read as a race it had
+  # missed. This design has never landed a run in this dialog, so a
+  # plain press is a full tiling; and `_generate` creates the task
+  # synchronously, so `_task` is set the moment it returns and nothing
+  # may be pumped between these two lines. Measured 2026-08-31: a
+  # press right after `_generate()` holds a live TilingTask every time,
+  # at every spacing tried.
+  if in_flight:
+    dlg._generate()
+    if dlg._task is None:
+      return ("SKIPPED", "no run was launched, so there is no flight "
+                         "for the edit to be made during")
   panel.apply_button.click()          # its own signal, as a person uses it
+
+  if in_flight:
+    # LET THE RUN LAND BEFORE JUDGING. The panel's own build is queued
+    # behind the tiling, so asking whether it has moved or spoken while
+    # a tiling is still going asks before it can answer -- and the loop
+    # below then waits out its entire ceiling doing nothing. Measured
+    # 2026-08-31: 1:17 of cpu across 2:56 of wall clock, which is this
+    # project's own blocked-rather-than-busy signature, and the test
+    # went from under two minutes to over eleven.
+    # THE COUNT IS TAKEN BEFORE THE LANDING, which is the whole
+    # question: the run was launched with the design as it stood
+    # BEFORE this edit, and what must not happen is the landing
+    # forgetting the edit on its way past. Reading the count after the
+    # landing and comparing it with itself afterwards would be a
+    # tautology -- the shape this very matrix shipped once, where one
+    # cell compared `len(panel.edits())` with `len(panel.edits())`.
+    armed = len(panel.edits())
+    _settle(dlg, seconds=60)
+    _settle_topology(dlg)
 
   # WAIT ON THE ANSWER, NOT ON A NUMBER OF TICKS. A refusal is reported
   # when the REPLAY lands, which is a build away, so reading the note
@@ -3414,12 +3554,20 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   # silent when it was merely not finished. A cell that times out here
   # is a real complaint: the answer never came.
   moved = spoke = False
-  for _ in range(60):
+  for _ in range(10 if in_flight else 60):
     _settle_topology(dlg, seconds=5)
     _tick(200)
     said_now = (panel.note.text() or "").strip()
-    moved = (_unit_fingerprint(dlg) != before_unit
-             or _unit_ground_moved(dlg, before_tiles))
+    # THE GROUND ALONE, and the fingerprint is deliberately not part of
+    # this. It carries the unit's rounded total BOUNDS, which the
+    # library's own re-gridding moves whether or not an edit did
+    # anything -- so a cell could see "moved" from noise, find the map
+    # rightly unchanged, and report that the edit never reached it.
+    # Measured 2026-08-31 on `crosses 4`: areas identical before and
+    # after, the map byte for byte the same, and the complaint standing
+    # on a fingerprint that had shifted. That is the same fault as
+    # comparing coordinate sequences, one instrument along.
+    moved = _unit_ground_moved(dlg, before_tiles)
     spoke = bool(said_now) and said_now != before_note
     if moved or spoke:
       break
@@ -3442,11 +3590,25 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
     # to reach the MAP could not fail, and did not. Found by a hunt
     # aimed at this ground, 2026-08-30; this suite measures its own
     # rate of these at about one in five, and this is one.
+    # THE PREMISE, ASSERTED RATHER THAN ASSUMED. This axis asks whether
+    # a re-Generate carries the edit onto the map, and that question
+    # only means something while the edit is still IN the unit at the
+    # moment the run is asked for. Where it is not, the cell cannot
+    # answer and says so, which is a skip rather than a complaint.
+    # IT IS HERE BECAUSE OF WHAT FOUR ITERATIONS COST. This cell
+    # complained about `crosses 4` under a zigzag through four separate
+    # repairs, and the journey was driven end to end twice -- once with
+    # the restore called by hand, once without, since a probe that
+    # mends what it measures is this project's own trap -- and the map
+    # followed the edit both times, moving 1.5e-1 of the unit's ground.
+    # A complaint nothing can reproduce is a complaint about the cell.
+    if not _unit_ground_moved(dlg, before_tiles):
+      return ("SKIPPED", "the edit is no longer in the unit when the "
+                         "re-Generate is asked for, so what the map "
+                         "does next is not about it")
     kept = len(panel.edits())
     before_map = _element_layer_digest(dlg)
-    dlg._generate()
-    _settle(dlg)
-    _settle_topology(dlg)
+    _generate_past_the_topology(dlg)
     if len(panel.edits()) != kept:
       return (f"the edit list changed under a re-Generate: {kept} "
               f"became {len(panel.edits())}", "")
@@ -3473,12 +3635,9 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
     # forgotten on the way past -- this project's own shape, where a
     # style pasted 250 ms into a run was destroyed as the run landed
     # while the same paste a second either side survived.
-    kept = len(panel.edits())
-    _settle(dlg, seconds=60)
-    _settle_topology(dlg)
-    if len(panel.edits()) != kept:
+    if len(panel.edits()) != armed:
       return (f"the edit list changed as the in-flight run landed: "
-              f"{kept} became {len(panel.edits())}, so an edit made "
+              f"{armed} became {len(panel.edits())}, so an edit made "
               f"while a tiling was going was lost by the landing", "")
     # ...AND THE PANEL STILL DESCRIBES A DESIGN IT CAN ACT ON. A
     # landing that leaves the tab holding classes for another design
@@ -3496,8 +3655,7 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   elif aftermath == "after save and reload":
     path = os.path.join(out_dir, f"matrix-{route}.gpkg")
     dlg.gpkg_widget.setFilePath(path)
-    dlg._generate()
-    _settle(dlg)
+    _generate_past_the_topology(dlg)
     if not press_save(dlg, expect=False):
       return ("SKIPPED", "the save did not write, so there is nothing "
                          "to read back")
@@ -3564,14 +3722,18 @@ def _unit_ground_moved(dlg, before) -> bool:
     unit's own area, which is three orders above the library's own
     re-gridding.
 
-  IT IS NOT `_unit_fingerprint`, AND THAT MATTERS HERE. The
-  fingerprint rounds each tile's AREA, and a zigzag bends an edge
-  while leaving the area it encloses inside any sane tolerance -- so a
-  cell asking the fingerprint reported "moved nothing" about an edit
-  that plainly had, and then complained that the edit said nothing
-  either. Measured 2026-08-31 on `square-slice 4`. A statistic is not
-  a shape, which is the same lesson `_same_shape` learned twice on the
-  other side of this boundary.
+  IT REPLACED A FINGERPRINT OF ROUNDED AREAS AND BOUNDS, and that is
+  why it exists. A zigzag bends an edge while leaving the area it
+  encloses inside any sane tolerance, so the areas answered "moved
+  nothing" about an edit that plainly had, and the cell then complained
+  that the edit had said nothing either (measured on `square-slice 4`).
+  The BOUNDS were worse in the other direction: the library re-grids
+  the unit it hands back whether or not an edit did anything, so a cell
+  saw movement that was not there, found the map rightly unchanged, and
+  reported that the edit never reached it (measured on `crosses 4`).
+  Both readings were retired on 2026-08-31 and the helper with them. A
+  statistic is not a shape, which is the same lesson `_same_shape`
+  learned twice on the other side of this boundary.
   """
   after = _unit_tiles(dlg)
   if before is None or after is None or len(after) != len(before):
@@ -3580,37 +3742,6 @@ def _unit_ground_moved(dlg, before) -> bool:
               for a, b in zip(before, after))
   area = sum(a.area for a in before) or 1.0
   return (total / area) > 1e-7
-
-
-def _unit_fingerprint(dlg):
-  """What the tile unit currently is, coarsely enough to compare.
-
-  Args:
-    dlg: the dialog.
-
-  Returns:
-    A tuple of the tile count, each tile's rounded AREA, and the
-    rounded total bounds, or None. Rounded because an edit that moves a
-    boundary by a millionth of a unit is not what any of these routes
-    claims to do, and comparing raw floats would make the invariant
-    fire on arithmetic noise.
-
-  THE AREAS ARE HERE BECAUSE THE BOUNDS ARE NOT ENOUGH, and the first
-  draft of this had only the bounds. A vertex pushed INWARD leaves the
-  unit's envelope exactly where it was, so `push_vertex` and
-  `nudge_vertex` came back "moved nothing" on every design -- six
-  cells, all of them the harness rather than the product. That is this
-  suite's own rule about a comparison too coarse to see the defect:
-  if a wrong result and a right one give the same number, that number
-  is not the test.
-  """
-  unit = getattr(dlg, "_unit", None)
-  tiles = getattr(unit, "tiles", None)
-  if tiles is None or not len(tiles):
-    return None
-  return (len(tiles),
-          tuple(round(a, 9) for a in tiles.geometry.area),
-          tuple(round(v, 6) for v in tiles.total_bounds))
 
 
 def test_a_text_column_shares_one_classification():
@@ -3695,6 +3826,15 @@ def test_a_reopen_does_not_take_the_motif_out_of_the_file():
   never went near it, and adoption's own docstring calls that
   something users do constantly. Both are driven here.
 
+  AND A THIRD DOOR SINCE 2026-08-31, WHICH IS THE OPPOSITE ANSWER.
+  With the box still at its default, but the DESIGN changed to one
+  that carries no topology at all, the motif must GO. That is the case
+  the third version of this drop could not answer -- it dropped only
+  where a build had ASSESSED the design, and with the box off no build
+  runs, so ignorance was the permanent state of this journey and was
+  made to mean "spare". A reader meeting either answer alone would
+  take it for the whole rule, which is why both are here.
+
   AND TICKING THE BOX TO LOOK AT THE TAB IS THE THIRD, which is the
   one the feature actually invites: ticking builds no topology by
   itself, so a guard counting "has anybody had an opinion" disarmed
@@ -3769,6 +3909,46 @@ def test_a_reopen_does_not_take_the_motif_out_of_the_file():
     assert bridge.UNIT_TABLE_NAME in after_peek, (
       "ticking Experimental features to look at the tab, then saving, "
       f"deleted the motif: {sorted(after_peek)}")
+
+    # DOOR THREE, AND IT IS THE OTHER ANSWER: the box still off, but
+    # the DESIGN changed to one that carries no topology at all. Here
+    # the motif must GO, because a file showing the limit of what it
+    # contains cannot keep a motif belonging to a design its map is no
+    # longer made of.
+    # IT IS THE CASE THE THIRD VERSION OF THIS COULD NOT ANSWER. That
+    # one dropped only where a build had ASSESSED the design and found
+    # no topology -- and with the box off no build runs, so ignorance
+    # was the permanent state of this very journey and ignorance was
+    # made to mean "spare". Measured 2026-08-30: the file kept the
+    # first design's motif while its own record called it current.
+    # WHAT ANSWERS IT NOW is the key the file carries beside the
+    # tables, which needs no build to compare.
+    fourth = WeavingSpaceDialog(iface=_Iface())
+    try:
+      assert not fourth.opt_experimental.isChecked(), \
+        "PREMISE: the box is not at its default, so this is not the " \
+        "journey the defect was about"
+      fourth.live_check.setChecked(False)
+      fourth.show()
+      _tick(300)
+      fourth._resume_from_gpkg(out)
+      _settle(fourth)
+      # A tile inset opens gaps, and `Topology` needs a gap-free
+      # tiling, so this design genuinely carries none.
+      fourth.mod_t_inset.setValue(25.0)
+      _tick(300)
+      fourth._generate()
+      _settle(fourth)
+      fourth.gpkg_widget.setFilePath(out)
+      assert press_save(fourth), "PREMISE: the fourth save did not write"
+    finally:
+      fourth.close()
+    after_change = bridge.gpkg_tables(out)
+    for gone in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+      assert gone not in after_change, (
+        f"{gone} is still in the file beside a map made from a design "
+        f"that carries no topology at all, so the file describes a map "
+        f"it is not of: {sorted(after_change)}")
   QgsProject.instance().removeAllMapLayers()
 
 
@@ -3940,6 +4120,48 @@ def test_the_topology_matrix():
   after it lands, so a cell read an empty panel and called it silence.
   Both are fixed at the line that fixes them.
 
+  AND FIVE MORE ON 2026-08-31, tallied for the same reason. THREE
+  ROUTES OF FIVE WERE SKIPPED IN EVERY CELL THEY WERE DRAWN FOR --
+  rotate, scale and zigzag -- because the tab became select-then-act
+  and this cell still set the VERB before the class, so it asked for a
+  manipulation the narrowed list did not hold; the no-silent-axis
+  assertion below is what said so. An aftermath complained that an
+  edit never reached the map on cells where the edit legitimately
+  moved NOTHING. A fingerprint of rounded AREAS and BOUNDS decided
+  whether the unit had moved, and it was wrong in both directions: a
+  zigzag changes no area, so a bent edge read as "moved nothing and
+  said nothing", while the library's re-gridding shifts the bounds
+  whether or not anything was edited, so another cell saw movement
+  that was not there and reported that the edit never reached the map.
+  Both readings are gone and the ground is asked instead. A Generate with an edit outstanding is DEFERRED, so
+  settling once waited on a run that had declined and the map was
+  judged before the real one landed. And the race cells pumped 30ms
+  between launching a run and making the edit, which measured how fast
+  this machine tiles rather than the race: both came back SKIPPED, so
+  the family they exist for was not exercised at all. And a cell read
+  the panel BEFORE a build had been queued -- `_settle_topology` waits
+  on the absence of a task, which is true before the design change has
+  asked for one, so the cell judged an empty panel and called it
+  silence. That is this same docstring's fourth paragraph, recorded as
+  fixed and fixed for one path only; `_wait_for_the_topology` waits on
+  the ANSWER instead.
+
+  AND THE LAST OF THE SEVEN WAS AN ORACLE STANDING ON SOMEBODY ELSE'S
+  MAP. Every cell shares one region layer, so a fresh dialog ADOPTS
+  whatever output the previous cell left in the project -- another
+  design entirely -- and "the edit never reached the map" was measured
+  against that. Driven end to end with a baseline of its own, the
+  complaint does not reproduce: `crosses 4` moves 1.5e-1 of its ground
+  under a zigzag and the map follows. The re-Generate cells draw their
+  own baseline first now.
+
+  SKIPS ARE COUNTED AND REPORTED WITH THEIR REASONS AND DO NOT FAIL
+  THE GRID, since 2026-08-31. They used to, and a cell that cannot
+  reach its own case is not the plugin misbehaving -- a grid red for
+  reasons nobody can act on is one nobody reads. What fails is a route
+  skipped in every cell it was drawn for, and a run where fewer than
+  three cells in four staged anything.
+
   Regression: a manipulation that took a click and did nothing at all, on designs where it cannot apply. [mutation]
   """
   import os
@@ -3965,6 +4187,18 @@ def test_the_topology_matrix():
   # differs by design rather than by boundary
   for route in routes:
     cells.append((spine[0], "after save and reload", route))
+  # ...and the race family, on one shape, one route per KIND -- see
+  # TOPOLOGY_MATRIX_RACE_ROUTES for why it is not crossed.
+  by_kind = {}
+  for route in routes:
+    by_kind.setdefault(
+      topology_edits.MANIPULATIONS[route]["target"], route)
+  assert len(by_kind) == TOPOLOGY_MATRIX_RACE_ROUTES, (
+    f"PREMISE: the manipulations cover {sorted(by_kind)} rather than "
+    f"an edge kind and a vertex kind, so the race cells below are not "
+    f"asking about both")
+  for route in by_kind.values():
+    cells.append((spine[0], "with a run in flight", route))
   rest = [(sh, af, ro) for sh in shapes[2:]
           for af in TOPOLOGY_MATRIX_AFTERMATHS for ro in routes]
   if full:
@@ -3975,7 +4209,7 @@ def test_the_topology_matrix():
 
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
-  trouble, skipped, ran = [], {}, 0
+  trouble, skipped, ran, passed_over = [], {}, 0, []
   with _temp_dir() as td:
     for (label, family, n), aftermath, route in cells:
       dlg = WeavingSpaceDialog(iface=_Iface())
@@ -3992,15 +4226,37 @@ def test_the_topology_matrix():
         dlg.family_combo.setCurrentText(family)
         _tick(300)
         _settle_topology(dlg)
-        verdict, _detail = _topology_matrix_cell(dlg, route, aftermath, td)
+        verdict, detail = _topology_matrix_cell(dlg, route, aftermath, td)
       finally:
         dlg.close()
+        # EVERY CELL STARTS WHERE THE LAST ONE DID, which is this
+        # suite's empty-project rule applied INSIDE one test. Output
+        # left behind is adopted by the next cell's dialog, so its
+        # baseline can be another design's map and its landing can meet
+        # a group it never made -- and the map it then compares is not
+        # the one its own run drew. That is what a cell complaining
+        # "the edit never reached the map" was standing on: driven end
+        # to end in a project holding nothing else, twice, the same
+        # journey moves 1.5e-1 of the unit's ground and the map
+        # follows.
+        for other in list(QgsProject.instance().mapLayers().values()):
+          if other is not layer:
+            QgsProject.instance().removeMapLayer(other.id())
+      # A SKIP IS REPORTED WITH ITS REASON AND DOES NOT FAIL THE
+      # MATRIX, which it used to. A cell that cannot reach its own case
+      # -- a design offering no vertex class, a save with nothing to
+      # read back -- is not the plugin misbehaving, and failing on one
+      # makes the grid red for reasons nobody can act on, which is how
+      # a matrix stops being read. What DOES fail is a route skipped in
+      # every cell it was drawn for, and a run where most cells staged
+      # nothing; both are asserted below.
       if verdict == "SKIPPED":
         skipped[route] = skipped.get(route, 0) + 1
+        passed_over.append(f"{label} / {aftermath} / {route}: {detail}")
       else:
         ran += 1
-      if verdict != "ok":
-        trouble.append(f"{label} / {aftermath} / {route}: {verdict}")
+        if verdict != "ok":
+          trouble.append(f"{label} / {aftermath} / {route}: {verdict}")
 
   # NO SILENT CAPS, and no axis that never ran. A skipped cell reads
   # exactly like a passing one, and a route skipped EVERYWHERE is an
@@ -4010,8 +4266,17 @@ def test_the_topology_matrix():
   assert ran, "not one cell ran, so this matrix asserts nothing"
   never = [r for r in routes if skipped.get(r, 0) and
            skipped[r] == sum(1 for c in cells if c[2] == r)]
-  assert not never, \
-    f"these routes were skipped in every cell they were drawn for: {never}"
+  assert not never, (
+    f"these routes were skipped in every cell they were drawn for, so "
+    f"they are axes that cannot fail: {never}\n  "
+    + "\n  ".join(passed_over))
+  # ...AND MOST CELLS MUST HAVE STAGED SOMETHING. A grid that skips
+  # half of itself reads as coverage and is not, which is the whole
+  # reason the skips are counted rather than merely tolerated.
+  assert ran >= len(cells) * 3 // 4, (
+    f"only {ran} of {len(cells)} cells staged anything, so most of "
+    f"this matrix reported on a case it could not reach:\n  "
+    + "\n  ".join(passed_over))
   assert not trouble, (
     f"{len(trouble)} of {ran} topology cells failed (seed {seed}, "
     f"WEAVINGSPACE_MATRIX_FULL=1 for the whole crossing):\n  " +

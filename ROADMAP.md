@@ -722,30 +722,34 @@ SAME DAY:
    `resize` call escapes the clamp), and the assembled window is
    measured by `tools/platform_probe.py`, which this joins.
 
-**THE DECLARATION IS WITHDRAWN AGAIN, on 2026-08-30 (late), because
-this version gained code that day and none of it is committed or
-guarded.** The maintainer reported the Design tab's alignment, spacing
-and sizing as "just nonsensical" against a screenshot, and the work
-that followed is real and unfinished:
+**THE DECLARATION WAS WITHDRAWN ON 2026-08-30 (late) AND IS STILL
+WITHDRAWN, with one thing left rather than three.** The maintainer
+reported the Design tab's alignment, spacing and sizing as "just
+nonsensical" against a screenshot; the work that followed is now
+committed and guarded, and this is where it stands.
 
-- THE DESIGN TAB'S THREE BARE ROWS, committed at `34ea0aa` with
-  fourteen layout guards passing. That part is done.
-- A SECOND PASS, UNCOMMITTED: spacing on its own row, one field width
-  shared by four rows so they end at one edge, the Transformations
-  label column aligned with the rows above, `Auto` no longer painted
-  as the default button, and the window sized by the tab in front --
-  825px on Design where it opened at 1296, growing to 1296 for
-  Data & colours. Every number here is measured and in
-  MAINTAINING.md; NONE of it has a registered test.
-- THE TOPOLOGY TAB'S INTERACTION, UNCOMMITTED, and carrying an OPEN
-  REGRESSION named above.
+- THE DESIGN TAB'S THREE BARE ROWS, at `34ea0aa`, with fourteen
+  layout guards passing.
+- THE SECOND PASS, at `02dc3e6`: spacing on its own row, one field
+  width shared by four rows so they end at one edge, the
+  Transformations label column aligned with the rows above, `Auto` no
+  longer painted as the default button, and the window sized by the
+  tab in front -- 825px on Design where it opened at 1296, growing to
+  1296 for Data & colours. It had NO registered test until
+  2026-08-31, when `test_the_design_tab_lines_up_and_opens_narrow`
+  went in: four rows to one edge, one label column across both forms,
+  and the tab-sized window, measured under BOTH styles because the
+  harness's own style decides half of it.
+- THE TOPOLOGY TAB'S INTERACTION, at `02dc3e6`, and its regression is
+  CLOSED -- see the entry above, which is two faults and their
+  measurements.
 
-WHAT IS OWED BEFORE THE PHRASE GOES BACK: the regression read and
-repaired, guards for the interface work, and the full sharded suite,
-which has not run over this tree at all. Whether the interface work
-belongs in 0.24.4 or moves to 0.24.5 is the maintainer's decision and
-no tool may make it; it is recorded here rather than assumed either
-way.
+WHAT IS LEFT BEFORE THE PHRASE GOES BACK: the full sharded suite over
+this tree, which `release.py --rc` performs as its fourth stage, so a
+candidate is where it happens rather than a separate run. Whether the
+interface work belongs in 0.24.4 or moves to 0.24.5 remains the
+maintainer's decision and no tool may make it; it has stayed here by
+default, which is the status quo rather than a choice anybody made.
 
 WHAT REMAINS IS THE MAINTAINER'S OWN, and neither is work on the
 software: the CHANGELOG LINE for everything above, which is a sentence
@@ -1058,7 +1062,7 @@ THE LAYERS ARE BUILT TOO, on 2026-08-30, which completes ruling 3:
 file at Save, one method writes and drops them, and the names carry the
 CRS warning the ruling asked for. Two entries proved caught.
 
-THREE OF THE FOUR RACE FAMILIES ARE CLOSED. The restore dropping the
+ALL FOUR RACE FAMILIES ARE CLOSED, the first three on 2026-08-30. The restore dropping the
 record in silence, by `test_topology_edits_survive_the_working_state`
 and two entries standing on the write and the read separately. An edit
 aimed at a class that has gone, by
@@ -1070,10 +1074,15 @@ stale topology landing, by `test_a_topology_that_lands_late_is_
 discarded`, which stages the stamp either side of a design change
 rather than betting on a slow machine.
 
-STILL OWED: an edit made DURING A RUN, which wants an aftermath of its
-own in the matrix rather than a test of its own -- the symbology matrix
-already carries "while a run is in flight" as a route and this one does
-not.
+AND THE FOURTH CLOSED ON 2026-08-31: an edit made DURING A RUN, as an
+aftermath in the topology matrix rather than a test of its own, which
+is what the symbology matrix already does with the same question. It
+is added BY NAME on one shape and one route per kind rather than
+crossed with the spine -- a race must not be left to the random
+sample, and it is also the most expensive thing the matrix does, since
+each cell launches a real tiling. It is a PRELUDE rather than an
+aftermath: the run is launched, and nothing is pumped between that and
+the edit, because the window is closed rather than sampled.
 
 **THE INTERACTION WAS AUDITED AND REBUILT ON 2026-08-30, and what it
 still owes is here.** The maintainer asked whether it was intuitive
