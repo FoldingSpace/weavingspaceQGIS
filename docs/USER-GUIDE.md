@@ -263,17 +263,11 @@ heroic, and the Generate button remains for deliberate large runs.
 
 *Experimental features* unlocks tabs that are still being designed.
 It is off until you turn it on, and while it is off those tabs show
-their titles greyed and cannot be opened. Turning it on changes
-nothing about the maps you have already made; it only adds what is
-there to be tried.
+their titles greyed and cannot be opened. 
 
 The *Messages* tab, the first of those, keeps everything the plugin
 has told you since the window opened, newest first, with your answer
-beside anything it asked. Notices come and go from QGIS's message bar
-faster than they can be read, and a question that changed what
-happened leaves nothing behind at all, so this is where to look when
-you want to know what you were told and what you said. It lasts as
-long as the window, and *Clear* empties it.
+beside anything it asked. 
 
 ## Saving and sharing
 
@@ -293,9 +287,7 @@ where it is, and tells you which element it could not save.
 Regenerating replaces the previous group and keeps whatever styling
 you have refined by hand; an element's symbology is rebuilt only when
 you change its variable, style, ramp, or classification in the dialog.
-Choosing *Create new* in the *QGIS Layer Group* chooser keeps a
-previous attempt alongside for comparison, and a result you mean to
-keep on disk wants a file of its own.
+Choosing *Create new* in the *QGIS Layer Group* chooser creates a new layer group in QGIS.
 
 Each map the plugin draws lives in its own QGIS layer group, named for
 the dataset it was made from, and the *QGIS Layer Group* chooser beside

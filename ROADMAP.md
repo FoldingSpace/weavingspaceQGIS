@@ -1083,6 +1083,25 @@ is described in MAINTAINING.md under "How somebody takes hold of it".
 Select-then-act, handles that ARE the choice of manipulation, a hit
 test that follows the edge, and three highlight states are built.
 
+**AND THE TAB DRAWS THE UN-EDITED MOTIF, which is a ruling rather than
+a repair.** Read on 2026-08-31 and NOT yet driven, which is the
+honest state of it: `set_unit` is handed `built["unit"]` and
+`built["topology"]` -- the design BEFORE the edits were replayed --
+while `_adopt_edited_unit` gives the dialog the edited one, so the
+preview and the map move and the drawing somebody judges the edit by
+does not. One fact, two stores, disagreeing on screen.
+
+IT IS NOT A ONE-LINE FIX, and that is why it is here rather than done.
+The view has a `show_preview` channel that already paints something
+other than the held topology, so drawing the EDITED motif is easy. The
+question is what the picture is then FOR: edits are replayed by class
+LABEL against a topology built from the UN-EDITED unit, so the labels
+a person aims with must keep coming from that one. Drawing the edited
+geometry while hit-testing the un-edited topology puts the highlight
+somewhere other than the ink; hit-testing the edited one records
+labels that mean something else on replay. Neither is obviously right,
+which makes it the maintainer's call and a candidate for a grilling.
+
 TWO DESIGNS CAME OUT OF THE AUDIT AND ARE NOT BUILT. Both are better
 than what shipped, and the second dissolves a problem rather than
 tuning it, so neither should be lost.
@@ -1110,30 +1129,68 @@ tuning it, so neither should be lost.
    would record two edits from one gesture, which is honest and
    composable.
 
-**AND `push_vertex` MAY DO NOTHING AT ALL, which has to be settled
-before it is offered to anybody.** Measured 2026-08-30: applying it
-through `transform_geometry` with `push_d` at +0.05, -0.05 and +0.10
-moved ZERO vertices, three times, on a design whose topology built
-perfectly. Upstream's `push_vertex` RETURNS A DISPLACEMENT VECTOR
-rather than moving anything (`topology.py:1482`), so the question is
-whether `transform_geometry` applies that return value or discards it.
-THIS WOULD BE THE SECOND SILENT FAILURE OF THAT SAME CALL -- the
-comment at `MANIPULATIONS["push_vertex"]` records an earlier one, where
-a wrong keyword name was dropped rather than refused and the unchanged
-unit drew perfectly. A manipulation that silently does nothing is
-worse than one that refuses.
-AND THE ANSWER MAKES A HANDLE POSSIBLE. I said a push handle would
-need an outward direction I would have to invent; upstream computes
-it, summing the unit vectors from each neighbour to the vertex, which
-is "away from everything I am joined to". Drawn as a RAIL from the
-vertex it makes the constraint visible, and it is what tells nudge
-(free, two-dimensional) and push (on a rail, one-dimensional) apart.
+**`push_vertex` IS SETTLED, AND IT WORKS: WHERE IT MOVES NOTHING THAT
+IS A FACT ABOUT THE DESIGN.** (Measured 2026-08-31, closing a question
+this section had left open since the grilling.) The suspicion was that
+`transform_geometry` discarded the displacement vector upstream's
+`push_vertex` returns rather than applying it (`topology.py:1482`).
+It does not. Applied to archimedean 4.8.8 the same call moves the unit
+by 1.9e-4 of its own area; the earlier reading, taken on laves
+3.3.4.3.4, moved nothing because on THAT design the displacement is
+exactly zero.
+WHY IT IS ZERO, MEASURED RATHER THAN REASONED. The vector is
+`push_d` times the sum of the unit vectors from each neighbour to the
+vertex -- "away from everything I am joined to" -- and at a vertex
+whose incident edges are symmetrically arranged those unit vectors
+CANCEL. `transform_geometry` consults only the vertices of the CORE
+tiles (`topo.tiles[:topo.n_tiles]`) and applies what it finds to every
+point sharing a base_ID, and over that set the resultant per unit
+`push_d` is 0.414 on archimedean 4.8.8 against 1.5e-9 to 6.9e-9 on
+laves 3.3.4.3.4 and hex-slice 3. Reading EVERY point instead reports a
+spread of 1e-9 to 1.414 and says nothing, because the large resultants
+belong to vertices at the edge of the computed patch, which have
+neighbours missing and are deliberately not the ones consulted.
+SO NOTHING IS OWED IN THE CODE, and what was owed was the REPORT: a
+manipulation that silently does nothing is worse than one that
+refuses, and the plugin now says "changed nothing about it" wherever
+that happens. See the repair below, without which it could not.
+AND THE HANDLE IS STILL POSSIBLE, with one caveat this measurement
+adds. Drawing the push direction as a RAIL from the vertex makes the
+constraint visible and tells nudge (free, two-dimensional) from push
+(on a rail, one-dimensional) -- and on a symmetric vertex that rail
+has ZERO LENGTH, which is the honest picture of a control that cannot
+move this design and is better than a handle that looks live.
 
-**AND ONE REGRESSION FROM THE REBUILD IS OPEN.**
-`test_an_edit_for_a_class_that_has_gone_is_reported` failed after the
-interaction changes and its message has NOT been read -- run alone it
-timed out at two minutes. It is the first thing the next session
-should do.
+**THE REGRESSION FROM THE REBUILD IS CLOSED, AND IT WAS TWO FAULTS
+RATHER THAN ONE.** (2026-08-31.)
+`test_an_edit_for_a_class_that_has_gone_is_reported` was reported as
+failing with its message unread. Read, it said the plugin had stayed
+SILENT about an edit aimed at a class the design does not have -- and
+the two reasons are worth keeping, because the second had been making
+the same report unreachable on every design since it was written.
+
+AN EXACT QUESTION WAS BEING ASKED WITH A TOLERANCE. Whether a design
+holds a class is answerable from the topology, by name, with no
+geometry involved; `apply` instead let the library take the selector,
+watched what came back, and tried to infer from the SHAPE whether
+anything had happened. It refuses by name now, before any geometry --
+and where SOME of the named classes exist it applies to those and says
+which it could not find, which the old arrangement could not express
+at all.
+
+AND `shapely.equals_exact` COMPARES COORDINATE SEQUENCES, NOT SHAPES,
+which is what made the fallback unreachable. `transform_geometry`
+re-grids the unit it hands back and RESTARTS ITS RINGS, so two
+polygons covering identical ground read as different: measured on
+archimedean 4.8.8 -- the first design in the catalogue carrying a
+topology, and therefore the one this test lands on -- a manipulation
+matching nothing moved a coordinate by FIVE HUNDRED map units while
+the symmetric difference stayed at 2.4e-4. `_same_shape` compares the
+GROUND now, as a fraction of the unit's own area, with three orders of
+clear air either side of the threshold: 1.5e-9 to 2.5e-9 for a
+manipulation matching no class, against 1.9e-4 to 1.4e-1 for every
+real edit measured. That is the THIRD wrong instrument in that one
+function, and the first two are recorded at it.
 
 **AND A TOPOLOGY MATRIX EXISTS**, five manipulations crossed with
 designs found from the catalogue and three aftermaths, spine plus a

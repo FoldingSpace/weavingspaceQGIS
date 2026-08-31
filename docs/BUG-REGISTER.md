@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-450 defect(s) with a regression test.
+452 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -543,6 +543,8 @@ there is no separate list to remember.
   guarded by `test_the_catalogue_gate_refuses_an_ambiguous_anchor`
 - **the consent dialogue's answer was recorded nowhere, so the plugin's most consequential question left no trace.**  
   guarded by `test_the_consent_answer_is_recorded_either_way`
+- **three rows of the Design tab were added with a bare addRow and so carried no width policy at all, taking whichever answer the style supplied -- a 33px stub under macOS, 861px under Fusion.**  
+  guarded by `test_the_design_tab_lines_up_and_opens_narrow`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **the two element-count widgets could disagree, and nothing read the count off the design that was actually built.**  
@@ -687,6 +689,8 @@ there is no separate list to remember.
   guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
 - **none in the product -- the clear works. What was missing was any test that could notice if it stopped, which the catalogue's own retirement had been credited to.**  
   guarded by `test_create_new_makes_one_group_and_not_one_per_run`
+- **a late progress report reached a deleted progress bar and took QGIS with it; the topology task's landing wrote into a closed window's panel. Found by the hunt round of 2026-08-30.**  
+  guarded by `test_every_task_callback_can_ask_whether_its_dialog_is_gone`
 - **a sharded coverage recorder lost a whole shard at startup to a race between three processes removing one file.**  
   guarded by `test_nothing_asks_whether_a_file_exists_before_removing_it`
 - **three callables outliving their dialog reached it through a bare lambda, so a destroyed dialog was touched and QGIS died with a segmentation fault. Found while running twelve tests in one process, 2026-08-29.**  
@@ -951,13 +955,13 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 141
+- the mutation campaign: 142
 - a bug hunt pointed in a named direction: 131
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
-- the functional suite, run whole: 7
+- the functional suite, run whole: 8
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5

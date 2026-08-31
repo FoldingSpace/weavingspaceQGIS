@@ -5343,6 +5343,47 @@ here, and the decision to add one is the maintainer's. Recorded
   -- it already sits where the current value puts it. Reach for
   absolute before relative whenever the parameter has a geometric
   meaning on screen.
+- **A COMPARATOR THAT IS SENSITIVE TO REPRESENTATION CANNOT ANSWER A
+  QUESTION ABOUT APPEARANCE.** (2026-08-31, and it is the third wrong
+  instrument in one function.) `_same_shape` exists to say whether a
+  manipulation moved anything a person could see, and it asked
+  `shapely.equals_exact`, which compares COORDINATE SEQUENCES: two
+  rings covering identical ground read as different the moment one of
+  them begins at another vertex. `transform_geometry` re-grids the unit
+  it hands back and restarts those rings, so on archimedean 4.8.8 a
+  manipulation that matched no class at all moved a coordinate by FIVE
+  HUNDRED map units while the symmetric difference stayed at 2.4e-4.
+  The comparison answered "something changed", the report stayed
+  silent, and the registered test written to catch that silence failed.
+  THE TWO EARLIER INSTRUMENTS FAILED THE OTHER WAY and are recorded at
+  the function: areas rounded to nine places (an ABSOLUTE tolerance
+  against tiles of area 62,500), then areas at all (a statistic is not
+  a shape -- `push_vertex` moves vertices while leaving every area
+  identical). What answers is the GROUND: symmetric difference over the
+  unit's own area, measured at 1.5e-9 to 2.5e-9 for a manipulation that
+  matched nothing against 1.9e-4 to 1.4e-1 for every real edit, which
+  is three orders of clear air either side of the threshold.
+  ASK OF ANY COMPARATOR WHAT IT IS ACTUALLY COMPARING -- the thing, or
+  the way the thing is written down. Vertex order, ring direction, a
+  start point, key order, whitespace and float formatting are all
+  representation, and a dependency that rebuilds an object is entitled
+  to change every one of them without changing anything.
+
+- **AND AN EXACT QUESTION MUST NOT BE ASKED WITH A TOLERANCE.** (Same
+  day, the other half of the same defect.) Whether a design holds the
+  class an edit names is answerable EXACTLY, from the topology, by
+  name, before any geometry exists. `apply` instead handed the selector
+  to the library -- which walks its edges asking `label in selector`
+  and simply matches none, neither raising nor complaining -- and then
+  tried to infer from the resulting SHAPE whether anything had
+  happened. Every difficulty above followed from that inference.
+  THE TELL IS A MEASUREMENT STANDING IN FOR A LOOKUP. Where the state
+  can answer a question directly, a threshold is not a cheaper way to
+  ask it, it is a different and weaker question that inherits every
+  fault of the instrument. The same shape reaches past geometry: asking
+  whether a file changed by comparing bytes where a record could say
+  so, or whether a control moved by watching a repaint.
+
 - **A FINISHED JOB'S LOG IS READABLE WHILE ITS RUN GOES ON.**
   `gh run view --log-failed` refuses until the whole RUN completes,
   which on this project means waiting for hour-long siblings; `gh api

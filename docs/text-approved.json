@@ -104,10 +104,25 @@
   "excerpt": "Trims the pattern to the region outline. The sloleft step.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "0caeb6598646e4dc": {
+  "approved": "2026-08-31",
+  "excerpt": "Type an exact element count.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "0cb31e87fecfb16e": {
+  "approved": "2026-08-31",
+  "excerpt": "Scale Left-Right / Up-Down",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0cc3b14f285334d8": {
   "approved": "2026-08-09",
   "excerpt": "<p>What the plugin adds to a QGIS project is not an image fi",
   "where": "docs/index.html"
+ },
+ "0e2d5b7a40c3998f": {
+  "approved": "2026-08-31",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
  },
  "0e5bfb68c843615f": {
   "approved": "2026-08-09",
@@ -374,6 +389,11 @@
   "excerpt": "We welcome reports of anything else that surprises you.",
   "where": "docs/USER-GUIDE.md"
  },
+ "29fd3d01135e939e": {
+  "approved": "2026-08-31",
+  "excerpt": "Slant the pattern left-right.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "2bf9c666f7764119": {
   "approved": "2026-08-15",
   "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
@@ -579,6 +599,11 @@
   "excerpt": "That element has nothing to copy.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "4477ca38021800c5": {
+  "approved": "2026-08-31",
+  "excerpt": "The topology could not be worked out.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "44d6e59a20996c5a": {
   "approved": "2026-08-15",
   "excerpt": "Stretch the pattern right-left; negative mirrors it.",
@@ -593,6 +618,11 @@
   "approved": "2026-08-09",
   "excerpt": "While hand-picked colours or an imported class file decide a",
   "where": "docs/USER-GUIDE.md"
+ },
+ "473ae096824cf5b4": {
+  "approved": "2026-08-31",
+  "excerpt": "1. Go to the\n   [latest release](https://github.com/FoldingS",
+  "where": "README.md"
  },
  "479ed4ffa027cbe6": {
   "approved": "2026-08-15",
@@ -613,6 +643,11 @@
   "approved": "2026-08-09",
   "excerpt": "Strand width as a fraction of spacing; 1.0 leaves no gaps.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "48f521b5c51c28f2": {
+  "approved": "2026-08-31",
+  "excerpt": "*Experimental features* unlocks tabs that are still being de",
+  "where": "docs/USER-GUIDE.md"
  },
  "492cadf80cb37690": {
   "approved": "2026-08-09",
@@ -899,6 +934,11 @@
   "excerpt": "Where this element's class colours come from.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "667374a0de228fcc": {
+  "approved": "2026-08-31",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
+ },
  "66b16b4cbbe85a02": {
   "approved": "2026-08-25",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
@@ -992,6 +1032,11 @@
  "6d398e6a05e8f2bd": {
   "approved": "2026-08-26",
   "excerpt": "A map is still being generated; choose the group to work on ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "6e0dbac5b6fc92d1": {
+  "approved": "2026-08-31",
+  "excerpt": "Stretch the pattern left-right; negative mirrors it.",
   "where": "weavingspace_qgis/dialog.py"
  },
  "6e1daf96115aa11a": {
@@ -1274,10 +1319,20 @@
   "excerpt": "1 surrounds the unit with a ring of neighbouring copies, whi",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "909929f797f2e5a6": {
+  "approved": "2026-08-31",
+  "excerpt": "The *Messages* tab, the first of those, keeps everything the",
+  "where": "docs/USER-GUIDE.md"
+ },
  "90c2a0c031160a49": {
   "approved": "2026-08-13",
   "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "90c5075b0972ab20": {
+  "approved": "2026-08-31",
+  "excerpt": "Skew Left-Right / Up-Down (\u00b0)",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "90da9e347ba4b045": {
   "approved": "2026-08-08",
@@ -1468,6 +1523,11 @@
   "approved": "2026-08-08",
   "excerpt": "Number of classes for this element's Quant symbology; catego",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "a6a53315fb6e79c5": {
+  "approved": "2026-08-31",
+  "excerpt": "<div class=\"obtain\">\n  <p><a href=\"https://github.com/Foldin",
+  "where": "docs/index.html"
  },
  "a731bfc07a8c94dc": {
   "approved": "2026-08-24",
@@ -1689,6 +1749,11 @@
   "excerpt": "'{}' has {} distinct values, so {} of the {} classes {} empt",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "c19dda3e0bed4806": {
+  "approved": "2026-08-31",
+  "excerpt": "Everything this plugin has said since the window opened, new",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "c3dd2d8765fd4fe8": {
   "approved": "2026-08-15",
   "excerpt": "The first class must end below where the last class begins.",
@@ -1718,6 +1783,11 @@
   "approved": "2026-08-08",
   "excerpt": "Rotation usually helps. A square pattern aligned with the fr",
   "where": "docs/USER-GUIDE.md"
+ },
+ "c816740d14f3b9ce": {
+  "approved": "2026-08-31",
+  "excerpt": "Unlocks features that are being designed and tested.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "c92f28bce418b754": {
   "approved": "2026-08-09",
@@ -1863,6 +1933,11 @@
   "approved": "2026-08-15",
   "excerpt": "The first class cannot end at {}: the copied classes put the",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "d6c442e792c7e42c": {
+  "approved": "2026-08-31",
+  "excerpt": "Working out the changes to the design; the map will be redra",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "d801def964994fd0": {
   "approved": "2026-08-27",
@@ -2022,6 +2097,11 @@
  "e8416dddf2f463a4": {
   "approved": "2026-08-09",
   "excerpt": "No ramp knows that forest should be green. An \"Edit colours\"",
+  "where": "docs/USER-GUIDE.md"
+ },
+ "e84e03efb9a339a8": {
+  "approved": "2026-08-31",
+  "excerpt": "Regenerating replaces the previous group and keeps whatever ",
   "where": "docs/USER-GUIDE.md"
  },
  "e881bc2ee8cdbe09": {
@@ -2188,6 +2268,11 @@
   "approved": "2026-08-08",
   "excerpt": "1. Go to the\n   [latest release](https://github.com/FoldingS",
   "where": "README.md"
+ },
+ "fe167347b7f1733a": {
+  "approved": "2026-08-31",
+  "excerpt": "Empties this list of messages.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "fe2d6a47e25287e9": {
   "approved": "2026-08-12",

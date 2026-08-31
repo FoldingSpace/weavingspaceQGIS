@@ -3102,7 +3102,7 @@ class WeavingSpaceDialog(QDialog):
     # through a saved file.
     self.opt_experimental = QCheckBox("Experimental features")
     self.opt_experimental.setToolTip(
-      "Unlocks tabs that are still being designed.")
+      "Unlocks features that are being designed and tested.")
     self.opt_experimental.setChecked(False)
     self.opt_experimental.toggled.connect(self._gate_experimental_tabs)
     self.opt_experimental.toggled.connect(self._note_an_experimental_touch)
@@ -18976,8 +18976,14 @@ class WeavingSpaceDialog(QDialog):
     # reason: the record says whether these tables are there, so it is
     # written once the answer is a fact about the file rather than an
     # intention about it.
-    resumable["topology_written"] = self._write_or_drop_the_topology(
-      path, ours)
+    # BOTH HALVES COME BACK FROM ONE CALL, so the record cannot come to
+    # disagree with the tables: `topology_written` says whether they
+    # are there and `topology_design` says WHICH DESIGN THEY DESCRIBE,
+    # which is what lets the next save tell a stale motif from a
+    # current one without building a topology to find out.
+    (resumable["topology_written"],
+     resumable["topology_design"]) = self._write_or_drop_the_topology(
+       path, ours)
     wrote_the_record = bridge.write_working_state(
       path, self._file_safe_state(resumable))
     # AND THE GROUP LEARNS WHERE ITS MAP WENT, which is the other half
@@ -20062,10 +20068,12 @@ class WeavingSpaceDialog(QDialog):
         saved here" true of any file at all.
 
     Returns:
-      True when the file now holds the two tables, False when it does
-      not -- which is the answer when the experimental box is unticked,
-      when this design cannot carry a topology at all, and when a write
-      failed. The map is already written by this point, so a topology
+      (present, key). `present` is whether the file now holds the two
+      tables; `key` names the design they describe, or None where the
+      file holds none or where they are somebody else's and we cannot
+      say. Both go into the file's own record, which is what lets the
+      NEXT save tell a stale motif from a current one without building
+      anything. The map is already written by this point, so a topology
       that will not go in costs the file's self-description and nothing
       else.
 
@@ -20092,6 +20100,7 @@ class WeavingSpaceDialog(QDialog):
     topology = getattr(panel, "_topology", None) if panel else None
     wanted = (box is not None and box.isChecked()
               and topology is not None and path)
+    key = self._topology_description_key()
     if wanted:
       try:
         # THE DUAL COMES FROM `_topology_dual`, WHICH IS THE DUAL OF
@@ -20134,7 +20143,7 @@ class WeavingSpaceDialog(QDialog):
             bridge.gdf_to_layer(frame, name), path, name, first=False)
             for name, frame in frames]
           if all(w is not None and w.isValid() for w in written):
-            return True
+            return True, key
       except Exception:                               # noqa: BLE001
         _dump("STATE", "topology-write-failed",
               traceback.format_exc(limit=3))
@@ -20142,51 +20151,52 @@ class WeavingSpaceDialog(QDialog):
       # save's unit behind would describe this map with another
       # design's motif, which is worse than describing it with none.
 
-    # NOTHING IS DROPPED ON A GUESS, and the only thing that licenses a
-    # drop is having ASKED THIS DESIGN and been told it has no
-    # topology.
+    # WHAT THE TABLES ARE ABOUT IS THE FACT THAT WAS MISSING, and its
+    # absence is why this method was wrong four times. Every version
+    # asked whether we MAY drop -- from the experimental box, then from
+    # a count of deliberate opinions about that box, then from whether
+    # a build had ASSESSED this design -- and each of those is a
+    # question about US rather than about the file.
     #
-    # THE FIRST REPAIR ASKED THE BOX AND WAS WRONG THREE WAYS, all
-    # measured by a hunt aimed at it within the hour (2026-08-30). It
-    # kept a per-file memory taken at the resume and compared a count
-    # of deliberate opinions about "Experimental features", copying the
-    # source copy's own precedent. But that precedent works because
-    # "include the source data" IS a claim about the file, and this box
-    # is not: the maintainer's ruling calls it "a PREFERENCE ABOUT THE
-    # PLUGIN, NOT A FACT ABOUT A MAP". So (1) ticking it merely to LOOK
-    # at the tab counted as speaking about the file, and since ticking
-    # builds no topology by itself the guard disarmed and the drop ran
-    # -- the original harm, through the one door the feature invites;
-    # (2) the memory was written only in `_recover_the_source`, which
-    # the LOAD button reaches and reopening the plugin does not, so
-    # adoption -- something the docstring calls constant -- was
-    # unguarded; and (3) it returned False while the tables were still
-    # there, contradicting the record it feeds.
+    # THE LAST OF THEM FAILED ON THE COMMONEST JOURNEY. With the box
+    # off no build runs, so nothing is assessed, so ignorance was the
+    # PERMANENT state and the rule made ignorance mean "spare":
+    # measured 2026-08-30, save laves 3.3.4.3.4, switch to a design
+    # that carries no topology at all, press Save, and the file kept
+    # the laves motif while its own record called it current. The one
+    # before it read the box, which is unticked on every new dialog, so
+    # opening a saved map and pressing Save DELETED its motif; the one
+    # before that counted box touches, and ticking it merely to LOOK at
+    # the tab counted as speaking about the file.
     #
-    # SO THE QUESTION IS ABOUT THE DESIGN, NOT THE PERSON. A build sets
-    # `_topology_assessed` to (stamp, whether there is one). We drop
-    # only where that answer is about the design in front of us AND
-    # says there is none -- an inset that closed the gaps, a family
-    # that cannot carry one. With the box off no build runs, nothing is
-    # assessed, and we know nothing, which is exactly when a file must
-    # be left alone.
-    assessed_for, assessed_has = getattr(
-      self, "_topology_assessed", (None, None))
-    knows = assessed_for is not None and assessed_for == self._topology_stamp()
-    if ours and knows and not assessed_has:
-      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
-        if name in bridge.gpkg_tables(path):
-          bridge.drop_gpkg_layer(path, name)
-      return False
-    # AND THE ANSWER IS WHAT THE FILE HOLDS, asked of the file rather
-    # than inferred from which branch we took -- the record this feeds
-    # is supposed to agree with the tables by construction, and the
-    # first repair returned False beside tables it had deliberately
-    # spared.
+    # SO THE FILE ANSWERS FOR ITSELF. `topology_design` is written
+    # beside the two tables and names the design they describe, which
+    # makes staleness DETECTABLE rather than inferred and needs no
+    # build to detect. A file carrying no such key -- one written
+    # before this, or a colleague's -- is left alone, which is the same
+    # line the source copy and the stale-table drop both hold: the
+    # plugin removes what the plugin wrote, and nothing is deleted on a
+    # guess.
     try:
-      return bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(path)
+      already = bridge.gpkg_tables(path)
     except Exception:                                   # noqa: BLE001
-      return False
+      return False, None
+    if bridge.UNIT_TABLE_NAME not in already:
+      return False, None
+    described = (bridge.read_working_state(path) or {}).get(
+      "topology_design")
+    if ours and described is not None and described != key:
+      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+        if name in already:
+          bridge.drop_gpkg_layer(path, name)
+      return False, None
+    # LEFT ALONE, AND STILL DESCRIBING WHATEVER IT DESCRIBED. The key
+    # is carried forward unchanged rather than replaced with this
+    # save's, because the record has to stay true of the TABLES and not
+    # of the act that spared them -- replacing it would quietly claim
+    # the motif had been rewritten, which is how the next save would
+    # come to leave a stale one standing.
+    return True, described
 
   def _note_an_experimental_touch(self, _on):
     """Count a deliberate opinion about the experimental features.
@@ -21219,12 +21229,13 @@ class WeavingSpaceDialog(QDialog):
         self._topology_dual = (
           (stamp, topology_edits.dual_frame(for_dual))
           if for_dual is not None else None)
-        # AND WHAT WE NOW KNOW ABOUT THIS DESIGN, which is the only
-        # thing that licenses the save to remove a motif from a file.
-        # Recorded against the STAMP so an answer about another design
-        # cannot authorise a drop -- the same pairing the landing uses
-        # to decide whether this build is still about anything.
-        self._topology_assessed = (stamp, built.get("topology") is not None)
+        # `_topology_assessed` USED TO BE RECORDED HERE and is gone
+        # (2026-08-31). It was what licensed the save to remove a motif
+        # from a file, and that was the wrong question: the save asks
+        # what the TABLES ARE ABOUT now, which the file answers for
+        # itself, so an answer this build happened to have is no longer
+        # consulted by anything. Deleted rather than left, because a
+        # record with a writer and no reader reads as protection.
         edited = built.get("edited")
         if edited is not None:
           # THE CRS GOES BACK ON HERE, on the main thread, because
@@ -21350,12 +21361,22 @@ class WeavingSpaceDialog(QDialog):
 
     THE MODIFIERS ARE THE HALF THE FIRST VERSION MISSED, and it cost a
     wrong map. (2026-08-30, found by a hunt at this very repair and
-    measured end to end.) `_topology_stamp` is deliberately blind to
-    modifiers -- ruling 1 says the topology is of the UN-MODIFIED unit,
-    and that is right for judging a BUILD. It is wrong for judging a
-    cached unit, because `_build_unit` applies the modifier chain, so
+    measured end to end.) `_build_unit` applies the modifier chain, so
     the thing in the cache has rotation, scale, skew, insets and glyph
     mode baked into its geometry.
+
+    THIS PARAGRAPH USED TO SAY `_topology_stamp` IS DELIBERATELY BLIND
+    TO MODIFIERS, "which is right for judging a BUILD", and that was
+    wrong -- corrected 2026-08-31. Ruling 1 does say the topology is of
+    the un-modified unit, but `_queue_topology` builds from
+    `self._unit`, which is the unit AFTER the chain, and the suite's
+    own drop test turns on exactly that: set a tile inset and the
+    topology stops existing, because `Topology` needs a gap-free tiling
+    and an inset opens gaps. So the stamp carries the modifiers now,
+    and the tuple below is REDUNDANT rather than a second fact -- both
+    read the same widgets. It is kept because the guard written for the
+    2026-08-30 defect stands on it, and it can go the day somebody
+    re-aims that.
     Keyed on the stamp alone, moving Rotate to 30 and pressing Generate
     put the pre-rotation unit back and drew a map TILE FOR TILE
     identical to rotate 0 -- and Generate is guaranteed to land inside
@@ -21408,15 +21429,66 @@ class WeavingSpaceDialog(QDialog):
     """What the current topology would be ABOUT.
 
     Returns:
-      A tuple of the family, the element count and the unit's own
-      options -- the things a topology depends on, and nothing else.
-      Compared when a build lands, so an answer for a design somebody
-      has since changed away from is dropped rather than shown.
+      A tuple of the family, the element count, the unit's own options
+      and THE MODIFIERS -- the things a topology depends on, and
+      nothing else. Compared when a build lands, so an answer for a
+      design somebody has since changed away from is dropped rather
+      than shown.
+
+    THE MODIFIERS WERE MISSING UNTIL 2026-08-31, and they decide
+    whether there is a topology at all. `_queue_topology` builds from
+    `self._unit`, which is the unit AFTER the modifier chain, and any
+    tile inset opens gaps that make `Topology` refuse -- the very case
+    this suite's own drop test stages, by moving an inset and watching
+    the topology go. With the modifiers out of the stamp that move left
+    the stamp IDENTICAL, so a build for the design before the inset
+    compared equal to the design after it: a landing about the wrong
+    design was shown rather than discarded, and the held dual's own
+    is-this-of-my-design check inherited the same blindness. Found
+    while giving the FILE a key naming the design its motif describes,
+    which cannot be right while the stamp underneath it is not.
     """
     kwargs = self._unit_kwargs()
     kwargs.pop("spec", None)
     return (self.family_combo.currentText(), self._element_count(),
-            tuple(sorted(kwargs.items())))
+            tuple(sorted(kwargs.items())),
+            (self.mod_rotate.value(),
+             self.mod_scale_x.value(), self.mod_scale_y.value(),
+             self.mod_glyph.isChecked(),
+             self.mod_skew_x.value(), self.mod_skew_y.value(),
+             self.mod_t_inset.value(), self.mod_p_inset.value()))
+
+  def _topology_description_key(self) -> str:
+    """What the unit and dual tables in a file would be ABOUT.
+
+    Returns:
+      A string naming the design those two tables describe: the family
+      and element count, a digest of the unit's own options, and a
+      digest of the edit list replayed onto it.
+
+    IT IS A STRING BECAUSE IT TRAVELS THROUGH JSON, and JSON has no
+    tuple. `_topology_stamp()` is one, so storing that directly would
+    bring it home as a LIST and it would never compare equal again --
+    the silent type change across a boundary that this repository's
+    ledger carries more often than any other.
+
+    AND THE EDITS BELONG IN IT, not only the design. The tables
+    describe the EDITED motif. With the experimental box off no
+    topology is built and the edits are still replayed onto the map, so
+    a design whose stamp has not moved can perfectly well have tables
+    describing a motif two edits old.
+    """
+    import hashlib
+    from . import topology_edits
+    panel = getattr(self, "topology_panel", None)
+    edits = panel.edits() if panel is not None else []
+    options = json.dumps(str(self._topology_stamp()), sort_keys=True)
+    made = json.dumps(edits, sort_keys=True, default=str)
+    return "|".join((
+      topology_edits.shelf_key(self.family_combo.currentText(),
+                               self._element_count()),
+      hashlib.sha256(options.encode()).hexdigest()[:8],
+      hashlib.sha256(made.encode()).hexdigest()[:8]))
 
   def _on_topology_edited(self) -> None:
     """The topology tab's record changed; keep the design in step.

@@ -3088,23 +3088,66 @@ def test_a_topology_edit_reaches_the_map():
   assert groups["edge"] and groups["vertex"], \
     f"PREMISE: no classes to aim an edit at: {groups}"
 
-  before = unit.tiles.geometry.iloc[0].wkt
+  # THE DESIGN IS CHOSEN PER MANIPULATION, and `push_vertex` is why.
+  # It moves NOTHING on laves 3.3.4.3.4, and that is a fact about the
+  # design rather than a defect: upstream pushes a vertex along the sum
+  # of the unit vectors from its neighbours, and at a symmetric vertex
+  # those cancel exactly. Measured 2026-08-31 over the core vertices
+  # `transform_geometry` actually consults -- a resultant per unit
+  # `push_d` of 1.5e-9 to 6.9e-9 on laves 3.3.4.3.4 and hex-slice 3,
+  # against 0.414 on archimedean 4.8.8. So the design that proves the
+  # argument reaches the library has to be one where it can.
+  wide = catalog.make_unit(catalog.TILINGS_BY_N[2]["archimedean 4.8.8"],
+                           spacing=500, crs=3857)
+  wide_topology, _ = topology_edits.build(wide)
+  assert wide_topology is not None, \
+    "PREMISE: archimedean 4.8.8 carries no topology, so there is " \
+    "nowhere here that push_vertex demonstrably moves anything"
+  wide_groups = topology_edits.classes(wide_topology)
+
   moved_by = []
   for how, args in (("push_vertex", {"push_d": 0.1}),
                     ("nudge_vertex", {"dx": 0.05, "dy": 0.05}),
                     ("rotate_edge", {"angle": 15}),
                     ("scale_edge", {"sf": 1.1})):
-    classes = groups[topology_edits.MANIPULATIONS[how]["target"]]
+    on, its_topology, its_groups = (
+      ("archimedean 4.8.8", wide_topology, wide_groups)
+      if how == "push_vertex" else
+      ("laves 3.3.4.3.4", topology, groups))
+    classes = its_groups[topology_edits.MANIPULATIONS[how]["target"]]
     tileable, refusals = topology_edits.apply(
-      topology, [{"classes": classes, "how": how, "args": args}])
-    assert not refusals, f"{how} was refused: {refusals}"
-    assert tileable.tiles.geometry.iloc[0].wkt != before, \
-      f"{how} was reported applied and moved nothing, which is what a " \
-      f"dropped argument or a selector matching nothing looks like"
+      its_topology, [{"classes": classes, "how": how, "args": args}])
+    assert not refusals, f"{how} on {on} was refused: {refusals}"
+    # THE GROUND, NOT THE TEXT. This compared WKT until 2026-08-31 and
+    # therefore could not fail: every transform re-grids the unit and
+    # restarts its rings, so the text differs whatever happened.
+    moved = _ground_between(its_topology.tileable, tileable)
+    assert moved > 1e-7, (
+      f"{how} on {on} was reported applied and moved {moved:.3e} of the "
+      f"unit's own area, which is what a dropped argument or a selector "
+      f"matching nothing looks like")
     assert topology_edits._tiles_lay_out(tileable), \
       f"{how} left a unit that cannot be laid out"
     moved_by.append(how)
   assert len(moved_by) == 4, f"only {moved_by} were exercised"
+
+  # AND THE OTHER ANSWER, asserted beside it because a reader meeting
+  # either alone would take it for the whole rule: where a manipulation
+  # is accepted and moves nothing, the person is TOLD. A control that
+  # takes a click and does nothing is this plugin's second
+  # characteristic failure, and push_vertex on laves 3.3.4.3.4 is a
+  # real instance of it rather than a staged one.
+  quiet, said = topology_edits.apply(
+    topology, [{"classes": groups["vertex"], "how": "push_vertex",
+                "args": {"push_d": 0.1}}])
+  standing = _ground_between(topology.tileable, quiet)
+  assert standing < 1e-7, (
+    f"PREMISE: push_vertex moved laves 3.3.4.3.4 by {standing:.3e} "
+    f"after all, so this leg is measuring the ordinary path and not "
+    f"the silent one it was written for")
+  assert said and "changed nothing" in said[0], (
+    f"push_vertex moved nothing on laves 3.3.4.3.4 and said {said}, so "
+    f"somebody meets a control that takes a click and does nothing")
 
   # ZIGZAG WHERE IT WORKS. Without the repeated-vertex repair this
   # design refuses too, so a green here is the repair working rather
@@ -3139,8 +3182,10 @@ def test_a_topology_edit_reaches_the_map():
                 "args": {"n": 2, "h": 0.25, "smoothness": 3}}])
   assert not refusals, \
     f"zigzag is refused on a design upstream's cleaner rescues: {refusals}"
-  assert tileable.tiles.geometry.iloc[0].wkt != before, \
-    "zigzag was reported applied and moved nothing"
+  bent = _ground_between(topology.tileable, tileable)
+  assert bent > 1e-7, (
+    f"zigzag was reported applied and moved {bent:.3e} of the unit's "
+    f"own area")
 
   # AND WHERE IT GENUINELY CANNOT, the refusal, with the map left
   # alone. RE-AIMED rather than dropped: the sentence a person reads
@@ -3203,8 +3248,44 @@ def test_a_topology_edit_reaches_the_map():
 
 
 TOPOLOGY_MATRIX_AFTERMATHS = ("immediately", "after re-Generate",
+                              "with a run in flight",
                               "after save and reload")
-TOPOLOGY_MATRIX_SPINE_AFTERMATHS = ("immediately", "after re-Generate")
+# "with a run in flight" is on the SPINE rather than in the sample: it
+# is the fourth of the race families the grilling of 2026-08-30 named,
+# the last one left owed, and a race sampled at random is a race that
+# usually is not run. It is a PRELUDE rather than an aftermath -- the
+# run is launched before the edit is made -- and the cell says so.
+TOPOLOGY_MATRIX_SPINE_AFTERMATHS = ("immediately", "after re-Generate",
+                                    "with a run in flight")
+
+
+def _ground_between(one, two) -> float:
+  """How much GROUND differs between two units, over their own area.
+
+  Args:
+    one: the unit as it stood.
+    two: the unit a manipulation produced.
+
+  Returns:
+    The summed symmetric-difference area of the tiles over their summed
+    area, so the answer does not depend on the spacing.
+
+  IT IS NOT WKT, AND THAT IS THE WHOLE POINT.
+  `Topology.transform_geometry` re-grids the unit it hands back and
+  RESTARTS EVERY RING, so comparing the text of a polygon -- which
+  `test_a_topology_edit_reaches_the_map` did until 2026-08-31 --
+  reports a change for a manipulation that moved nothing whatever.
+  That is exactly the case the comparison was written to catch, so it
+  had been passing for the reason it exists to refuse. Measured the
+  same day: a manipulation matching no class at all moves a coordinate
+  by five hundred map units and this by 1.5e-9 to 2.5e-9, where every
+  real edit measured moves it by 1.9e-4 or more.
+  """
+  total = area = 0.0
+  for a, b in zip(one.tiles.geometry, two.tiles.geometry):
+    total += a.symmetric_difference(b).area
+    area += a.area
+  return total / max(area, 1e-12)
 
 
 def _topology_matrix_shapes():
@@ -3270,18 +3351,59 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
               "tab with no reason in it", "")
     return ("ok", said)
 
-  index = dlg.topology_panel.how_combo.findData(route)
-  if index < 0:
-    return ("SKIPPED", f"{route} is not offered")
+  from weavingspace_qgis import topology_edits
   if not panel.class_combo.count():
     return ("SKIPPED", "this design offers no class to move")
 
   before_edits = len(panel.edits())
   before_note = (panel.note.text() or "").strip()
   before_unit = _unit_fingerprint(dlg)
+  before_tiles = _unit_tiles(dlg)
 
+  # THE RUN IS LAUNCHED BEFORE THE EDIT, which is what makes this
+  # aftermath a PRELUDE. The question is whether an edit made while a
+  # tiling is already going survives the landing that follows it --
+  # the fourth race family, and the one this matrix did not have.
+  # ITS PREMISE IS ASSERTED RATHER THAN HOPED FOR: a run that has
+  # already landed puts the cell on a different journey, and a cell
+  # that judges the wrong journey is worse than one that says it could
+  # not reach its own case. A finer spacing is what holds the window
+  # open, since the default design tiles faster than the press.
+  in_flight = aftermath == "with a run in flight"
+  if in_flight:
+    dlg.spacing_spin.setValue(max(dlg.spacing_spin.value() / 8.0, 1.0))
+    _tick(400)
+    dlg._generate()
+    _tick(30)
+    if dlg._task is None:
+      return ("SKIPPED", "the run had landed before the edit could be "
+                         "made, so the window was missed")
+
+  # SELECT, THEN ACT -- the tab's own order since the interaction was
+  # rebuilt on 2026-08-30, and this cell has to drive it the way a
+  # person does. The VERB list is narrowed by the class in front of
+  # you, so setting `how_combo` first asks for a manipulation the list
+  # does not hold yet. Measured 2026-08-31: every edge route came back
+  # SKIPPED because the class combo happened to open on a vertex class,
+  # and `rotate_edge`, `scale_edge` and `zigzag_edge` were skipped in
+  # EVERY cell they were drawn for -- three of five routes silently
+  # unexercised, which this matrix's own no-silent-axis assertion is
+  # what caught.
+  target = topology_edits.MANIPULATIONS[route]["target"]
+  wanted = -1
+  for position in range(panel.class_combo.count()):
+    data = panel.class_combo.itemData(position)
+    if data and data[0] == target:
+      wanted = position
+      break
+  if wanted < 0:
+    return ("SKIPPED", f"this design offers no {target} class to move")
+  panel.class_combo.setCurrentIndex(wanted)
+  _tick(120)
+  index = panel.how_combo.findData(route)
+  if index < 0:
+    return ("SKIPPED", f"{route} is not offered for a {target}")
   panel.how_combo.setCurrentIndex(index)
-  panel.class_combo.setCurrentIndex(0)
   _tick(120)
   panel.apply_button.click()          # its own signal, as a person uses it
 
@@ -3296,7 +3418,8 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
     _settle_topology(dlg, seconds=5)
     _tick(200)
     said_now = (panel.note.text() or "").strip()
-    moved = _unit_fingerprint(dlg) != before_unit
+    moved = (_unit_fingerprint(dlg) != before_unit
+             or _unit_ground_moved(dlg, before_tiles))
     spoke = bool(said_now) and said_now != before_note
     if moved or spoke:
       break
@@ -3332,10 +3455,44 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
     # fast path and never re-tiled, which is exactly how an edit came
     # to move the preview and leave the map alone.
     after_map = _element_layer_digest(dlg)
-    if grew and before_map and after_map == before_map:
+    # ASKED ONLY WHERE THE EDIT MOVED THE UNIT. An edit that legitimately
+    # changes nothing -- push_vertex at a symmetric vertex, a zigzag a
+    # design is indifferent to -- leaves the map identical BECAUSE IT
+    # SHOULD, and complaining there is the harness authoring its own
+    # failure. Measured 2026-08-31: two cells on `crosses 4` reported
+    # "the edit never reached the map" for exactly that reason once the
+    # edge routes started running at all.
+    if moved and before_map and after_map == before_map:
       return ("Generate after an edit left every element layer byte "
               "for byte as it was, so the edit reached the preview "
               "and never the map", "")
+  elif in_flight:
+    # SURVIVAL, WHICH IS A DIFFERENT PROMISE FROM ARRIVAL. The run
+    # that was already going lands with a design it was launched
+    # BEFORE the edit, and what must not happen is the edit being
+    # forgotten on the way past -- this project's own shape, where a
+    # style pasted 250 ms into a run was destroyed as the run landed
+    # while the same paste a second either side survived.
+    kept = len(panel.edits())
+    _settle(dlg, seconds=60)
+    _settle_topology(dlg)
+    if len(panel.edits()) != kept:
+      return (f"the edit list changed as the in-flight run landed: "
+              f"{kept} became {len(panel.edits())}, so an edit made "
+              f"while a tiling was going was lost by the landing", "")
+    # ...AND THE PANEL STILL DESCRIBES A DESIGN IT CAN ACT ON. A
+    # landing that leaves the tab holding classes for another design
+    # is the stale-topology fault arriving through the race door.
+    if grew and not panel.class_combo.count():
+      return ("the landing left the tab with no class to move, so the "
+              "edit that was made during the run describes a design "
+              "the panel no longer has", "")
+    # WHAT THIS DOES NOT ASSERT, said out loud rather than implied:
+    # that the MAP now draws the edit. The run landed with the design
+    # it was launched with, so a map that does not yet show the edit
+    # is correct until the next Generate -- which is the settled
+    # preserve-do-not-repaint rule, and the "after re-Generate"
+    # aftermath is what covers the arrival half.
   elif aftermath == "after save and reload":
     path = os.path.join(out_dir, f"matrix-{route}.gpkg")
     dlg.gpkg_widget.setFilePath(path)
@@ -3386,6 +3543,43 @@ def _element_layer_digest(dlg):
       count += 1
     found.append((str(tile_id), count, digest.hexdigest()[:12]))
   return tuple(found)
+
+
+def _unit_tiles(dlg):
+  """The tile geometries the dialog's unit currently holds, or None."""
+  unit = getattr(dlg, "_unit", None)
+  tiles = getattr(unit, "tiles", None) if unit is not None else None
+  return None if tiles is None else list(tiles.geometry)
+
+
+def _unit_ground_moved(dlg, before) -> bool:
+  """Whether the dialog's unit now covers different ground.
+
+  Args:
+    dlg: the dialog.
+    before: the tile geometries from `_unit_tiles` beforehand.
+
+  Returns:
+    True where the ground differs by more than a ten-millionth of the
+    unit's own area, which is three orders above the library's own
+    re-gridding.
+
+  IT IS NOT `_unit_fingerprint`, AND THAT MATTERS HERE. The
+  fingerprint rounds each tile's AREA, and a zigzag bends an edge
+  while leaving the area it encloses inside any sane tolerance -- so a
+  cell asking the fingerprint reported "moved nothing" about an edit
+  that plainly had, and then complained that the edit said nothing
+  either. Measured 2026-08-31 on `square-slice 4`. A statistic is not
+  a shape, which is the same lesson `_same_shape` learned twice on the
+  other side of this boundary.
+  """
+  after = _unit_tiles(dlg)
+  if before is None or after is None or len(after) != len(before):
+    return after is not before
+  total = sum(a.symmetric_difference(b).area
+              for a, b in zip(before, after))
+  area = sum(a.area for a in before) or 1.0
+  return (total / area) > 1e-7
 
 
 def _unit_fingerprint(dlg):
@@ -4684,6 +4878,156 @@ def test_the_element_count_is_one_control_in_two_widgets():
     f"the family list offers {offered - set(catalog.TILINGS_BY_N[3])}, " \
     f"which are not three-element designs"
   dlg.close()
+
+
+def test_the_design_tab_lines_up_and_opens_narrow():
+  """Four rows to one edge, one label column, and a window sized by
+  the tab in front of it.
+
+  Three claims that came out of the maintainer's report of 2026-08-30
+  -- "the alignment and spacing and sizing of these UI elements is
+  just nonsensical" -- and not one of them had a registered test.
+
+  ONE FIELD WIDTH. `_field_block` puts a row's controls in a holder
+  fixed to `_field_width`, which the region chooser sets from its own
+  sizeHint, so Region layer, QGIS Layer Group, Number of elements and
+  Pattern end at ONE edge. `FieldsStayAtSizeHint` gives each field its
+  own hint, which is what stops this tab running the width of the
+  window and is also why four rows built from different controls ended
+  at four different edges; the other policy lines them up by making
+  every one as wide as the window, which is the defect that started
+  it. A block of a known width is the third answer.
+
+  ONE LABEL COLUMN. The design block and the modifier block are
+  separate QFormLayouts stacked in a QVBoxLayout, so their label
+  columns are sized independently and nothing lines up across the
+  boundary. What closes it is moving one form's LEFT MARGIN, and that
+  is the only lever that settles: widening the short labels to reach
+  the far edge is a FEEDBACK LOOP, since a wider label grows its
+  form's shared column and moves the edge being aimed at -- 1296px to
+  1618px in one run, the third of four failed repairs to this layout.
+
+  AND THE WINDOW FOLLOWS THE TAB IN FRONT. A QStackedWidget's minimum
+  is the LARGEST of its pages, so while the assignment table exists on
+  Data & colours the window could not be narrower than that table
+  whichever tab was showing. The page in front is `Preferred` and the
+  others `Ignored` now. It GROWS AND DOES NOT SHRINK, deliberately: a
+  window that contracted as well would resize under the pointer on
+  every tab click, and the ask was for a narrow start rather than a
+  window that follows you about.
+
+  BOTH STYLES, because the harness's own style is part of this
+  measurement. macOS pins a form's fields at their hint and Fusion
+  grows them, and QGIS ships Fusion as a style people select, so an
+  alignment that holds under one and not the other is not an
+  alignment.
+
+  Regression: three rows of the Design tab were added with a bare addRow and so carried no width policy at all, taking whichever answer the style supplied -- a 33px stub under macOS, 861px under Fusion. [mutation]
+  """
+  from qgis.PyQt.QtWidgets import QApplication
+  was = QApplication.style().objectName()
+  try:
+    for style in (None, "Fusion"):
+      if style is not None:
+        QApplication.setStyle(style)
+      _the_design_tab_lines_up(style or was)
+  finally:
+    # Restored whatever happens: a style is global, and leaving the
+    # next test in another one is the shared-state fault this suite
+    # empties the project for.
+    QApplication.setStyle(was)
+
+
+def _the_design_tab_lines_up(under):
+  """The body of the test above, under whatever style is in force.
+
+  Args:
+    under: the style's name, for the failure messages -- a number
+      quoted without the style it was taken under says nothing here.
+
+  Returns:
+    None. Raises with what it measured.
+  """
+  from qgis.PyQt.QtWidgets import QFormLayout
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    # PUMPED PROPERLY, because `sizeHint` and `width()` are both stale
+    # before a real layout pass: a single `processEvents` after `show`
+    # once reported the region chooser at 861px against a hint of 33,
+    # and pumped properly it reads 53 and 53. A width read one event
+    # after showing is a measurement of a half-assembled window.
+    _tick(400)
+
+    def right_edge(widget):
+      """Where a widget ends, in the dialog's own coordinates."""
+      return widget.mapTo(dlg, widget.rect().topRight()).x()
+
+    # THE FOUR ROWS THAT SHARE A FIELD WIDTH. Region and group are
+    # laid out as plain fields with a width asked for in CHARACTERS;
+    # elements and Pattern are blocks fixed to that same width. The
+    # claim is that all four end together, however they got there.
+    ends = {
+      "Region layer": right_edge(dlg.layer_combo),
+      "QGIS Layer Group": right_edge(dlg.group_combo),
+      "Number of elements": right_edge(dlg.n_spin.parentWidget()),
+      "Pattern": right_edge(dlg.family_combo.parentWidget()),
+    }
+    assert max(ends.values()) - min(ends.values()) <= 1, (
+      f"under {under} these four rows end at four different edges, so "
+      f"the tab reads as ragged: "
+      + ", ".join(f"{name} {x}" for name, x in sorted(ends.items())))
+
+    # ONE LABEL COLUMN ACROSS BOTH FORMS. Read off every form row the
+    # page actually shows, so a row hidden by the family in force is
+    # not measured and a row added next year is.
+    page = dlg._tabs.widget(0)
+    edges, counted = set(), 0
+    for form in page.findChildren(QFormLayout):
+      for row in range(form.rowCount()):
+        item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+        label = item.widget() if item is not None else None
+        if label is None or not label.isVisibleTo(dlg):
+          continue
+        edges.add(right_edge(label))
+        counted += 1
+    # COUNT WHAT WAS LOOKED AT: a walk that finds nothing and a walk
+    # that examined nothing are the same green.
+    assert counted >= 8, (
+      f"under {under} only {counted} form labels were visible on the "
+      f"Design tab, which is too few to be measuring its layout")
+    assert max(edges) - min(edges) <= 1, (
+      f"under {under} the two blocks' label columns end "
+      f"{max(edges) - min(edges)}px apart, so nothing lines up across "
+      f"the boundary between them: {sorted(edges)}")
+
+    # AND THE WINDOW FOLLOWS THE TAB. Both answers are asserted,
+    # because a reader meeting either alone would take it for the
+    # whole rule: a wider tab GROWS the window, and coming back does
+    # not shrink it.
+    dlg._tabs.setCurrentIndex(0)
+    _tick(300)
+    narrow = dlg.width()
+    dlg._tabs.setCurrentIndex(1)
+    _tick(300)
+    wide = dlg.width()
+    assert wide > narrow, (
+      f"under {under} the window was {narrow}px on Design and {wide}px "
+      f"on Data & colours, so it is not being sized by the tab in "
+      f"front -- the stacked widget's own minimum is the largest page")
+    dlg._tabs.setCurrentIndex(0)
+    _tick(300)
+    assert dlg.width() == wide, (
+      f"under {under} the window shrank back to {dlg.width()}px on "
+      f"returning to Design, so it resizes under the pointer on every "
+      f"tab click; growth is deliberate and contraction is not")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
 
 
 def test_no_design_control_is_stretched_to_the_window():
@@ -31292,6 +31636,81 @@ def test_numbers_stored_as_text_can_be_classified():
     dlg.close()
 
 
+def test_every_task_callback_can_ask_whether_its_dialog_is_gone():
+  """A worker's answer must not be delivered to a window that has gone.
+
+  Two of these were found by a hunt on 2026-08-30 and repaired, and
+  neither had a guard. `on_progress` had NO retirement gate, alone
+  among the long-lived slots in `dialog.py`: measured to ABORT QGIS by
+  choosing File > New inside the 11.7 second window between the
+  worker's 40 and 90 reports, so the late signal reached a progress bar
+  that had been deleted. The topology task's `done` had none either --
+  and that task is cancelled at NO door, where the tiling's is
+  cancelled at three, so it was held from aborting only by a
+  `try/except` in `worker.py` that nobody thinks of as a guard.
+
+  IT GUARDS THE SHAPE. A test pinned to those two lines would pass
+  forever while the next background task is written without one, and
+  there will be a next one: a callback closing over `self` reads as
+  ordinary, and the cost of being wrong is not a wrong map but a
+  process that stops with no verdict at all.
+
+  THE ONE EXEMPTION IS A CITATION RATHER THAN AN EXCUSE, which is how
+  this suite treats every other exemption list. The tiling's `done`
+  carries no gate itself and reaches `_on_generated`, whose first act
+  is to ask -- so this test asserts THAT, and the exemption falls the
+  day it stops being true.
+
+  Regression: a late progress report reached a deleted progress bar and took QGIS with it; the topology task's landing wrote into a closed window's panel. Found by the hunt round of 2026-08-30. [suite]
+  """
+  import ast as _ast
+  source = open(os.path.join(ROOT, "weavingspace_qgis", "dialog.py"),
+                encoding="utf-8").read()
+  tree = _ast.parse(source)
+
+  # THE EXEMPTION, and what stands behind it. The tiling's landing
+  # delegates on its second statement, having touched nothing of the
+  # dialog before that.
+  delegates = {"_on_generated"}
+  gated = {name for name in delegates}
+  for node in _ast.walk(tree):
+    if isinstance(node, _ast.FunctionDef) and node.name in delegates:
+      body = _ast.get_source_segment(source, node) or ""
+      if "_dialog_is_gone" not in body:
+        gated.discard(node.name)
+  assert gated == delegates, (
+    f"{sorted(delegates - gated)} no longer asks whether its dialog "
+    f"is gone, and a task callback is exempt from this test only "
+    f"because it delegates to one that does")
+
+  ungated, looked = [], 0
+  for node in _ast.walk(tree):
+    if not isinstance(node, _ast.FunctionDef):
+      continue
+    if node.name not in ("done", "on_progress"):
+      continue
+    looked += 1
+    body = _ast.get_source_segment(source, node) or ""
+    if "_dialog_is_gone" in body:
+      continue
+    # ...or it hands straight to something that asks.
+    if any(f"self.{name}(" in body for name in delegates):
+      continue
+    ungated.append(f"line {node.lineno}: {node.name}")
+
+  assert looked >= 3, (
+    f"this scan found {looked} task callback(s) in dialog.py, which is "
+    f"too few to be looking at the tiling and topology paths -- the "
+    f"shapes it matches have probably moved")
+  assert not ungated, (
+    "a worker callback that cannot ask whether its dialog is gone "
+    "delivers its answer into a deleted window, which is a process "
+    "that stops rather than a failure anybody can read:\n  "
+    + "\n  ".join(ungated)
+    + "\nGate it on `_dialog_is_gone`, or delegate to something that "
+      "does before touching anything of the dialog's.")
+
+
 def test_nothing_long_lived_is_connected_to_a_bare_lambda():
   """A callable that outlives the dialog must be able to ask first.
 
@@ -31320,66 +31739,90 @@ def test_nothing_long_lived_is_connected_to_a_bare_lambda():
   THE SCOPE IS EXACTLY THE HAZARD, so it needs no exemption list. A
   lambda on a WIDGET's signal is safe: the widget is a child of the
   dialog and dies with it. What is not safe is a signal from
-  something the dialog does not own -- the project, or a layer -- and
-  a timer, which fires into whatever is left.
+  something the dialog does not own -- the project, a layer, or one of
+  the singletons QGIS hands out -- and a timer, which fires into
+  whatever is left.
+
+  AND IT READS EVERY SHIPPED MODULE SINCE 2026-08-31. It opened
+  `dialog.py` alone until then, which is the fault it exists to warn
+  about wearing the guard's own clothes: a test arguing that a shape
+  must be guarded rather than three sites, pinned to one site.
+  `topology_tab.py`, `category_editor.py`, `widgets.py` and
+  `plugin.py` were all outside it, and `plugin.py` speaks before any
+  dialog exists at all.
 
   Regression: three callables outliving their dialog reached it through a bare lambda, so a destroyed dialog was touched and QGIS died with a segmentation fault. Found while running twelve tests in one process, 2026-08-29. [suite]
   """
   import ast as _ast
-  source = open(os.path.join(ROOT, "weavingspace_qgis", "dialog.py"),
-                encoding="utf-8").read()
-  tree = _ast.parse(source)
+  import glob as _glob
 
-  def outlives_the_dialog(node):
-    """Whether a `.connect` receiver is something the dialog does not own.
+  def outlives_its_owner(node):
+    """Whether a `.connect` receiver is something the owner does not own.
 
     Args:
       node: the expression a signal was read from -- the `x` in
         `x.signal.connect(...)`.
 
     Returns:
-      True for `QgsProject.instance()` and for a plain `layer`, which
-      are the two kinds that outlive a dialog here. False for a
-      widget, which is a child and dies with its parent.
+      True for the singletons QGIS hands out and for a plain layer,
+      which are the kinds that outlive whatever connected to them.
+      False for a widget, which is a child and dies with its parent.
     """
     if isinstance(node, _ast.Call):
       called = node.func
       return (isinstance(called, _ast.Attribute)
               and isinstance(called.value, _ast.Name)
-              and called.value.id == "QgsProject")
-    return isinstance(node, _ast.Name) and node.id in ("layer", "out")
+              and called.value.id in ("QgsProject", "QgsStyle",
+                                      "QgsApplication"))
+    return isinstance(node, _ast.Name) and node.id in (
+      "layer", "out", "donor", "region", "source_layer")
 
   offenders = []
-  connects = timers = 0
-  for node in _ast.walk(tree):
-    if not isinstance(node, _ast.Call):
-      continue
-    called = node.func
-    if isinstance(called, _ast.Attribute) and called.attr == "connect":
-      signal = called.value
-      if not isinstance(signal, _ast.Attribute):
+  connects = timers = files = 0
+  # EVERY SHIPPED MODULE, NOT ONLY `dialog.py`. This opened one file
+  # until 2026-08-31 -- six connections and nine timers -- so a test
+  # whose whole argument is that it guards a SHAPE rather than three
+  # sites was itself pinned to one site. `topology_tab.py`,
+  # `category_editor.py`, `widgets.py` and `plugin.py` were outside it,
+  # and the last of those speaks before any dialog exists.
+  # `vendor/` is excluded: upstream's code held verbatim, where our
+  # conventions would be discarded at the next re-vendor.
+  for path in sorted(_glob.glob(
+      os.path.join(ROOT, "weavingspace_qgis", "*.py"))):
+    files += 1
+    tree = _ast.parse(open(path, encoding="utf-8").read())
+    where = os.path.basename(path)
+    for node in _ast.walk(tree):
+      if not isinstance(node, _ast.Call):
         continue
-      if not outlives_the_dialog(signal.value):
-        continue
-      connects += 1
-      if node.args and isinstance(node.args[0], _ast.Lambda):
-        offenders.append(
-          f"line {node.lineno}: a signal on something that outlives "
-          f"this dialog is connected to a bare lambda")
-    elif (isinstance(called, _ast.Attribute)
-          and called.attr == "singleShot"):
-      timers += 1
-      if len(node.args) > 1 and isinstance(node.args[1], _ast.Lambda):
-        offenders.append(
-          f"line {node.lineno}: a timer is queued with a bare lambda")
+      called = node.func
+      if isinstance(called, _ast.Attribute) and called.attr == "connect":
+        signal = called.value
+        if not isinstance(signal, _ast.Attribute):
+          continue
+        if not outlives_its_owner(signal.value):
+          continue
+        connects += 1
+        if node.args and isinstance(node.args[0], _ast.Lambda):
+          offenders.append(
+            f"{where}:{node.lineno}: a signal on something that "
+            f"outlives this object is connected to a bare lambda")
+      elif (isinstance(called, _ast.Attribute)
+            and called.attr == "singleShot"):
+        timers += 1
+        if len(node.args) > 1 and isinstance(node.args[1], _ast.Lambda):
+          offenders.append(
+            f"{where}:{node.lineno}: a timer is queued with a bare "
+            f"lambda")
 
   # COUNT WHAT WAS LOOKED AT: a walk that finds nothing and a walk
   # that examined nothing are the same green, which is this project's
   # oldest and cheapest rule.
-  assert connects >= 3 and timers >= 5, (
-    f"this scan examined {connects} long-lived connection(s) and "
-    f"{timers} timer(s), which is too few to have looked at the "
-    f"dialog at all -- the shapes it matches have probably moved")
+  assert files >= 8 and connects >= 3 and timers >= 5, (
+    f"this scan read {files} shipped module(s) and examined "
+    f"{connects} long-lived connection(s) and {timers} timer(s), "
+    f"which is too few to have looked at the package at all -- the "
+    f"shapes it matches have probably moved")
   assert not offenders, (
     "a callable that outlives its dialog cannot ask whether the "
     "dialog is still there, so it reaches a deleted C++ object and "
@@ -75709,6 +76152,8 @@ def main():
         test_the_element_count_is_one_control_in_two_widgets)
   check("no design control is stretched to the window",
         test_no_design_control_is_stretched_to_the_window)
+  check("the design tab lines up and opens narrow",
+        test_the_design_tab_lines_up_and_opens_narrow)
   check("style follow, ramp memory, single colour",
         test_style_follow_and_memory)
   check("choice persistence and zombie recovery",
@@ -75871,6 +76316,8 @@ def main():
         test_a_limit_and_the_colours_after_it_survive_a_reopen)
   check("nothing long lived is connected to a bare lambda",
         test_nothing_long_lived_is_connected_to_a_bare_lambda)
+  check("every task callback can ask whether its dialog is gone",
+        test_every_task_callback_can_ask_whether_its_dialog_is_gone)
   check("numbers stored as text can be classified",
         test_numbers_stored_as_text_can_be_classified)
   check("the group chooser is the only door to a new group",

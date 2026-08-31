@@ -97,6 +97,11 @@ MANIPULATIONS = {
 # reach a library expecting a count.
 _WHOLE = {"n", "smoothness"}
 
+# How much of the unit's own area has to change before a manipulation
+# counts as having done something. The measurement it rests on is at
+# `_same_shape`, which is the only reader.
+_NOTHING_MOVED = 1e-7
+
 
 def whole_where_needed(args: dict) -> dict:
   """An argument mapping with the counts made whole.
@@ -269,6 +274,38 @@ def apply(topology, edits):
         f"applied, because an earlier change left a design whose "
         f"topology cannot be worked out.")
       continue
+    # AN EDIT AIMED AT A CLASS THIS DESIGN DOES NOT HAVE IS ANSWERED
+    # HERE, EXACTLY, BEFORE ANY GEOMETRY IS INVOLVED. The library takes
+    # such a selector without complaint -- `transform_geometry` walks
+    # its edges asking `e.label in selector` and simply matches none --
+    # so the change list would grow while the map stood still. That is
+    # the ordinary consequence of the shelf: edits are replayed by
+    # class LABEL, and a label belongs to the design it was made on.
+    # Asking the topology which labels it holds needs no tolerance and
+    # cannot be defeated by the library re-gridding what it hands back,
+    # which is what the shape comparison below was trying and failing to
+    # do for this case (measured 2026-08-31).
+    target = MANIPULATIONS[how]["target"]
+    available = classes(current).get(target, "")
+    wanted = list(dict.fromkeys(selector))
+    missing = [label for label in wanted if label not in available]
+    if missing:
+      names = ", ".join(repr(label) for label in missing)
+      kept = "".join(label for label in wanted if label in available)
+      if not kept:
+        refusals.append(
+          f"{MANIPULATIONS[how]['label']} on {selector or 'nothing'!r} "
+          f"was not applied: this design has no {target} class {names}. "
+          f"Its {target} classes are "
+          f"{available or 'none, so it cannot carry this change'}.")
+        continue
+      # SOME of the classes are here, so the change is made to those
+      # and the rest are named. Saying nothing about them would leave
+      # a change that half happened and looked complete.
+      refusals.append(
+        f"{MANIPULATIONS[how]['label']} on {selector!r} was applied to "
+        f"{kept!r} only: this design has no {target} class {names}.")
+      selector = kept
     args = whole_where_needed(edit.get("args") or {})
     try:
       moved = current.transform_geometry(True, True, selector, how, **args)
@@ -315,10 +352,13 @@ def _same_shape(before, after) -> bool:
 
   Returns:
     True where nothing a person could see has moved. Compares the
-    COORDINATES of every tile, within a tolerance scaled to the unit.
+    GROUND each tile covers -- the symmetric difference between every
+    tile and its counterpart, over the unit's own area -- so the answer
+    is about shape rather than about how the coordinates happen to be
+    written down.
 
-  IT TOOK TWO WRONG INSTRUMENTS TO GET HERE, and both are worth
-  knowing, because each looked obviously right.
+  IT TOOK THREE WRONG INSTRUMENTS TO GET HERE, and each looked
+  obviously right.
 
   ROUNDING AREAS TO NINE DECIMAL PLACES is an ABSOLUTE tolerance, and a
   unit at spacing 500 has tiles of area 62,500. Measured 2026-08-30:
@@ -337,30 +377,47 @@ def _same_shape(before, after) -> bool:
   polygons can share an area, and this fixture is full of tiles that
   do.
 
-  SO THE COORDINATES ARE COMPARED, with `shapely.equals_exact` and a
-  tolerance of a millionth of the unit's own span. At spacing 500 that
-  is 5e-4: three orders above the re-gridding noise, and far below the
-  smallest manipulation on offer, a nudge of 0.05 units.
+  AND `shapely.equals_exact` IS THE THIRD, which is the one that made
+  this report unreachable rather than merely noisy. It compares
+  COORDINATE SEQUENCES and not shapes: two rings covering identical
+  ground read as different the moment one of them begins at another
+  vertex. `transform_geometry` re-grids the unit it hands back and
+  restarts those rings, so on archimedean 4.8.8 -- the first design in
+  the catalogue that carries a topology, and therefore the one the
+  registered test lands on -- a manipulation aimed at a class that does
+  not exist moved a coordinate by FIVE HUNDRED map units while the
+  symmetric difference stayed at 2.4e-4. The comparison duly answered
+  "something changed", the report stayed silent, and the test written
+  to catch exactly that silence failed. (Measured 2026-08-31.)
+
+  THE MEASUREMENT THE THRESHOLD RESTS ON, taken the same day over three
+  designs, as a fraction of the unit's own area:
+
+      a manipulation matching no class     1.5e-9 to 2.5e-9
+      push_vertex where it moves anything  1.9e-4
+      nudge, rotate and scale              2.8e-4 to 1.4e-1
+
+  So `_NOTHING_MOVED` has three orders of clear air on either side of
+  it. What is left at 1e-9 is the library rebuilding and re-gridding
+  the geometry on the way past, which it does whether or not anything
+  was edited.
 
   IT ANSWERS FALSE WHEN IT CANNOT TELL, deliberately: a unit whose
   geometry will not be read is not evidence that nothing happened, and
   saying "this changed nothing" wrongly is worse than staying quiet.
   """
   try:
-    import shapely
     one = getattr(before, "tiles", None)
     two = getattr(after, "tiles", None)
     if one is None or two is None or len(one) != len(two):
       return False
-    # THE TOLERANCE IS SCALED TO THE UNIT, which is the whole trick: a
-    # unit's coordinates follow the SPACING, so a fixed number is a
-    # different question at 500 than at 5.
-    low_x, low_y, high_x, high_y = one.total_bounds
-    span = max(abs(high_x - low_x), abs(high_y - low_y), 1.0)
-    tolerance = span * 1e-6
-    return all(
-      shapely.equals_exact(a, b, tolerance=tolerance)
-      for a, b in zip(one.geometry, two.geometry))
+    moved, area = 0.0, 0.0
+    for a, b in zip(one.geometry, two.geometry):
+      moved += a.symmetric_difference(b).area
+      area += a.area
+    if area <= 0.0:
+      return False
+    return (moved / area) < _NOTHING_MOVED
   except Exception:                                     # noqa: BLE001
     return False
 

@@ -297,8 +297,16 @@ MUTATIONS = [
            "removal the dialog says nothing -- which passed on the "
            "development Mac and failed on all three CI runners"),
   dict(name="a-negative-scale-mirrors-in-Y-too", file=DIALOG,
-       old="""        self.mod_scale_x.value(), self.mod_scale_y.value(),""",
-       new="""        self.mod_scale_x.value(), abs(self.mod_scale_y.value()),""",
+       # NARROWED 2026-08-31 by binding the line above it. The two
+       # scale values were also written into `_topology_stamp` that
+       # day, so the anchor began matching twice -- and an entry that
+       # matches twice mutates the first site while its sibling goes
+       # on doing the work, which is a verdict about nothing. The call
+       # above differs and makes it unique again.
+       old="""      unit = unit.transform_scale(
+        self.mod_scale_x.value(), self.mod_scale_y.value(),""",
+       new="""      unit = unit.transform_scale(
+        self.mod_scale_x.value(), abs(self.mod_scale_y.value()),""",
        test="test_a_negative_scale_factor_mirrors_the_design",
        why="x and y are two controls reaching two arguments, and the "
            "entry beside this one mutates both at once, so it is "
@@ -2436,8 +2444,13 @@ MUTATIONS = [
        # below it: that one removes the drop, this one makes it
        # unconditional, which are the two ways this decision can be
        # wrong and they need different assertions.
-       old="""    if ours and knows and not assessed_has:""",
-       new="""    if ours and not wanted:""",
+       # RE-ANCHORED 2026-08-31, when the drop stopped asking whether a
+       # build had ASSESSED this design and started asking what the
+       # TABLES ARE ABOUT -- a key written beside them, which the file
+       # can answer without building anything. Dropping whenever the
+       # file is ours restores the original harm exactly.
+       old="""    if ours and described is not None and described != key:""",
+       new="""    if ours:""",
        test="test_a_reopen_does_not_take_the_motif_out_of_the_file",
        why="a saved map keeping its motif when somebody opens it at "
            "the plugin's own defaults"),
@@ -2465,16 +2478,50 @@ MUTATIONS = [
            "so a nudge of the slider does not rewrite the design"),
   dict(name="an-edit-that-changes-nothing-says-so", file=TOPOLOGY_EDITS,
        # Found by the topology matrix on its first honest run. The
-       # library accepts a manipulation aimed at a class that does not
-       # exist, neither raising nor complaining, and hands back a unit
-       # identical to the one it was given -- so without this the change
-       # list grows, the map is unchanged, and nothing explains it.
-       # Mutating the report away leaves exactly that silence.
+       # library is entitled to accept a manipulation and move nothing
+       # -- `push_vertex` at a vertex whose incident edges are
+       # symmetric sums to the zero vector -- and it neither raises nor
+       # says so, so without this the change list grows, the map is
+       # unchanged, and nothing explains it.
+       # RE-AIMED 2026-08-31. It named the gone-class test, and that
+       # test now answers through the EXACT check on the selector
+       # instead, so this entry would have survived while reporting
+       # nothing -- the "an entry stops catching because the decision
+       # moved" shape. `test_a_topology_edit_reaches_the_map` carries
+       # the no-op leg now, on a design measured to produce one.
        old="""    if _same_shape(tileable, drawable):""",
        new="""    if False:""",
-       test="test_an_edit_for_a_class_that_has_gone_is_reported",
+       test="test_a_topology_edit_reaches_the_map",
        why="an edit that did nothing saying so, rather than leaving a "
            "list that describes a design the map does not have"),
+  dict(name="an-edit-aimed-at-a-class-that-has-gone-is-refused",
+       file=TOPOLOGY_EDITS,
+       # Edits are shelved by family and element count and replayed by
+       # class LABEL, so a record restored onto a design that lacks
+       # that class aims at nothing -- and `transform_geometry` walks
+       # its edges asking `label in selector`, matches none, and hands
+       # back a unit it has merely re-gridded. Mutating the check away
+       # leaves the silence the shelf makes ordinary.
+       old="""    if missing:""",
+       new="""    if False:""",
+       test="test_an_edit_for_a_class_that_has_gone_is_reported",
+       why="an edit naming a class this design does not have being "
+           "refused BY NAME, before any geometry is involved"),
+  dict(name="the-no-op-threshold-clears-the-librarys-own-noise",
+       file=TOPOLOGY_EDITS,
+       # The other direction, and it needs its own entry because the
+       # two failures are opposite. Too LOW a threshold reports nothing
+       # (the entry above catches that); too HIGH reports every real
+       # edit as having changed nothing, so a person who moved an edge
+       # is told they did not. Measured 2026-08-31: a manipulation
+       # matching no class moves 1.5e-9 to 2.5e-9 of the unit's area
+       # and every real edit 1.9e-4 or more, so 1e-7 has three orders
+       # of clear air either side and a tenth has none.
+       old="""_NOTHING_MOVED = 1e-7""",
+       new="""_NOTHING_MOVED = 1e-1""",
+       test="test_a_topology_edit_reaches_the_map",
+       why="a threshold sitting between the library's own re-gridding "
+           "and the smallest edit anybody can ask for"),
   dict(name="the-unit-and-dual-are-written-with-no-crs", file=TOPOLOGY_EDITS,
        # The unit is built AT THE SPACING and sits about the origin of
        # its own space, so a CRS on it is a lie about where it is: QGIS
@@ -2490,6 +2537,37 @@ MUTATIONS = [
        test="test_the_saved_unit_and_dual_carry_no_crs",
        why="the motif in a saved file carrying no CRS, rather than "
            "claiming to be somewhere it is not"),
+  dict(name="the-topology-stamp-carries-the-modifiers", file=DIALOG,
+       # `_queue_topology` builds from `self._unit`, which is the unit
+       # AFTER the modifier chain, and any tile inset opens gaps that
+       # make `Topology` refuse. With the modifiers out of the stamp,
+       # moving an inset left the stamp IDENTICAL -- so a build about
+       # the design BEFORE the inset compared equal to the design
+       # after it, a landing about the wrong design was shown rather
+       # than discarded, and the file's own key could not tell the two
+       # apart either. Found 2026-08-31 while giving the file that key.
+       # Bound to the line above, which differs: `_edited_unit_key`
+       # carries a modifier tuple of its own a few lines away.
+       old="""            tuple(sorted(kwargs.items())),
+            (self.mod_rotate.value(),""",
+       new="""            tuple(sorted(kwargs.items())),
+            (0.0 * self.mod_rotate.value(),""",
+       test="test_a_design_without_a_topology_leaves_none_in_the_file",
+       why="a topology answer being about the design in front of you, "
+           "modifiers included, rather than about the one before the "
+           "inset was moved"),
+  dict(name="four-design-rows-share-one-field-width", file=DIALOG,
+       # The maintainer's report of 2026-08-30. `FieldsStayAtSizeHint`
+       # gives every field its own hint, which is what stops this tab
+       # running the width of the window -- and is also why four rows
+       # built from different controls ended at four different edges.
+       # Removing the fixed width lets each block fall back to its
+       # contents and the row ends wherever they happen to stop.
+       old="""    holder.setFixedWidth(self._field_width)""",
+       new="""    pass""",
+       test="test_the_design_tab_lines_up_and_opens_narrow",
+       why="Region layer, QGIS Layer Group, Number of elements and "
+           "Pattern ending at one edge rather than four"),
   dict(name="a-design-with-no-topology-leaves-none-in-the-file",
        file=DIALOG,
        # The other half of one method, and the reason it IS one method:
@@ -2497,11 +2575,13 @@ MUTATIONS = [
        # the previous one's motif in the file, describing a map it is
        # no longer made of. Mutating the drop keeps the write and
        # removes the clearing.
-       # RE-ANCHORED 2026-08-30: the drop is no longer decided by the
-       # experimental box but by whether a build has ASSESSED this
-       # design and found no topology. Mutating the assessment away
-       # restores the old behaviour of never dropping.
-       old="""    if ours and knows and not assessed_has:""",
+       # RE-ANCHORED 2026-08-31, the second time this line has moved.
+       # The drop was decided by the experimental box, then by whether
+       # a build had ASSESSED this design, and is now decided by what
+       # the TABLES ARE ABOUT -- a key written beside them in the
+       # file's own record. Mutating the comparison away restores the
+       # old behaviour of never dropping, whatever the file describes.
+       old="""    if ours and described is not None and described != key:""",
        new="""    if False:""",
        test="test_a_design_without_a_topology_leaves_none_in_the_file",
        why="a file showing the limit of what it contains, rather than "

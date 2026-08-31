@@ -909,6 +909,47 @@ should be a POSITION, with the parameter read off where it sits.
 Scale and rotate should be ONE end handle, because moving an endpoint
 is exactly (angle, length) in polar coordinates about the middle.
 
+### How an edit that cannot be drawn is told apart from one that did nothing
+
+Three different things can go wrong with a replayed edit, they need
+three different sentences, and until 2026-08-31 only one of them was
+reliably said.
+
+**A CLASS THE DESIGN DOES NOT HAVE is answered by name, exactly, before
+any geometry.** This is the ordinary consequence of the shelf: edits
+are replayed by class LABEL, and `a` names a different edge in laves
+3.3.4.3.4 than in hex-slice 4. The library is entitled to take such a
+selector -- `transform_geometry` walks its edges asking `label in
+selector` and matches none, neither raising nor complaining -- so the
+change list would grow while the map stood still. `apply` asks the
+topology which labels it holds and refuses by name, and where SOME of
+the named classes exist it applies to those and says which it could
+not find.
+
+**AN EDIT THAT CANNOT BE LAID OUT** is refused in the terms of the
+control, which is `bridge.inset_collapse_message`'s shape rather than
+the library's own count of invalid geometries.
+
+**AND AN EDIT THAT WAS APPLIED AND MOVED NOTHING** is reported too,
+which is a different sentence again and the one this project keeps
+having to rebuild. It is not a hypothetical: `push_vertex` computes its
+direction by summing the unit vectors from each neighbour to the
+vertex, and at a symmetric vertex those cancel exactly, so on laves
+3.3.4.3.4 and hex-slice 3 it moves the design not at all while on
+archimedean 4.8.8 it moves it by 1.9e-4 of the unit's area. That is a
+fact about the DESIGN rather than a defect, and the person still has to
+be told, or they meet a control that takes a click and does nothing.
+
+`_same_shape` is what answers that last one, and it has been wrong
+three times: areas rounded to nine decimal places (an absolute
+tolerance against tiles of area 62,500), then areas at all (a statistic
+is not a shape), and then `shapely.equals_exact`, which compares
+COORDINATE SEQUENCES rather than shapes -- and the library restarts
+every ring on the way past, so identical ground read as changed and the
+report could never fire on any design. It compares the GROUND now,
+symmetric difference over the unit's own area, with the measurement at
+the function.
+
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
 which is the family and the element count. Move the design away and
 the edits go quiet; bring it back and they return. This is the same
@@ -980,10 +1021,53 @@ in a stranger's GeoPackage even our own table names were written for
 THEM, which is the line the source copy and the stale-table drop both
 hold.
 
-**THE DROP HAS BEEN WRONG FOUR TIMES AND NEEDS A REDESIGN RATHER THAN
-A FIFTH PATCH.** Read this before touching
-`_write_or_drop_the_topology`; the paragraph above describes what it
-is FOR, and this one describes why it does not yet do it.
+**THE DROP WAS WRONG FOUR TIMES AND WAS REDESIGNED ON 2026-08-31
+RATHER THAN PATCHED A FIFTH TIME.** What follows is the four faults,
+because they are the argument for the shape that replaced them, and
+then the shape.
+
+WHAT ALL FOUR SHARED: each asked whether we MAY drop, and none
+recorded WHAT THE TABLES ARE ABOUT. The fact missing was never "does
+this design have a topology", which needs a build nobody has run; it
+was WHICH DESIGN THE TABLES IN THIS FILE DESCRIBE, which the file can
+answer for itself.
+
+SO THE FILE CARRIES A KEY. `topology_design` sits in the same record
+the save already writes, beside the two tables, and names the design
+they describe: the family, the element count, a digest of the unit's
+own options and a digest of the EDIT LIST. A string, because JSON has
+no tuple and `_topology_stamp()` is one -- stored directly it would
+come home a list and never compare equal again. The edits are in it
+because the tables describe the EDITED motif, and with the box off no
+build runs while edits are still replayed onto the map, so a design
+whose stamp has not moved can have tables describing a motif two edits
+old.
+
+THE RULE IS THEN A COMPARISON, and it needs no build:
+
+    wrote both frames                      the key is this design's
+    tables present, key DIFFERS, file ours drop both
+    tables present, key equal or ABSENT    leave alone, keep its key
+    no tables                              nothing to do
+
+A file with no key of ours -- written before this, or a colleague's --
+is left alone, which is the line the source copy and the stale-table
+drop both hold. And the key is carried FORWARD unchanged when the
+tables are spared, because the record has to stay true of the TABLES
+rather than of the act that spared them.
+
+**AND THE REDESIGN FOUND A DEFECT UNDERNEATH IT.** `_topology_stamp`
+omitted the MODIFIERS. `_queue_topology` builds from `self._unit`,
+which is the unit after the modifier chain, and any tile inset opens
+gaps that make `Topology` refuse -- so moving an inset left the stamp
+identical, a build about the design before it compared equal to the
+design after it, and a landing about the wrong design was shown rather
+than discarded. The stamp carries them now. A docstring at
+`_edited_unit_key` asserted that blindness was deliberate and correct
+for judging a build; it was neither, and it is corrected there.
+
+THE FOUR FAULTS, kept because the shape recurs: read this before
+touching `_write_or_drop_the_topology`.
 
 - v1 dropped whenever the experimental box was unticked. The box is
   unticked on EVERY new dialog, so opening a saved map and pressing
@@ -1003,16 +1087,8 @@ is FOR, and this one describes why it does not yet do it.
   with a STALE dual -- repaired by stamping the dual and checking the
   stamp matches before writing it.
 
-WHAT ALL THREE VERSIONS SHARE is that each asks whether we MAY drop,
-and none records WHAT THE TABLES ARE ABOUT. The fact missing is not
-"does this design have a topology", which needs a build nobody has
-run; it is WHICH DESIGN THE TABLES IN THIS FILE DESCRIBE, which the
-file can answer for itself and which makes staleness DETECTABLE rather
-than inferred. Write the design key beside the tables at write time,
-drop when it differs from the design being saved, and leave the tables
-alone when there is no key -- the pre-ruling file, which keeps the
-older rules exactly as the region stamp does. DESIGN IT BEFORE CODING
-IT: none of the three was designed.
+- and a FIFTH would have been the same shape again. What ended it was
+  designing before coding, which none of the four had been.
 
 **A CONNECTED SLOT THE DIALOG DOES NOT HOLD IS FREED, AND THE
 MECHANISM IS NOT ESTABLISHED.** `_layer_slots` holds each layer's
