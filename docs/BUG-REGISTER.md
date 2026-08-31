@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-464 defect(s) with a regression test.
+466 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -106,6 +106,8 @@ there is no separate list to remember.
   guarded by `test_a_failed_support_download_is_recorded`
 - **a bound pinned far outside a column of very small values flattened the box that holds the small one, so a pin of 6e-10 read back as 0.0 and the map was redrawn from zero.**  
   guarded by `test_a_far_pin_does_not_flatten_the_box_a_small_one_needs`
+- **reopening a saved map, changing the design and pressing Save deleted the motif and dual from the GeoPackage and wrote nothing in their place, because with the experimental box at its default nothing had built a topology to write.**  
+  guarded by `test_a_file_that_holds_a_motif_gets_a_fresh_one`
 - **five kinds of unopenable file were given one sentence claiming the file carried no saved map, including a path that did not exist. Found by the brokenfiles hunt of 2026-08-28.**  
   guarded by `test_a_file_that_will_not_open_says_which_way_it_failed`
 - **a follower's inherited colours were adopted as its own hand-picks when a self-contained map was opened, so it stopped following its donor and the two drew one column in two sets of colours. Found by the classsource hunt of 2026-08-28.**  
@@ -316,6 +318,8 @@ there is no separate list to remember.
   guarded by `test_the_spinner_outranks_a_value_the_dialog_itself_wrote`
 - **an area whose value was an infinity was neither classed -- the breaks exclude non-finite values -- nor moved to the paired layer, so it was drawn as NOTHING. A hole, which is what this split exists to abolish. Measured 2026-08-16: sixteen tiles per element where symbolForFeature returned None, 0.000 of the area painted against 0.26 for a control. Both dependencies carry an infinity: SQLite stores it as REAL and OGR hands it back.**  
   guarded by `test_the_split_tells_the_kinds_of_absence_apart`
+- **a false claim about the vendored library version passed the published-content audit in README.md, because the check required the word "upstream" immediately before the version and the README words it otherwise.**  
+  guarded by `test_the_vendored_version_is_checked_where_a_user_reads_it`
 - **ticking Experimental features opened the Topology tab without building anything, so it showed an empty class chooser beside an enabled Apply button -- and after a design change made with the box off it drew the PREVIOUS design's classes.**  
   guarded by `test_ticking_the_experimental_box_fills_the_topology_tab`
 - **2026-08-19. Measured through the dialog at five classes over 0-12: one element drew 0-1-2-3-4-12 and the other 0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between the ends.**  
@@ -983,7 +987,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 149
-- a bug hunt pointed in a named direction: 135
+- a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

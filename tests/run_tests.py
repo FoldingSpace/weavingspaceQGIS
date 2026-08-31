@@ -3821,6 +3821,161 @@ def test_a_text_column_shares_one_classification():
       "a source with no features is the state that reads as success"
 
 
+def test_the_vendored_version_is_checked_where_a_user_reads_it():
+  """The published-content audit reads the README's own wording.
+
+  `check_vendor_claims` compared any version with the word "upstream"
+  immediately before it -- which is how MAINTAINING.md happens to word
+  it. README.md says "v0.0.7.89 (commit bf1bbbf)" and CLAUDE.md says
+  "the vendor is 0.0.7.89 at upstream commit", so neither was ever
+  compared, and the README is the file a USER reads. What went
+  unchecked was the copy that could tell somebody the plugin ships a
+  library version it does not.
+
+  MEASURED by planting the same false claim in two files: `upstream
+  v0.0.7.61` in MAINTAINING.md failed the audit, and `v0.0.7.61` in the
+  README passed clean while the run reported that the vendored version
+  agrees.
+
+  THE PATTERN IS DERIVED FROM THE STAMP, not written down, so it cannot
+  rot when upstream's numbering moves -- and it is scoped to the two
+  files whose job is to say what we vendor. CLAUDE.md discusses the GAP
+  and names other versions correctly; applying the wider reading there
+  turned a real check into two false alarms on a clean tree, which is
+  how a gate gets silenced. Both halves are asserted here.
+
+  Regression: a false claim about the vendored library version passed the published-content audit in README.md, because the check required the word "upstream" immediately before the version and the README words it otherwise. [hunt]
+  """
+  import importlib.util
+  import os
+
+  path = os.path.join(ROOT, "tools", "sync_release_content.py")
+  spec = importlib.util.spec_from_file_location("_sync", path)
+  sync = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(sync)
+
+  readme = os.path.join(ROOT, "README.md")
+  with open(readme, encoding="utf-8") as handle:
+    original = handle.read()
+  stamp_path = os.path.join(ROOT, "weavingspace_qgis", "vendor",
+                            "VENDOR-VERSION.txt")
+  with open(stamp_path, encoding="utf-8") as handle:
+    version = handle.read().strip().split()[0]
+  assert version in original, \
+    f"PREMISE: the README does not name the vendored version {version} " \
+    f"at all, so there is no claim here to check"
+
+  wrong = ".".join(version.split(".")[:-1] + ["0"])
+  try:
+    with open(readme, "w", encoding="utf-8") as handle:
+      handle.write(original.replace(version, wrong, 1))
+    complaints = sync.check_vendor_claims()
+    assert any("README" in str(one) for one in complaints), (
+      "the README may claim a vendored version the plugin does not "
+      f"ship and the audit says nothing: {complaints}")
+  finally:
+    with open(readme, "w", encoding="utf-8") as handle:
+      handle.write(original)
+    with open(readme, encoding="utf-8") as handle:
+      assert handle.read() == original, "RESTORE FAILED on README.md"
+
+  # AND THE CLEAN TREE MUST STAY CLEAN. CLAUDE.md names the versions
+  # the web app pins and the vendor used to be, both correctly, and a
+  # check that complains about those is one somebody will learn to
+  # ignore.
+  assert not sync.check_vendor_claims(), (
+    "the audit complains about the tree as it stands, so its failures "
+    "are no longer evidence of anything")
+
+
+def test_a_file_that_holds_a_motif_gets_a_fresh_one():
+  """A saved motif is replaced when the design moves, never removed.
+
+  The two topology tables describe a design, and their coordinates
+  scale with the spacing -- so once the design moves they are stale and
+  dropping them is right. What was wrong is that nothing put a new one
+  in their place: reopen a saved map, nudge the spacing, Generate,
+  Save, and the file lost both tables with "Saved to ..." the only
+  thing said. The box is unticked on every new dialog, so nothing had
+  built a topology at all; the key had moved while `topology` was None,
+  and the drop fired alone.
+
+  THE COST FALLS ONLY WHERE THE FEATURE IS IN USE. The build is asked
+  for only when the file in front of us already carries our unit table,
+  so somebody who has never opened the Topology tab pays none of the
+  0.75-4.4s it takes. That is the ruling the off-thread build was
+  written under, kept.
+
+  BOTH HALVES ARE ASSERTED, and the second is what tells this from the
+  fault BEFORE it. Keeping the old tables would satisfy "the file still
+  has a motif" while describing a map it is no longer made of -- the
+  third version of this drop, which made ignorance mean "spare". So the
+  key must have MOVED as well: the tables are present AND they are
+  about the design now on screen.
+
+  Regression: reopening a saved map, changing the design and pressing Save deleted the motif and dual from the GeoPackage and wrote nothing in their place, because with the experimental box at its default nothing had built a topology to write. [hunt]
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  far = (10_000_000.0, 5_000_000.0)
+  layer = make_region_layer(origin=far)
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as td:
+    out = os.path.join(td, "motif-replaced.gpkg")
+    first = WeavingSpaceDialog(iface=_Iface())
+    try:
+      first.live_check.setChecked(False)
+      first.opt_experimental.setChecked(True)
+      first.gpkg_widget.setFilePath(out)
+      first.show()
+      _tick(300)
+      _settle_topology(first)
+      assert first.topology_panel._topology is not None, \
+        "PREMISE: this design carries no topology, so nothing is written"
+      first._generate()
+      _settle(first)
+      assert press_save(first), "PREMISE: the first save did not write"
+      held = bridge.gpkg_tables(out)
+      assert bridge.UNIT_TABLE_NAME in held \
+        and bridge.DUAL_TABLE_NAME in held, \
+        f"PREMISE: no motif was written, so none can be lost: {held}"
+      was = (bridge.read_working_state(out) or {}).get("topology_design")
+      assert was, "PREMISE: the file records no design for its motif"
+    finally:
+      first.close()
+
+    # A SECOND DIALOG, WITH THE BOX AS EVERY NEW DIALOG FINDS IT.
+    # Nothing here touches the Topology tab, which is the whole point:
+    # the harm needed no interest in the feature at all.
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      second.live_check.setChecked(False)
+      assert not second.opt_experimental.isChecked(), \
+        "PREMISE: a new dialog came up with the experiments already " \
+        "on, so this drives a journey nobody starts from"
+      second.gpkg_widget.setFilePath(out)
+      second.show()
+      _tick(300)
+      second.spacing_spin.setValue(second.spacing_spin.value() * 1.5)
+      _tick(400)
+      second._generate()
+      _settle(second)
+      assert press_save(second), "PREMISE: the second save did not write"
+
+      after = bridge.gpkg_tables(out)
+      assert bridge.UNIT_TABLE_NAME in after \
+        and bridge.DUAL_TABLE_NAME in after, (
+          "an ordinary reopen, spacing change, Generate and Save took "
+          f"the motif out of the file and put nothing back: {after}")
+      now = (bridge.read_working_state(out) or {}).get("topology_design")
+      assert now and now != was, (
+        "the file kept the OLD motif and its old key, so it describes "
+        f"a design it is no longer made of: {was!r} then {now!r}")
+    finally:
+      second.close()
+
+
 def test_the_rules_are_checked_over_every_file_a_user_reads():
   """The standards check covers everything the review queue does.
 
@@ -77901,6 +78056,10 @@ def main():
         test_the_topology_matrix)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
+  check("the vendored version is checked where a user reads it",
+        test_the_vendored_version_is_checked_where_a_user_reads_it)
+  check("a file that holds a motif gets a fresh one",
+        test_a_file_that_holds_a_motif_gets_a_fresh_one)
   check("the rules are checked over every file a user reads",
         test_the_rules_are_checked_over_every_file_a_user_reads)
   check("ticking the experimental box fills the topology tab",

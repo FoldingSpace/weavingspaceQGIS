@@ -43,8 +43,17 @@ INCLUDE = ["weavingspace_qgis", "tests", "tools", "docs"]
 # MAINTAINING.md and three files under docs/ to check that every
 # command they quote exists, so a sandbox without them fails a test
 # that has nothing to do with the mutation under judgement.
+# README.md and ROADMAP.md joined on 2026-08-31, for the third time
+# this list has been widened by the same discovery. The suite reads
+# BOTH -- `DOCUMENTED_COMMAND_DOCS` names four documents and this list
+# carried two of them -- and a test reading a file the sandbox lacks
+# dies with FileNotFoundError, so its catalogue entries come back
+# UNJUDGEABLE rather than caught or survived. That is the state the
+# comment above calls worse than a failure, because it is counted as
+# neither. Found while proving an entry whose test reads README.md to
+# check the vendored-version claim a user is shown.
 INCLUDE_FILES = ["release.py", "build.py", "LICENSE.md", "CLAUDE.md",
-                 "MAINTAINING.md"]
+                 "MAINTAINING.md", "README.md", "ROADMAP.md"]
 # what it does not, and what would make the copy slow
 EXCLUDE = {"reports", "dist", ".venv-reference", "__pycache__", ".git",
            "libs", "wheels"}

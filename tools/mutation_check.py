@@ -8733,6 +8733,39 @@ MUTATIONS = [
        why="experimental until designated otherwise (maintainer, "
            "2026-08-30): a box that starts ticked offers work still "
            "being designed to somebody who never asked for it"),
+  dict(name="the-readme-s-vendored-claim-is-compared",
+       file="tools/sync_release_content.py",
+       # The check compared any version with "upstream" immediately
+       # before it, which is MAINTAINING.md's wording; README.md says
+       # "v0.0.7.89 (commit bf1bbbf)" and was never compared at all --
+       # and the README is the file a USER reads.
+       # MUTATED AWAY, a false claim about the vendored library passes
+       # the published-content audit in the one document somebody
+       # downloading the plugin actually opens.
+       old="""    if path in ("README.md", "MAINTAINING.md"):""",
+       new="""    if False:""",
+       test="test_the_vendored_version_is_checked_where_a_user_reads_it",
+       why="the README can tell somebody the plugin ships a library "
+           "version it does not, past an audit whose own docstring "
+           "promises to compare exactly that"),
+  dict(name="a-file-holding-a-motif-gets-a-fresh-one", file=DIALOG,
+       # The two tables describe a design and their coordinates scale
+       # with the spacing, so once it moves they are stale and dropping
+       # them is right -- what was missing is putting a new one in
+       # their place. With the box at its default nothing has built a
+       # topology, so the key had moved while `topology` was None and
+       # the drop fired alone.
+       # MUTATED AWAY, an ordinary reopen-nudge-Generate-Save takes the
+       # motif and dual out of the file and writes nothing back.
+       # ANCHORED AT THE DECISION to build, not at the write below it:
+       # the write is shared with the ordinary path and mutating it
+       # would break a case this entry is not about.
+       old="""    if topology is None and path and ours and self._unit is not None:""",
+       new="""    if False:""",
+       test="test_a_file_that_holds_a_motif_gets_a_fresh_one",
+       why="a colleague opening the GeoPackage gets no motif at all, "
+           "after a journey that needs no interest in the feature "
+           "whatever -- the box is unticked on every new dialog"),
   dict(name="the-hard-rules-reach-the-changelog", file="tools/check_standards.py",
        # `metadata.txt` joined the text-review queue on 2026-08-12 and
        # never joined this list, so the `changelog=` and `about=`

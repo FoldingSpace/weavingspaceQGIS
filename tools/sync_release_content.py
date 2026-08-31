@@ -240,7 +240,37 @@ def check_vendor_claims():
   problems = []
   for path in ("README.md", "MAINTAINING.md", "CLAUDE.md"):
     text = read(path)
-    claimed = set(re.findall(r"upstream v?(\d+\.\d+\.\d+(?:\.\d+)?)", text))
+    # MATCHED BY THE VERSION'S OWN FAMILY, NOT BY A WORD BESIDE IT.
+    # This looked only for "upstream vX.Y.Z", which is how
+    # MAINTAINING.md happens to word it -- README.md says "v0.0.7.89
+    # (commit bf1bbbf)" and CLAUDE.md says "the vendor is 0.0.7.89 at
+    # upstream commit", so neither was ever compared. Measured
+    # 2026-08-31 by planting the same false claim twice: `upstream
+    # v0.0.7.61` in MAINTAINING.md fails this check, and `v0.0.7.61` in
+    # the README passes clean while the run reports that the vendored
+    # version agrees. The README is the file a USER reads, so what went
+    # unchecked was the copy that could tell somebody the plugin ships
+    # a library version it does not.
+    # THE FAMILY IS DERIVED FROM THE STAMP rather than written here, so
+    # this cannot rot when upstream's numbering moves, and it is narrow
+    # enough to be safe: these documents are full of other versions --
+    # QGIS 4.0.3, the plugin's own 0.24.4, Python 3.12 -- and none of
+    # them is in the library's `0.0.x.y` family.
+    # AND THE WIDER PATTERN IS SCOPED TO THE FILES WHOSE JOB IS TO SAY
+    # WHAT WE VENDOR. README.md and MAINTAINING.md each mention exactly
+    # one library version, the current one; CLAUDE.md discusses the
+    # GAP, naming 0.0.7.59 as what the web app still pins and 0.0.7.61
+    # as what the vendor used to be, both correctly. Applying the
+    # family pattern there turned a real check into two false alarms on
+    # a clean tree, which is how a gate gets silenced -- so CLAUDE.md
+    # keeps the narrow reading, where a version only counts as a claim
+    # when the word "upstream" stands immediately before it.
+    claimed = set(re.findall(
+      r"upstream v?(\d+\.\d+\.\d+(?:\.\d+)?)", text))
+    if path in ("README.md", "MAINTAINING.md"):
+      family = ".".join(version.split(".")[:2])
+      claimed |= set(re.findall(
+        rf"v?({re.escape(family)}\.\d+(?:\.\d+)?)", text))
     for claim in claimed:
       if claim != version:
         problems.append(
