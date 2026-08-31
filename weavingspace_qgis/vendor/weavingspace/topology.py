@@ -1412,16 +1412,15 @@ class Topology:
 
     """
     r = p0.distance(p1)
-    # make a sinusoidal template
-    x = np.linspace(0, n * np.pi, n * 2 + 1, endpoint = True)
-    y = [np.sin(x) for x in x]
-    spline = interpolate.InterpolatedUnivariateSpline(x, y, k = 2)
+    # SAMPLE THE SINE DIRECTLY (upstream 2dbea80). What stood here
+    # fitted a quadratic spline through n*2+1 samples of sin and then
+    # evaluated it at (n+smoothness)*2+1 points; sampling sin at those
+    # points is the function that spline was approximating, so this
+    # needs no scipy and is if anything the more faithful curve.
+    xs = np.linspace(0, n * np.pi, (n + smoothness) * 2 + 1, endpoint = True)
+    ys = [np.sin(x) for x in xs]
 
-    spline_steps = (n + smoothness) * 2 + 1
-    xs = np.linspace(0, n * np.pi, spline_steps, endpoint = True)
-    ys = spline(xs)
-
-    sfx = 1 / max(x) * r
+    sfx = 1 / max(xs) * r
     sfy = h * r / 2
     theta = np.arctan2(p1.y - p0.y, p1.x - p0.x)
 

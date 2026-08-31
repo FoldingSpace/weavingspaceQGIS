@@ -4679,8 +4679,8 @@ def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
 
   WHY IT ASKS THE FILE. The dialog used to answer this from
   `_last_path`, a record of what THIS dialog instance last wrote --
-  so a reopened project, whose dialog remembers nothing, would tick
-  "create as new group" to keep yesterday's map and overwrite it
+  so a reopened project, whose dialog remembers nothing, would ask
+  for a new group to keep yesterday's map and overwrite it
   without a word. Measured 2026-08-16: 41/40/41/40 features became
   113/112/113/112, no warning. A file outlives a session, so the
   question has to be put to the file.

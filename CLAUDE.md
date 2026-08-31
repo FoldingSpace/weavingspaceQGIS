@@ -1725,8 +1725,10 @@ Confirmed with the user via an explicit design review:
   rule-based renderer output was deliberately removed.
 - Generate replaces the group in place; hand styling survives unless
   that element's dialog assignment changed (signature comparison in
-  `dialog._add_output_layers`). "Create as new group" is the comparison
-  escape hatch.
+  `dialog._add_output_layers`). Choosing "Create new" in the group
+  chooser is the comparison escape hatch -- and since 2026-08-30 it is
+  the ONLY door to a second map, the standing "Create as new group"
+  checkbox having been retired (see the ruling below).
 - Renderers are seeded standard QGIS objects (graduated/categorized/
   single); refinement belongs to QGIS's styling dock, not a plugin UI.
 - **COLOUR BELONGS TO QGIS.** Ramps come from QgsStyle, and where a
@@ -1810,7 +1812,8 @@ Confirmed with the user via an explicit design review:
   in place. Ramp, scheme, class count, single colour, class source,
   reversal and opacity are all symbology; family, spacing, modifiers,
   switches, region layer, output path and the set of mapped variables
-  are geometry. "Create as new group" always takes the full path.
+  are geometry. A run asked for a NEW GROUP always takes the full
+  path.
 - One run at a time, and the run is not over until its layers exist.
   `_finish_run()` clears the task only after `_add_output_layers`,
   because output building is main-thread work that a queued live run
@@ -2012,7 +2015,8 @@ Confirmed with the user via an explicit design review:
      Re-generating the SAME dataset still overwrites in place, which
      is the settled replace-in-place contract, untouched.
   2. THE NEXT GENERATE AFTER A SWITCH BUILDS A FRESH GROUP, through
-     the same door "Create as new group" already uses. The previous
+     the same door a person uses to ask for one (the checkbox then,
+     the chooser's "Create new" since 2026-08-30). The previous
      dataset's result stays in the project; a demo accumulates its
      maps side by side. A-B-A makes a third group.
   3. A DROPPED COLUMN TAKES ITS WHOLE SCHEME: mode, ramp, Reverse,
@@ -2374,6 +2378,56 @@ Confirmed with the user via an explicit design review:
      each other have no valid order and keep the one-run lag, with the
      reason at the code; driven 2026-08-27, a cycle SETTLES rather
      than churning.
+
+- **THE GROUP CHOOSER IS THE ONLY DOOR TO A NEW GROUP.** (Maintainer's
+  decision, 2026-08-29; built 2026-08-30.) Two controls armed one
+  fact: the chooser's "Create new" entry, which is ONE-SHOT, and a
+  "Create as new group" checkbox on Map options, which was a STANDING
+  preference read at every landing. Nothing on screen said which was
+  which, and the READERS DISAGREED -- five sites asked only the
+  checkbox, one only the flag, and exactly one asked both, that one
+  only since ledger row 36 of 2026-08-28, where the chooser went on
+  describing a landing that would not happen.
+  THE REASONING IS ABOUT THE INTERFACE RATHER THAN THE MECHANISM, and
+  that is why it settles rather than patches: a control two panels
+  from the chooser can never make the boundary between "once" and
+  "always" read clearly, and a boundary that will never be clear is
+  one nobody should have to hold in their head. It composes with
+  ruling 1 of 2026-08-25, which made the group the unit of work and
+  gave the chooser the job of saying where a run lands; a standing
+  checkbox elsewhere was a second rule about the same fact.
+  THE STANDING "ALWAYS NEW" BEHAVIOUR WENT WITH IT, deliberately.
+  Asking for a second map is an act you perform when you want one.
+  AND THE LANDING NEEDED A DELETION RATHER THAN A REWIRING, because
+  `force_new` already read the flag as one of its four terms. The
+  cost was in the SUITE, as predicted: twenty-four sites, eleven
+  catalogue anchors of which two were retired outright, and two
+  committed probes.
+
+- **THREE TABS ARE EXPERIMENTAL UNTIL DESIGNATED OTHERWISE, BEHIND A
+  BOX THAT STARTS UNTICKED.** (Maintainer's ruling, 2026-08-30.)
+  Messages, Topology and Legend are gated by an "Experimental
+  features" checkbox on Map options -- the third tab, which is where
+  the ruling put it. Until it is ticked the tabs cannot be activated
+  and their titles are greyed; `QTabWidget.setTabEnabled` is both
+  halves of that in one call, so "greyed" and "not activatable"
+  cannot come apart later.
+  THE TABS STAY VISIBLE rather than being removed: somebody should be
+  able to see that there is more here and what ticking the box would
+  give them.
+  IT IS A PREFERENCE ABOUT THE PLUGIN, NOT A FACT ABOUT A MAP, so it
+  does not go in a group's working state -- which would carry one
+  person's appetite for experiments into another person's project
+  through a saved file. That is the two-relationships framing in this
+  file applied to a control.
+  THE MESSAGES TAB SHIPPED FIRST, in 0.24.4 on the maintainer's ask
+  of the same day. Everything the plugin has said this session, newest
+  first, with the ANSWER beside any question -- because half this
+  plugin's modals decide something, and a log holding the question
+  alone describes a decision nobody can reconstruct. It exists because
+  the message bar and the modals are two stores nothing brought
+  together, which is harness fault eleven of this project's own record
+  met from the user's side.
 
 - **NUMBERS STORED AS TEXT ARE CLASSIFIABLE.** (Maintainer's ruling,
   2026-08-29, narrowing a rule to its own evidence.) A quantitative

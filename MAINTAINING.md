@@ -723,55 +723,118 @@ dataset) rather than from the chooser, which already holds the new
 one. A run in flight is left to its landing, whose launch snapshot
 must win.
 
-## Two doors arm a new group, and they are about to become one
+## Everything the plugin says, in one place
+
+The plugin speaks into TWO stores that nothing brought together: QGIS's
+message bar, and modal dialogues. Reading one and concluding silence is
+a fault this suite has met so often it is numbered — harness fault
+eleven — and it has cost real diagnoses, because a run refused through
+a QMessageBox leaves the bar empty and is indistinguishable from a run
+that was never launched. A user has no `MODALS` list to read.
+
+Since 2026-08-30 there is one door and one record. `_record_said` keeps
+`{at, kind, text, answer}` in `_said`, session-scoped and bounded at
+`_said_ceiling` entries; `_warn`, `_problem` and `_ask` are thin
+wrappers that record and then call QMessageBox exactly as the call
+sites used to, so the suite's own modal shim intercepts them unchanged
+and no harness had to learn anything. `_report_quietly` and the four
+direct `messageBar()` pushes record too.
+
+**THE ANSWER IS KEPT WITH THE QUESTION**, and that is half the point:
+many of this plugin's modals decide something — whether a file was
+overwritten, whether a design was recomposed to fewer elements,
+whether a large run went ahead — so a log holding the question alone
+describes a decision nobody can reconstruct.
+
+The Messages tab shows it, newest first, with a Clear button. It is
+EXPERIMENTAL and therefore greyed until the box below is ticked.
+
+## Experimental features, and what "greyed" is made of
+
+`opt_experimental` on Map options — the third tab, which is where the
+maintainer's ruling of 2026-08-30 put it — is unticked by default and
+gates the tabs listed in `_experimental_tabs`. `_gate_experimental_tabs`
+calls `QTabWidget.setTabEnabled`, which greys a tab's title AND refuses
+selection in one call, so the two halves of the ruling cannot come
+apart later. When the box is unticked while an experimental tab is in
+front, the dialog steps back to Design rather than leaving somebody
+looking at a tab they can no longer use.
+
+The tabs stay VISIBLE rather than being removed, deliberately: a person
+should be able to see that there is more here and what ticking the box
+would give them.
+
+It is a standing preference about the PLUGIN, not a fact about a map,
+so it does not belong in a group's working state — putting it there
+would carry one person's appetite for experiments into another
+person's project through a saved file. That is the two-relationships
+framing in CLAUDE.md, applied to a control.
+
+## The door that arms a new group
 
 `force_new` decides whether a run builds its own group instead of
-landing in the one on screen, and until 0.24.4 closes it two separate
-controls can arm it.
+landing in the one on screen, and since 2026-08-30 exactly one control
+arms it: the group chooser's "Create new" entry, which sets
+`_new_group_chosen`. The flag is ONE-SHOT — the next run builds its own
+group, the flag is spent the moment the landing reads it, and selecting
+any real group clears it again.
 
-`_new_group_chosen` is set by the group chooser's "create new" entry
-and is ONE-SHOT: the next run builds its own group, the flag is spent
-the moment the landing reads it, and selecting any real group clears
-it. `opt_new_group`, the "Create as new group" checkbox on Map
-options, is a STANDING preference read afresh at every landing, so
-while it is ticked every run makes a new group.
+**THERE WERE TWO DOORS UNTIL THEN**, and the second was a standing
+"Create as new group" checkbox on Map options. The readers disagreed
+about which to ask — five sites read only the checkbox, one only the
+flag, and exactly one read both, that one only since ledger row 36 of
+2026-08-28, where the chooser went on describing a landing that would
+not happen because it knew the flag and not the box. The maintainer
+retired the checkbox rather than teaching the two to agree: a control
+two panels from the chooser can never make the boundary between "once"
+and "always" read clearly, and a boundary that will never be clear is
+one nobody should have to hold in their head. The standing "always
+new" behaviour went with it; asking for a second map is an act you
+perform when you want one.
 
-**The readers do not agree about which to ask**, which is this
-project's commonest defect shape sitting in the open: five sites read
-only the checkbox (the live gate, the restamp guard, `_restyle_only`,
-`_a_live_run_will_follow`, and `force_new` itself), one reads only the
-flag (the button path's restyle fast path), and one reads both -- and
-that one only since ledger row 36 of 2026-08-28, where the chooser
-went on describing a landing that would not happen because it knew the
-flag and not the box.
+The retirement was a DELETION at the landing rather than a rewiring,
+because `force_new` already read the flag as one of its four terms.
 
-**THE CHECKBOX IS BEING RETIRED** on the maintainer's decision of
-2026-08-29, leaving the chooser as the only door, on the ground that a
-control two panels away from the chooser can never make the boundary
-between "once" and "always" read clearly. The standing behaviour goes
-with it. Until that lands, a guard added to one door belongs at the
-other -- and note that `force_new` already reads the flag as one of
-its four terms, so the retirement is a deletion there rather than a
-rewiring. Details and the full site list are in ROADMAP.md under
-0.24.4.
+## Why the Design tab's controls ran full width, and what decided it
 
-## Why the Design tab's controls run full width
+They are added with `QFormLayout.addRow`, and a form layout's field
+column stretches to whatever width is going — **under some styles**.
+That qualifier is the whole of it, and this document asserted the
+sentence without it until 2026-08-30.
 
-They are added with `QFormLayout.addRow`, and a form layout's FIELD
-COLUMN STRETCHES to whatever width is going. Nothing sets those widths
-and nothing needs to: the row builder decides. So the region chooser,
-the group chooser, the element control, the family combo, the spacing
-box and every Transformations pair grow with the window, which is why
-they read as comically wide once the dialog is at its usual 1180px or
-more.
+**WHETHER A FIELD COLUMN STRETCHES IS DECIDED BY THE STYLE.** The
+macOS style's default `fieldGrowthPolicy` is `FieldsStayAtSizeHint`;
+Fusion's is `AllNonFixedFieldsGrow`, and QGIS ships Fusion as a style
+people select. Measured that day on HEAD and the repair in one run:
+under the harness's macOS style every control on that tab ALREADY sat
+at exactly its own hint, so nothing stretched and the first guard
+written for this passed on the unrepaired code. Under Fusion the same
+tree drew the strand-width box — a number between 0.083 and 1.0 — at
+1013px against a hint of 63, and the region chooser at 1013 against
+29. That is what the maintainer met.
 
-That is one cause rather than a dozen sites, and it matters when
-changing the layout: the repair is in how the rows are BUILT -- laying
-several controls along one line, or bounding them -- rather than in
-setting a width on each control. The maintainer asked for exactly that
-on 2026-08-29 and it is 0.24.4's work.
+So the cause was right and the sentence was not, which matters because
+the sentence was a READING and read exactly like a measurement. It had
+reached two binding documents before anything measured it.
 
-**And it is coupled to the assignment table's budget.**
+**THE REPAIR IS PER ROW AND STYLE-INDEPENDENT**: each field is laid out
+with a stretch after it, so the control sits at the width it asks for
+whatever the style would have done. `_form_row` carries it for the six
+family options, `pair` for the modifier pairs, and the kind, family,
+spacing and Auto row shares one line with a stretch at the end. The
+spacing box also asks for less: a spin box's hint comes from its
+MAXIMUM's text, and 1e12 at six decimals is twenty characters.
+
+**AND THE GUARD SETS THE STYLE**, because it otherwise measures
+nothing: `test_no_design_control_is_stretched_to_the_window` switches
+to Fusion, compares each control's width with what it ASKED for
+(the larger of its hint and its own minimum), asserts the region
+chooser DOES take the width as a positive control, and restores the
+style in a `finally`. Setting the style is the same move as setting a
+font to reach a column measurement — ask what the other machine has,
+and set that quantity directly.
+
+**It is coupled to the assignment table's budget.**
 `COLUMN_SUM_BUDGET` is `MAX_WINDOW_WIDTH - 400`, where the 400 is a
 measured allowance for everything that is not the table, and the
 budget is bracketed between about 1030 and 1118 on that basis. Narrow

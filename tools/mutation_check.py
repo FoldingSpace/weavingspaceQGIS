@@ -49,6 +49,12 @@ WIDGETS = "weavingspace_qgis/widgets.py"
 # the release driver: not shipped, but it decides whether a candidate
 # exists at all, so its guards earn the same proof as the plugin's
 RELEASE = "release.py"
+
+# THE LANDING'S OWN LINE, shared by the three entries that stand on it.
+# Written once because an anchor repeated in three places is three
+# chances to re-anchor two of them: when this line moves, it moves here.
+NEW_FORCE = ("    force_new = (renamed_mid_run or theirs "
+             "or self._new_group_chosen)")
 # the builder: it decides what an artefact is CALLED and where a
 # packaging check writes, and an unversioned build of its making was
 # found installed over a gated candidate (2026-08-30)
@@ -1481,13 +1487,11 @@ MUTATIONS = [
            "rc18 and rc19"),
   dict(name="one-session-leaves-one-group",
        file=DIALOG,
-       old="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
-                 or theirs
-                 or self._new_group_chosen)""",
-       new="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
-                 or theirs
-                 or self._new_group_chosen
-                 or not same_destination(path, self._last_path))""",
+       old=NEW_FORCE,
+       new="    force_new = (renamed_mid_run or theirs\n"
+           "                 or self._new_group_chosen\n"
+           "                 or not same_destination(path, "
+           "self._last_path))",
        test="test_one_session_leaves_one_group",
        why="live update's memory output sets no _last_path, so a bare "
            "destination comparison reads the first file-backed run as "
@@ -1655,14 +1659,15 @@ MUTATIONS = [
            "through the n chooser's own cascade so the family default "
            "is the same rule the chooser applies"),
   dict(name="a-no-to-the-design-floor-keeps-the-design", file=DIALOG,
-       old="""      answer = QMessageBox.question(
-        self, "WeavingSpace",
+       # RE-ANCHORED 2026-08-30: every modal goes through `_ask` now,
+       # which records the question AND the answer for the Messages
+       # tab, so the call reads shorter than it did.
+       old="""      answer = self._ask(
         f"This layer seemingly has {count} usable columns, and the "
         f"design has {elements} elements. Change to a design with "
         f"{count} elements?")
       if answer == QMessageBox.StandardButton.Yes:""",
-       new="""      answer = QMessageBox.question(
-        self, "WeavingSpace",
+       new="""      answer = self._ask(
         f"This layer seemingly has {count} usable columns, and the "
         f"design has {elements} elements. Change to a design with "
         f"{count} elements?")
@@ -2081,6 +2086,15 @@ MUTATIONS = [
   # calls are spelt identically and an anchor matching more than once
   # is refused -- rightly, since mutating the first would leave the
   # others doing the work.
+  dict(name="the-zigzag-samples-the-sine-itself",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="    ys = [np.sin(x) for x in xs]",
+       new="    ys = [np.sin(x) * 0.99 for x in xs]  # mutation: not the sine",
+       test="test_the_zigzag_needs_no_scipy",
+       why="the one call that needed scipy is replaced by sampling "
+           "the sine the spline was approximating, so the curve IS "
+           "the sine; a vendored file is mutated here for the same "
+           "reason tileable.py is -- the patch making it so is ours"),
   dict(name="the-release-zip-carries-its-version", file=BUILD,
        old="    out = write_zip(release_zip_path())",
        new='    out = write_zip(os.path.join(DIST, "weavingspace_qgis.zip"))',
@@ -3270,11 +3284,11 @@ MUTATIONS = [
        # ANCHORED WITH THE DUMP LINE BENEATH IT, because the condition
        # alone appears twice in this file and an anchor matching twice
        # applies nothing while the run still reports a result.
-       old="""    if self.opt_new_group.isChecked():
+       old="""    if self._new_group_chosen:
       _dump("LIVE-GATE", "new-group")""",
        new="""    if self.gpkg_widget.filePath().strip():  # mutation: gate it again
       return
-    if self.opt_new_group.isChecked():
+    if self._new_group_chosen:
       _dump("LIVE-GATE", "new-group")""",
        test="test_live_update_gates",
        why="a person refining a design with a file chosen for later "
@@ -3408,7 +3422,7 @@ MUTATIONS = [
   dict(name='restyle-fast-path', file=DIALOG,
        old="""    if self._last_geometry_sig is None or self._task is not None:
       return False
-    if self.opt_new_group.isChecked():""",
+    if self._new_group_chosen:""",
        new="""    if self._last_geometry_sig is None or self._task is not None:
       return False
     if True:  # mutation: never restyle, always re-tile""",
@@ -4695,7 +4709,9 @@ MUTATIONS = [
            "tests were measured to notice; this is the one whose "
            "whole subject is the breaks."),
   dict(name="empty-region-refused-silently", file=DIALOG,
-       old='        QMessageBox.critical(self, "WeavingSpace", str(e))',
+       # RE-ANCHORED 2026-08-30, when every modal moved behind a
+       # wrapper that records what was said.
+       old="        self._problem(str(e))",
        new="        pass  # mutation: refuse the layer without saying so",
        test="test_a_region_with_no_features_is_declined_in_words",
        why="a region layer with no features cannot be tiled, and the "
@@ -5465,13 +5481,8 @@ MUTATIONS = [
            "itself, which lives in the backing store, so what it holds "
            "is that the mechanism is absent"),
   dict(name="a-rename-during-a-run-keeps-the-group", file=DIALOG,
-       old="    force_new = (self.opt_new_group.isChecked() or "
-           "renamed_mid_run\n"
-           "                 or theirs\n"
-           "                 or self._new_group_chosen)",
-       new="    force_new = (self.opt_new_group.isChecked()\n"
-           "                 or theirs\n"
-           "                 or self._new_group_chosen)",
+       old=NEW_FORCE,
+       new="    force_new = (theirs or self._new_group_chosen)",
        test="test_the_output_group_is_renamed_while_a_run_is_in_flight",
        why="renaming the output group while a tiling runs is how a "
            "user keeps that result, exactly as 'Create as new group' "
@@ -7415,14 +7426,12 @@ MUTATIONS = [
            "project met a map plainly drawn from three columns beside a "
            "table describing none of them"),
   dict(name="an-output-path-never-decides-the-group", file=DIALOG,
-       old="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
-                 or theirs
-                 or self._new_group_chosen)""",
-       new="""    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
-                 or theirs
-                 or self._new_group_chosen
-                 or (bool((self._last_path or "").strip())
-                     and not same_destination(path, self._last_path)))""",
+       old=NEW_FORCE,
+       new="    force_new = (renamed_mid_run or theirs\n"
+           "                 or self._new_group_chosen\n"
+           "                 or (bool((self._last_path or \"\").strip())\n"
+           "                     and not same_destination("
+           "path, self._last_path)))",
        test="test_model_based_dialog_states",
        why="the mutation restores the term the ruling of 2026-08-27 "
            "deleted: clearing the output path then forks a SECOND "
@@ -8220,28 +8229,82 @@ MUTATIONS = [
        why="the recovery REPORTING which of its three routes answered: "
            "a group stamped from a silent recovery is stamped with the "
            "sender's own machine"),
-  dict(name="the-chooser-hears-both-new-group-doors", file=DIALOG,
-       # Back to asking one of the two doors. Picking "Create new" in
-       # the chooser still works; the CHECKBOX on Map options goes
-       # unheard, so the chooser names the group the run will not land
-       # in -- accepted, displayed, ignored.
-       old="""      if self._new_group_chosen or self.opt_new_group.isChecked():""",
-       new="""      if self._new_group_chosen:""",
-       test="test_the_group_chooser_describes_the_landing_that_will_happen",
-       why="the chooser promising where the next run LANDS: two things "
-           "arm a new group and the landing asks both, so a chooser "
-           "that asks one describes a landing that will not happen -- "
-           "the very fault the chooser was added to end"),
-  dict(name="the-new-group-box-tells-the-chooser", file=DIALOG,
-       # The other half: the condition above is right and nothing ever
-       # re-runs it, because the box is connected to nothing at all.
-       old="""    self.opt_new_group.toggled.connect(self._refresh_group_combo)""",
-       new="""    pass  # mutation: the box tells nobody""",
-       test="test_the_group_chooser_describes_the_landing_that_will_happen",
-       why="a control that reaches something: the box is deliberately "
-           "kept out of the switches that queue a live run, since it "
-           "changes where a map lands and not what it draws -- which "
-           "left it wired to nothing, so the chooser was never told"),
+  # RETIRED 2026-08-30, both of them, when the maintainer's decision
+  # left the group chooser as the ONLY door to a new group. They
+  # guarded the two doors AGREEING -- one that the landing's condition
+  # asks both, one that the checkbox is connected to anything at all
+  # -- and neither behaviour exists to break: there is no second
+  # control and no connection. This is a retirement rather than a
+  # re-anchoring, and the honest record is here beside the reason,
+  # because an entry that can only ever be red is worth less than a
+  # note saying why it went.
+  # WHAT REPLACES THEM is narrower and stronger:
+  # `the-chooser-arms-the-next-run` and
+  # `a-real-group-releases-the-next-run` below, over
+  # test_the_group_chooser_is_the_only_door_to_a_new_group, which
+  # asserts the STRUCTURE -- no second checkbox, the chooser arms,
+  # a real group releases -- rather than two records agreeing.
+  dict(name="an-experimental-tab-starts-greyed", file=DIALOG,
+       old="    self.opt_experimental.setChecked(False)",
+       new="    self.opt_experimental.setChecked(True)",
+       test="test_the_experimental_box_gates_its_tabs",
+       why="experimental until designated otherwise (maintainer, "
+           "2026-08-30): a box that starts ticked offers work still "
+           "being designed to somebody who never asked for it"),
+  dict(name="the-experimental-box-closes-again", file=DIALOG,
+       old="""      if index < tabs.count():
+        tabs.setTabEnabled(index, allowed)""",
+       new="""      if index < tabs.count() and allowed:
+        tabs.setTabEnabled(index, allowed)""",
+       test="test_the_experimental_box_gates_its_tabs",
+       why="a gate that opens and never shuts is the same fault "
+           "facing the other way, and it leaves somebody unable to "
+           "put an experiment back in its box"),
+  dict(name="a-question-is-recorded-with-its-answer", file=DIALOG,
+       old="""    self._record_said("question", text, self._name_of_button(answer))""",
+       new="""    self._record_said("question", text)""",
+       test="test_the_messages_tab_records_what_the_plugin_said",
+       why="half this plugin's modals change what happens next, so a "
+           "log holding the question without the answer describes a "
+           "decision nobody can reconstruct -- which is half of what "
+           "the Messages tab was asked for"),
+  dict(name="a-modal-reaches-the-messages-tab", file=DIALOG,
+       old="""    self._record_said("warning", text)
+    QMessageBox.warning(self, "WeavingSpace", text)""",
+       new="""    QMessageBox.warning(self, "WeavingSpace", text)""",
+       test="test_the_messages_tab_records_what_the_plugin_said",
+       why="the tab exists because the message bar and the modals are "
+           "two stores nothing brings together; a modal that skips "
+           "the record rebuilds exactly that split inside the one "
+           "place meant to end it"),
+  dict(name="the-message-log-is-bounded", file=DIALOG,
+       old="""    if len(self._said) > self._said_ceiling:
+      del self._said[:len(self._said) - self._said_ceiling]""",
+       new="""    pass  # mutation: the log grows without bound""",
+       test="test_the_messages_tab_records_what_the_plugin_said",
+       why="an afternoon of live update speaks thousands of times, "
+           "and an unbounded session-scoped list is a slow leak "
+           "nobody would go looking for"),
+  dict(name="the-chooser-arms-the-next-run", file=DIALOG,
+       old="""      # CREATE NEW: nothing moves now. The next run builds its own
+      # group, and the chooser re-populates around it at the landing.
+      self._new_group_chosen = True""",
+       new="""      pass  # mutation: 'Create new' asks for nothing""",
+       test="test_the_group_chooser_is_the_only_door_to_a_new_group",
+       why="the chooser is the ONLY door to a second map since the "
+           "checkbox was retired on 2026-08-30, so a 'Create new' "
+           "that arms nothing leaves no way to ask for one at all"),
+  dict(name="a-real-group-releases-the-next-run", file=DIALOG,
+       old="""      self._refresh_group_combo()
+      return
+    self._new_group_chosen = False""",
+       new="""      self._refresh_group_combo()
+      return""",
+       test="test_the_group_chooser_is_the_only_door_to_a_new_group",
+       why="both answers, or the door only opens: a request for a new "
+           "group that selecting a real one cannot take back is the "
+           "same fault facing the other way, and with a one-shot flag "
+           "it would strand every later run on a fresh group"),
   dict(name="a-column-is-as-wide-as-what-it-shows", file=DIALOG,
        # Back to the widths as constants in pixels. Nothing moves at
        # the 9pt font offscreen supplies, which is why this shipped:

@@ -215,6 +215,21 @@ def record_upstream_version(upstream):
     commit = result.stdout.strip()
   except (subprocess.CalledProcessError, FileNotFoundError, OSError):
     pass
+  # A MISSING COMMIT IS SAID OUT LOUD rather than quietly dropped.
+  # The stamp carries the commit precisely BECAUSE upstream does not
+  # always bump the version when the code moves, so a stamp reduced to
+  # its version half has lost the part that was the reason for having
+  # it -- and it looks exactly like a stamp that never had one. Met on
+  # 2026-08-30, vendoring from a `git archive` extraction with no
+  # repository in it, which turned "0.0.7.89 (bf1bbbf)" into
+  # "0.0.7.89" with nothing said.
+  if not commit:
+    print("  WARNING: no git repository above the upstream package, so "
+          "the stamp records the VERSION ONLY.\n"
+          "  Upstream does not always bump the version when the code "
+          "changes, which is why the commit is recorded at all.\n"
+          "  Vendor from a checkout rather than an export, or write "
+          "the commit into VENDOR-VERSION.txt by hand.")
   stamp = version if not commit else f"{version} ({commit})"
   (VENDOR_DIR.parent / "VENDOR-VERSION.txt").write_text(
     f"{stamp}\n", encoding="utf-8")
@@ -278,6 +293,52 @@ def main():
   wrap_optional(VENDOR_DIR / "topology.py", "1e topology scipy",
                 ["from scipy import interpolate"],
                 ['interpolate = MissingModule("scipy.interpolate")'])
+
+  # ---- PATCH 1f: the ONE call that actually needed scipy -----------
+  # Wrapping the import above makes scipy optional at IMPORT time and
+  # leaves `zigzag_edge` raising at CALL time, which is the whole of
+  # what a topology tab would want to offer. The maintainer asked on
+  # 2026-08-29 whether an alternative could be found or written rather
+  # than adding scipy -- a large download for one interpolating
+  # spline, and one more distribution to name in the dependency
+  # consent dialogue, whose enumeration is a hard rule.
+  #
+  # UPSTREAM ANSWERED IT FIRST AND BETTER, in commit 2dbea80 of
+  # 2026-08-30 on their `experimental` branch. The spline was fitting
+  # a quadratic through samples of `sin` and then evaluating it at a
+  # finer resolution -- so sampling `sin` at the finer resolution
+  # directly is not an approximation of the old curve, it is the
+  # function the old curve was approximating. No numerical argument to
+  # defend and no second implementation of ours to maintain.
+  #
+  # IT IS A PATCH RATHER THAN A RE-VENDOR because that branch's own
+  # first commit says it holds "code changes that QGIS plugin can
+  # ignore until they are merged", and upstream's `main` has not moved
+  # from bf1bbbf. When they merge it, this anchor stops matching and
+  # the tool NAMES this patch instead of writing a broken vendor,
+  # which is the moment to delete it.
+  targeted(VENDOR_DIR / "topology.py", "1f topology spline without scipy",
+           """    r = p0.distance(p1)
+    # make a sinusoidal template
+    x = np.linspace(0, n * np.pi, n * 2 + 1, endpoint = True)
+    y = [np.sin(x) for x in x]
+    spline = interpolate.InterpolatedUnivariateSpline(x, y, k = 2)
+
+    spline_steps = (n + smoothness) * 2 + 1
+    xs = np.linspace(0, n * np.pi, spline_steps, endpoint = True)
+    ys = spline(xs)
+
+    sfx = 1 / max(x) * r""",
+           """    r = p0.distance(p1)
+    # SAMPLE THE SINE DIRECTLY (upstream 2dbea80). What stood here
+    # fitted a quadratic spline through n*2+1 samples of sin and then
+    # evaluated it at (n+smoothness)*2+1 points; sampling sin at those
+    # points is the function that spline was approximating, so this
+    # needs no scipy and is if anything the more faithful curve.
+    xs = np.linspace(0, n * np.pi, (n + smoothness) * 2 + 1, endpoint = True)
+    ys = [np.sin(x) for x in xs]
+
+    sfx = 1 / max(xs) * r""")
 
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself

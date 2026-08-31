@@ -1793,6 +1793,31 @@ class WeavingSpaceDialog(QDialog):
     # its own most recent group, so B's map lands on B's group because
     # that is what is selected rather than because a flag was set.
     self._new_group_chosen = False
+    # EVERYTHING THE PLUGIN HAS SAID, in one list, newest last.
+    # Session-scoped by the maintainer's ask: it need not survive the
+    # window closing, and a Clear button empties it.
+    #
+    # WHY IT EXISTS. The plugin speaks into TWO stores that nothing
+    # brings together -- QGIS's message bar and modal dialogues -- and
+    # reading one and concluding silence is a fault this project's own
+    # suite has numbered (harness fault eleven). A run refused through
+    # a QMessageBox leaves the bar empty and is indistinguishable from
+    # a run that was never launched. A user has no MODALS list to
+    # read; this is that union, offered to the person rather than to
+    # the harness.
+    #
+    # THE ANSWER IS RECORDED WITH THE QUESTION, and that is half the
+    # value: many of this plugin's modals CHANGE WHAT HAPPENS --
+    # whether a file was overwritten, whether a design was recomposed
+    # to fewer elements, whether a large run went ahead -- so a log
+    # holding the question without the answer describes a decision
+    # nobody can reconstruct.
+    self._said = []
+    # Anything that outlasts a session wants a bound. Fifty thousand
+    # notices from a long afternoon of live update would be a slow
+    # leak nobody would look for, and nobody reads past the newest few
+    # hundred: the oldest fall off the end.
+    self._said_ceiling = 500
     # True only while `_on_group_chosen` is moving the region chooser
     # on the user's behalf. Choosing a group is RESUMING work, so the
     # protections a change of dataset arms must not fire: they exist
@@ -2913,19 +2938,54 @@ class WeavingSpaceDialog(QDialog):
     self.opt_outlines = QCheckBox("Add map unit outlines layer")
     self.opt_outlines.setToolTip(
       "Adds the region boundaries as outlines on top of the pattern.")
-    self.opt_new_group = QCheckBox(
-      "Create as new group (keep the previous result)")
-    self.opt_new_group.setToolTip(
-      "Keeps the previous result and adds this run as a separate "
-      "group.")
+    # "CREATE AS NEW GROUP" WAS RETIRED HERE on 2026-08-30, on the
+    # maintainer's decision of the day before. The group chooser's
+    # own "create new" entry is the only door now. Their reasoning is
+    # about the interface rather than the mechanism: a checkbox two
+    # panels away from the chooser can never make the boundary
+    # between "once" and "always" read clearly, and a boundary that
+    # will never be clear is one nobody should have to hold in their
+    # head. It composes with ruling 1 of 2026-08-25, which made the
+    # group the unit of work and gave the chooser the job of saying
+    # where a run lands; a standing checkbox elsewhere was a second
+    # rule about the same fact, and the two readers had already come
+    # to disagree once (ledger row 36).
+    # THE STANDING "ALWAYS NEW" BEHAVIOUR WENT WITH IT, deliberately.
+    # Asking for a second map is an act you perform when you want
+    # one, which is what the chooser already means.
     self.opt_colour_warnings = QCheckBox(
       "Warn about lack of legibility in colour choices")
     self.opt_colour_warnings.setToolTip(
       "Warns when two elements use colours a reader may confuse.")
     for cb in (self.opt_join_prototiles, self.opt_retain, self.opt_clip,
-               self.opt_icons, self.opt_outlines, self.opt_new_group,
+               self.opt_icons, self.opt_outlines,
                self.opt_colour_warnings):
       olayout.addWidget(cb)
+
+    # EXPERIMENTAL FEATURES, UNTICKED BY DEFAULT (maintainer's ruling,
+    # 2026-08-30). Tabs that are experimental until designated
+    # otherwise cannot be activated and show their titles greyed until
+    # this is ticked. It sits on Map options because that is the third
+    # tab, which is where the ruling put it.
+    #
+    # `setTabEnabled(index, False)` IS BOTH HALVES OF THE ASK in one
+    # call -- it greys the title AND refuses selection -- so "greyed"
+    # and "not activatable" cannot come apart later. The tabs are left
+    # VISIBLE rather than hidden on purpose: somebody can see that
+    # there is more here, and what ticking the box would cost them.
+    #
+    # IT IS A STANDING PREFERENCE ABOUT THE PLUGIN, not a fact about a
+    # map, so it belongs beside the other preferences and NOT in a
+    # group's working state -- which is the two-relationships framing
+    # in CLAUDE.md. Putting it in the working state would carry one
+    # person's appetite for experiments into another person's project
+    # through a saved file.
+    self.opt_experimental = QCheckBox("Experimental features")
+    self.opt_experimental.setToolTip(
+      "Unlocks tabs that are still being designed.")
+    self.opt_experimental.setChecked(False)
+    self.opt_experimental.toggled.connect(self._gate_experimental_tabs)
+    olayout.addWidget(self.opt_experimental)
 
     olayout.addStretch(1)
     tabs.addTab(opts_tab, "Map options")
@@ -3029,6 +3089,48 @@ class WeavingSpaceDialog(QDialog):
                   f"{_plugin_version()}</small></p>")
     tabs.addTab(help_tab, "Help")
 
+    # ---- tab 6: messages, EXPERIMENTAL (maintainer's ask, 2026-08-30)
+    # Everything the plugin has said this session, newest first, with
+    # the ANSWER beside any question it asked. It is last so that the
+    # settled tabs keep the positions people know, and it is greyed
+    # until "Experimental features" is ticked on Map options.
+    messages_tab = QWidget()
+    mlayout = QVBoxLayout(messages_tab)
+    mlayout.addWidget(QLabel(
+      "Everything this plugin has said since the window opened, "
+      "newest first."))
+    self.messages_table = QTableWidget(0, 4)
+    self.messages_table.setHorizontalHeaderLabels(
+      ["Time", "Kind", "What it said", "Your answer"])
+    # READ-ONLY, and selectable by row: this is a record to read and
+    # copy out of, not a form.
+    self.messages_table.setEditTriggers(
+      QTableWidget.EditTrigger.NoEditTriggers)
+    self.messages_table.setSelectionBehavior(
+      QTableWidget.SelectionBehavior.SelectRows)
+    self.messages_table.verticalHeader().setVisible(False)
+    mlayout.addWidget(self.messages_table, 1)
+    clear_row = QHBoxLayout()
+    clear_row.addStretch(1)
+    self.clear_messages_btn = QPushButton("Clear")
+    self.clear_messages_btn.setToolTip("Empties this list of messages.")
+    self.clear_messages_btn.clicked.connect(self._clear_messages)
+    clear_row.addWidget(self.clear_messages_btn)
+    mlayout.addLayout(clear_row)
+    tabs.addTab(messages_tab, "Messages")
+
+    # THE GATE, and the two records it needs. `_tabs` because nothing
+    # else on the dialog held the tab widget, and the indices because
+    # a tab's position is how Qt enables it -- collected here rather
+    # than searched for by title, since a title is a label and this
+    # project's own rule is that a label is never a key.
+    self._tabs = tabs
+    self._experimental_tabs = (tabs.count() - 1,)
+    self._gate_experimental_tabs()
+    # Anything recorded while the tabs were still being built now has
+    # somewhere to appear.
+    self._refresh_messages_tab()
+
     # ---- bottom bar
     bottom = QHBoxLayout()
     self.live_check = QCheckBox("Live update")
@@ -3062,22 +3164,15 @@ class WeavingSpaceDialog(QDialog):
                self.opt_retain, self.opt_clip, self.opt_icons,
                self.opt_outlines):
       cb.toggled.connect(self._queue_live)
-    # "CREATE AS NEW GROUP" IS NOT ONE OF THOSE, and its absence from
-    # that list is deliberate: it changes WHERE a run lands and
-    # nothing about what the run draws, so queueing a live run from it
-    # would build a second map from a tick. What it must do is tell
-    # the chooser, which promises where the next run lands and asked
-    # only the other door that arms it -- so a box ticked here left
-    # the chooser naming a group the run would not use, accepted and
-    # displayed and then ignored (ledger row 36).
-    # A BOUND METHOD, not a lambda: Qt drops the connection when this
-    # dialog's C++ half dies and keeps a lambda calling into it. The
-    # widget is a child and would die with us anyway, so this is
-    # habit rather than necessity -- but it is the habit three
-    # segmentation faults were bought with on 2026-08-29. PyQt hands a
-    # slot only as many arguments as it accepts, so the `toggled`
-    # boolean is simply not passed on.
-    self.opt_new_group.toggled.connect(self._refresh_group_combo)
+    # "CREATE AS NEW GROUP" USED TO NEED A CONNECTION HERE, and its
+    # retirement on 2026-08-30 is what removed it. The box was
+    # deliberately NOT in the list above -- it changed WHERE a run
+    # landed and nothing about what the run drew, so queueing a live
+    # run from it would have built a second map from a tick -- but it
+    # did have to tell the group chooser, which promises where the
+    # next run lands and knew only the other door (ledger row 36).
+    # With one door there is nothing to tell: the chooser IS the
+    # control, and `_on_group_chosen` is already its handler.
 
   def _fit_to_design(self):
     """Size the dialog to the Design tab's actual (visible) content, so
@@ -3807,8 +3902,7 @@ class WeavingSpaceDialog(QDialog):
     if 2 <= len(usable) < elements:
       from qgis.PyQt.QtWidgets import QMessageBox
       count = len(usable)
-      answer = QMessageBox.question(
-        self, "WeavingSpace",
+      answer = self._ask(
         f"This layer seemingly has {count} usable columns, and the "
         f"design has {elements} elements. Change to a design with "
         f"{count} elements?")
@@ -5230,7 +5324,7 @@ class WeavingSpaceDialog(QDialog):
     # "CREATE AS NEW GROUP" STAYS: it asks for a SECOND map to compare
     # against, and building one unattended on every keystroke is not
     # what anybody means by it.
-    if self.opt_new_group.isChecked():
+    if self._new_group_chosen:
       _dump("LIVE-GATE", "new-group")
       return
     if self._task is not None:
@@ -11398,8 +11492,7 @@ class WeavingSpaceDialog(QDialog):
     was not already waiting on them.
     """
     from qgis.PyQt.QtWidgets import QMessageBox
-    answer = QMessageBox.question(
-      self, "WeavingSpace",
+    answer = self._ask(
       f"'{field}' holds {count:,} distinct values. Draw a colour for "
       f"each?")
     return answer == QMessageBox.StandardButton.Yes
@@ -12558,7 +12651,7 @@ class WeavingSpaceDialog(QDialog):
     project = QgsProject.instance()
     if self._task is not None or not self._element_layer_ids:
       return
-    if self.opt_new_group.isChecked():
+    if self._new_group_chosen:
       return
     stamped = ""
     for _tid, lid in sorted(self._element_layer_ids.items()):
@@ -14142,10 +14235,10 @@ class WeavingSpaceDialog(QDialog):
     project = QgsProject.instance()
     if self._last_geometry_sig is None or self._task is not None:
       return False
-    if self.opt_new_group.isChecked():
-      # "Create as new group" asks for a SECOND result to compare
-      # against, which repainting the first one cannot provide, even
-      # though nothing about the geometry changed
+    if self._new_group_chosen:
+      # "create new" asks for a SECOND result to compare against,
+      # which repainting the first one cannot provide, even though
+      # nothing about the geometry changed
       return False
     if self._data_is_unobservable():
       # A layer that will not say how many features it has may have
@@ -14389,10 +14482,11 @@ class WeavingSpaceDialog(QDialog):
     finally:
       self._applying_style = False
 
-    if changed and self.iface is not None:
-      self.iface.messageBar().pushSuccess(
-        "WeavingSpace",
-        f"restyled {', '.join(changed)} (no re-tiling needed)")
+    if changed:
+      restyled = f"restyled {', '.join(changed)} (no re-tiling needed)"
+      self._record_said("notice", restyled)
+      if self.iface is not None:
+        self.iface.messageBar().pushSuccess("WeavingSpace", restyled)
     if template_errors:
       # the same words the re-tile path uses, so a user who meets this
       # on either path is told the same thing about the same file
@@ -14570,7 +14664,7 @@ class WeavingSpaceDialog(QDialog):
     """
     if not self.live_check.isChecked():
       return False
-    if self.opt_new_group.isChecked():
+    if self._new_group_chosen:
       return False
     if self.layer_combo.currentLayer() is None or self._unit is None:
       return False
@@ -14924,7 +15018,7 @@ class WeavingSpaceDialog(QDialog):
     if layer is None:
       _dump("GEN-GATE", "no-region-layer", "live=", live)
       if not live:
-        QMessageBox.warning(self, "WeavingSpace", "Choose a region layer.")
+        self._warn("Choose a region layer.")
       return
     if self._preview_timer.isActive():
       # A design change schedules the unit rebuild a debounce later, so a
@@ -14939,8 +15033,7 @@ class WeavingSpaceDialog(QDialog):
     if self._unit is None:
       _dump("GEN-GATE", "no-unit", "live=", live)
       if not live:
-        QMessageBox.warning(self, "WeavingSpace",
-                            "The tile unit could not be built.")
+        self._warn("The tile unit could not be built.")
       return
     # An inset large enough to swallow elements is checked BEFORE the
     # variable guard below, because when it has taken all of them the
@@ -14963,7 +15056,7 @@ class WeavingSpaceDialog(QDialog):
     if collapse is not None:
       _dump("GEN-GATE", "inset-collapse")
       if not live:
-        QMessageBox.warning(self, "WeavingSpace", collapse)
+        self._warn(collapse)
       else:
         self._report_quietly(collapse)
       return
@@ -14972,8 +15065,7 @@ class WeavingSpaceDialog(QDialog):
     if not any(a["var"] for a in assignments):
       _dump("GEN-GATE", "no-variable", "live=", live)
       if not live:
-        QMessageBox.warning(
-          self, "WeavingSpace",
+        self._warn(
           "Assign at least one variable in the Data & colours tab.")
       return
 
@@ -15020,8 +15112,7 @@ class WeavingSpaceDialog(QDialog):
       # still a plugin here to refuse with.
       _dump("GEN-GATE", "source-gone", "live=", live)
       if not live:
-        QMessageBox.critical(
-          self, "WeavingSpace",
+        self._problem(
           "That layer's data is no longer available. Reload it in "
           "QGIS, or choose another layer.")
       return
@@ -15039,7 +15130,7 @@ class WeavingSpaceDialog(QDialog):
       if live:
         self._report_quietly(f"Could not read the layer: {e}")
       else:
-        QMessageBox.critical(self, "WeavingSpace", str(e))
+        self._problem(str(e))
       return
 
     # ---- size guard: small spacing on a big extent segfaults QGIS by
@@ -15086,9 +15177,7 @@ class WeavingSpaceDialog(QDialog):
       # soften them, and each now says its own true thing instead of
       # borrowing the too-many-tiles advice, which helped neither.
       if not live:
-        QMessageBox.critical(
-          self, "WeavingSpace",
-          bridge.untileable_message() if est == bridge.UNTILEABLE
+        self._problem(bridge.untileable_message() if est == bridge.UNTILEABLE
           else bridge.uncountable_message())
       return
     if not live and band in ("ask", "heavy"):
@@ -15108,8 +15197,7 @@ class WeavingSpaceDialog(QDialog):
           est,
           f"A spacing of about {bridge.spacing_in_words(suggestion)} "
           f"map units or more would keep it smaller.")
-      answer = QMessageBox.question(
-        self, "WeavingSpace", question,
+      answer = self._ask(question,
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         # THE SAFE BUTTON IS THE DEFAULT, on the dependency-consent
         # precedent: a stray Return must not start something that may
@@ -16057,19 +16145,14 @@ class WeavingSpaceDialog(QDialog):
       # present group's name back while the run still built a new one,
       # so the control ruling 1 added to make the rule visible was
       # itself saying something untrue.
-      # BOTH DOORS ARM IT, and this asked one of them until
-      # 2026-08-29. `_new_group_chosen` is set when somebody picks
-      # "create new" IN THIS CHOOSER; the CHECKBOX on Map options arms
-      # exactly the same thing, and the landing asks both --
-      # `force_new` reads `opt_new_group.isChecked()` outright. So
-      # with the box ticked the chooser went on naming the group the
-      # run would not land in: a control accepted, displayed, and then
-      # ignored, which is the very fault the chooser was added to end.
-      # THE TWO ARE STILL DISTINCT EVERYWHERE ELSE, deliberately. An
-      # early build conflated them and put a file-overwrite warning in
-      # front of an ordinary journey; what they share is only this
-      # question -- where does the next run land.
-      if self._new_group_chosen or self.opt_new_group.isChecked():
+      # ONE DOOR ARMS IT, since 2026-08-30. There were two, and this
+      # asked only one of them until the day before that, so with the
+      # Map options checkbox ticked the chooser went on naming a group
+      # the run would not land in -- a control accepted, displayed and
+      # then ignored, which is the very fault the chooser was added to
+      # end (ledger row 36). The checkbox is retired and the question
+      # has one owner.
+      if self._new_group_chosen:
         chosen = combo.count() - 1
       # "Create new" is the honest answer when this dialog is not
       # working on any of the groups listed -- a fresh session, or one
@@ -18223,8 +18306,7 @@ class WeavingSpaceDialog(QDialog):
       return True
     if self._this_map_owns_the_file(path):
       return True
-    answer = QMessageBox.question(
-      self, "WeavingSpace",
+    answer = self._ask(
       f"{os.path.basename(path)} already exists and was not written "
       f"by this map. Saving will replace the tables this map needs "
       f"and leave the rest of the file alone. Save anyway?",
@@ -19594,7 +19676,7 @@ class WeavingSpaceDialog(QDialog):
       if live:
         self._report_quietly(message.replace("\n\n", " "))
       else:
-        QMessageBox.critical(self, "WeavingSpace", message)
+        self._problem(message)
       return
     if gdf is None or len(gdf) == 0:
       self._finish_run()
@@ -19604,8 +19686,7 @@ class WeavingSpaceDialog(QDialog):
       if live:
         self._report_quietly("The tiling produced no tiles.")
       else:
-        QMessageBox.warning(self, "WeavingSpace",
-                            "The tiling produced no tiles.")
+        self._warn("The tiling produced no tiles.")
       return
     # the output phase: keep the progress bar up, in its indefinite
     # (busy) form, and say what is happening. This is the part that
@@ -19634,9 +19715,7 @@ class WeavingSpaceDialog(QDialog):
           "Could not add the result layers: " + "".join(
             traceback.format_exception_only(type(e), e)).strip())
       else:
-        QMessageBox.critical(
-          self, "WeavingSpace",
-          "Could not add the result layers:\n" + "".join(
+        self._problem("Could not add the result layers:\n" + "".join(
             traceback.format_exception_only(type(e), e)))
     finally:
       self.live_note.setText("")
@@ -19689,6 +19768,157 @@ class WeavingSpaceDialog(QDialog):
                         a.get("class_source"))
               for a in assignments}))
 
+  def _record_said(self, kind: str, text: str, answer: str = "") -> None:
+    """Keep one thing the plugin said, for the Messages tab.
+
+    Args:
+      kind: "notice" for the message bar, "warning" or "problem" for a
+        modal that only informs, "question" for one that asks.
+      text: exactly the words the user met, not a paraphrase.
+      answer: what they said back, for a question; empty otherwise.
+
+    Returns:
+      None. Appends to `_said` and drops the oldest past the ceiling.
+
+    THE CLOCK IS THE WALL CLOCK HERE, deliberately, against this
+    project's standing rule that durations are monotonic. That rule is
+    about MEASURING; this is a timestamp a person compares with their
+    own memory of what they were doing, which is the one case the rule
+    names as wall clock's own.
+    """
+    self._said.append({
+      "at": time.strftime("%H:%M:%S"),
+      "kind": kind,
+      "text": " ".join(str(text).split()),
+      "answer": answer,
+    })
+    if len(self._said) > self._said_ceiling:
+      del self._said[:len(self._said) - self._said_ceiling]
+    self._refresh_messages_tab()
+
+  def _warn(self, text: str) -> None:
+    """Warn in a modal, and remember having done so.
+
+    Args:
+      text: the sentence the user reads.
+
+    Returns:
+      None.
+
+    ONE DOOR, so the Messages tab cannot be a partial record. The
+    wrapper is thin on purpose: it still calls QMessageBox, so the
+    suite's own modal shim intercepts it exactly as before and no test
+    harness has to learn anything new.
+    """
+    self._record_said("warning", text)
+    QMessageBox.warning(self, "WeavingSpace", text)
+
+  def _problem(self, text: str) -> None:
+    """Report something that stopped the plugin, and remember it.
+
+    Args:
+      text: the sentence the user reads.
+
+    Returns:
+      None.
+    """
+    self._record_said("problem", text)
+    QMessageBox.critical(self, "WeavingSpace", text)
+
+  def _ask(self, text: str, *rest):
+    """Put a question in a modal, and remember the ANSWER as well.
+
+    Args:
+      text: the question, in the words the user reads.
+      *rest: whatever else the call site passes QMessageBox.question --
+        the button set and the default, where it names them.
+
+    Returns:
+      QMessageBox's own answer, unchanged, so a call site reads as it
+      always did.
+
+    THE ANSWER IS THE HALF THAT MATTERS. Half this plugin's modals
+    change what happens next, so a log holding the question alone
+    describes a decision nobody can reconstruct.
+    """
+    answer = QMessageBox.question(self, "WeavingSpace", text, *rest)
+    self._record_said("question", text, self._name_of_button(answer))
+    return answer
+
+  @staticmethod
+  def _name_of_button(answer) -> str:
+    """What a QMessageBox answer is called, for the record.
+
+    Args:
+      answer: whatever QMessageBox.question returned.
+
+    Returns:
+      "Yes", "No", "Cancel" and so on; the plain number as text where
+      the enum does not name it, since a record that omits an answer
+      it could not name would be the silence this tab exists to end.
+    """
+    for name in ("Yes", "No", "Ok", "Cancel", "Save", "Discard", "Close"):
+      button = getattr(QMessageBox.StandardButton, name, None)
+      if button is not None and answer == button:
+        return name
+    return str(answer)
+
+  def _gate_experimental_tabs(self, *_args) -> None:
+    """Grey out the experimental tabs, or let them be used.
+
+    Returns:
+      None. A disabled tab shows its title greyed AND refuses
+      selection, which is both halves of the maintainer's ruling of
+      2026-08-30 in one call, so the two cannot come apart.
+
+    THE TAB IS LEFT IN PLACE rather than removed: somebody can see
+    that there is more here and what ticking the box would give them,
+    which is the point of an experiment being visible. And when the
+    front tab is the one being disabled, Qt would leave the selection
+    on a tab nobody can use, so the dialog steps back to Design.
+    """
+    tabs = getattr(self, "_tabs", None)
+    if tabs is None:
+      return
+    allowed = self.opt_experimental.isChecked()
+    for index in getattr(self, "_experimental_tabs", ()):
+      if index < tabs.count():
+        tabs.setTabEnabled(index, allowed)
+    if not allowed and tabs.currentIndex() in getattr(
+        self, "_experimental_tabs", ()):
+      tabs.setCurrentIndex(0)
+
+  def _refresh_messages_tab(self) -> None:
+    """Redraw the Messages tab from `_said`, newest first.
+
+    Returns:
+      None, and nothing at all before the table exists -- messages are
+      recorded from the moment the dialog starts building itself, and
+      some of them are raised while the tabs are still being made.
+      Losing those would be the very silence this tab is for, so the
+      RECORD is written first and the view catches up.
+    """
+    table = getattr(self, "messages_table", None)
+    if table is None:
+      return
+    table.setRowCount(len(self._said))
+    for row, said in enumerate(reversed(self._said)):
+      for column, key in enumerate(("at", "kind", "text", "answer")):
+        item = QTableWidgetItem(said[key])
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+        table.setItem(row, column, item)
+    table.resizeColumnsToContents()
+
+  def _clear_messages(self) -> None:
+    """Empty the message log at the user's asking.
+
+    Returns:
+      None. The log is a record of what was SAID, not of what is
+      true, so clearing it loses nothing but the reading.
+    """
+    self._said = []
+    self._refresh_messages_tab()
+
   def _report_quietly(self, message: str) -> None:
     """Tell the user something without stopping them.
 
@@ -19709,6 +19939,7 @@ class WeavingSpaceDialog(QDialog):
     once, which is when a reader most needs to be told. Notices are
     therefore JOINED rather than replaced.
     """
+    self._record_said("notice", message)
     if self.iface is not None:
       self.iface.messageBar().pushWarning("WeavingSpace", message)
       return
@@ -20005,9 +20236,7 @@ class WeavingSpaceDialog(QDialog):
           for mark in stamps
           for other in project.mapLayers().values()
           if getattr(other, "source", lambda: None)() == mark)
-    force_new = (self.opt_new_group.isChecked() or renamed_mid_run
-                 or theirs
-                 or self._new_group_chosen)
+    force_new = (renamed_mid_run or theirs or self._new_group_chosen)
     # Spent the moment it is read: the group is this dialog's from
     # here on, so a later run has no claim on the softer treatment a
     # freshly adopted group gets. Cleared BEFORE the work below rather
@@ -20916,6 +21145,7 @@ class WeavingSpaceDialog(QDialog):
       # notice becomes something people stop reading.
       note = f"'{self._group_name}': {len(gdf)} tiles across " \
              f"{len(tile_ids)} element layers"
+      self._record_said("notice", note)
       self.iface.messageBar().pushSuccess("WeavingSpace", note)
       # colour_clash is NOT pushed here: it rides _pending_colour_note
       # and the done callback sends it once the dust settles. Pushing
@@ -20923,14 +21153,14 @@ class WeavingSpaceDialog(QDialog):
       # real message bar -- the stash was added for the note-line wipe
       # and the immediate push was never taken out.
       if warned_cardinality:
-        self.iface.messageBar().pushWarning(
-          "WeavingSpace",
-          "Categorized styling produced a very large number of classes "
-          "for: " + ", ".join(warned_cardinality)
-          + ". Is that field really categorical?")
+        many = ("Categorized styling produced a very large number of "
+                "classes for: " + ", ".join(warned_cardinality)
+                + ". Is that field really categorical?")
+        self._record_said("notice", many)
+        self.iface.messageBar().pushWarning("WeavingSpace", many)
       if template_errors:
-        self.iface.messageBar().pushWarning(
-          "WeavingSpace",
-          "Some class style files could not be used ("
-          + "; ".join(template_errors)
-          + "); automatic colours were applied instead.")
+        unusable = ("Some class style files could not be used ("
+                    + "; ".join(template_errors)
+                    + "); automatic colours were applied instead.")
+        self._record_said("notice", unusable)
+        self.iface.messageBar().pushWarning("WeavingSpace", unusable)

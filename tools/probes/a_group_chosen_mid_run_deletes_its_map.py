@@ -226,11 +226,16 @@ def main():
   # A SECOND GROUP FOR A, through the door the user has for it. This
   # is what makes the same-dataset leg a real question: since ruling 2
   # a demo of several datasets in a row leaves exactly this state.
-  dlg.opt_new_group.setChecked(True)
+  # THE CHOOSER IS THE ONLY DOOR since 2026-08-30; the
+  # "Create as new group" checkbox this probe used was retired.
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL
+  _index = dlg.group_combo.findText(NEW_GROUP_LABEL)
+  assert _index >= 0, "the chooser offers no 'Create new' entry"
+  dlg.group_combo.setCurrentIndex(_index)
+  dlg.group_combo.activated.emit(_index)
   dlg.spacing_spin.setValue(560)
   rt._generate_and_wait(dlg)
   rt._tick(300)
-  dlg.opt_new_group.setChecked(False)
   a_second = dlg._group_name
 
   dlg.layer_combo.setLayer(B)

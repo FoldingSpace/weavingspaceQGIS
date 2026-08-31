@@ -93,11 +93,16 @@ def main():
 
     # ---- GROUP TWO, made deliberately as its own, with NO window
     dlg._ramp_ranges.pop(tid, None)
-    dlg.opt_new_group.setChecked(True)
+    # THE CHOOSER IS THE ONLY DOOR since 2026-08-30; the
+    # "Create as new group" checkbox this probe used was retired.
+    from weavingspace_qgis.dialog import NEW_GROUP_LABEL
+    _index = dlg.group_combo.findText(NEW_GROUP_LABEL)
+    assert _index >= 0, "the chooser offers no 'Create new' entry"
+    dlg.group_combo.setCurrentIndex(_index)
+    dlg.group_combo.activated.emit(_index)
     dlg.spacing_spin.setValue(560)
     rt._generate_and_wait(dlg)
     rt._tick(400)
-    dlg.opt_new_group.setChecked(False)
     second = dlg._group_name
     print(f"group two            {second!r}")
     print(f"  its window         {dlg._ramp_ranges.get(tid)}")

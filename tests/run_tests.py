@@ -721,6 +721,55 @@ def make_region_gdf():
   return bridge.layer_to_gdf(make_region_layer(), ["v1", "v2"])
 
 
+
+def _choose_a_new_group(dlg):
+  """Ask for the next run to build its own group, the way a user does.
+
+  Args:
+    dlg: the dialog to arm.
+
+  Returns:
+    None. Drives the group chooser's own "Create new" entry through
+    `activated`, which is the signal a click emits -- setting the
+    index alone would exercise a path no user is on.
+
+  ONE DOOR SINCE 2026-08-30. The "Create as new group" checkbox on Map
+  options armed the same flag and was retired on the maintainer's
+  decision, because a control two panels from the chooser can never
+  make the boundary between "once" and "always" read clearly. Tests
+  that ticked the box choose the entry instead.
+  """
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL
+  index = dlg.group_combo.findText(NEW_GROUP_LABEL)
+  assert index >= 0, \
+    f"the chooser offers no {NEW_GROUP_LABEL!r} entry, so a new group "\
+    f"cannot be asked for at all"
+  dlg.group_combo.setCurrentIndex(index)
+  dlg.group_combo.activated.emit(index)
+
+
+def _cancel_the_new_group(dlg):
+  """Take back a request for a new group, the way a user does.
+
+  Args:
+    dlg: the dialog whose pending request should be dropped.
+
+  Returns:
+    None. Selects a real group in the chooser, which is what clears
+    the flag; where the project holds no group yet there is no such
+    entry to select, and the record is cleared directly -- said out
+    loud here because reaching into a record is exactly what these
+    helpers exist to avoid, and this is the one case with no control
+    to drive.
+  """
+  from weavingspace_qgis.dialog import NEW_GROUP_LABEL
+  for index in range(dlg.group_combo.count()):
+    if dlg.group_combo.itemText(index) != NEW_GROUP_LABEL:
+      dlg.group_combo.setCurrentIndex(index)
+      dlg.group_combo.activated.emit(index)
+      return
+  dlg._new_group_chosen = False
+
 def test_deps():
   """Every package the plugin needs is present in this QGIS.
 
@@ -2645,14 +2694,13 @@ def test_output_management():
   # comparison flow: a new group joins, the previous one persists
   first_group = dlg._group_name
   first_ids = dict(dlg._element_layer_ids)
-  dlg.opt_new_group.setChecked(True)
+  _choose_a_new_group(dlg)
   _generate_and_wait(dlg)
   assert dlg._group_name != first_group
   assert root.findGroup(first_group) is not None
   assert all(project.mapLayer(lid) is not None
              for lid in first_ids.values()), \
     "the kept group's layers must remain in the project"
-  dlg.opt_new_group.setChecked(False)
   dlg.close()
 
 
@@ -2693,17 +2741,258 @@ def test_live_update_gates():
   assert not os.path.exists("/tmp/never-written.gpkg"), \
     "a live run wrote the file the chooser merely names"
   calls.clear()
-  dlg.opt_new_group.setChecked(True)
+  _choose_a_new_group(dlg)
   dlg._maybe_live_generate()
-  assert not calls, "comparison mode must gate live update"
+  assert not calls, "a pending new group must gate live update"
   # positive control: with every gate clear the SAME call must run,
   # otherwise the assert above would also pass for a live update
   # that simply never runs
-  dlg.opt_new_group.setChecked(False)
+  _cancel_the_new_group(dlg)
   dlg._maybe_live_generate()
   assert calls, "with gates clear, live update must actually generate"
   dlg.live_check.setChecked(False)
   dlg.close()
+
+
+def test_the_experimental_box_gates_its_tabs():
+  """An experimental tab is greyed and unusable until the box is ticked.
+
+  The maintainer's ruling of 2026-08-30: the Messages, Topology and
+  Legend tabs are experimental until designated otherwise, and an
+  "Experimental features" box on the third tab -- Map options -- is
+  what makes them activatable and ungreys their titles. It is
+  UNTICKED by default, so somebody who has not asked for experiments
+  does not get them.
+
+  BOTH ANSWERS ARE ASSERTED, and the untick is the half that rots: a
+  gate that opens and never closes again is the same fault facing the
+  other way, and it would leave a person unable to put an experiment
+  back in its box.
+
+  AND THE TAB STAYS VISIBLE. Hiding it would answer the ruling too --
+  an invisible tab is certainly not activatable -- and it is the wrong
+  answer: somebody should be able to see that there is more here, and
+  what ticking the box would give them.
+
+  Regression: experimental tabs shipped reachable, so work still being designed was offered as though it were settled. [mutation]
+  """
+  from qgis.PyQt.QtWidgets import QTabWidget
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    tabs = dlg.findChild(QTabWidget)
+    assert tabs is not None, "the dialog has no tab widget"
+    experimental = list(dlg._experimental_tabs)
+    assert experimental, \
+      "no tab is marked experimental, so this test guards nothing"
+
+    # 1. UNTICKED BY DEFAULT, and the tabs unusable
+    assert not dlg.opt_experimental.isChecked(), \
+      "the experimental box starts ticked, so an experiment is offered " \
+      "to somebody who never asked for one"
+    for index in experimental:
+      assert not tabs.isTabEnabled(index), \
+        f"tab {tabs.tabText(index)!r} is usable with the box unticked"
+      # VISIBLE, though: greyed is not gone
+      assert tabs.tabText(index), \
+        f"tab {index} has no title at all, so nothing tells the user " \
+        f"what the box would unlock"
+
+    # 2. TICKING OPENS THEM
+    dlg.opt_experimental.setChecked(True)
+    _tick(200)
+    for index in experimental:
+      assert tabs.isTabEnabled(index), \
+        f"tab {tabs.tabText(index)!r} is still greyed with the box ticked"
+
+    # 3. ...AND UNTICKING CLOSES THEM AGAIN, from inside the tab, which
+    #    is where Qt would otherwise leave the selection sitting on a
+    #    tab nobody can use.
+    tabs.setCurrentIndex(experimental[0])
+    _tick(100)
+    dlg.opt_experimental.setChecked(False)
+    _tick(200)
+    for index in experimental:
+      assert not tabs.isTabEnabled(index), \
+        f"tab {tabs.tabText(index)!r} stayed usable after unticking"
+    assert tabs.currentIndex() not in experimental, \
+      f"the window is left showing {tabs.tabText(tabs.currentIndex())!r}, " \
+      f"a tab that has just been disabled under the user"
+  finally:
+    dlg.close()
+
+
+def test_the_messages_tab_records_what_the_plugin_said():
+  """One place holding everything the plugin has said, with the answers.
+
+  The plugin speaks into TWO stores that nothing brings together --
+  QGIS's message bar and modal dialogues -- and reading one and
+  concluding silence is a fault numbered in this project's own harness
+  record. A user has no MODALS list to read. This tab is that union,
+  offered to the person rather than to the harness (maintainer's ask,
+  2026-08-29; built experimental on 2026-08-30).
+
+  THE ANSWER IS ASSERTED AS WELL AS THE QUESTION, because that is half
+  of what the tab is for: many of this plugin's modals CHANGE WHAT
+  HAPPENS -- whether a file was overwritten, whether a design was
+  recomposed -- so a log holding the question alone describes a
+  decision nobody can reconstruct.
+
+  AND THE RECORD IS ASSERTED WHOLE, not merely non-empty: newest
+  first, one row per thing said, the answer column filled for the
+  question and empty for the rest, and Clear emptying it.
+
+  Regression: a run refused through a modal left the message bar empty, so the user had no way to see what the plugin had told them. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._clear_messages()
+
+    # the three ways the plugin speaks, in a known order
+    dlg._report_quietly("areas at this spacing received no tiles")
+    dlg._warn("Choose a region layer.")
+    answered = dlg._ask("Replace the file?")
+
+    table = dlg.messages_table
+    assert table.rowCount() == 3, \
+      f"three things were said and the tab shows {table.rowCount()} rows"
+
+    rows = [[table.item(r, c).text() for c in range(4)]
+            for r in range(table.rowCount())]
+
+    # NEWEST FIRST, which is the order the ask names
+    assert rows[0][2] == "Replace the file?", \
+      f"the newest row reads {rows[0][2]!r}, so the list is not newest first"
+    assert rows[2][2] == "areas at this spacing received no tiles", \
+      f"the oldest row reads {rows[2][2]!r}"
+
+    # each KIND is recorded as what it was
+    kinds = [row[1] for row in rows]
+    assert kinds == ["question", "warning", "notice"], \
+      f"the kinds came out as {kinds}"
+
+    # THE ANSWER, which is the half that matters
+    assert rows[0][3], \
+      "the question was recorded with no answer, so the record cannot " \
+      "say what was decided"
+    assert rows[0][3] == dlg._name_of_button(answered), \
+      f"the tab says the answer was {rows[0][3]!r} where the caller " \
+      f"was handed {dlg._name_of_button(answered)!r}"
+    assert not rows[1][3] and not rows[2][3], \
+      "something that asked nothing was recorded with an answer"
+
+    # every row is timestamped
+    for row in rows:
+      assert re.match(r"^\d\d:\d\d:\d\d$", row[0]), \
+        f"a row is timestamped {row[0]!r}"
+
+    # AND THE MODAL PATH IS THE ONE A USER MEETS, so what the suite's
+    # own shim recorded must be in the tab too: reading one store and
+    # concluding silence is the fault this tab exists to end.
+    said = [row[2] for row in rows]
+    for seen in MODALS:
+      text = seen[1] if isinstance(seen, tuple) else str(seen)
+      if "Replace the file?" in text or "Choose a region layer." in text:
+        assert any(fragment in text for fragment in said), \
+          f"the shim saw {text!r} and the tab has no row for it"
+
+    dlg._clear_messages()
+    assert dlg.messages_table.rowCount() == 0, \
+      "Clear left rows behind"
+
+    # the log is bounded, or a long afternoon of live update leaks
+    dlg._said_ceiling = 5
+    for number in range(12):
+      dlg._record_said("notice", f"notice {number}")
+    assert dlg.messages_table.rowCount() == 5, \
+      f"the ceiling is 5 and the tab shows " \
+      f"{dlg.messages_table.rowCount()} rows"
+    assert dlg.messages_table.item(0, 2).text() == "notice 11", \
+      "the newest notice fell off instead of the oldest"
+  finally:
+    dlg.close()
+
+
+def test_the_zigzag_needs_no_scipy():
+  """`zigzag_between_points` draws its curve with numpy alone.
+
+  The vendored library imports scipy for exactly one call, an
+  interpolating quadratic spline inside the zigzag edge manipulation,
+  and scipy is NOT in deps.py -- so that call raised at call time
+  while the import was already optional. The maintainer asked on
+  2026-08-29 for an alternative to be found or written rather than
+  adding scipy: a large download for one spline, and one more
+  distribution to name in the consent dialogue, whose enumeration is
+  a hard rule.
+
+  UPSTREAM ANSWERED IT, in commit 2dbea80 of 2026-08-30, and the
+  answer is better than writing our own spline. The old code fitted a
+  quadratic through n*2+1 samples of sin and then evaluated it at
+  (n+smoothness)*2+1 points; sampling sin at those points directly is
+  the function the spline was approximating. It is carried as a patch
+  in `tools/vendor_weavingspace.py` because that commit is on an
+  experimental branch whose own first commit says the plugin can
+  ignore it until it is merged -- and when it merges, the anchor stops
+  matching and the tool names the patch instead of writing a broken
+  vendor.
+
+  THE SMOOTHED CASE IS THE DISCRIMINATOR. At smoothness=0 both
+  implementations agree by construction, because a spline through its
+  own knots returns the sample values -- so a test of that case alone
+  could not tell one from the other. At smoothness>0 a quadratic
+  spline and the true sine differ at every added point, and this
+  asserts the sine.
+
+  Regression: the one call needing scipy raised at call time, and scipy is deliberately not a dependency. [mutation]
+  """
+  import numpy as np
+  import shapely.geometry as geom
+  from weavingspace_qgis.vendor.weavingspace import topology as topo
+
+  # 1. NOTHING CALLS INTO scipy any more. Checked in the source
+  #    because a machine that happens to have scipy could not show it
+  #    any other way, and most developers' machines do.
+  source = open(topo.__file__, encoding="utf-8").read()
+  calls = [line.strip() for line in source.splitlines()
+           if "interpolate." in line and not line.strip().startswith("#")]
+  assert not calls, f"the vendored topology still calls scipy: {calls}"
+
+  # 2. AND THE CURVE IS THE SINE, at every smoothness. `self` is
+  #    unused by this method, so None stands in for it.
+  zig = topo.Topology.zigzag_between_points
+  p0, p1 = geom.Point(0, 0), geom.Point(10, 0)
+  compared = 0
+  for n in (2, 4):
+    for smoothness in (0, 1, 3):
+      line = zig(None, p0, p1, n=n, h=1.0, smoothness=smoothness)
+      points = list(line.coords)
+      wanted = (n + smoothness) * 2 + 1
+      assert len(points) == wanted, \
+        f"n={n} smoothness={smoothness} gave {len(points)} points, " \
+        f"not {wanted}"
+      xs = np.linspace(0, n * np.pi, wanted, endpoint=True)
+      ys = np.array([y for _x, y in points])
+      expected = np.sin(xs) * (1.0 * p0.distance(p1) / 2)
+      assert np.allclose(ys, expected, atol=1e-9), \
+        f"n={n} smoothness={smoothness}: the curve is not the sine, " \
+        f"max difference {float(np.max(np.abs(ys - expected)))}"
+      # the ends are where the caller asked for them
+      assert abs(points[0][0] - p0.x) < 1e-9 and abs(points[0][1]) < 1e-9
+      assert abs(points[-1][0] - p1.x) < 1e-9
+      compared += 1
+  assert compared == 6, f"only {compared} curves were compared"
 
 
 def _build_module():
@@ -3383,7 +3672,6 @@ CONTROL_CHECKBOXES = {
   "opt_clip": (False, "Clip by map units (no ragged edges)"),
   "opt_icons": (False, "Use tileable as icon (one per map unit)"),
   "opt_outlines": (False, "Add map unit outlines layer"),
-  "opt_new_group": (False, "Create as new group (keep the previous result)"),
   "opt_colour_warnings":
     (False, "Warn about lack of legibility in colour choices"),
 }
@@ -6334,7 +6622,7 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
       "the fresh dialog remembers a path, so this test is no longer "\
       "staging the case it names"
     second.gpkg_widget.setFilePath(path)
-    second.opt_new_group.setChecked(True)
+    _choose_a_new_group(second)
     second.spacing_spin.setValue(400)
     MODALS.clear()
     second._generate()
@@ -15100,8 +15388,7 @@ def test_a_reopened_plugin_adopts_the_group_it_last_wrote():
   dlg._pinned_bounds.setdefault(tile_id, {})["v3"] = {"low": 10.0}
   dlg._apply_style_change()
   _tick(200)
-  assert dlg.opt_new_group is not None, "there is no new-group control"
-  dlg.opt_new_group.setChecked(True)
+  _choose_a_new_group(dlg)
   dlg.spacing_spin.setValue(1400)
   _generate_and_wait(dlg)
   live = dict(dlg._element_layer_ids)
@@ -28276,7 +28563,8 @@ def test_a_limit_says_so_whenever_no_run_will_follow():
       tile_id = next(t for t in sorted(dlg._element_layer_ids)
                      if (dlg._assignment_for(t) or {}).get("mode")
                      == "Graduated")
-      dlg.opt_new_group.setChecked(new_group)
+      if new_group:
+        _choose_a_new_group(dlg)
       field = (dlg._assignment_for(tile_id) or {}).get("var")
       opened = {}
 
@@ -29238,35 +29526,37 @@ def test_a_duplicated_layer_is_named_at_the_landing_as_well():
     dlg.close()
 
 
-def test_the_group_chooser_describes_the_landing_that_will_happen():
-  """The chooser promises where the next run lands, so both doors count.
+def test_the_group_chooser_is_the_only_door_to_a_new_group():
+  """One control asks for a second map, and nothing else arms it.
 
-  Two things arm a new group: picking "Create new" in this chooser,
-  which sets `_new_group_chosen`, and the "Create as new group"
-  checkbox on Map options. The LANDING asks both -- `force_new` reads
-  the checkbox outright -- and the chooser asked only the first, so
-  ticking the box left it naming the group the run would not land in:
-  a control accepted, displayed and then ignored, which is the very
-  fault the chooser was added to end.
+  Two things used to: picking "Create new" in this chooser, which sets
+  `_new_group_chosen`, and a "Create as new group" checkbox on Map
+  options, which the LANDING read outright while the chooser did not
+  -- so ticking the box left the chooser naming the group the run
+  would not land in, a control accepted, displayed and then ignored
+  (ledger row 36, found by the newcomer hunt of 2026-08-28).
 
-  AND THE BOX REACHED NOTHING AT ALL. It is deliberately absent from
-  the list of switches that queue a live run, because it changes WHERE
-  a map lands and nothing about what the map draws -- so a tick must
-  not build a second map. That left it connected to nothing, and the
-  chooser was never told.
+  THE MAINTAINER RETIRED THE CHECKBOX on 2026-08-29 rather than
+  teaching the two to agree, and the reasoning is about the interface:
+  a control two panels from the chooser can never make the boundary
+  between "once" and "always" read clearly, and a boundary that will
+  never be clear is one nobody should have to hold in their head. The
+  standing "always new" behaviour went with it -- asking for a second
+  map is an act you perform when you want one.
 
-  BOTH ANSWERS ARE ASSERTED, and the untick matters as much as the
-  tick: a chooser that said "Create new" and stayed there would be the
-  same defect facing the other way.
+  SO THE DEFECT IS NOW STRUCTURALLY IMPOSSIBLE, and what this test
+  guards is the structure rather than the agreement: there is no
+  second control, the chooser arms the flag, and a real group clears
+  it again. BOTH ANSWERS ARE ASSERTED -- a chooser that armed the flag
+  and never released it would be the same fault facing the other way.
 
-  AND IT MUST STILL NOT ARM A RUN. The one thing the box must not do
-  is queue a tiling, so that is asserted here too -- otherwise the
-  cheapest repair for this defect is to drop the box into the list
-  that refreshes everything, and a second map would appear from a
-  tick.
+  AND IT MUST STILL NOT ARM A RUN. Asking where a map lands says
+  nothing about what it draws, so choosing the entry must not build a
+  second map from a tick.
 
-  Regression: with "Create as new group" ticked the group chooser went on naming the group the next run would not land in, because it knew one of the two doors that arm a new group. Found by the newcomer hunt of 2026-08-28, ledger row 36. [hunt]
+  Regression: two controls armed one flag and only one of them told the chooser; the checkbox is retired and the chooser is the only door. [hunt]
   """
+  from qgis.PyQt.QtWidgets import QCheckBox
   from weavingspace_qgis.dialog import NEW_GROUP_LABEL, WeavingSpaceDialog
   project = QgsProject.instance()
   layer = make_region_layer()
@@ -29278,42 +29568,53 @@ def test_the_group_chooser_describes_the_landing_that_will_happen():
     _tick(300)
     _generate_and_wait(dlg)
     assert dlg._element_layer_ids, "PREMISE: nothing was drawn"
+
+    # 1. NO SECOND CONTROL. Asked of every checkbox the dialog has,
+    #    by what it SAYS rather than by an attribute name, because a
+    #    retired control coming back under another name would be the
+    #    same two-door fault wearing different clothes.
+    boxes = [b.text() for b in dlg.findChildren(QCheckBox)]
+    assert boxes, "PREMISE: the dialog has no checkboxes to examine"
+    offenders = [t for t in boxes
+                 if "new group" in t.lower() or "new_group" in t.lower()]
+    assert not offenders, \
+      f"a second door to a new group is back on the dialog: {offenders}"
+
     combo = dlg.group_combo
     named = combo.currentText()
-    assert named != NEW_GROUP_LABEL, (
-      f"PREMISE: the chooser already reads {named!r} before the box is "
-      f"ticked, so nothing below can show it following one")
-    assert not dlg._new_group_chosen, \
-      "PREMISE: the other door is already armed"
-
+    assert named != NEW_GROUP_LABEL, \
+      f"PREMISE: the chooser already reads {named!r}, so nothing " \
+      f"below can show it being armed"
+    assert not dlg._new_group_chosen, "PREMISE: the door is already armed"
     before_ids = dict(dlg._element_layer_ids)
-    dlg.opt_new_group.setChecked(True)
-    _tick(600)
-    assert combo.currentText() == NEW_GROUP_LABEL, (
-      f"the box is ticked and the chooser still reads "
-      f"{combo.currentText()!r}: it names the group this run will NOT "
-      f"land in, which is a control accepted, displayed and ignored")
-    assert not dlg._new_group_chosen, (
-      "ticking the box set `_new_group_chosen`, which conflates two "
-      "records an early build already conflated once -- they share "
-      "only the question of where the next run lands")
-    # THE HARM, NOT THE NEAREST OBSERVABLE. The first draft of this
-    # asserted that the live timer was not running, and it failed on
-    # correct software: the timer is armed by ordinary layer churn and
-    # the gate against live update being off lives in the TICK, not in
-    # the timer, so an armed timer means nothing about whether a run
-    # is coming. What must be true is that no map was built.
-    assert dlg._task is None, "ticking the box started a run"
-    assert dlg._element_layer_ids == before_ids, (
-      f"ticking the box built a second map: the elements went from "
-      f"{sorted(before_ids)} to {sorted(dlg._element_layer_ids)}. It "
-      f"changes WHERE a map lands and nothing about what it draws")
 
-    dlg.opt_new_group.setChecked(False)
+    # 2. THE CHOOSER ARMS IT...
+    _choose_a_new_group(dlg)
     _tick(600)
-    assert combo.currentText() == named, (
-      f"unticking left the chooser on {combo.currentText()!r} where it "
-      f"named {named!r} before: the same defect facing the other way")
+    assert dlg._new_group_chosen, \
+      "choosing 'Create new' did not arm the next run"
+    assert combo.currentText() == NEW_GROUP_LABEL, \
+      f"the chooser reads {combo.currentText()!r} after being asked " \
+      f"for a new group, so it names a group the run will not use"
+
+    # ...AND BUILDS NOTHING BY ITSELF. The first draft of the older
+    # test asserted the live timer was not running and failed on
+    # correct software: the timer is armed by ordinary layer churn,
+    # and the gate lives in the TICK. What must be true is that no
+    # map was built.
+    assert dlg._task is None, "asking for a new group started a run"
+    assert dlg._element_layer_ids == before_ids, \
+      f"asking for a new group built a second map: the elements went " \
+      f"from {sorted(before_ids)} to {sorted(dlg._element_layer_ids)}"
+
+    # 3. AND A REAL GROUP RELEASES IT AGAIN.
+    _cancel_the_new_group(dlg)
+    _tick(600)
+    assert not dlg._new_group_chosen, \
+      "selecting a real group left the next run armed for a new one"
+    assert combo.currentText() == named, \
+      f"the chooser stayed on {combo.currentText()!r} where it named " \
+      f"{named!r} before: the same fault facing the other way"
   finally:
     dlg.close()
 
@@ -33901,8 +34202,7 @@ def test_keeping_a_result_keeps_both_halves_of_every_element():
   kept_paired = dlg._no_data_layer_ids.get(tid)
   assert kept_paired, "no paired layer, so this test is about nothing"
 
-  assert dlg.opt_new_group is not None, "there is no new-group control"
-  dlg.opt_new_group.setChecked(True)
+  _choose_a_new_group(dlg)
   dlg.spacing_spin.setValue(430)
   _generate_and_wait(dlg)
 
@@ -51901,14 +52201,13 @@ def test_model_based_dialog_states():
   # mapped -> compared: exactly one more group, the old one intact
   kept = dict(dlg._element_layer_ids)
   kept_group = dlg._group_name
-  dlg.opt_new_group.setChecked(True)
+  _choose_a_new_group(dlg)
   _generate_and_wait(dlg)
   state = "compared"
   assert len(groups()) == 2, f"expected two groups, found {len(groups())}"
   assert dlg._group_name != kept_group
   assert all(project.mapLayer(lid) is not None for lid in kept.values()), \
     "the kept comparison must survive intact"
-  dlg.opt_new_group.setChecked(False)
 
   # compared -> filed: output moves to a file, layers become
   # file-backed, and no further group appears
@@ -52964,11 +53263,10 @@ def test_the_output_group_chooser_binds_to_the_dataset():
 
     # a SECOND group for the same dataset, which is what makes the
     # recency tie-break a real question rather than a formality
-    dlg.opt_new_group.setChecked(True)
+    _choose_a_new_group(dlg)
     dlg.spacing_spin.setValue(560)
     _generate_and_wait(dlg)
     _tick(400)
-    dlg.opt_new_group.setChecked(False)
     second = dlg._group_name
     cell("'create as new group' really made a second one",
          second and second != first,
@@ -60671,7 +60969,7 @@ def test_the_dialogs_chrome_does_its_job():
   # hierarchy -- a widget built but never added to a layout keeps
   # whatever parent it was constructed with and never becomes a
   # descendant of the window.
-  for name in ("gpkg_widget", "opt_new_group", "live_check"):
+  for name in ("gpkg_widget", "group_combo", "live_check"):
     widget = getattr(dlg, name, None)
     assert widget is not None, f"the dialog has no {name}"
     assert dlg.isAncestorOf(widget), \
@@ -62154,8 +62452,7 @@ def test_adversarial_sequences():
       ("style", lambda: dlg.table.cellWidget(0, 2).setCurrentText(
         "Quant: Equal intervals") if dlg.table.cellWidget(0, 2) else None),
       ("rotate", lambda: dlg.mod_rotate.setValue(20)),
-      ("new group toggle", lambda: dlg.opt_new_group.setChecked(
-        not dlg.opt_new_group.isChecked())),
+      ("ask for a new group", lambda: _choose_a_new_group(dlg)),
       ("gpkg path", lambda: dlg.gpkg_widget.setFilePath(
         os.path.join(tf.mkdtemp(), "adversarial.gpkg"))),
       # SAVE IS AN ACT A PERSON CAN TAKE AT ANY MOMENT, including the
@@ -63791,7 +64088,7 @@ def test_a_comparison_group_is_left_alone_by_the_rest_of_the_session():
   kept_before = fingerprint(kept_ids, "the kept group")
 
   # the comparison run: a different design, kept beside the first
-  dlg.opt_new_group.setChecked(True)
+  _choose_a_new_group(dlg)
   dlg.spacing_spin.setValue(700)
   _generate_and_wait(dlg)
   _tick(250)
@@ -63805,7 +64102,6 @@ def test_a_comparison_group_is_left_alone_by_the_rest_of_the_session():
   assert len(groups) == 2, \
     f"a comparison run should leave two groups; the project has " \
     f"{[g.name() for g in groups]}"
-  dlg.opt_new_group.setChecked(False)      # back to refining in place
 
   problems = []
 
@@ -70449,14 +70745,11 @@ def test_a_group_is_named_for_the_dataset_it_was_made_from():
     # that is what the counter is for
     dlg.layer_combo.setLayer(first)
     _tick(900)
-    dlg.opt_new_group.setChecked(True)
-    try:
-      dlg.spacing_spin.setValue(560)
-      _generate_and_wait(dlg)
-      _tick(300)
-      _settle(dlg, seconds=60)
-    finally:
-      dlg.opt_new_group.setChecked(False)
+    _choose_a_new_group(dlg)
+    dlg.spacing_spin.setValue(560)
+    _generate_and_wait(dlg)
+    _tick(300)
+    _settle(dlg, seconds=60)
     now = [g.name() for g in project.layerTreeRoot().findGroups()]
     assert len(now) == 3 and len(set(now)) == 3, \
       f"a second map from one dataset did not get a name of its own: {now}"
@@ -73817,6 +74110,12 @@ def main():
         test_live_update_gates)
   check("design cascade (n/kind/family/options/fit)",
         test_design_cascade)
+  check("the experimental box gates its tabs",
+        test_the_experimental_box_gates_its_tabs)
+  check("the messages tab records what the plugin said",
+        test_the_messages_tab_records_what_the_plugin_said)
+  check("the zigzag needs no scipy",
+        test_the_zigzag_needs_no_scipy)
   check("no artefact is named without its version",
         test_no_artefact_is_named_without_its_version)
   check("the element count is one control in two widgets",
@@ -73987,8 +74286,8 @@ def main():
         test_nothing_long_lived_is_connected_to_a_bare_lambda)
   check("numbers stored as text can be classified",
         test_numbers_stored_as_text_can_be_classified)
-  check("the group chooser describes the landing that will happen",
-        test_the_group_chooser_describes_the_landing_that_will_happen)
+  check("the group chooser is the only door to a new group",
+        test_the_group_chooser_is_the_only_door_to_a_new_group)
   check("a duplicated layer is named at the landing as well",
         test_a_duplicated_layer_is_named_at_the_landing_as_well)
   check("a blend mode set in QGIS survives a re-tile",

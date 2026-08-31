@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-433 defect(s) with a regression test.
+436 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -281,8 +281,8 @@ there is no separate list to remember.
   guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **the user guide named an element ceiling six short of the real one, and two documents named a vendored commit the tool had superseded eight days earlier, past a gate that had never compared that half of the stamp.**  
   guarded by `test_the_documents_numbers_match_the_code`
-- **with "Create as new group" ticked the group chooser went on naming the group the next run would not land in, because it knew one of the two doors that arm a new group. Found by the newcomer hunt of 2026-08-28, ledger row 36.**  
-  guarded by `test_the_group_chooser_describes_the_landing_that_will_happen`
+- **two controls armed one flag and only one of them told the chooser; the checkbox is retired and the chooser is the only door.**  
+  guarded by `test_the_group_chooser_is_the_only_door_to_a_new_group`
 - **in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route.**  
   guarded by `test_the_icon_notice_names_the_elements_the_map_is_missing`
 - **the icon-coverage notice compared a geographic region against projected tiles, so every icon-mode run on WGS84 data reported every element as reaching none of the areas. Found by the icon-mode hunt of 2026-08-28.**  
@@ -531,6 +531,8 @@ there is no separate list to remember.
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **the two element-count widgets could disagree, and nothing read the count off the design that was actually built.**  
   guarded by `test_the_element_count_is_one_control_in_two_widgets`
+- **experimental tabs shipped reachable, so work still being designed was offered as though it were settled.**  
+  guarded by `test_the_experimental_box_gates_its_tabs`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
   guarded by `test_the_file_carries_the_design_the_map_is_wearing`
 - **none yet -- this guards the boundary the `kept` map created the day it was born, because the file's record is written from the same capture and would otherwise inherit the key.**  
@@ -541,6 +543,8 @@ there is no separate list to remember.
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
 - **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
   guarded by `test_the_map_survives_its_file_being_deleted`
+- **a run refused through a modal left the message bar empty, so the user had no way to see what the plugin had told them.**  
+  guarded by `test_the_messages_tab_records_what_the_plugin_said`
 - **a fifty-minute gate that could not be satisfied before the artefact shipped stopped four candidates' worth of work on a release whose plugin passed every test it was given.**  
   guarded by `test_the_new_code_mutation_guard_reports_rather_than_gates`
 - **the no-data count included areas with no geometry, which draw nothing at all, so the sentence promised more no-data areas than the map contains. Found by the notices hunt, 2026-08-27.**  
@@ -565,6 +569,8 @@ there is no separate list to remember.
   guarded by `test_the_size_guard_warns_where_it_used_to_refuse`
 - **the switch notice flattened its per-element pairs, so an element left with nothing was affirmatively covered by a sentence about the elements that landed somewhere -- and the re-point path lacked the `or fields` fallback its deleted-column twin has carried since 2026-08-20, which is what made the mixed case reachable only here. Found by the switchdoor hunt of round nine (2026-08-26).**  
   guarded by `test_the_switch_notice_owns_every_element`
+- **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
+  guarded by `test_the_zigzag_needs_no_scipy`
 - **two column names that sanitise to one table name left the earlier column's saved style in the GeoPackage, so its hand-picked colours and field name travelled to whoever the file was sent to. Found by the kept-map hunt, 2026-08-27.**  
   guarded by `test_two_columns_sharing_a_table_leave_one_style_of_ours`
 - **two elements drawing one column with different class counts produced a single emptiness notice, true of one of them and quoting a class count the other does not have, while the second element was never mentioned. Open as row 41 of the 2026-08-17 ledger; found again and measured by the notices hunt, 2026-08-27.**  
@@ -918,7 +924,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 131
-- the mutation campaign: 124
+- the mutation campaign: 127
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

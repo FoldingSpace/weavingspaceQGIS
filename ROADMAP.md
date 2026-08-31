@@ -613,232 +613,131 @@ graduated style built in QGIS's dock and the next Generate, the row
 reads "Quant: Quantiles" while the assignment says Categorized, and
 that Generate destroys the dock's work.
 
-**THE DECLARATION IS WITHDRAWN AGAIN, FOR TWO THINGS THE MAINTAINER
-ASKED FOR ON 2026-08-29 AFTER rc5 WENT OUT.** It stood between the
-close of the owed list and that request, on the terms the first
-withdrawal set, and everything it covered had genuinely landed: rows
-18, 36, 23 and 35 closed that morning, each audited before it was
-built; the window and Save's responsiveness built from the
-maintainer's own decisions; the catalogue triage's second bad trade
-paid back with a leg that can fail and an entry for each path.
+**THE DECLARATION STAYS WITHDRAWN, AND WHAT IT COVERS HAS CHANGED.**
+Six things were owed after rc5 went out. FIVE ARE BUILT, on
+2026-08-30, each with a registered test and catalogue entries proved
+`caught`; the sixth is the window ceiling and is the one still owed.
+Two further things the maintainer asked for the same day are built
+beside them.
+
+WHAT IS DONE, and what each cost:
+
+1. **THE ELEMENT COUNT IS A SLIDER** with a spin box beside it, kept
+   in step as one control, `_element_count()` the single owner of the
+   question. THE TRACK SPANS THE WHOLE CATALOGUE, 2 to 256, rather
+   than moving with the kind -- a departure from this entry's own
+   design note, on a measurement. That note said 256 for tilings and
+   26 for weaves; 26 is the ID ceiling for a weave's strand letters,
+   and the CATALOGUE holds weave families only to n=12, so a
+   weave-capped track would have offered thirteen counts with no
+   weave family behind any of them and retired the contract
+   `test_design_cascade` states outright. Flagged rather than settled
+   silently: if the maintainer wants the track to stop where the
+   weaves do, that is a ruling and it retires that contract.
+2. **THE DESIGN TAB NO LONGER RUNS FULL WIDTH.** Kind, family,
+   spacing and Auto share one line; every option row and modifier
+   pair carries a stretch; the spacing box asks for room to show a
+   realistic number rather than its 1e12 maximum. EW and NS are
+   Left-Right and Up-Down.
+   AND THE STATED CAUSE WAS A READING, corrected by measuring both
+   trees in one run. Whether a form layout stretches its field column
+   is decided by the STYLE: macOS defaults to `FieldsStayAtSizeHint`
+   and Fusion to `AllNonFixedFieldsGrow`. Under the harness's macOS
+   style every control ALREADY sat at its own hint before the repair,
+   so the first guard written for this passed on the unrepaired code;
+   under Fusion, which QGIS ships, the same tree drew a strand width
+   between 0.083 and 1.0 at 1013px. The guard sets the style now.
+3. **EVERY ARTEFACT CARRIES ITS VERSION, AND NO CHECK WRITES INTO
+   `dist/`.** `build.py` names its output for the version and gains
+   `--check`, which builds into a temporary directory; `release.py`,
+   `ci.yml` and `install_and_load.py` ask `build.py` for the name
+   rather than composing it.
+   AND THE HAZARD HAD ALREADY BITTEN, measured 2026-08-30 before the
+   evidence was overwritten: the build sitting in a QGIS profile was
+   byte-identical to the unversioned zip across all 31 members, so an
+   ungated artefact had been installed over a gated candidate. That
+   is what the title bar had been faithfully reporting.
+4. **THE GROUP CHOOSER IS THE ONLY DOOR TO A NEW GROUP.** The
+   checkbox is retired, the standing "always new" behaviour with it.
+   A deletion at the landing, since `force_new` already read the
+   flag; the cost was the suite, as predicted -- twenty-four sites,
+   eleven catalogue anchors of which two were RETIRED outright with
+   their reason written where they stood, and two committed probes.
+   The two-doors test became a one-door test, which is the stronger
+   claim: it asserts no second control exists rather than that two
+   agree.
+5. **THE ZIGZAG NEEDS NO SCIPY**, and upstream answered it better
+   than this entry imagined. Rather than writing a quadratic spline
+   in numpy, upstream's commit 2dbea80 noticed the spline was
+   interpolating samples of `sin` and evaluating it at a finer
+   resolution -- so sampling `sin` at that resolution IS the function
+   the spline approximated. Carried as patch 1f in
+   `tools/vendor_weavingspace.py`, because that commit is on an
+   experimental branch whose own first commit says the plugin can
+   ignore it until merged; when it merges, the anchor stops matching
+   and the tool names the patch. Verified exact at smoothness=0 and
+   the true sine at every smoothness above it.
+
+AND TWO MORE THINGS THE MAINTAINER ASKED FOR ON 2026-08-30, BUILT THE
+SAME DAY:
+
+6. **EXPERIMENTAL FEATURES, UNTICKED BY DEFAULT.** A box on Map
+   options -- the third tab -- gates tabs that are experimental until
+   designated otherwise. `setTabEnabled` greys the title and refuses
+   selection in one call, so the two halves cannot come apart; the
+   tabs stay visible, because somebody should be able to see what
+   ticking the box would give them. It is a preference about the
+   PLUGIN and deliberately not part of a group's working state.
+7. **THE MESSAGES TAB, EXPERIMENTAL, SHIPPED IN THIS VERSION** rather
+   than 0.24.5, on the maintainer's ask. Everything the plugin has
+   said this session, newest first, with the ANSWER beside any
+   question it asked. Every modal and every message-bar push now goes
+   through one recording door, which is the "single door" this tab's
+   own 0.24.5 entry asked to have decided; the wrappers are thin, so
+   the suite's modal shim intercepts them unchanged.
+
+**WHAT IS STILL OWED, AND IT IS THE ONLY THING BLOCKING THE
+DECLARATION:**
+
+**THE WINDOW MUST NOT TAKE UP THE WHOLE SCREEN.** The intent is
+written in the source and enforced nowhere: the constructor's
+`resize(1180, 560)` carries the comment "height set by the Design tab
+so the map stays visible behind the dialog", while `_fit_to_design`
+ends `resize(max(self.width(), 1180), max(400, height))` with NO upper
+bound on height at all, and `MAX_WINDOW_WIDTH = 1480` is a constant
+standing in for "the narrowest screen still in use" rather than a
+reading of the screen in front of somebody. Nothing calls
+`availableGeometry`.
+THE ASK IS SMALLER THAN IT FIRST LOOKS, and the maintainer said so
+when this entry asked them for a clearance figure: it is not a
+question about screen height and no number is owed. **The window
+simply must not take up the whole screen**, and today's size is fine
+-- "no shorter than now". So this is a CEILING ON GROWTH and not a
+resize.
+THAT MAKES IT AN ORDINARY REPAIR RATHER THAN A RULING. The settled
+layout rule of 2026-08-09 keeps its three priorities and gains no
+fourth; the width clause simply stops standing on `MAX_WINDOW_WIDTH`
+as a guess and asks the display in front of the person instead.
+AND TODAY'S LESSON APPLIES DIRECTLY: a window opens at its sizeHint
+and a MINIMUM NEVER BOUNDS A PREFERRED SIZE, so bounding the height
+means bounding whatever DRIVES it -- which on a display too small to
+hold today's window means the assignment table scrolling VERTICALLY.
+That is the acceptable direction, a vertical scrollbar being ordinary
+where a horizontal one is what the 2026-08-09 rule exists to avoid.
+AND NO GUARD HERE OR ON CI CAN SEE THE ASSEMBLED WINDOW -- offscreen
+reports 1279 where cocoa gives 1334 -- so this belongs in
+`tools/platform_probe.py`, measuring `dlg.width()` and `dlg.height()`
+after `show()` against `availableGeometry()`, which is the quantity a
+failure would print. The Design tab now asks for far less width than
+it did, which is what this entry predicted would make the ceiling
+nearly free.
 
 IT IS WITHDRAWN RATHER THAN LEFT STANDING BECAUSE THE GATE READS THE
 PHRASE. `check_roadmap` decides a section is clear by looking for
 "nothing outstanding" with quoted spans stripped, so a section
 carrying the declaration AND a list of work would clear a candidate
 that owes both -- which is this file's own recorded fault about a
-gate satisfied by a sentence, arriving from the other side. When the
-two land, the declaration comes back.
-
-BOTH CHANGE THE SHAPE OF THE INTERFACE, so both get `/grill-me`
-before anything is written, which is this project's standing rule and
-the one the sessions that produced designs that stuck all followed.
-
-1. **THE ELEMENT COUNT IS CHOSEN WITH A SLIDER, NOT A DROPDOWN.**
-   Today it is `n_combo`, a `QComboBox` filled from
-   `N_CHOICES = sorted(catalog.TILINGS_BY_N)`.
-   MEASURED BEFORE ANY DESIGN: those keys are CONTIGUOUS from 2 to
-   256, so a slider has no gaps to snap over, which is the objection
-   that would otherwise have decided the question. What the design
-   has to answer instead is three things the dropdown did for free.
-   The ceiling MOVES WITH THE KIND -- 256 for tilings and 26 for
-   weaves -- so the slider's maximum is not a constant. The families
-   THIN OUT along it: 21 families at n=2, 8 at n=12, 4 at n=26, and
-   none of them a weave at all from n=13 up, so dragging repopulates
-   the family list under the person's hand. And 255 positions in a
-   couple of hundred pixels is about a value per pixel, so a readout
-   and a keyboard step are part of the control rather than
-   decoration.
-2. **THE WINDOW MUST NOT BE WIDER THAN THE SCREEN, AND MUST NEVER BE
-   AS TALL -- the map underneath has to stay visible.** The intent is
-   already written in the source and is enforced nowhere: the
-   constructor's `resize(1180, 560)` carries the comment "height set
-   by the Design tab so the map stays visible behind the dialog",
-   while `_resize_to_design` ends `resize(max(self.width(), 1180),
-   max(400, height))` with NO upper bound on height at all, and
-   `MAX_WINDOW_WIDTH = 1480` is a constant standing in for "the
-   narrowest screen still in use" rather than a reading of the screen
-   in front of somebody. Nothing in the file calls
-   `availableGeometry`.
-   THE ASK IS SMALLER THAN IT FIRST LOOKS, and the maintainer said so
-   when this entry asked them for a clearance figure: it is not a
-   question about screen height and there is no number owed. **The
-   window simply must not take up the whole screen**, and the size it
-   is TODAY is fine -- "no shorter than now". So this is a CEILING on
-   growth and not a resize: where the display is roomy nothing changes
-   at all, and what has to stop is the window expanding until it fills
-   the screen, which today nothing prevents.
-   THAT MAKES IT AN ORDINARY REPAIR RATHER THAN A RULING. The settled
-   layout rule of 2026-08-09 keeps its three priorities and gains no
-   fourth to be ordered among them; the width clause simply stops
-   standing on `MAX_WINDOW_WIDTH` as a guess at "the narrowest screen
-   still in use" and asks the display in front of the person instead.
-   AND TODAY'S LESSON APPLIES DIRECTLY: a window opens at its
-   sizeHint and a MINIMUM NEVER BOUNDS A PREFERRED SIZE, so bounding
-   the height means bounding whatever DRIVES it -- which on a display
-   too small to hold today's window means the assignment table
-   scrolling VERTICALLY. That is the acceptable direction, a vertical
-   scrollbar being ordinary where a horizontal one is the thing the
-   2026-08-09 rule exists to avoid.
-   AND NO GUARD HERE OR ON CI CAN SEE IT. The assembled window is
-   measurable only on a real desktop -- offscreen reports 1279 where
-   cocoa gives 1334 -- so this belongs in `tools/platform_probe.py`,
-   measuring `dlg.width()` and `dlg.height()` after `show()` against
-   `availableGeometry()`, which is the quantity a failure would print.
-3. **NOTHING IN `dist/` MAY CARRY A NAME WITHOUT ITS VERSION, AND A
-   CHECK MAY NOT WRITE THERE AT ALL.** (Maintainer's rule, 2026-08-29,
-   on finding the newest file in `dist/` was an unversioned zip.)
-   WHAT IS HAPPENING. `check_before_push` replays the `standards`
-   job's steps, one of which is "The plugin still packages"; that runs
-   `build.py`, and `build.py` writes `dist/weavingspace_qgis.zip` --
-   no version -- into whatever worktree it is run from. So the PUSH
-   GATE mutates the artefact directory, from an ungated tree, on every
-   invocation. Measured today: `weavingspace_qgis.zip` at 16:12 and
-   649,327 bytes, sitting an hour newer than the gated
-   `weavingspace_qgis-0.24.4rc5.zip` at 649,330, beside three
-   versioned candidates and their receipts.
-   WHY IT MATTERS RATHER THAN BEING UNTIDY. Sorted by date -- which is
-   what a person does in Finder -- the first thing in a directory of
-   gated artefacts is the ONE with no version, no receipt and no gate
-   behind it, and it is not even byte-identical to the candidate it
-   sits beside. This project already refuses to let a candidate NUMBER
-   be reused because one name over two trees confuses everybody; an
-   artefact with no name at all is that hazard with the label removed.
-   AND THE RULE IS WIDER THAN `dist/`: **NO UNVERSIONED FILENAME GOES
-   UP ON GITHUB EITHER.** (The maintainer, same day, on being told the
-   unversioned name was kept because README asks people to download
-   it: "readme can and should change".) So the release ASSET carries
-   its version too, and the prose that names it follows the artefact
-   rather than the artefact being held still for the prose.
-   THE CANDIDATE PATH IS ALREADY RIGHT, WHICH IS THE TELL. Every
-   pre-release attaches `weavingspace_qgis-<version>rc<n>.zip`; only
-   the RELEASE path attaches an unversioned one, at `release.py:1420`.
-   The convention exists and was applied to half the process.
-   WHAT IT TOUCHES, counted rather than guessed -- sixteen sites in
-   nine files, in three kinds. THE WRITER: `build.py:373`, plus its
-   own docstring and `MAINTAINING.md`. THE CONSUMERS: `release.py`
-   attaches and prints the path in four places, and `ci.yml` passes
-   `dist/weavingspace_qgis.zip` to `install_and_load.py` on all three
-   platforms -- so CI has to learn the version, which means reading
-   `metadata.txt` as `build.py` already does rather than globbing,
-   since a glob over a `dist/` holding several candidates is exactly
-   the ambiguity this rule is about. THE PROSE: `README.md:34`,
-   `docs/index.html:199` and `tools/release_notes.py:182`, which names
-   the attachment in every release body. All three are text a user
-   reads, so they go through `tools/text_review.py` and the wording is
-   the maintainer's to approve.
-   AND THE PACKAGING CHECK STILL SHOULD NOT WRITE INTO `dist/` at all,
-   independently of the naming: its only question is whether the
-   archive still forms, so it belongs in a temporary directory. The
-   two together leave `dist/` holding gated, versioned artefacts and
-   nothing else.
-   ALREADY-PUBLISHED RELEASES KEEP THEIR UNVERSIONED ASSETS. That is
-   history rather than a thing to mend, and rewriting old release
-   assets would break links people already have.
-4. **THE DESIGN TAB'S LAYOUT, AND TWO LABELS THAT SPEAK IN COMPASS
-   POINTS.** (Maintainer, 2026-08-29.) Below the element control
-   nothing should run FULL WIDTH -- the inputs are comically wide.
-   *Tiling or weave*, *Family*, *Spacing* and *Auto* all belong on ONE
-   line. Under Transformations the boxes should be reasonably narrow
-   rather than what they are. And **EW becomes "Left-Right" and NS
-   becomes "Up-Down"**, through the documents and materials as well as
-   the interface, excepting only names that come from upstream.
-   WHY EVERYTHING IS WIDE, and it is one cause rather than a dozen
-   sites: every one of these is added with `QFormLayout.addRow`, whose
-   FIELD COLUMN STRETCHES to whatever width is going. `form.addRow`
-   builds Region layer, QGIS Layer Group, Number of elements, Tiling
-   or weave, Family and Spacing; `pair()` does the same for each
-   Transformations row. So the repair is about how the rows are built,
-   not about setting a width on each control.
-   THE RENAME IS TWO STRINGS AND NO REFACTOR. `dialog.py:2637` reads
-   `pair("Scale EW / NS", ...)` and `:2643` `pair("Skew EW / NS (°)",
-   ...)`, and those are the ONLY user-facing occurrences -- nothing in
-   the guide, the help tab or the README spells it either as an
-   abbreviation or as "east-west". The attribute names `mod_scale_x`
-   and `mod_scale_y` are ours and internal, and the library's own
-   parameter names are untouched, so nothing but the labels moves.
-   AND THE TOOLTIPS ALREADY AGREE WITH THE MAINTAINER RATHER THAN WITH
-   THE LABELS: they say "Stretch the pattern right-left", "Slant the
-   pattern up-down". The label was the last place compass points
-   survived, and it contradicted the sentence attached to it. Note the
-   tooltips say "right-left" where the ruling says "Left-Right", so
-   harmonising those is a reviewed-text change and the maintainer's to
-   approve rather than a silent tidy.
-   TWO CONNECTIONS WORTH NOT LOSING. Narrower fields mean the Design
-   tab ASKS FOR LESS WIDTH, so doing this before item 2 may make the
-   window ceiling nearly free rather than a fight. And the assignment
-   table's `COLUMN_SUM_BUDGET` is `MAX_WINDOW_WIDTH - 400`, where the
-   400 is a MEASURED allowance for everything that is not the table
-   (MAINTAINING.md brackets the budget between about 1030 and 1118 on
-   that basis) -- so changing what the rest of the layout needs
-   invalidates that bracket, and the two must be re-derived together
-   rather than one moved on its own.
-5. **IS "CREATE AS NEW GROUP" REDUNDANT NOW?** (Maintainer's question,
-   2026-08-29.) MEASURED, AND THE ANSWER IS NO IN FUNCTION AND YES IN
-   INTENT -- which is the more interesting answer, because the pair is
-   already costing this project defects.
-   THEY DIFFER IN SCOPE AND NOTHING SAYS SO ON SCREEN. The chooser's
-   "create new" entry sets `_new_group_chosen`, which is ONE-SHOT: the
-   next run builds its own group and the flag is cleared the moment a
-   real group is selected. The checkbox is a STANDING preference read
-   at every landing through `force_new`, so while it is ticked EVERY
-   run makes a new group. A person meeting "Create as new group (keep
-   the previous result)" beside a chooser entry called "create new" has
-   nothing to tell them one means once and the other means always.
-   AND THE READERS DISAGREE ABOUT WHICH DOOR TO ASK, which is this
-   repository's commonest defect shape sitting in the open: of seven
-   sites, FIVE read only the checkbox (`dialog.py` at 5023, 12351,
-   13935, 14363 and `force_new` at 19798), ONE reads only the flag
-   (14700, the restyle fast path), and exactly one reads BOTH (15862)
-   -- and that last one reads both only because ledger row 36 was
-   fixed this morning, where the chooser went on describing a landing
-   that would not happen because it knew the flag and not the box.
-   **AND THE MAINTAINER SETTLED IT THE SAME DAY: THE CHOOSER IS THE
-   ONLY DOOR.** The checkbox goes. Their reasoning is about the
-   interface rather than the mechanism -- it is TOO FAR AWAY IN THE UI
-   from the chooser for the boundary between "once" and "always" ever
-   to read clearly, and a boundary that will never be clear is one
-   nobody should have to hold in their head. That composes with ruling
-   1 of 2026-08-25, which made the group the unit of work and gave the
-   chooser the job of saying where a run lands: a standing checkbox
-   two panels away was a second rule about the same fact.
-   THE STANDING "ALWAYS NEW" BEHAVIOUR GOES WITH IT, deliberately.
-   Asking for a second map becomes an act you perform when you want
-   one, which is what the chooser already means.
-
-   WHAT THE IMPLEMENTATION ACTUALLY FACES, read on 2026-08-29 so that
-   tomorrow starts from a map rather than a survey. It is smaller in
-   the product than the site count suggests and larger in the suite.
-
-   THE LANDING ALREADY HONOURS THE CHOOSER. `force_new` at
-   `dialog.py:19798` is a four-term or, and `self._new_group_chosen`
-   is already one of them -- so removing the checkbox term is a
-   DELETION rather than a rewiring, and the comment beneath it already
-   says the flag is "spent the moment it is read". One-shot semantics
-   are built and documented; nothing new has to be invented.
-   THE FOUR CHECKBOX-ONLY SITES EACH CARRY THEIR OWN REASON, and every
-   reason is about the INTENT rather than about the control -- the
-   live gate at 5023 ("it asks for a SECOND map to compare against,
-   and building one unattended on every keystroke is not what anybody
-   means by it"), the restamp guard at 12351, `_restyle_only` at 13935
-   ("repainting the first one cannot provide" a second result), and
-   `_a_live_run_will_follow` at 14363. Each becomes a
-   `_new_group_chosen` read and each comment survives with its noun
-   changed. `14700` already reads the flag.
-   THE SUITE IS THE WORK: 24 sites in `tests/run_tests.py`, 11
-   catalogue anchors in `tools/mutation_check.py`, and 2 committed
-   probes. Most are `dlg.opt_new_group.setChecked(True)` and convert
-   mechanically to choosing "create new" in the group combo; the ones
-   that must be re-decided BY HAND are those whose subject is the
-   control itself, which is the shape the Save conversion of
-   2026-08-27 already worked out and wrote up in docs/TESTING.md.
-   Remember the `CONTROL_CHECKBOXES` table at `tests/run_tests.py:3094`,
-   which pins the label, and expect the catalogue anchors to orphan.
-   AND THE PROSE IS REVIEWED TEXT: `docs/USER-GUIDE.md:282` and
-   `help_content.py:52` both describe the box, CLAUDE.md names it in
-   three settled-decision paragraphs, and `bridge.py:4683` has it in a
-   docstring. The two user-facing ones go through
-   `tools/text_review.py` and the wording is the maintainer's.
+gate satisfied by a sentence, arriving from the other side.
 
 ONE THING IS WATCHED RATHER THAN OWED AND IS NOT COVERED BY THIS. The
 landing's last preview repaint firing before the new layer exists did
@@ -887,6 +786,43 @@ yet rather than work deferred from 0.24.4.** Each changes the shape of
 the interface, so each gets `/grill-me` before anything is written --
 this project's own rule, and the sessions that took it produced
 designs that stuck.
+
+**AND ALL THREE ARE EXPERIMENTAL UNTIL DESIGNATED OTHERWISE, BEHIND A
+BOX THAT IS UNTICKED BY DEFAULT.** (Maintainer's ruling, 2026-08-30.)
+An **Experimental features** checkbox goes under the THIRD tab, which
+is *Map options* -- the tab order is Design, Data & colours, Map
+options, Save & open, Help. Until it is ticked, none of the three tabs
+above can be activated and each of their titles is greyed. Ticking it
+is what makes them reachable.
+
+THE MECHANISM IS QT'S OWN, which is worth writing down because it
+matches the ask exactly rather than approximately:
+`QTabWidget.setTabEnabled(index, False)` both greys a tab's title and
+refuses selection, so "ungreyed" and "activatable" are one call and
+cannot come apart. Nothing has to be hidden, which is the point --
+somebody can SEE that there is more here and what it would cost them.
+
+THREE THINGS THE DESIGN STILL OWES, none of them settled by the
+ruling. WHERE THE ANSWER LIVES: this is a standing preference about
+the plugin rather than a fact about a map, so it belongs in QSettings
+beside the other preferences and NOT in the group's working state --
+which is the two-relationships framing in CLAUDE.md, and getting it
+wrong would carry one person's appetite for experiments into another
+person's project. WHAT A TICKED BOX MEANS FOR A SAVED FILE: if an
+experimental tab can put anything in the GeoPackage, a recipient
+without the box ticked has to be able to open that file, so either
+those tabs write nothing durable or the record has to survive being
+unreadable. AND WHAT HAPPENS WHEN A TAB GRADUATES: the box stops
+gating it, which is a one-line change and a sentence in the changelog,
+so the cost of being wrong about any of this is low -- which is the
+argument for the box rather than for holding the tabs back.
+
+IT ALSO GIVES 0.24.5 A CHEAP FIRST STEP. The box and the greying can
+be built and shipped BEFORE any of the three tabs exist, which is
+worth doing: it is a small, self-contained piece of interface with its
+own guard, and it means the first tab to arrive lands behind a gate
+that is already tested rather than beside one written in the same
+hurry.
 
 **A MESSAGES TAB: everything the plugin has said, in one place.** A
 reverse-chronological, timestamped, scrolling log of what the plugin
