@@ -41226,6 +41226,22 @@ def test_the_help_tab_names_real_controls():
         texts.append(clean(value))
   for tabs in dlg.findChildren(QTabWidget):
     texts.extend(clean(tabs.tabText(i)) for i in range(tabs.count()))
+  # AND WHAT THE DROPDOWNS OFFER, which is as much a thing the dialog
+  # shows as a label is. The help may legitimately name an ENTRY a
+  # person picks -- "Create new" in the group chooser is one -- and
+  # until 2026-08-30 this walk collected `text()` and `title()` and
+  # tab titles only, so naming an entry read as naming a control that
+  # does not exist. Widening what counts as shown makes the help
+  # checkable against MORE of the interface, which is the direction to
+  # widen a guard in.
+  from qgis.PyQt.QtWidgets import QComboBox
+  combos = 0
+  for combo in dlg.findChildren(QComboBox):
+    combos += 1
+    texts.extend(clean(combo.itemText(i)) for i in range(combo.count()))
+  assert combos, \
+    "no combo boxes were found at all, so the entries this walk was " \
+    "widened to see are not being collected"
   missing = [p for p in named
              if not any(p in text for text in texts)]
   assert not missing, \
