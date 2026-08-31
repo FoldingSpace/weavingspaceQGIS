@@ -8733,6 +8733,28 @@ MUTATIONS = [
        why="experimental until designated otherwise (maintainer, "
            "2026-08-30): a box that starts ticked offers work still "
            "being designed to somebody who never asked for it"),
+  dict(name="opening-the-experiments-asks-for-the-topology", file=DIALOG,
+       # The box's `toggled` reached the gate and the touch counter and
+       # nothing else, while `_queue_topology` runs only from
+       # `_rebuild_unit` and the deferred-edits branch -- so the gate
+       # OPENED the tab and nothing filled it.
+       # MUTATED AWAY, ticking the box builds nothing: the tab offers
+       # an empty class chooser beside an enabled Apply, and after a
+       # design change made while the box was off it draws the PREVIOUS
+       # design's classes, so the edge somebody clicks is not the edge
+       # that moves.
+       # ANCHORED AT THE DECISION rather than at the connection: the
+       # `if on` is what makes the tick mean "asked", and an entry
+       # standing on the connect line alone would be satisfied by any
+       # other caller somebody adds later.
+       old="""    if on:
+      self._queue_topology()""",
+       new="""    if False:
+      self._queue_topology()""",
+       test="test_ticking_the_experimental_box_fills_the_topology_tab",
+       why="somebody who asks to see the feature meets a blank tab "
+           "with a live button on it, and then one describing a design "
+           "they have already moved away from"),
   dict(name="a-save-waits-only-for-a-run-that-is-coming", file=DIALOG,
        # `_queue_live` arms the live timer on every output-affecting
        # change WHATEVER the checkbox says, and `_maybe_live_generate`

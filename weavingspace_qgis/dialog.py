@@ -3122,6 +3122,8 @@ class WeavingSpaceDialog(QDialog):
     self.opt_experimental.setChecked(False)
     self.opt_experimental.toggled.connect(self._gate_experimental_tabs)
     self.opt_experimental.toggled.connect(self._note_an_experimental_touch)
+    self.opt_experimental.toggled.connect(
+      self._ask_for_a_topology_when_the_experiments_open)
     olayout.addWidget(self.opt_experimental)
 
     olayout.addStretch(1)
@@ -20750,6 +20752,45 @@ class WeavingSpaceDialog(QDialog):
       against the count taken when each file was opened.
     """
     self._experimental_touches += 1
+
+  def _ask_for_a_topology_when_the_experiments_open(self, on):
+    """Fill the Topology tab when somebody first asks to see it.
+
+    Args:
+      on: the box's new state. Only True does anything; unticking
+        neither builds nor discards, since the tab keeps whatever it
+        last held and a person who puts an experiment away has not
+        asked for work to be done.
+
+    Returns:
+      None. Queues the off-thread build `_queue_topology` owns, which
+      declines by itself where the design carries no topology and
+      where one is already in flight.
+
+    WHY IT EXISTS: the box's `toggled` reached `_gate_experimental_tabs`
+    and `_note_an_experimental_touch`, and `_queue_topology` runs only
+    from `_rebuild_unit` and the deferred-edits branch. So the gate
+    OPENED the tab and nothing filled it: ticking the box and waiting
+    twenty seconds left `_topology` None, an empty class chooser and an
+    enabled Apply button, while one nudge of any design control filled
+    it at once. FOUND BY TWO HUNTS INDEPENDENTLY on 2026-08-31, from
+    the stochastic direction and from the boundaries, and confirmed
+    here by driving the tick against a design change as its control.
+
+    AND THE STALE HALF IS THE WORSE ONE. Change the design with the box
+    OFF and no build runs, so the panel goes on holding the previous
+    design's unit; tick the box afterwards and the tab draws THAT --
+    offering edge and vertex classes of a design nobody is looking at,
+    so the edge somebody clicks is not the edge that moves. Measured:
+    with the design moved to `square-colouring 5`, the panel still held
+    the unit built for `laves 3.3.4.3.4`.
+
+    THE COST RULING IS UNTOUCHED, which is why this hangs on the box
+    rather than on the tab. Nobody who has not asked for the feature
+    pays the 0.75-4.4s a build takes: the tick IS the asking.
+    """
+    if on:
+      self._queue_topology()
 
   def _note_an_embed_touch(self, _on):
     """Count a deliberate opinion about including the source data.

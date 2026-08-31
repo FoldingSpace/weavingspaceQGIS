@@ -3821,6 +3821,73 @@ def test_a_text_column_shares_one_classification():
       "a source with no features is the state that reads as success"
 
 
+def test_ticking_the_experimental_box_fills_the_topology_tab():
+  """Opening the experiments asks for the work they need.
+
+  `opt_experimental.toggled` reached `_gate_experimental_tabs` and
+  `_note_an_experimental_touch`, and `_queue_topology` runs only from
+  `_rebuild_unit` and the deferred-edits branch. So the gate OPENED the
+  Topology tab and nothing filled it: ticking the box and waiting left
+  `_topology` None, an empty class chooser and an enabled Apply button,
+  while one nudge of any design control filled it at once.
+
+  AND THE STALE HALF IS WORSE THAN THE EMPTY ONE. Change the design
+  with the box OFF and no build runs, so the panel goes on holding the
+  previous design's unit; tick the box afterwards and the tab offers
+  the edge and vertex classes of a design nobody is looking at, so the
+  edge somebody clicks is not the edge that moves. Both arms are here,
+  because a repair that filled a fresh tab and left the stale one would
+  pass the first alone.
+
+  THE CONTROL IS THE DESIGN CHANGE. It proves the machinery works and
+  that only the ASKING was missing -- without it, a tab that stayed
+  empty for some other reason would read as this defect.
+
+  FOUND BY TWO HUNTS INDEPENDENTLY on 2026-08-31, from the stochastic
+  direction and from the boundaries, which is the strongest
+  confirmation this method produces.
+
+  Regression: ticking Experimental features opened the Topology tab without building anything, so it showed an empty class chooser beside an enabled Apply button -- and after a design change made with the box off it drew the PREVIOUS design's classes. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    panel = dlg.topology_panel
+    assert panel._topology is None, \
+      "PREMISE: something has already built a topology, so this test " \
+      "cannot tell asking from having asked"
+
+    dlg.opt_experimental.setChecked(True)
+    _settle_topology(dlg)
+    assert panel._topology is not None, (
+      "ticking the box opened the Topology tab and built nothing, so "
+      "it offers an empty class chooser beside an enabled Apply")
+    assert panel.class_combo.count() > 0, \
+      "the tab has a topology and still offers no class to move"
+
+    # THE STALE ARM: move the design with the experiments PUT AWAY, so
+    # no build runs, then open them again.
+    dlg.opt_experimental.setChecked(False)
+    _tick(200)
+    before = dlg._topology_stamp()
+    dlg.n_spin.setValue(dlg.n_spin.value() + 1)
+    _tick(800)
+    assert dlg._topology_stamp() != before, \
+      "PREMISE: the design did not actually move while the box was " \
+      "off, so there is no staleness for the tick to cure"
+    dlg.opt_experimental.setChecked(True)
+    _settle_topology(dlg)
+    assert panel._topology is not None, (
+      "the tab was opened onto a design changed while it was away and "
+      "built nothing, so it describes the design before the change")
+  finally:
+    dlg.close()
+
+
 def test_a_save_is_deferred_only_when_a_run_is_really_coming():
   """A Save waits for a redraw only where a redraw is actually coming.
 
@@ -77749,6 +77816,8 @@ def main():
         test_the_topology_matrix)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
+  check("ticking the experimental box fills the topology tab",
+        test_ticking_the_experimental_box_fills_the_topology_tab)
   check("a save is deferred only when a run is really coming",
         test_a_save_is_deferred_only_when_a_run_is_really_coming)
   check("the motif's key ignores the crs and nothing else",
