@@ -1838,6 +1838,16 @@ class WeavingSpaceDialog(QDialog):
     # list means those are already in the tab the first time somebody
     # opens it, rather than being the messages it cannot show.
     self._said = said.SAID
+    # THE TOPOLOGY, and the record of what has been done to it.
+    # `_topology_task` is the one build in flight, `_topology_wanted`
+    # the request that arrived while it was, and `_topology_shelf`
+    # keeps each design's edits under its own key -- by family AND
+    # element count, since an edge class named `a` is a different edge
+    # in a different family and replaying by label alone would land
+    # somebody's edit on the wrong one (grilled 2026-08-30).
+    self._topology_task = None
+    self._topology_wanted = False
+    self._topology_shelf = {}
     # True only while `_on_group_chosen` is moving the region chooser
     # on the user's behalf. Choosing a group is RESUMING work, so the
     # protections a change of dataset arms must not fire: they exist
@@ -3153,13 +3163,29 @@ class WeavingSpaceDialog(QDialog):
     mlayout.addLayout(clear_row)
     tabs.addTab(messages_tab, "Messages")
 
+    # ---- tab 7: topology, EXPERIMENTAL (grilled 2026-08-30)
+    # The structure of the repeating UNIT -- which tiles are the same
+    # shape, which edges are equivalent under the tiling's own
+    # symmetries, and the dual -- with the manipulations the vendored
+    # library offers. Built before the modifiers, because `Topology`
+    # needs a gap-free tiling and an inset or a strand width below 1.0
+    # does not give it one.
+    from .topology_tab import TopologyPanel
+    self.topology_panel = TopologyPanel()
+    self.topology_panel.edits_changed.connect(self._on_topology_edited)
+    tabs.addTab(self.topology_panel, "Topology")
+
     # THE GATE, and the two records it needs. `_tabs` because nothing
     # else on the dialog held the tab widget, and the indices because
     # a tab's position is how Qt enables it -- collected here rather
     # than searched for by title, since a title is a label and this
     # project's own rule is that a label is never a key.
     self._tabs = tabs
-    self._experimental_tabs = (tabs.count() - 1,)
+    # BOTH EXPERIMENTAL TABS, by index rather than by title, because a
+    # title is a label and this project's rule is that a label is
+    # never a key. Collected here, where the tabs have just been
+    # added, so the pair cannot drift from what was built.
+    self._experimental_tabs = (tabs.count() - 2, tabs.count() - 1)
     self._gate_experimental_tabs()
     # Anything recorded while the tabs were still being built now has
     # somewhere to appear.
@@ -5660,11 +5686,44 @@ class WeavingSpaceDialog(QDialog):
     self._refresh_table()
     self.preview.show_unit(self._unit, self._table_id_colours(),
                            self.shells_spin.value())
+    # THE TOPOLOGY FOLLOWS THE UNIT, and this is the one place that
+    # says so. Everything that changes the unit arrives here -- the
+    # family, the kind, the element count, the family's own options --
+    # and nothing else does: a colour or a ramp takes the restyle path
+    # and never reaches this method, which is exactly the boundary the
+    # maintainer drew on 2026-08-30. The build itself is off the main
+    # thread and costs nothing until somebody ticks the experimental
+    # box.
+    self._restore_topology_edits()
+    self._queue_topology()
     # WHAT THIS COST, so the next debounce can be at least this long.
     # See PREVIEW_DEBOUNCE_MS: the wait is a floor rather than a fixed
     # number precisely so a machine or a design nobody here measured
     # widens it back towards the old flat value on its own.
     self._last_rebuild_ms = (time.monotonic() - started) * 1000.0
+
+  def _restore_topology_edits(self) -> None:
+    """Put this design's own edits back into the tab.
+
+    Returns:
+      None. Edits are shelved by family AND element count, so leaving
+      a design puts them idle and returning brings them back -- the
+      shape this project already uses for the scheme shelf and for a
+      modifier number somebody typed.
+
+    NEVER REPLAYED BY LABEL ALONE. Edge classes differ between
+    families -- laves 3.3.4.3.4 has `a,b` and hex-slice 4 has
+    `a,b,c,d` -- so the same letter names a different edge in each, and
+    a blind replay would land somebody's edit on the wrong one. The key
+    is what stops that.
+    """
+    panel = getattr(self, "topology_panel", None)
+    if panel is None:
+      return
+    from . import topology_edits
+    key = topology_edits.shelf_key(self.family_combo.currentText(),
+                                   self._element_count())
+    panel.set_edits(self._topology_shelf.get(key, []))
 
   # ------------------------------------------------------------- data table
 
@@ -19964,6 +20023,168 @@ class WeavingSpaceDialog(QDialog):
     if not allowed and tabs.currentIndex() in getattr(
         self, "_experimental_tabs", ()):
       tabs.setCurrentIndex(0)
+
+  def _queue_topology(self) -> None:
+    """Work out the current design's topology, off the main thread.
+
+    Returns:
+      None. Does nothing at all unless the experimental box is ticked,
+      which is the maintainer's ruling of 2026-08-30: a build costs
+      0.75s on laves 3.3.4.3.4 and 2.1-4.4s on hex-slice 6 and
+      square-colouring 5, and nobody who has not asked for the feature
+      should pay that on every Generate.
+
+    IT IS THE UNIT THIS FOLLOWS, NOT THE GEOMETRY SIGNATURE. That
+    signature also carries the region layer, the output path and the
+    mapped variables, none of which changes the unit's topology --
+    and it must never follow a colour or a ramp, which take the
+    restyle path and re-tile nothing (the maintainer's own
+    correction). So this is called from where the tile unit is
+    rebuilt, which is the same trigger the preview hangs off.
+
+    THE CRS IS STRIPPED BEFORE THE WORKER, exactly as the tiling path
+    strips it and for the same reason: QGIS links the same PROJ on the
+    main thread and concurrent use segfaults the application. A
+    topology is pure geometry in unit space, so it needs no CRS at
+    all, and none is reattached.
+    """
+    if not getattr(self, "opt_experimental", None) or \
+       not self.opt_experimental.isChecked():
+      return
+    panel = getattr(self, "topology_panel", None)
+    if panel is None or self._unit is None:
+      return
+    if self._topology_task is not None:
+      # One at a time, and the LAST request wins: a person dragging
+      # the element slider would otherwise queue a build per step, and
+      # each is seconds long.
+      self._topology_wanted = True
+      return
+    import copy
+    unit = copy.deepcopy(self._unit)
+    unit.crs = None
+    for attribute in ("tiles", "prototile", "regularised_prototile"):
+      part = getattr(unit, attribute, None)
+      if part is not None:
+        part.crs = None
+    # WHAT THE BUILD IS ABOUT, carried beside it: a topology that
+    # lands after the design has moved describes a design nobody is
+    # looking at, which is this project's own landing rule. The answer
+    # is refused rather than shown when these disagree.
+    stamp = self._topology_stamp()
+    built = {}
+
+    from . import topology_edits
+    wanted_edits = self._topology_shelf.get(
+      topology_edits.shelf_key(self.family_combo.currentText(),
+                               self._element_count()), [])
+    result_crs = getattr(self._unit, "crs", None)
+
+    def work(task):
+      """The expensive half, on the worker thread."""
+      topology, why = topology_edits.build(unit)
+      built["topology"] = topology
+      built["why"] = why
+      built["unit"] = unit
+      # THE EDITS ARE REPLAYED HERE, where the topology already exists
+      # and the thread is not the one drawing the window. Replaying on
+      # the main thread would put a 0.75-4.4s build plus a rebuild per
+      # edit in front of every preview.
+      if topology is not None and wanted_edits:
+        edited, refusals = topology_edits.apply(topology, wanted_edits)
+        built["edited"] = edited
+        built["refusals"] = refusals
+      return None
+
+    def done(_result, error):
+      """Back on the main thread, with the answer or the reason."""
+      self._topology_task = None
+      if error is not None:
+        panel.set_unit(None, None, "The topology could not be worked out.")
+      elif stamp != self._topology_stamp():
+        # SUPERSEDED, and silently: the design moved while this was
+        # being worked out, so what came back describes something else.
+        # This is the landing rule this project already applies to a
+        # tiling -- an answer is about the design it was launched for.
+        _dump("TOPOLOGY", "superseded")
+      else:
+        panel.set_unit(built.get("unit"), built.get("topology"),
+                       built.get("why", ""))
+        panel.report(built.get("refusals") or [])
+        edited = built.get("edited")
+        if edited is not None:
+          # THE CRS GOES BACK ON HERE, on the main thread, because
+          # attaching one constructs a pyproj CRS and the worker may
+          # never do that -- the same rule, and the same reattachment
+          # point, as the tiling's own result.
+          self._adopt_edited_unit(edited, result_crs)
+      if self._topology_wanted:
+        self._topology_wanted = False
+        self._queue_topology()
+
+    self._topology_task = TilingTask("WeavingSpace topology", work, done)
+    QgsApplication.taskManager().addTask(self._topology_task)
+
+  def _adopt_edited_unit(self, edited, result_crs) -> None:
+    """Make the topology-edited unit the one the plugin draws from.
+
+    Args:
+      edited: the Tileable the replay produced, with no CRS on it.
+      result_crs: the CRS the unit had before the worker saw it.
+
+    Returns:
+      None. Puts the CRS back, replaces `_unit`, and refreshes the
+      preview so that what somebody is looking at is what a run would
+      draw.
+
+    WHY THE PREVIEW IS REFRESHED AND NOT THE MAP. This project's rule
+    is preserve, do not repaint: with live update off the map is
+    deliberately left alone until somebody asks, and an edit that
+    repainted it from a background task would be the plugin acting
+    unasked. What must not happen is the two disagreeing silently, and
+    they do not -- the preview is what the design view promises to
+    describe, and `_queue_live` is left to the ordinary rules.
+    """
+    if edited is None:
+      return
+    try:
+      edited.crs = result_crs
+      for attribute in ("tiles", "prototile", "regularised_prototile"):
+        part = getattr(edited, attribute, None)
+        if part is not None:
+          part.crs = result_crs
+    except Exception:                                 # noqa: BLE001
+      return
+    self._unit = edited
+    self.preview.show_unit(self._unit, self._table_id_colours(),
+                           self.shells_spin.value())
+
+  def _topology_stamp(self):
+    """What the current topology would be ABOUT.
+
+    Returns:
+      A tuple of the family, the element count and the unit's own
+      options -- the things a topology depends on, and nothing else.
+      Compared when a build lands, so an answer for a design somebody
+      has since changed away from is dropped rather than shown.
+    """
+    kwargs = self._unit_kwargs()
+    kwargs.pop("spec", None)
+    return (self.family_combo.currentText(), self._element_count(),
+            tuple(sorted(kwargs.items())))
+
+  def _on_topology_edited(self) -> None:
+    """The topology tab's record changed; keep the design in step.
+
+    Returns:
+      None. Shelves the edits under the design they were made on and
+      asks for a redraw, which is what makes an edit reach the map.
+    """
+    from . import topology_edits
+    key = topology_edits.shelf_key(self.family_combo.currentText(),
+                                   self._element_count())
+    self._topology_shelf[key] = self.topology_panel.edits()
+    self._queue_preview()
 
   def _refresh_messages_tab(self) -> None:
     """Redraw the Messages tab from `_said`, newest first.

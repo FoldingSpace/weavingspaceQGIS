@@ -36,6 +36,7 @@ from qgis.PyQt.QtWidgets import (
   QLabel,
   QListWidget,
   QPushButton,
+  QScrollArea,
   QVBoxLayout,
   QWidget,
 )
@@ -100,7 +101,15 @@ class TopologyView(QWidget):
       parent: the owning widget, as Qt expects.
     """
     super().__init__(parent)
-    self.setMinimumSize(320, 260)
+    # SMALL, BECAUSE A TAB MUST NOT DICTATE THE WINDOW'S SIZE. A
+    # QStackedWidget takes the largest page's minimum, so a generous
+    # minimum here would set the height of the Design tab as well --
+    # and measured 2026-08-30 it did: the page wanted 607x581 against
+    # Design's 428, which pushed the dialog past the screen ceiling
+    # that had just been added. A MINIMUM BEATS A RESIZE, so the clamp
+    # could not pull it back. The view is happiest large and must be
+    # able to be small.
+    self.setMinimumSize(180, 150)
     self.setMouseTracking(True)
     self._topology = None
     self._preview = None
@@ -478,8 +487,24 @@ class TopologyPanel(QWidget):
     self.view.dropped.connect(self._on_dropped)
     layout.addWidget(self.view, 1)
 
-    side = QVBoxLayout()
-    layout.addLayout(side)
+    # THE CONTROLS SCROLL, so that this tab cannot set the height of
+    # every other one. A QStackedWidget takes the largest page's
+    # minimum, and this column -- seven toggles, two groups, three
+    # buttons and a list -- is simply taller than the Design tab:
+    # measured 2026-08-30 at 552px against Design's 428, which pushed
+    # the window past the screen ceiling, and a MINIMUM BEATS A
+    # RESIZE, so the clamp could not pull it back. Scrolling keeps
+    # every control reachable while asking for nothing.
+    side_holder = QWidget()
+    side = QVBoxLayout(side_holder)
+    side.setContentsMargins(0, 0, 0, 0)
+    side_scroll = QScrollArea()
+    side_scroll.setWidget(side_holder)
+    side_scroll.setWidgetResizable(True)
+    side_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+    side_scroll.setHorizontalScrollBarPolicy(
+      Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    layout.addWidget(side_scroll)
 
     note = QLabel(
       "The structure of the repeating unit, before any inset or\n"
@@ -538,6 +563,9 @@ class TopologyPanel(QWidget):
     side.addWidget(QLabel("Changes, oldest first"))
     self.edit_list = QListWidget()
     self.edit_list.setToolTip("Every change made to this design.")
+    # Same reason as the view's: this list grows with what is in it
+    # and must not set the floor for every other tab.
+    self.edit_list.setMinimumHeight(48)
     side.addWidget(self.edit_list, 1)
 
     self.note = QLabel("")
