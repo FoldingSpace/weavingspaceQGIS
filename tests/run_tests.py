@@ -3419,6 +3419,301 @@ def _unit_fingerprint(dlg):
           tuple(round(v, 6) for v in tiles.total_bounds))
 
 
+def test_a_text_column_shares_one_classification():
+  """Words get the shared classification numbers already had.
+
+  The ruling of 2026-08-15 is that one colour means one thing wherever
+  it appears: an element is classed from the WHOLE map's values, not
+  from its own tiles. `bridge.classification_source` is what carries
+  that -- a geometry-less scratch layer holding every value, built once
+  per column and handed to every element.
+
+  IT COULD NOT HOLD WORDS. The column was created as a DOUBLE field
+  whatever the values were, so for a text column every feature was
+  rejected; and the guard meant to catch that, `if not
+  provider.addFeatures(...)`, could never fire, because PyQGIS returns
+  the TUPLE `(ok, features)` and a two-element tuple is truthy however
+  `ok` reads. So the function returned an EMPTY layer rather than None,
+  and downstream `if not everywhere: everywhere = values` read that as
+  "nothing shared" and quietly restored per-element sampling. Four
+  elements on one column and one ramp then gave `#1f77b4` to `bare` on
+  two of them and `crops` on the other two -- a reader matching colour
+  to legend reads the wrong class, and the same renderers go into the
+  saved file.
+
+  WHY THE RULING'S OWN GUARD MISSED IT, which is the part worth
+  keeping: `test_one_colour_means_one_value_across_elements` passes
+  `classify_from=layer`, the region layer itself, so it exercises the
+  renderer with a source THE PRODUCT NEVER SUPPLIES. The ruling was
+  verified against a function while the dialog handed over something
+  else. This test asks the function for what the dialog asks it for,
+  and asserts on the values that come back.
+
+  Regression: a text column's shared classification source came back empty, so one colour meant different values on different elements. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  words = ["forest", "water", "urban", "forest", "water"]
+  shared = bridge.classification_source("landcover", words)
+  assert shared is not None, (
+    "a text column got no shared classification source at all, so "
+    "every element would be classed from its own tiles")
+  assert shared.featureCount() == len(words), (
+    f"the shared source holds {shared.featureCount()} of {len(words)} "
+    f"values -- an EMPTY one is what silently restored per-element "
+    f"sampling, and it is indistinguishable from a working one unless "
+    f"somebody counts")
+  held = [f["landcover"] for f in shared.getFeatures()]
+  assert held == words, \
+    f"the shared source holds {held}, not the values it was given"
+
+  # AND THE NUMERIC CONTROL, because a repair that fixed words by
+  # breaking numbers would pass every assertion above. This is the
+  # arm that was always working, and it must still work.
+  numbers = bridge.classification_source("v1", [1.0, 2.0, 3.0, 1.0])
+  assert numbers is not None and numbers.featureCount() == 4, (
+    "the numeric column, which was never broken, no longer carries "
+    "its values")
+
+  # AND A COLUMN THE FIELD CANNOT HOLD IS REFUSED RATHER THAN EMPTIED.
+  # The old code's contract was to return None so the caller could
+  # fall through; what it actually did was hand back an empty layer.
+  # A source that accepted nothing must never look like one that
+  # accepted everything.
+  for source in (shared, numbers):
+    assert source.featureCount() > 0, \
+      "a source with no features is the state that reads as success"
+
+
+def test_a_reopen_does_not_take_the_motif_out_of_the_file():
+  """A file's motif survives being opened by somebody at their defaults.
+
+  The two topology tables are written when the experimental box is
+  ticked and dropped when this design is known to have no topology.
+  The box is unticked on EVERY new dialog -- it is a default, not a
+  stored preference -- so a drop that asked the box fired for the
+  ABSENCE of the act it was written for: open a map saved yesterday,
+  change nothing, press Save, and the motif and dual the file was
+  written to describe were deleted while the plugin said "Saved".
+
+  TWO DOORS, because the first repair guarded only one. The Load
+  button reaches `_recover_the_source`, which is where a per-file
+  memory was kept; reopening the PLUGIN adopts the group instead and
+  never went near it, and adoption's own docstring calls that
+  something users do constantly. Both are driven here.
+
+  AND TICKING THE BOX TO LOOK AT THE TAB IS THE THIRD, which is the
+  one the feature actually invites: ticking builds no topology by
+  itself, so a guard counting "has anybody had an opinion" disarmed
+  and the drop ran anyway.
+
+  Regression: opening a saved map and pressing Save deleted the motif and dual it was written with. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  far = (10_000_000.0, 5_000_000.0)
+  layer = make_region_layer(origin=far)
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as td:
+    out = os.path.join(td, "reopened.gpkg")
+    first = WeavingSpaceDialog(iface=_Iface())
+    try:
+      first.live_check.setChecked(False)
+      first.opt_experimental.setChecked(True)
+      first.gpkg_widget.setFilePath(out)
+      first.show()
+      _tick(300)
+      _settle_topology(first)
+      assert first.topology_panel._topology is not None, \
+        "PREMISE: this design carries no topology, so nothing is written"
+      first._generate()
+      _settle(first)
+      assert press_save(first), "PREMISE: the first save did not write"
+      assert bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(out), \
+        "PREMISE: no motif was written, so none can be lost"
+    finally:
+      first.close()
+
+    # DOOR ONE: a fresh dialog at its defaults, Load, Save.
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      assert not second.opt_experimental.isChecked(), \
+        "PREMISE: the box is not at its default, so this is not the " \
+        "journey the defect was about"
+      second.live_check.setChecked(False)
+      second.show()
+      _tick(300)
+      second._resume_from_gpkg(out)
+      _settle(second)
+      second.gpkg_widget.setFilePath(out)
+      assert press_save(second, expect=False), \
+        "PREMISE: the second save did not write"
+    finally:
+      second.close()
+    after_load = bridge.gpkg_tables(out)
+    assert bridge.UNIT_TABLE_NAME in after_load, (
+      "opening a saved map at the plugin's own defaults and pressing "
+      "Save deleted the motif the file was written to describe: "
+      f"{sorted(after_load)}")
+
+    # DOOR TWO: ticking the box to LOOK at the tab, then saving.
+    third = WeavingSpaceDialog(iface=_Iface())
+    try:
+      third.live_check.setChecked(False)
+      third.show()
+      _tick(300)
+      third._resume_from_gpkg(out)
+      _settle(third)
+      third.opt_experimental.setChecked(True)   # to look at the tab
+      _tick(200)
+      third.gpkg_widget.setFilePath(out)
+      assert press_save(third, expect=False), \
+        "PREMISE: the third save did not write"
+    finally:
+      third.close()
+    after_peek = bridge.gpkg_tables(out)
+    assert bridge.UNIT_TABLE_NAME in after_peek, (
+      "ticking Experimental features to look at the tab, then saving, "
+      f"deleted the motif: {sorted(after_peek)}")
+  QgsProject.instance().removeAllMapLayers()
+
+
+def test_the_saved_dual_belongs_to_the_saved_unit():
+  """The two tables in a file describe ONE design.
+
+  Ruling 3 of 2026-08-30 puts the unit and its dual in the file so a
+  colleague can open the motif and its dual without the plugin. That
+  is worth nothing if they are of different designs -- and they were:
+  `topology_edits.apply` REBINDS rather than mutates, so the panel's
+  topology is never the edited one, and the save paired an edited unit
+  with the original's dual. Measured at 191,476 against 154,550 by
+  area, about 24% wrong, with one polygon out by 81% of a mean dual
+  polygon.
+
+  THE ORACLE IS THE FILE ITSELF, which is what makes this need no
+  expected value: build the dual of the design as it stands with the
+  edit, and the dual of the design without it, and require the file's
+  to be the FIRST. A test asserting only "both tables are present"
+  passed throughout, which is this project's gate-that-checks-half-of-
+  what-it-names.
+
+  Regression: the file paired an edited motif with the un-edited motif's dual. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge, catalog, topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as td:
+    out = os.path.join(td, "dual.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.gpkg_widget.setFilePath(out)
+      dlg.show()
+      _tick(300)
+      _settle_topology(dlg)
+      panel = dlg.topology_panel
+      assert panel._topology is not None, "PREMISE: no topology"
+      # NUDGE, NOT PUSH. Measured 2026-08-30: `push_vertex` at the
+      # panel's own default is a geometric no-op on this design, and
+      # `scale_edge` is idempotent -- a test built on either would
+      # compare re-gridding noise and prove nothing.
+      index = panel.how_combo.findData("nudge_vertex")
+      assert index >= 0, "PREMISE: nudge_vertex is not offered"
+      panel.how_combo.setCurrentIndex(index)
+      _tick(150)
+      panel.class_combo.setCurrentIndex(0)
+      _tick(150)
+      panel.apply_button.click()
+      _settle_topology(dlg)
+      _tick(300)
+      assert panel.edits(), "PREMISE: the button recorded no edit"
+      dlg._generate()
+      _settle(dlg)
+      assert press_save(dlg), "PREMISE: the save did not write"
+      spec = dlg._current_spec()
+    finally:
+      dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+    import geopandas as gpd
+    in_file = gpd.read_file(out, layer=bridge.DUAL_TABLE_NAME)
+    got = round(float(in_file.geometry.area.sum()), 2)
+
+    plain = catalog.make_unit(spec, 500.0, None)
+    topology, _why = topology_edits.build(plain)
+    assert topology is not None, "PREMISE: the design lost its topology"
+    unedited = round(
+      float(topology_edits.dual_frame(topology).geometry.area.sum()), 2)
+    edited_unit, refusals = topology_edits.apply(
+      topology, [{"classes": topology_edits.classes(topology)["vertex"][0],
+                  "how": "nudge_vertex", "args": {"dx": 0.05, "dy": 0.05}}])
+    assert not refusals, f"PREMISE: the edit was refused: {refusals}"
+    edited_topology, _why2 = topology_edits.build(edited_unit)
+    assert edited_topology is not None, \
+      "PREMISE: the edited design has no topology to take a dual of"
+    edited = round(
+      float(topology_edits.dual_frame(edited_topology).geometry.area.sum()), 2)
+    assert abs(edited - unedited) > 1.0, (
+      "PREMISE: this edit does not move the dual, so the file cannot "
+      f"be shown to carry the wrong one (both {edited})")
+    assert abs(got - edited) < max(1.0, abs(edited) * 1e-6), (
+      f"the file's dual has area {got}; the dual of the motif it "
+      f"carries is {edited} and the UN-EDITED motif's is {unedited}, so "
+      f"a colleague opening the pair gets a motif beside somebody "
+      f"else's dual")
+
+
+def test_the_element_slider_follows_a_restore():
+  """The slider and the box never disagree, restores included.
+
+  They are two widgets for one number, kept in step by
+  `_on_element_count_moved`. A restore writes the design through
+  `WORKING_STATE_DESIGN`, which names `n_spin` and only `n_spin`, WITH
+  SIGNALS BLOCKED -- so that handler never ran and the slider was left
+  wherever it was.
+
+  THE DESIGN WAS STILL RIGHT, which is why nothing looked wrong:
+  `_element_count()` reads the box. The slider was a loaded gun. One
+  arrow key moves it from ITS OWN stale position, so somebody who
+  restored a forty-element map and nudged the slider to look at
+  forty-one got a five-element design with the family reset.
+
+  Regression: a restore left the slider at its old position, so the next nudge rewrote the design. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    # a count far from the default, so a stale slider is unmistakable
+    dlg.n_spin.setValue(12)
+    _tick(300)
+    record = dlg._capture_working_state()
+    dlg.n_spin.setValue(4)
+    _tick(300)
+    assert dlg.n_slider.value() == 4, \
+      "PREMISE: the widgets already disagree before the restore"
+
+    dlg._apply_working_state(record)
+    _tick(400)
+    assert dlg._element_count() == 12, \
+      f"PREMISE: the restore did not bring the count back: " \
+      f"{dlg._element_count()}"
+    assert dlg.n_slider.value() == dlg.n_spin.value(), (
+      f"the restore left the two widgets for one number disagreeing: "
+      f"box {dlg.n_spin.value()}, slider {dlg.n_slider.value()} -- so "
+      f"the next touch of the slider rewrites the design from its "
+      f"stale position")
+  finally:
+    dlg.close()
+
+
 def test_the_topology_matrix():
   """Every manipulation, across designs, across what happens next.
 
@@ -75361,6 +75656,14 @@ def main():
         test_the_saved_unit_and_dual_carry_no_crs)
   check("the topology matrix",
         test_the_topology_matrix)
+  check("a text column shares one classification",
+        test_a_text_column_shares_one_classification)
+  check("a reopen does not take the motif out of the file",
+        test_a_reopen_does_not_take_the_motif_out_of_the_file)
+  check("the saved dual belongs to the saved unit",
+        test_the_saved_dual_belongs_to_the_saved_unit)
+  check("the element slider follows a restore",
+        test_the_element_slider_follows_a_restore)
   check("an edit for a class that has gone is reported",
         test_an_edit_for_a_class_that_has_gone_is_reported)
   check("a topology that lands late is discarded",

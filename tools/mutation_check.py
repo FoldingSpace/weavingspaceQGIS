@@ -2407,6 +2407,56 @@ MUTATIONS = [
        test="test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt",
        why="a reopened project finding the output group its own "
            "dataset made, rather than piling a second one beside it"),
+  dict(name="the-shared-classification-column-holds-words", file=BRIDGE,
+       # Restores the shipped behaviour measured 2026-08-31: the column
+       # was a DOUBLE field whatever the values were, so a text column
+       # -- which is what categorical mapping is for -- rejected every
+       # feature and this handed back an EMPTY layer. Downstream that
+       # reads as "nothing shared" and silently restores per-element
+       # sampling, so one colour meant different values on different
+       # elements of one map.
+       old="""    kind = float if _values_are_all_numbers(values) else str""",
+       new="""    kind = float""",
+       test="test_a_text_column_shares_one_classification",
+       why="a colour meaning the same thing on every element of a map "
+           "whose column holds words"),
+  dict(name="a-reopen-does-not-take-the-motif-out-of-the-file",
+       file=DIALOG,
+       # Restores the behaviour measured on 2026-08-30: the drop asked
+       # whether the write was WANTED, and with the experimental box at
+       # its default -- which is every new dialog -- that was False, so
+       # opening a saved map and pressing Save deleted the motif and
+       # dual the file was written to describe. Distinct from the entry
+       # below it: that one removes the drop, this one makes it
+       # unconditional, which are the two ways this decision can be
+       # wrong and they need different assertions.
+       old="""    if ours and knows and not assessed_has:""",
+       new="""    if ours and not wanted:""",
+       test="test_a_reopen_does_not_take_the_motif_out_of_the_file",
+       why="a saved map keeping its motif when somebody opens it at "
+           "the plugin's own defaults"),
+  dict(name="the-saved-dual-belongs-to-the-saved-unit", file=DIALOG,
+       # `apply` rebinds rather than mutates, so `panel._topology` is
+       # never the edited one. Taking the dual from it pairs an edited
+       # motif with the original's dual -- measured 191,476 against
+       # 154,550 by area -- which defeats the entire argument for
+       # writing the pair at all.
+       old="""        for_dual = built.get("edited_topology") or built.get("topology")""",
+       new="""        for_dual = built.get("topology")""",
+       test="test_the_saved_dual_belongs_to_the_saved_unit",
+       why="a colleague opening the file getting the dual OF the motif "
+           "beside it, rather than of a design nobody saved"),
+  dict(name="a-restore-moves-the-slider-too", file=DIALOG,
+       # The whitelist walk names `n_spin` alone and writes with
+       # signals blocked, so the pair's own sync never runs on a
+       # restore. Removing this leaves the slider wherever it was, and
+       # the next nudge rewrites the design from that stale position --
+       # a restored forty-element map became five.
+       old="""    self._put_both_element_widgets_at(self._element_count())""",
+       new="""    pass""",
+       test="test_the_element_slider_follows_a_restore",
+       why="the two widgets for one number agreeing after a restore, "
+           "so a nudge of the slider does not rewrite the design"),
   dict(name="an-edit-that-changes-nothing-says-so", file=TOPOLOGY_EDITS,
        # Found by the topology matrix on its first honest run. The
        # library accepts a manipulation aimed at a class that does not

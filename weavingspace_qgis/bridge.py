@@ -2522,7 +2522,19 @@ def classification_source(field: str, values) -> QgsVectorLayer | None:
   try:
     layer = QgsVectorLayer("None", "weavingspace classification", "memory")
     provider = layer.dataProvider()
-    if not provider.addAttributes([compat.make_field(field, float)]):
+    # THE COLUMN TAKES THE KIND OF THE VALUES, not `float` always.
+    # (2026-08-31, found by a hunt and measured both ways.) A double
+    # field will not accept words, so for a TEXT column -- which is
+    # what categorical mapping is FOR -- every feature was rejected and
+    # this handed back an EMPTY layer. Downstream,
+    # `if not everywhere: everywhere = values` reads an empty source as
+    # "nothing to share" and silently restores the per-element
+    # sampling the ruling of 2026-08-15 abolished, so one colour meant
+    # different values on different elements of the same map: measured
+    # with four elements on one column and one ramp, `#1f77b4` was
+    # `bare` on two and `crops` on the other two.
+    kind = float if _values_are_all_numbers(values) else str
+    if not provider.addAttributes([compat.make_field(field, kind)]):
       return None
     layer.updateFields()
     features = []
@@ -2534,12 +2546,68 @@ def classification_source(field: str, values) -> QgsVectorLayer | None:
       # doing the same job differently.
       feature[field] = value
       features.append(feature)
-    if not provider.addFeatures(features):
+    # AND THE ANSWER IS READ PROPERLY. `addFeatures` returns a TUPLE
+    # `(ok, features)` in PyQGIS, and a two-element tuple is TRUTHY
+    # whatever `ok` says -- so `if not provider.addFeatures(...)` could
+    # never fire, and the documented fall-through to the old behaviour
+    # never happened. Measured: `(False, [...])`, truthy, with zero
+    # features added. That is this project's "a guard that can only
+    # confirm is not a guard", inside a line written to catch exactly
+    # this failure.
+    #
+    # THE COUNT IS WHAT SETTLES IT, because the flag alone has now been
+    # wrong once: a source that accepted nothing is indistinguishable
+    # from one that accepted everything unless somebody looks.
+    added = provider.addFeatures(features)
+    if isinstance(added, tuple):
+      added = added[0] if added else False
+    if not added or layer.featureCount() != len(features):
       return None
     layer.updateExtents()
     return layer
   except Exception:
     return None
+
+
+def _values_are_all_numbers(values) -> bool:
+  """Whether a column's values can live in a double field.
+
+  Args:
+    values: the column's values, as read from the region layer.
+
+  Returns:
+    True where every value that is not missing is a real number, so a
+    double field will hold them all. False where any is a word, which
+    means the shared classification column must be text.
+
+  MISSING VALUES DO NOT DECIDE. NULL and NaN travel through this layer
+  deliberately -- the null workaround in `make_graduated_renderer`
+  exists to deal with them, and dropping them here would be a second
+  rule doing that job differently -- so they are skipped rather than
+  counted against either answer. A column of nothing but blanks is
+  numeric by this test, which is the harmless direction: there is
+  nothing to lose.
+
+  IT IS STRICT ABOUT WORDS, matching `_field_is_numeric`'s own rule
+  that "mostly numbers" is a column with something else in it. One
+  word makes the whole column text, because a double field would drop
+  exactly that row and a legend would lose the class it names.
+  """
+  import math
+  for value in values:
+    if value is None:
+      continue
+    if isinstance(value, float) and math.isnan(value):
+      continue
+    if isinstance(value, bool):
+      return False
+    if isinstance(value, (int, float)):
+      continue
+    try:
+      float(str(value))
+    except (TypeError, ValueError):
+      return False
+  return True
 
 
 def cannot_be_placed(value) -> bool:

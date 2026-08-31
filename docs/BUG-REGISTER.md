@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-446 defect(s) with a regression test.
+450 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -435,6 +435,8 @@ there is no separate list to remember.
   guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
 - **a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26.**  
   guarded by `test_a_recoded_category_reaches_the_legend`
+- **opening a saved map and pressing Save deleted the motif and dual it was written with.**  
+  guarded by `test_a_reopen_does_not_take_the_motif_out_of_the_file`
 - **closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle.**  
   guarded by `test_a_reopened_dialog_wears_the_design_it_left`
 - **reopening a project under an open plugin panel bound the dataset identity to one of the plugin's own output layers, so the project's hand-picked colours and pinned bounds were unreachable and the next Generate destroyed them.**  
@@ -467,6 +469,8 @@ there is no separate list to remember.
   guarded by `test_a_style_switch_is_not_consent_to_lose_a_pin`
 - **a dialog that had not adopted the output GeoPackage left the table of an element's previous variable behind, and resuming that file drew the abandoned variable over the map. Found by the element-tables hunt, 2026-08-27.**  
   guarded by `test_a_switched_variable_leaves_no_orphan_in_the_file`
+- **a text column's shared classification source came back empty, so one colour meant different values on different elements.**  
+  guarded by `test_a_text_column_shares_one_classification`
 - **element ids were capped at 26 for every family, so a tiling could not carry more variables than the lowercase alphabet has letters. Raised for tilings at the maintainer's asking, 2026-08-27.**  
   guarded by `test_a_tiling_may_carry_two_letter_elements`
 - **an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control.**  
@@ -543,6 +547,8 @@ there is no separate list to remember.
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **the two element-count widgets could disagree, and nothing read the count off the design that was actually built.**  
   guarded by `test_the_element_count_is_one_control_in_two_widgets`
+- **a restore left the slider at its old position, so the next nudge rewrote the design.**  
+  guarded by `test_the_element_slider_follows_a_restore`
 - **experimental tabs shipped reachable, so work still being designed was offered as though it were settled.**  
   guarded by `test_the_experimental_box_gates_its_tabs`
 - **a restyle wrote the new design onto the group and into the layers' embedded styles but never into the GeoPackage's own working-state record, so a file opened elsewhere resumed the design from before the last style change.**  
@@ -575,6 +581,8 @@ there is no separate list to remember.
   guarded by `test_the_return_leg_restores_the_chosen_variable`
 - **the roadmap gate cleared 0.24.3 for a candidate while its section listed eleven unreproduced hunt claims and five untested fixes, because the sentence saying the section was NOT clear contained the words the gate looks for.**  
   guarded by `test_the_roadmap_gate_reads_a_statement_not_a_mention`
+- **the file paired an edited motif with the un-edited motif's dual.**  
+  guarded by `test_the_saved_dual_belongs_to_the_saved_unit`
 - **the unit and dual were written under the map's CRS, putting the motif at the origin of the region's projection.**  
   guarded by `test_the_saved_unit_and_dual_carry_no_crs`
 - **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
@@ -943,7 +951,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 137
+- the mutation campaign: 141
 - a bug hunt pointed in a named direction: 131
 - not written down at the time: 88
 - reported by a user: 30

@@ -8733,9 +8733,29 @@ class WeavingSpaceDialog(QDialog):
         # map. Equal means the ramp is the style and the row should go
         # on reading its name; different means the colours are the
         # style and the row reads Custom.
+        # AND IT IS ASKED WITH THE SOURCE THE MAP WAS PAINTED FROM.
+        # (2026-08-31, found by a hunt and measured through the
+        # product.) Omitting `classify_from` makes the trial sample the
+        # ELEMENT's own values, while the map is painted from the whole
+        # region's -- so for any element that does not happen to hold
+        # every value, the trial reproduced nothing, and this walk
+        # "recovered" the ramp's own colours as somebody's HAND-PICKS.
+        # After a reopen those elements read Custom, picks outrank the
+        # ramp, and one later edit to the column left `#2ca02c` meaning
+        # `crops` on two elements and `#1f77b4` meaning it on the other
+        # two -- the ONE COLOUR MEANS ONE THING ruling broken through
+        # the reopen door.
+        #
+        # THE GRADUATED TWIN IS SAFE BY LUCK, not by design: its class
+        # colours are a function of the class COUNT, so an element's
+        # own layer answers correctly. Categorical colours are a
+        # function of the map-wide VALUE LIST, and that asymmetry is
+        # the whole defect -- which is why the twin needed no change
+        # and this one did.
         try:
           from_ramp = bridge.make_categorized_renderer(
-            layer, field, named, False, None, flipped)
+            layer, field, named, False, None, flipped,
+            classify_from=self._classification_values(field))
           expected = {str(c.value()): c.symbol().color().name()
                       for c in from_ramp.categories()}
         except Exception:
@@ -9696,6 +9716,33 @@ class WeavingSpaceDialog(QDialog):
       self._layer_slots.pop(gone, None)
     self._layer_slots.setdefault(layer.id(), []).append(
       (_style_if_alive, _repaint_if_alive))
+
+  def _already_watching(self, layer) -> bool:
+    """Whether this layer's signals are already connected to us.
+
+    Args:
+      layer: the element layer about to be watched.
+
+    Returns:
+      True where a previous call already connected the pair, so this
+      one would add a SECOND set to the same signals.
+
+    WATCHING TWICE IS THE ACTUAL FAULT, and holding both pairs was
+    treating its symptom. `_watch_element_layer` has two callers: the
+    landing, which MAKES the layer and must watch it, and
+    `_adopt_existing_group`, which re-watches unconditionally. So every
+    pick of an output group added another connection per layer, for
+    ever -- measured 2026-08-31: five picks gave six pairs per id and
+    six handler runs per edit, 10.9 ms at four elements and scaling
+    with connections times rows.
+    NO HARM WAS FOUND FROM THE DUPLICATE DISPATCH -- four doors were
+    compared at one connection against three and every notice, adopted
+    pick, ramp cell and drawn colour was byte-identical, handling being
+    idempotent -- so this is cost rather than a wrong map. It is fixed
+    at the caller's own question because that is where the mistake is,
+    and because a guard here is cheaper than an unbounded list.
+    """
+    return bool(getattr(self, "_layer_slots", {}).get(layer.id()))
 
   def _on_style_signal(self, layer_id, tile_id):
     """The styleChanged entry point, stamped so its echo is known.
@@ -16276,7 +16323,16 @@ class WeavingSpaceDialog(QDialog):
         self._remember_painted_ladder(layer, str(tid))
         # adopted layers are watched like freshly made ones, so a
         # styling-dock edit reaches the dialog here too
-        self._watch_element_layer(layer, str(tid))
+        # ...UNLESS WE ALREADY ARE. Adoption re-watches unconditionally
+        # and a live layer can be adopted many times -- every pick of
+        # an output group -- so each pick added another connection per
+        # layer for ever: measured 2026-08-31 at six pairs per id and
+        # six handler runs per edit after five picks. No wrong map came
+        # of it, handling being idempotent, but it is cost that grows
+        # with how long somebody works, and this is where the mistake
+        # is rather than in the store that was holding the duplicates.
+        if not self._already_watching(layer):
+          self._watch_element_layer(layer, str(tid))
       if tid or layer.customProperty("weavingspace_no_data"):
         # WHICH GEOPACKAGE TABLES ARE OURS, remembered across
         # sessions. `_gpkg_tables_written` lives on the dialog, so a
@@ -19656,10 +19712,24 @@ class WeavingSpaceDialog(QDialog):
         # own dual is 154,550, so a colleague opening the pair -- which
         # is the entire argument for ruling 3's two tables -- got a
         # motif beside somebody else's dual.
+        # THE DUAL IS ONLY USED WHERE IT IS OF THIS DESIGN. It is kept
+        # with the stamp it was built under; anything else is the
+        # previous design's dual, and writing it beside a current unit
+        # is the mismatched pair this whole check exists to refuse.
+        # `None` here makes the both-or-neither test below decline the
+        # write, which is the honest outcome: better a file with no
+        # self-description than one describing a map it is not of.
+        held = getattr(self, "_topology_dual", None)
+        dual_frame = None
+        if held is not None:
+          for_design, frame = held
+          if for_design == self._topology_stamp():
+            dual_frame = frame
+          else:
+            _dump("STATE", "dual-is-of-another-design")
         frames = ((bridge.UNIT_TABLE_NAME,
                    topology_edits.unit_frame(self._unit)),
-                  (bridge.DUAL_TABLE_NAME,
-                   getattr(self, "_topology_dual", None)))
+                  (bridge.DUAL_TABLE_NAME, dual_frame))
         # BOTH OR NEITHER, AND THE PAIR MUST BE OF ONE DESIGN. The
         # count test below is necessary and was never sufficient: two
         # frames that are both present satisfied it while describing
@@ -20740,9 +20810,21 @@ class WeavingSpaceDialog(QDialog):
         # no edits the plain topology's dual is the right one, which is
         # what the fallback says.
         for_dual = built.get("edited_topology") or built.get("topology")
+        # KEPT WITH THE DESIGN IT IS OF, which the first version of
+        # this did not do. (2026-08-31, found by a hunt and measured
+        # end to end.) The unit half of the pair is rebuilt
+        # SYNCHRONOUSLY on every design change; this half is refreshed
+        # only when a background build LANDS. Stored bare, it went
+        # stale the moment the design moved -- change the element count
+        # from 4 to 5, Generate, Save, and the file held a 5-tile unit
+        # beside a dual byte-identical to the 4-tile design's. That is
+        # the same harm repaired at these lines this morning, arriving
+        # through the other staleness route, and my own comment two
+        # lines below promised "the pair must be of one design" while
+        # nothing checked it.
         self._topology_dual = (
-          topology_edits.dual_frame(for_dual) if for_dual is not None
-          else None)
+          (stamp, topology_edits.dual_frame(for_dual))
+          if for_dual is not None else None)
         # AND WHAT WE NOW KNOW ABOUT THIS DESIGN, which is the only
         # thing that licenses the save to remove a motif from a file.
         # Recorded against the STAMP so an answer about another design
