@@ -3168,6 +3168,191 @@ def test_a_topology_edit_reaches_the_map():
     topology_edits.shelf_key("hex-slice 4", 3)
 
 
+def test_the_saved_unit_and_dual_carry_no_crs():
+  """The motif goes into the file, in its own coordinates, saying so.
+
+  Ruling 3 of 2026-08-30 asks for the unit and its dual beside the
+  edit list so the file describes itself. The CAVEAT is the whole
+  hazard: the unit lives in UNIT SPACE, a couple of units across,
+  while the map's tables are in the region's own coordinates. Written
+  under the map's CRS a two-unit-wide motif lands at the origin of
+  somebody's projection -- this project's recorded hazard about a
+  memory layer handed EPSG:4326, arriving through a new door.
+
+  SO THE ASSERTION IS ABOUT THE COORDINATES AS WELL AS THE FLAG. A
+  test that only read `GetSpatialRef() is None` would pass on a frame
+  that had been reprojected and then stripped, which is the wrong map
+  wearing the right label; the extent is what says the numbers were
+  never moved.
+
+  AND THE REGION IS PUT FAR FROM THE ORIGIN, which is what makes that
+  second assertion able to fail at all. `make_region_layer` defaults to
+  a grid AT the origin, where the motif and the map overlap and "this
+  is the unit, not the tiling" cannot be told apart -- the
+  fixture-that-cannot-exhibit-its-case trap, and the reason that
+  argument exists. With the region ten million units away, a table
+  holding the MAP's tiles is unmistakable.
+
+  ITS FIRST DRAFT ASSERTED A SPAN UNDER 100 and was simply wrong about
+  the product: the unit is built AT THE SPACING, so at spacing 500 it
+  spans 707. What is true of it is that it sits at the origin in its
+  own space while the map is wherever the data is, and that is what is
+  asserted now.
+
+  AND THE FILE IS READ WITH NOTHING HOLDING IT. An open QgsVectorLayer
+  over a GeoPackage makes the NEXT write fail at the sqlite level, and
+  sqlite's freelist remembers pages nothing references -- so a claim
+  about what a colleague receives is only meaningful once everything
+  has let go.
+
+  AND THIS JOURNEY ALSO GUARDS THE SLOT STORE, WITHOUT A CATALOGUE
+  ENTRY, deliberately. `_layer_slots` keeps the closures
+  `_watch_element_layer` connects, because Qt keeps a Python slot alive
+  only through the QObject it is connected to -- the LAYER, whose
+  Python wrapper may be collected while the C++ layer lives on. Without
+  it this exact journey ABORTS the process: measured 2026-08-30, four
+  errors and an abort, and clean with the store in.
+  AN ENTRY FOR IT WAS WRITTEN AND RETIRED THE SAME HOUR, on this
+  project's own rule. The harm needs the freed memory to be REUSED, and
+  a sandboxed judgement does not reliably reproduce that -- the entry
+  came back SURVIVED against a fix measured to work, which is a false
+  negative and the one shape the catalogue must not carry. The same
+  reasoning retired the duplicate-layer guard's entry. What holds it is
+  this test plus `dev/instruments/probe_unit_write.py`, whose four arms
+  isolate the cause.
+
+  Regression: the unit and dual were written under the map's CRS, putting the motif at the origin of the region's projection. [mutation]
+  """
+  import os
+  from osgeo import ogr
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  far = (10_000_000.0, 5_000_000.0)
+  layer = make_region_layer(origin=far)
+  QgsProject.instance().addMapLayer(layer)
+  holder = _temp_dir()
+  td = holder.__enter__()
+  out = os.path.join(td, "unit-space.gpkg")
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.gpkg_widget.setFilePath(out)
+    dlg.show()
+    _tick(300)
+    _settle_topology(dlg)
+    assert dlg.topology_panel._topology is not None, \
+      "PREMISE: this design carries no topology, so nothing is written"
+    assert layer.extent().xMinimum() > min(far) / 2, (
+      "PREMISE: the region sits near the origin, so a table holding "
+      "the map would be indistinguishable from one holding the unit "
+      f"(extent {layer.extent().toString()})")
+    dlg._generate()
+    _settle(dlg)
+    assert press_save(dlg), "PREMISE: the save did not write"
+  finally:
+    dlg.close()
+  QgsProject.instance().removeAllMapLayers()
+
+  handle = ogr.Open(out)
+  try:
+    assert handle is not None, f"{out} did not open"
+    names = {handle.GetLayer(i).GetName()
+             for i in range(handle.GetLayerCount())}
+    for wanted in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+      assert wanted in names, \
+        f"the file holds {sorted(names)} and not {wanted}"
+      table = handle.GetLayerByName(wanted)
+      reference = table.GetSpatialRef()
+      assert reference is None, (
+        f"{wanted} was written with a CRS ({reference.GetName()}), so "
+        f"QGIS will place a motif a couple of units wide at that "
+        f"projection's origin")
+      x_min, x_max, y_min, y_max = table.GetExtent()
+      span = max(x_max - x_min, y_max - y_min)
+      assert span > 0, f"{wanted} has no extent at all"
+      # THE MOTIF, NOT THE MAP. The unit is built at the spacing, so
+      # its size says nothing; WHERE it sits says everything. It lives
+      # about the origin of its own space, and the map is ten million
+      # units away, so a table carrying the tiling rather than the unit
+      # is off by that whole distance.
+      reach = max(abs(x_min), abs(x_max), abs(y_min), abs(y_max))
+      assert reach < min(far) / 100, (
+        f"{wanted} reaches {reach}, which is out where the DATA is "
+        f"({far}) rather than at the origin of unit space -- so this "
+        f"table holds the map's tiles, not the motif they were "
+        f"stamped from")
+  finally:
+    # THE HANDLE GOES FIRST, THEN THE DIRECTORY. An open OGR handle on
+    # Windows keeps the file locked, so tearing the directory down
+    # underneath it is how a passing test leaves a failing one behind.
+    handle = None
+    holder.__exit__(None, None, None)
+
+
+def test_a_design_without_a_topology_leaves_none_in_the_file():
+  """What the file holds stops when the map stops having it.
+
+  The other half of the same write, and the reason it is one method:
+  a design that STOPS carrying a topology -- somebody sets a tile
+  inset, or unticks the experimental box -- would otherwise leave the
+  previous design's motif in the file, describing a map it is no
+  longer made of. That is the ruling of 2026-08-26 that a file shows
+  the limit of what it contains, and the same shape as unticking the
+  source copy.
+
+  BOTH ANSWERS ARE ASSERTED HERE because a reader meeting either alone
+  would take it for the whole rule -- and because the quiet arm passes
+  just as well when the write has been deleted outright.
+
+  Regression: a design that stopped carrying a topology left the previous one's unit in the file. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  holder = _temp_dir()
+  td = holder.__enter__()
+  out = os.path.join(td, "topology-then-none.gpkg")
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.gpkg_widget.setFilePath(out)
+    dlg.show()
+    _tick(300)
+    _settle_topology(dlg)
+    assert dlg.topology_panel._topology is not None, \
+      "PREMISE: this design carries no topology to lose"
+    dlg._generate()
+    _settle(dlg)
+    assert press_save(dlg), "PREMISE: the first save did not write"
+    assert bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(out), \
+      "PREMISE: the first save wrote no unit, so there is nothing " \
+      "for the second to leave behind"
+
+    # the box is the cheapest door out of "this map has a topology",
+    # and it is the one a person is likeliest to use
+    dlg.opt_experimental.setChecked(False)
+    _tick(200)
+    dlg._generate()
+    _settle(dlg)
+    assert press_save(dlg), "PREMISE: the second save did not write"
+  finally:
+    dlg.close()
+  QgsProject.instance().removeAllMapLayers()
+
+  try:
+    left = bridge.gpkg_tables(out)
+    for gone in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+      assert gone not in left, (
+        f"{gone} is still in the file, so it describes this map with "
+        f"the motif of a design it no longer has")
+  finally:
+    holder.__exit__(None, None, None)
+
+
 def test_topology_edits_survive_the_working_state():
   """What somebody did to the topology comes home with the map.
 
@@ -74655,6 +74840,10 @@ def main():
         test_a_topology_edit_reaches_the_map)
   check("topology edits survive the working state",
         test_topology_edits_survive_the_working_state)
+  check("the saved unit and dual carry no crs",
+        test_the_saved_unit_and_dual_carry_no_crs)
+  check("a design without a topology leaves none in the file",
+        test_a_design_without_a_topology_leaves_none_in_the_file)
   check("the experimental box gates its tabs",
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",

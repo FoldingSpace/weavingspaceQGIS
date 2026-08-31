@@ -868,6 +868,48 @@ key is invisible to an older reader, which iterates its own whitelist
 and simply does not look; bumping the version would make every older
 plugin refuse a file it could otherwise open perfectly well.
 
+### The unit and the dual in the file, and why their names shout
+
+A Save writes two more tables, `weavingspace_unit_no_crs` and
+`weavingspace_dual_no_crs`, so the GeoPackage describes itself: a
+colleague can open the motif and its dual without the plugin, which is
+the argument that put the element tables and their styles in there.
+
+**The edit list still governs.** These two are a DESCRIPTION and never
+a source of truth, because their coordinates scale with the spacing —
+stored geometry is wrong the moment somebody changes it, while a class
+label was measured stable across rebuilds and across spacings 500 and
+1300.
+
+**The names carry the warning, and that is the ruling's own caveat
+rather than a stylistic choice.** They live in unit space: a couple of
+units across, no CRS, not in the map's coordinates and never will be.
+Somebody who opens one expecting it to sit on the map has to be told
+BEFORE they load it, because QGIS's answer to a layer with no CRS is
+to ask them to pick one, and picking any at all puts a two-unit-wide
+motif at that projection's origin. `topology_edits._in_unit_space` is
+the one owner of the stripping, and it returns a COPY — the unit
+carries the map's CRS deliberately, since `_adopt_edited_unit` puts it
+back so the preview and the tiling agree, and stripping in place would
+reach the object the dialog draws from.
+
+Its guard asserts the EXTENT as well as the flag. A test reading only
+`GetSpatialRef() is None` would pass on a frame that had been
+reprojected and then stripped, which is the wrong map wearing the
+right label.
+
+**One method writes and drops, deliberately.** A design that stops
+carrying a topology — a tile inset, a strand width off 1.0, the box
+unticked — would otherwise leave the previous design's motif in the
+file describing a map it is no longer made of. That is the ruling of
+2026-08-26 that a file shows the limit of what it contains, and it is
+the same shape as unticking the source copy. A wanted write that FAILS
+also clears, because a stale motif is worse than none. And nothing is
+removed from a file that was not this map's before the save began:
+in a stranger's GeoPackage even our own table names were written for
+THEM, which is the line the source copy and the stale-table drop both
+hold.
+
 ## The door that arms a new group
 
 `force_new` decides whether a run builds its own group instead of

@@ -4063,6 +4063,22 @@ def seed_renderer(layer: QgsVectorLayer, assignment: dict,
 WORKING_STATE_METADATA = "WEAVINGSPACE_STATE"
 REGION_TABLE_NAME = "weavingspace_region"
 
+# The tile unit and its dual, written beside the map so the file
+# describes itself -- the same argument that put the element tables and
+# their styles in there.
+#
+# THE NAMES CARRY THE WARNING, and that is ruling 3's own caveat of
+# 2026-08-30 rather than a stylistic choice. These two live in UNIT
+# SPACE: their coordinates are a few units across, they have no CRS,
+# and they are not in the map's coordinates and never will be. A person
+# who opens one expecting it to sit on the map has to be told BEFORE
+# they load it, because QGIS's own answer to a layer with no CRS is to
+# ask them to pick one -- and picking any at all puts a two-unit-wide
+# motif off the coast of Africa. That is this project's recorded hazard
+# about a memory layer handed EPSG:4326, arriving through a new door.
+UNIT_TABLE_NAME = "weavingspace_unit_no_crs"
+DUAL_TABLE_NAME = "weavingspace_dual_no_crs"
+
 # The GeoPackage primary key this plugin writes, named so it cannot
 # collide with a user column called `fid`. Named here rather than
 # spelled at the writer alone, because a region layer read back out of

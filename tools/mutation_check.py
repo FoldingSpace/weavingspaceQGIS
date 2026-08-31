@@ -41,6 +41,7 @@ DEPS = os.path.join("weavingspace_qgis", "deps.py")
 PLUGIN = "weavingspace_qgis/plugin.py"
 CATALOG = "weavingspace_qgis/catalog.py"
 COMPAT = "weavingspace_qgis/compat.py"
+TOPOLOGY_EDITS = "weavingspace_qgis/topology_edits.py"
 PERCEPTION = "weavingspace_qgis/perception.py"
 EDITOR = "weavingspace_qgis/category_editor.py"
 WORKER = "weavingspace_qgis/worker.py"
@@ -2406,6 +2407,39 @@ MUTATIONS = [
        test="test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt",
        why="a reopened project finding the output group its own "
            "dataset made, rather than piling a second one beside it"),
+  dict(name="the-unit-and-dual-are-written-with-no-crs", file=TOPOLOGY_EDITS,
+       # The unit is built AT THE SPACING and sits about the origin of
+       # its own space, so a CRS on it is a lie about where it is: QGIS
+       # would place a motif at that projection's origin. Returning the
+       # frame unchanged is what a careless version does, and the guard
+       # reads the file's own spatial reference back through OGR.
+       old="""  copy = frame.copy()
+  try:
+    copy.crs = None""",
+       new="""  copy = frame.copy()
+  try:
+    pass""",
+       test="test_the_saved_unit_and_dual_carry_no_crs",
+       why="the motif in a saved file carrying no CRS, rather than "
+           "claiming to be somewhere it is not"),
+  dict(name="a-design-with-no-topology-leaves-none-in-the-file",
+       file=DIALOG,
+       # The other half of one method, and the reason it IS one method:
+       # a design that stops carrying a topology would otherwise leave
+       # the previous one's motif in the file, describing a map it is
+       # no longer made of. Mutating the drop keeps the write and
+       # removes the clearing.
+       old="""    if ours:
+      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+        if name in bridge.gpkg_tables(path):
+          bridge.drop_gpkg_layer(path, name)""",
+       new="""    if False:
+      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+        if name in bridge.gpkg_tables(path):
+          bridge.drop_gpkg_layer(path, name)""",
+       test="test_a_design_without_a_topology_leaves_none_in_the_file",
+       why="a file showing the limit of what it contains, rather than "
+           "a motif belonging to a design the map no longer has"),
   dict(name="the-edit-list-is-written-into-the-working-state", file=DIALOG,
        # The WRITE half of the pair. Without it the record is silent
        # about the topology, so a saved map comes home with the design

@@ -1692,6 +1692,15 @@ class WeavingSpaceDialog(QDialog):
     # rather than only where it is set, because the landing reads it
     # on every run including the first.
     self._group_name_at_launch = None
+    # {layer id: (style slot, repaint slot)} -- the closures
+    # `_watch_element_layer` connects to each element layer, held here
+    # because Qt keeps a Python slot alive only through the QObject it
+    # is connected to, and that object is the LAYER, whose Python
+    # wrapper may be collected while the C++ layer lives on. Collected,
+    # PyQt calls freed memory and an exception escaping a slot ABORTS
+    # the process. Set up at construction like the records below it,
+    # because a dict several paths write to must exist from the start.
+    self._layer_slots = {}
     self._element_layer_ids = {}
     # {tile id: layer id} for the half of an element that draws its
     # missing values. Set up HERE and not only where it is filled: a
@@ -9531,6 +9540,36 @@ class WeavingSpaceDialog(QDialog):
       dialog._queue_repaint_reconcile(lid, tid)
 
     layer.repaintRequested.connect(_repaint_if_alive)
+
+    # AND THE DIALOG HOLDS THEM, which is what keeps them callable.
+    # (2026-08-30, measured: a topology build makes this fail within
+    # one Save.) Qt keeps a Python callable alive through the QObject
+    # it is connected to -- and the object here is the LAYER, whose
+    # Python wrapper the interpreter is free to collect while the C++
+    # layer lives on in the project. Collected, the closure's memory is
+    # reused, and PyQt then calls something that is no longer a
+    # function: the error reads `() missing 3 required keyword-only
+    # arguments: 'lid', 'tid', and 'dialog'` -- the parameters are
+    # these, and the defaults and the name are simply gone.
+    #
+    # AN EXCEPTION ESCAPING A SLOT ABORTS THE PROCESS under PyQt6, so
+    # this is not a wrong map, it is QGIS closing on somebody. It fired
+    # four times per Save -- once per element layer -- at
+    # `compat.point_layer_at`, whose `setDataSource` is what emits.
+    #
+    # WHY THE TOPOLOGY BUILD IS WHAT EXPOSED IT: nothing here changed.
+    # The task's own thread allocates and frees enough that the
+    # collection actually happens and the memory is reused, where
+    # before the dead closure was usually still readable. Measured in
+    # four arms -- box off, box on with the build stubbed, the deepcopy
+    # alone, and holding the slots alive -- and only the arm that runs
+    # a task fails, while holding them alive fixes it outright.
+    #
+    # KEYED BY LAYER ID, so a re-run replaces its own entry rather than
+    # growing a list for ever: element layers are rebuilt on every
+    # Generate, and an unbounded list here would be a leak in the one
+    # method a long session calls most.
+    self._layer_slots[layer.id()] = (_style_if_alive, _repaint_if_alive)
 
   def _on_style_signal(self, layer_id, tile_id):
     """The styleChanged entry point, stamped so its echo is known.
@@ -18256,6 +18295,12 @@ class WeavingSpaceDialog(QDialog):
         rebuilt.append(merged)
       resumable["elements"] = rebuilt
     resumable["region_embedded"] = self._embed_or_drop_the_source(path, ours)
+    # BEFORE THE RECORD, like the source copy above it and for the same
+    # reason: the record says whether these tables are there, so it is
+    # written once the answer is a fact about the file rather than an
+    # intention about it.
+    resumable["topology_written"] = self._write_or_drop_the_topology(
+      path, ours)
     wrote_the_record = bridge.write_working_state(
       path, self._file_safe_state(resumable))
     # AND THE GROUP LEARNS WHERE ITS MAP WENT, which is the other half
@@ -19311,6 +19356,78 @@ class WeavingSpaceDialog(QDialog):
       # cannot reach the original, and nothing else.
       _dump("STATE", "embed-failed", traceback.format_exc(limit=3))
       return False
+
+  def _write_or_drop_the_topology(self, path, ours=True) -> bool:
+    """Put the unit and its dual in the file, or take stale ones out.
+
+    Args:
+      path: the GeoPackage being saved into.
+      ours: whether this file was THIS map's before the save began.
+        A file that is somebody else's gets nothing removed from it,
+        which is the same line the source copy and the stale-table
+        drop both hold: the plugin removes what the plugin wrote, and
+        in a stranger's file even our own table names were written for
+        THEM. Taken before the write, because writing makes "we have
+        saved here" true of any file at all.
+
+    Returns:
+      True when the file now holds the two tables, False when it does
+      not -- which is the answer when the experimental box is unticked,
+      when this design cannot carry a topology at all, and when a write
+      failed. The map is already written by this point, so a topology
+      that will not go in costs the file's self-description and nothing
+      else.
+
+    RULING 3 OF 2026-08-30 asked for the unit and the dual beside the
+    edit list, so the file describes itself: a colleague can open the
+    motif and its dual without the plugin, which is the argument that
+    put the element tables and their styles in there. The EDIT LIST is
+    still what governs -- these two are a description, never a source
+    of truth, because their coordinates scale with the spacing while a
+    class label was measured stable across rebuilds AND across
+    spacings 500 and 1300.
+
+    THE STALE HALF IS WHY THIS IS ONE METHOD AND NOT TWO. A design
+    that stops carrying a topology -- somebody sets a tile inset, or
+    moves the strand width off 1.0 -- would otherwise leave the
+    previous design's unit sitting in the file, describing a motif the
+    map is no longer made of. That is the ruling of 2026-08-26 that a
+    file shows the limit of what it contains, and it is the same shape
+    as unticking the source copy.
+    """
+    from . import topology_edits
+    box = getattr(self, "opt_experimental", None)
+    panel = getattr(self, "topology_panel", None)
+    topology = getattr(panel, "_topology", None) if panel else None
+    wanted = (box is not None and box.isChecked()
+              and topology is not None and path)
+    if wanted:
+      try:
+        frames = ((bridge.UNIT_TABLE_NAME,
+                   topology_edits.unit_frame(self._unit)),
+                  (bridge.DUAL_TABLE_NAME,
+                   topology_edits.dual_frame(topology)))
+        # BOTH OR NEITHER. A unit with no dual beside it is a file
+        # that answers half the question, and the pair is what makes
+        # it worth opening; a partial write would also leave the drop
+        # below unable to say whether what it found was stale.
+        if all(frame is not None for _, frame in frames):
+          written = [bridge.write_gpkg_layer(
+            bridge.gdf_to_layer(frame, name), path, name, first=False)
+            for name, frame in frames]
+          if all(w is not None and w.isValid() for w in written):
+            return True
+      except Exception:                               # noqa: BLE001
+        _dump("STATE", "topology-write-failed",
+              traceback.format_exc(limit=3))
+      # A WANTED WRITE THAT FAILED STILL CLEARS. Leaving the previous
+      # save's unit behind would describe this map with another
+      # design's motif, which is worse than describing it with none.
+    if ours:
+      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+        if name in bridge.gpkg_tables(path):
+          bridge.drop_gpkg_layer(path, name)
+    return False
 
   def _note_an_embed_touch(self, _on):
     """Count a deliberate opinion about including the source data.

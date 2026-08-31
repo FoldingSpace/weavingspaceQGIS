@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-441 defect(s) with a regression test.
+443 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -359,6 +359,8 @@ there is no separate list to remember.
   guarded by `test_a_dataset_switch_says_what_it_re_points`
 - **removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word.**  
   guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
+- **a design that stopped carrying a topology left the previous one's unit in the file.**  
+  guarded by `test_a_design_without_a_topology_leaves_none_in_the_file`
 - **a plugin the user had disabled went on writing to the project and speaking into QGIS's message bar. Found by the two-dialogs hunt, 2026-08-27.**  
   guarded by `test_a_disabled_plugin_stops_talking`
 - **an automatic mutant flipped the colours-agree comparison at dialog.py:3345 and twenty covering tests noticed nothing, because not one of them looked at what the user was told.**  
@@ -569,6 +571,8 @@ there is no separate list to remember.
   guarded by `test_the_return_leg_restores_the_chosen_variable`
 - **the roadmap gate cleared 0.24.3 for a candidate while its section listed eleven unreproduced hunt claims and five untested fixes, because the sentence saying the section was NOT clear contained the words the gate looks for.**  
   guarded by `test_the_roadmap_gate_reads_a_statement_not_a_mention`
+- **the unit and dual were written under the map's CRS, putting the motif at the origin of the region's projection.**  
+  guarded by `test_the_saved_unit_and_dual_carry_no_crs`
 - **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
   guarded by `test_the_shelf_does_not_survive_the_project_that_made_it`
 - **the size guard refused instead of asking, on a memory figure nothing measured; and two answers that were not sizes at all shared the refusal's value, so a design that does not tile the plane was reported as a spacing problem.**  
@@ -933,7 +937,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 132
+- the mutation campaign: 134
 - a bug hunt pointed in a named direction: 131
 - not written down at the time: 88
 - reported by a user: 30

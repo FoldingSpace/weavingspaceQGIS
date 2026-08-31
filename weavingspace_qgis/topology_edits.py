@@ -474,4 +474,57 @@ def dual_frame(topology):
     return None
   if frame is None or not len(frame):
     return None
-  return frame
+  return _in_unit_space(frame)
+
+
+def unit_frame(unit):
+  """The tile unit's own tiles, as a frame ready to become a layer.
+
+  Args:
+    unit: a Tileable -- the edited one where there are edits, since
+      what belongs in the file is what somebody made rather than what
+      the family starts at.
+
+  Returns:
+    A GeoDataFrame of the unit's tiles carrying no CRS, or None where
+    the unit has no tiles to give.
+
+  IT IS THE UNIT AND NOT THE MAP. The map's tiles are already in the
+  file, one table per element, in the region's own coordinates. This is
+  the motif those were stamped out of, which is the thing a topology is
+  ABOUT and the thing an edit moves.
+  """
+  tiles = getattr(unit, "tiles", None)
+  if tiles is None or not len(tiles):
+    return None
+  return _in_unit_space(tiles)
+
+
+def _in_unit_space(frame):
+  """A copy of a frame with any CRS taken off it.
+
+  Args:
+    frame: a GeoDataFrame from the topology or the unit.
+
+  Returns:
+    A COPY with `crs` set to None, so the caller cannot hand a live
+    frame to a writer and have the stripping reach the object the rest
+    of the dialog is drawing from.
+
+  WHY THIS EXISTS AS A FUNCTION RATHER THAN A LINE AT EACH WRITE. The
+  unit carries whatever CRS the map is in -- `_adopt_edited_unit` puts
+  it back on deliberately, so the preview and the tiling agree -- and
+  that CRS is a LIE about these coordinates: the numbers are a few
+  units across because they describe a motif, not a place. Writing
+  them under the map's CRS would put a two-unit-wide unit at the
+  origin of somebody's projection. One owner, so the two writes cannot
+  drift apart the way a pair in this project usually does.
+  """
+  copy = frame.copy()
+  try:
+    copy.crs = None
+  except Exception:                                   # noqa: BLE001
+    # A frame that will not give its CRS up is not written at all,
+    # since the whole point of the table is that it carries none.
+    return None
+  return copy
