@@ -722,7 +722,30 @@ SAME DAY:
    `resize` call escapes the clamp), and the assembled window is
    measured by `tools/platform_probe.py`, which this joins.
 
-nothing outstanding in code.
+**THE DECLARATION IS WITHDRAWN AGAIN, on 2026-08-30 (late), because
+this version gained code that day and none of it is committed or
+guarded.** The maintainer reported the Design tab's alignment, spacing
+and sizing as "just nonsensical" against a screenshot, and the work
+that followed is real and unfinished:
+
+- THE DESIGN TAB'S THREE BARE ROWS, committed at `34ea0aa` with
+  fourteen layout guards passing. That part is done.
+- A SECOND PASS, UNCOMMITTED: spacing on its own row, one field width
+  shared by four rows so they end at one edge, the Transformations
+  label column aligned with the rows above, `Auto` no longer painted
+  as the default button, and the window sized by the tab in front --
+  825px on Design where it opened at 1296, growing to 1296 for
+  Data & colours. Every number here is measured and in
+  MAINTAINING.md; NONE of it has a registered test.
+- THE TOPOLOGY TAB'S INTERACTION, UNCOMMITTED, and carrying an OPEN
+  REGRESSION named above.
+
+WHAT IS OWED BEFORE THE PHRASE GOES BACK: the regression read and
+repaired, guards for the interface work, and the full sharded suite,
+which has not run over this tree at all. Whether the interface work
+belongs in 0.24.4 or moves to 0.24.5 is the maintainer's decision and
+no tool may make it; it is recorded here rather than assumed either
+way.
 
 WHAT REMAINS IS THE MAINTAINER'S OWN, and neither is work on the
 software: the CHANGELOG LINE for everything above, which is a sentence
@@ -1051,6 +1074,66 @@ STILL OWED: an edit made DURING A RUN, which wants an aftermath of its
 own in the matrix rather than a test of its own -- the symbology matrix
 already carries "while a run is in flight" as a route and this one does
 not.
+
+**THE INTERACTION WAS AUDITED AND REBUILT ON 2026-08-30, and what it
+still owes is here.** The maintainer asked whether it was intuitive
+first time, powerful, and whether better alternatives existed; the
+audit answered no, moderately, and yes, and the rebuild that followed
+is described in MAINTAINING.md under "How somebody takes hold of it".
+Select-then-act, handles that ARE the choice of manipulation, a hit
+test that follows the edge, and three highlight states are built.
+
+TWO DESIGNS CAME OUT OF THE AUDIT AND ARE NOT BUILT. Both are better
+than what shipped, and the second dissolves a problem rather than
+tuning it, so neither should be lost.
+
+1. **A HANDLE SHOULD BE A POSITION, NOT A DELTA.** Every handle now
+   reports how far it has travelled, and that is turned into a
+   parameter by a LEVER -- `angle = atan2(across, length)`,
+   `sf = 1 + along/length`. A lever is a gain factor nobody can see
+   and it has already been wrong twice: half the edge's length made a
+   34px drag invert the edge, and the full length still turned a 35px
+   drag into a scale factor of 0.28. Making the handle a POSITION
+   removes the lever entirely -- put the end where you want it and
+   `sf` is the distance from the middle over what it was, the angle of
+   the handle about the middle IS the rotation, the diamond's
+   perpendicular distance IS the amplitude. Nothing to tune, the
+   geometry follows the pointer exactly, and the handles become a
+   READOUT as well as a control, since each already sits where the
+   current value puts it.
+2. **ONE END HANDLE INSTEAD OF TWO.** Moving an endpoint in two
+   dimensions is exactly (angle, length) in polar coordinates about
+   the midpoint, so scale and rotate are the radial and tangential
+   halves of ONE gesture. It removes a handle and the crowding with
+   it -- three handles at 16px offsets on a 43px edge is a cluster --
+   and it is how anybody would expect to move the end of a line. It
+   would record two edits from one gesture, which is honest and
+   composable.
+
+**AND `push_vertex` MAY DO NOTHING AT ALL, which has to be settled
+before it is offered to anybody.** Measured 2026-08-30: applying it
+through `transform_geometry` with `push_d` at +0.05, -0.05 and +0.10
+moved ZERO vertices, three times, on a design whose topology built
+perfectly. Upstream's `push_vertex` RETURNS A DISPLACEMENT VECTOR
+rather than moving anything (`topology.py:1482`), so the question is
+whether `transform_geometry` applies that return value or discards it.
+THIS WOULD BE THE SECOND SILENT FAILURE OF THAT SAME CALL -- the
+comment at `MANIPULATIONS["push_vertex"]` records an earlier one, where
+a wrong keyword name was dropped rather than refused and the unchanged
+unit drew perfectly. A manipulation that silently does nothing is
+worse than one that refuses.
+AND THE ANSWER MAKES A HANDLE POSSIBLE. I said a push handle would
+need an outward direction I would have to invent; upstream computes
+it, summing the unit vectors from each neighbour to the vertex, which
+is "away from everything I am joined to". Drawn as a RAIL from the
+vertex it makes the constraint visible, and it is what tells nudge
+(free, two-dimensional) and push (on a rail, one-dimensional) apart.
+
+**AND ONE REGRESSION FROM THE REBUILD IS OPEN.**
+`test_an_edit_for_a_class_that_has_gone_is_reported` failed after the
+interaction changes and its message has NOT been read -- run alone it
+timed out at two minutes. It is the first thing the next session
+should do.
 
 **AND A TOPOLOGY MATRIX EXISTS**, five manipulations crossed with
 designs found from the catalogue and three aftermaths, spine plus a

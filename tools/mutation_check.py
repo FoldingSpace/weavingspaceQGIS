@@ -2066,14 +2066,14 @@ MUTATIONS = [
        why="the spacing a first-time user is given, before any layer "
            "can auto-size it"),
   dict(name="auto-spacing-button", file=DIALOG,
-       # RE-ANCHORED 2026-08-30, when kind, family, spacing and Auto
-       # moved onto one row: the button is added by a loop over that
-       # row's controls now, so dropping it from the tuple is what
-       # "never added to a layout" means here.
-       old='                    QLabel("Spacing (map units)"), '
-           'self.spacing_spin, auto):',
-       new='                    QLabel("Spacing (map units)"), '
-           'self.spacing_spin):',
+       # RE-ANCHORED TWICE ON 2026-08-30. First when kind, family,
+       # spacing and Auto moved onto one row, and again the same
+       # evening when the maintainer asked for spacing on a row of its
+       # own -- so Auto is now the second control of a two-control
+       # block beside the spacing box, and dropping it from that call
+       # is what "constructed but never added to a layout" means here.
+       old="self._field_block(self.spacing_spin, auto))",
+       new="self._field_block(self.spacing_spin))",
        test="test_design_controls_are_usable_as_designed",
        why="a control constructed but never added is a feature no "
            "user can reach"),
@@ -2131,11 +2131,17 @@ MUTATIONS = [
        why="the paired modifier boxes take half a window each without "
            "it, which is what the maintainer met on 2026-08-29"),
   dict(name="the-pattern-row-does-not-stretch", file=DIALOG,
-       old="    pattern_row.addStretch(1)",
-       new="    pass  # mutation: the pattern row fills the window",
+       # RE-ANCHORED 2026-08-30. The row's trailing stretch is gone --
+       # the Pattern line is a `_field_block` now, fixed to the width
+       # the region chooser sets, so that four rows end at one edge.
+       # What holds the promise is the block's FIXED WIDTH, so that is
+       # what this breaks: without it the holder takes whatever the
+       # layout offers and the family chooser runs the window again.
+       old="    holder.setFixedWidth(self._field_width)",
+       new="    pass  # mutation: the block takes the width going",
        test="test_no_design_control_is_stretched_to_the_window",
-       why="kind, family, spacing and Auto share one line precisely "
-           "so none of them runs the width of the window"),
+       why="kind and family share one line, and the block is what "
+           "stops the family chooser running the width of the window"),
   dict(name="the-count-widgets-are-kept-in-step", file=DIALOG,
        old="    for widget in (self.n_slider, self.n_spin):",
        new="    for widget in ():  # mutation: neither follows the other",
@@ -2924,9 +2930,15 @@ MUTATIONS = [
        # showEvent, the deferred fit the named test drives; the others
        # fire on construction and on a family change.
        accepted=True,      # see the decision recorded above
-       old="""    super().showEvent(event)
+       # RE-ANCHORED 2026-08-30: showEvent gained a second deferred
+       # call, `_settle_the_label_columns`, so the two-line anchor no
+       # longer matched. Only the FIT is mutated here -- the label
+       # columns are a different promise with a different test, and an
+       # anchor that took both would report about whichever failed
+       # first.
+       old="""    QTimer.singleShot(0, self._settle_the_label_columns)
     QTimer.singleShot(0, self._fit_to_design)""",
-       new="""    super().showEvent(event)
+       new="""    QTimer.singleShot(0, self._settle_the_label_columns)
     pass  # mutation: the window keeps its built size""",
        test="test_the_window_fits_its_design_tab_when_shown",
        why="the window opening tall enough to show the Design tab it "

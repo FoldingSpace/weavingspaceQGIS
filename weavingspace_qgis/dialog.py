@@ -2591,18 +2591,23 @@ class WeavingSpaceDialog(QDialog):
     # the two pin controls, and for the same reason.
     self.n_slider.valueChanged.connect(self._on_element_count_moved)
     self.n_spin.valueChanged.connect(self._on_element_count_moved)
-    # THE TRACK IS AS WIDE AS THE TWO CHOOSERS ABOVE IT, so the three
-    # top rows end at one edge instead of three. A short track is a
-    # coarse track -- 255 counts over an 84px stub is three values a
-    # pixel -- and this row used to get whichever answer the STYLE
-    # happened to give it: 802px under Fusion and 84 under macOS.
-    self.n_slider.setMinimumWidth(self._a_name_s_width())
-    n_row = QHBoxLayout()
-    n_row.setContentsMargins(0, 0, 0, 0)
-    n_row.addWidget(self.n_slider, 1)
-    n_row.addWidget(self.n_spin)
-    n_row.addStretch(1)
-    form.addRow("Number of elements", n_row)
+    # ONE FIELD WIDTH FOR THE WHOLE BLOCK (maintainer, 2026-08-30):
+    # the region chooser, the group chooser, the element picker and the
+    # Pattern line all end at the same edge. The two choosers already
+    # ask for a name's worth of characters, so THEY define it and the
+    # rows built afterwards are made to match -- rather than a number
+    # written down here, which would be a claim about a font.
+    #
+    # A combo's sizeHint is font metrics rather than layout, so it is
+    # honest before a layout pass, which is what lets this be settled
+    # at construction instead of chased at show time.
+    self._field_width = self.layer_combo.sizeHint().width()
+    # The slider takes whatever the picker leaves: a short track is a
+    # coarse track, 255 counts over an 84px stub being three values a
+    # pixel, and this row used to get whichever answer the STYLE gave
+    # it -- 802px under Fusion and 84 under macOS.
+    form.addRow("Number of elements",
+                self._field_block(self.n_slider, self.n_spin, grows=0))
 
     # KIND, FAMILY, SPACING AND AUTO SHARE ONE LINE (maintainer,
     # 2026-08-29). They were four full-width rows; together they are
@@ -2657,20 +2662,30 @@ class WeavingSpaceDialog(QDialog):
     auto.setDefault(False)
     auto.setToolTip("A coarse value from the layer extent, good for iterating")
     auto.clicked.connect(self._auto_spacing)
-    pattern_row = QHBoxLayout()
-    pattern_row.setContentsMargins(0, 0, 0, 0)
-    for control in (self.kind_combo, self.family_combo,
-                    QLabel("Spacing (map units)"), self.spacing_spin, auto):
-      pattern_row.addWidget(control)
-    # AND THE STRETCH IS THE REPAIR. A form layout stretches its field
-    # column to whatever width is going, which is the single cause of
-    # every control on this tab having been "comically wide": nothing
-    # set a width and nothing needed to, the row builder decided. A
-    # stretch at the end of the row absorbs the surplus instead, so
-    # each control sits at the width it asks for. The alternative --
-    # a width on each control -- would be a claim about a font.
-    pattern_row.addStretch(1)
-    form.addRow("Pattern", pattern_row)
+    # SPACING SITS ON ITS OWN ROW (maintainer, 2026-08-30). It shared
+    # the Pattern line from 2026-08-29, when the point was to stop four
+    # full-width rows each taking the window; one line did that and
+    # made the tab as wide as its longest sentence, since the family
+    # names are long and the spacing label, box and button all queued
+    # behind them. Two shorter rows cost one row of height and give the
+    # width back, which is what lets the window be narrower than the
+    # widest tab.
+    # The kind chooser holds two short words and stays at its own
+    # width; the family names are long and various, so the family
+    # chooser is what takes up whatever the row has left. Ending at
+    # the same edge as the choosers above is what makes the block read
+    # as one column rather than four.
+    form.addRow("Pattern",
+                self._field_block(self.kind_combo, self.family_combo,
+                                  grows=1))
+
+    # Auto suggests a spacing from the layer, so it belongs beside the
+    # box it fills rather than at the end of a longer line. Nothing
+    # here wants to grow -- a spacing box wide enough for a realistic
+    # number is wide enough -- so the block's own trailing stretch
+    # takes the slack and the row still ends where the others do.
+    form.addRow("Spacing (map units)",
+                self._field_block(self.spacing_spin, auto))
 
     # family-specific options
     self.opt_offset = TrimmedSpinBox()
@@ -3139,7 +3154,7 @@ class WeavingSpaceDialog(QDialog):
     # It belongs beside the box it qualifies rather than under the
     # whole tab, which is why it is a row of the same form.
     self.opt_embed_source = QCheckBox(
-      "Include the source data, so others can carry on with it")
+      "Include the source data")
     self.opt_embed_source.setToolTip(
       "Copies the region layer into the file, making it larger.")
     files_form.addRow("", self.opt_embed_source)
@@ -3252,6 +3267,10 @@ class WeavingSpaceDialog(QDialog):
     # than searched for by title, since a title is a label and this
     # project's own rule is that a label is never a key.
     self._tabs = tabs
+    # Seed the policy for the tab that opens, or every page contributes
+    # to the stack's minimum and the window starts at the widest of
+    # them -- which is the state this replaces.
+    self._size_to_the_current_tab(tabs.currentIndex())
     # BOTH EXPERIMENTAL TABS, by index rather than by title, because a
     # title is a label and this project's rule is that a label is
     # never a key. Collected here, where the tabs have just been
@@ -3268,6 +3287,11 @@ class WeavingSpaceDialog(QDialog):
     # THE TAB CATCHES UP WHEN IT APPEARS, which is what lets the record
     # be redrawn lazily instead of on every message.
     tabs.currentChanged.connect(self._catch_the_messages_tab_up)
+    # ...and let the tab in front decide the width. Connected after the
+    # handler above rather than folded into it: an exception in a Qt
+    # slot is swallowed and takes the rest of that slot with it, so two
+    # duties on one signal are two connections.
+    tabs.currentChanged.connect(self._size_to_the_current_tab)
     self._gate_experimental_tabs()
     # Anything recorded while the tabs were still being built now has
     # somewhere to appear.
@@ -3340,7 +3364,70 @@ class WeavingSpaceDialog(QDialog):
       layout.activate()
     height = self._design_wrapper.sizeHint().height() + 96
     self.resize(*self._within_the_screen(
-      max(self.width(), 1180), max(400, height)))
+      max(self.width(), self._width_for_the_current_tab()),
+      max(400, height)))
+
+  def _width_for_the_current_tab(self) -> int:
+    """How wide the window needs to be for the tab in front.
+
+    Returns:
+      A width in pixels: what the current page asks for, plus
+      everything beside it. Never a constant, because the answer moves
+      with the font and with what the page holds.
+
+    THE FLOOR THIS REPLACED WAS 1180px, and it is why the window could
+    not be narrow (maintainer, 2026-08-30). The Design tab asks for
+    550px once the spacing row leaves the Pattern line; Data & colours
+    asks 1004, because of the assignment table. A single floor sized
+    for the widest tab makes every tab that wide.
+    """
+    tabs = getattr(self, "_tabs", None)
+    if tabs is None or tabs.currentWidget() is None:
+      return 0
+    # What sits BESIDE the tabs -- the preview panel and the margins --
+    # measured from the window itself rather than written down, so it
+    # follows the font like everything else here.
+    beside = max(0, self.width() - tabs.width())
+    return tabs.currentWidget().sizeHint().width() + beside + 16
+
+  def _size_to_the_current_tab(self, index: int) -> None:
+    """Let the tab in front decide the window's width, and grow to it.
+
+    Args:
+      index: the tab now showing.
+
+    Returns:
+      None; the window may be resized.
+
+    A QTabWidget's minimum is the LARGEST OF ITS PAGES, so while the
+    assignment table exists on Data & colours the window cannot be
+    narrower than that table -- whichever tab is in front. Qt's own
+    answer is a size policy: the page in front asks for what it needs
+    and the others are IGNORED, so the stack follows the current page.
+
+    IT GROWS AND DOES NOT SHRINK, deliberately. The ask was for the
+    window to start narrow and expand for a wider tab; a window that
+    also contracted would resize under the pointer on every tab click,
+    which is a worse thing to meet than a window that stays where the
+    widest tab you have opened left it. Somebody who wants it narrow
+    again can drag it, and the next Design fit will honour that.
+    """
+    tabs = getattr(self, "_tabs", None)
+    if tabs is None:
+      return
+    for position in range(tabs.count()):
+      page = tabs.widget(position)
+      policy = page.sizePolicy()
+      policy.setHorizontalPolicy(
+        QSizePolicy.Policy.Preferred if position == index
+        else QSizePolicy.Policy.Ignored)
+      page.setSizePolicy(policy)
+    current = tabs.widget(index)
+    if current is not None:
+      current.adjustSize()
+    wanted = self._width_for_the_current_tab()
+    if wanted > self.width():
+      self.resize(*self._within_the_screen(wanted, self.height()))
 
   def _within_the_screen(self, width: int, height: int):
     """Bound a size the window is about to take by the screen it is on.
@@ -3425,6 +3512,40 @@ class WeavingSpaceDialog(QDialog):
     form.setLabelAlignment(
       Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
+  def _field_block(self, *widgets, grows: int | None = None) -> QWidget:
+    """Several controls occupying one field's worth of width.
+
+    Args:
+      *widgets: the controls, left to right.
+      grows: which of them takes the slack, by position. Where it is
+        None nothing grows and a trailing stretch takes it, so the
+        controls sit left and the block still ends where the others
+        do.
+
+    Returns:
+      A QWidget holding them, fixed to `_field_width` -- which the
+      region chooser set from its own font metrics, so every row that
+      uses this ends at one edge (maintainer, 2026-08-30).
+
+    WHY A FIXED WIDTH RATHER THAN A LAYOUT RULE. `FieldsStayAtSizeHint`
+    gives each field its OWN hint, which is what stops this tab running
+    the width of the window -- and it is also why four rows built from
+    different controls ended at four different edges. The other policy,
+    `AllNonFixedFieldsGrow`, lines them up by making every one of them
+    as wide as the window, which is the defect this replaced. A block
+    of a known width is the third answer: one edge, and no dependence
+    on the window at all.
+    """
+    holder = QWidget()
+    row = QHBoxLayout(holder)
+    row.setContentsMargins(0, 0, 0, 0)
+    for position, widget in enumerate(widgets):
+      row.addWidget(widget, 1 if position == grows else 0)
+    if grows is None:
+      row.addStretch(1)
+    holder.setFixedWidth(self._field_width)
+    return holder
+
   def _a_name_s_width(self) -> int:
     """How wide `NAME_CHARACTERS` characters are in the font in force.
 
@@ -3487,20 +3608,44 @@ class WeavingSpaceDialog(QDialog):
     for label in labels:
       label.setMinimumWidth(widest)
 
-  # A SHOW-TIME PASS TO CLOSE THE LAST THREE PIXELS WAS TRIED AND
-  # WITHDRAWN, 2026-08-30, and the shape is worth not repeating. The
-  # two blocks' label columns end 3px apart because the Transformations
-  # group box frames its own form, and that offset is not knowable
-  # before a layout pass. Measuring the real right edges in showEvent
-  # and widening the short labels to reach the furthest LOOKS right and
-  # is a feedback loop: the widened labels grow their form's shared
-  # column, so the furthest edge moves too, and the next show does it
-  # again. Measured -- the window went from 1296px to 1618px in one
-  # run. This project has already recorded a sizeHint feedback loop as
-  # one of four failed repairs to this same layout, and the rule that
-  # goes with it is that the approach is wrong rather than the
-  # constant. Three pixels between two blocks is not what anybody
-  # meant by a layout being wrong; a window 322px too wide is.
+  def _settle_the_label_columns(self) -> None:
+    """Put the Transformations block on the same column as the rows above.
+
+    Returns:
+      None; one form's left margin is moved, at most once.
+
+    The two blocks are separate QFormLayouts, and the Transformations
+    group box FRAMES its own -- so equal label widths still leave the
+    two columns a few pixels apart, and that inset is not knowable
+    before a layout pass.
+
+    WIDENING THE LABELS WAS TRIED FIRST AND IS A FEEDBACK LOOP: a
+    label made wider grows its form's shared column, which moves the
+    edge being aimed at, so the next show does it again -- measured
+    2026-08-30 at 1296px to 1618px in one run, which is the third of
+    this layout's four failed repairs wearing new clothes. A MARGIN
+    DOES NOT FEED A LABEL'S WIDTH, so moving one settles instead of
+    running away, and the flag below means even a wrong reading could
+    only be taken once.
+    """
+    if getattr(self, "_label_columns_settled", False):
+      return
+    forms = getattr(self, "_design_forms", ())
+    if len(forms) < 2:
+      return
+    edges = []
+    for form in forms:
+      item = form.itemAt(0, QFormLayout.ItemRole.LabelRole)
+      widget = item.widget() if item is not None else None
+      if widget is None or widget.width() <= 0:
+        return                      # no layout pass yet; try again later
+      edges.append((form, widget.mapTo(self, widget.rect().topLeft()).x()))
+    rightmost = max(x for _form, x in edges)
+    for form, x in edges:
+      if x < rightmost:
+        left, top, right, bottom = form.getContentsMargins()
+        form.setContentsMargins(left + (rightmost - x), top, right, bottom)
+    self._label_columns_settled = True
 
   def _set_option_row_visible(self, lab: QWidget, widget: QWidget,
                               visible: bool) -> None:
@@ -5654,6 +5799,7 @@ class WeavingSpaceDialog(QDialog):
     it dead), which otherwise blocks all future generations."""
     self._closed = False
     super().showEvent(event)
+    QTimer.singleShot(0, self._settle_the_label_columns)
     QTimer.singleShot(0, self._fit_to_design)
     if self._task is not None:
       try:

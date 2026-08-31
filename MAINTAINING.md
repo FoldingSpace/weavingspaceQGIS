@@ -857,6 +857,58 @@ VENDORED dependency: a re-vendor that dropped or renamed that function
 would otherwise take the repair with it in silence. `make_valid` still
 runs on whatever residue survives both.
 
+### How somebody takes hold of it: select, then act, then a handle
+
+Settled 2026-08-30, after the maintainer asked whether the interaction
+was intuitive first time, powerful, and whether anything better
+existed. The honest audit said no, moderately, and yes, so the tab was
+rebuilt around three rules.
+
+**SELECT, THEN ACT.** A click lands on whatever is under the pointer,
+whatever the controls happen to say. `_refresh_classes` lists every
+class of BOTH kinds and `_refresh_manipulations` narrows the VERB to
+what suits the selection -- the opposite of the arrangement it
+replaced, which filtered the class list by the current manipulation
+and so made the tab mode-first. With the default manipulation aimed at
+vertices, clicking an edge moved nothing in the panel WHILE THE
+DRAWING WENT ON HIGHLIGHTING IT: one fact, two stores, disagreeing on
+screen, which is this project's commonest defect shape.
+`_rebuild_arguments` no longer refills the class list -- that call
+existed because the list depended on the verb, and now the two would
+recurse without end.
+
+**A HANDLE IS THE CHOICE OF MANIPULATION.** `_EDGE_HANDLES` puts a
+square at the end that stretches, a circle offset from it that swings,
+and a diamond offset from the middle that bows out; `view.grabbed`
+carries the manipulation to the panel, which sets its own chooser from
+it. So the handle and the chooser cannot disagree, and the tab is
+usable without touching the chooser at all. The arrangement before
+this had the drag mean whatever the chooser said -- a mapping that
+exists only in the code, so nothing on screen said a drag would do
+anything, or what.
+
+**THREE HIGHLIGHT STATES, BECAUSE AN EDIT APPLIES TO A CLASS.** The
+one being held is strong, its classmates are tinted, and what is under
+the pointer is a third colour. Two states said only "these all change"
+and lit about half the drawing, so a click never looked aimed at
+anything.
+
+**AND THE HIT TEST FOLLOWS THE EDGE.** `_distance_to_edge` measures to
+the nearest point ON the line, walking every vertex of it, where it
+used to measure to a disc at the midpoint -- so clicking squarely on
+an edge anywhere but its centre selected nothing. THE VERTEX REACH
+CAME DOWN WITH IT, 12px to 8: a vertex sits at the end of every edge
+meeting it, and measured on laves 3.3.4.3.4 at a realistic size the
+edges run 31 to 43px, so 12px at each end claimed 24 of a median 43 --
+more than half of every edge was unclickable as an edge.
+
+**WHAT IS KNOWN TO BE WRONG WITH IT, and both are written up in
+ROADMAP.md rather than fixed.** The handles report a DELTA which is
+fed through a lever, and that lever has been wrong twice; a handle
+should be a POSITION, with the parameter read off where it sits.
+Scale and rotate should be ONE end handle, because moving an endpoint
+is exactly (angle, length) in polar coordinates about the middle.
+
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
 which is the family and the element count. Move the design away and
 the edits go quiet; bring it back and they return. This is the same
@@ -1116,6 +1168,34 @@ chooser DOES take the width as a positive control, and restores the
 style in a `finally`. Setting the style is the same move as setting a
 font to reach a column measurement — ask what the other machine has,
 and set that quantity directly.
+
+**AND THE WINDOW IS SIZED BY THE TAB IN FRONT, not by the widest one.**
+(Maintainer's ask, 2026-08-30: the first tab should open narrower, and
+opening a wider tab should expand the window.) A QStackedWidget's
+minimum is the LARGEST of its pages, so while the assignment table
+exists on Data & colours the window could not be narrower than that
+table whichever tab was showing -- and a 1180px floor inside
+`_fit_to_design` made certain of it. `_size_to_the_current_tab` makes
+the page in front `Preferred` and every other `Ignored`, so the stack
+follows the current page; `_width_for_the_current_tab` adds what sits
+BESIDE the tabs, measured from the window rather than written down.
+Measured: Design asks 550px and opens the window at 825, where it used
+to open at 1296; choosing Data & colours grows it to 1296.
+IT GROWS AND DOES NOT SHRINK, deliberately -- a window that contracted
+as well would resize under the pointer on every tab click, and the ask
+was for a narrow start rather than a window that follows you about.
+
+**AND FOUR ROWS SHARE ONE FIELD WIDTH.** `_field_block` puts a row's
+controls in a holder fixed to `_field_width`, which the region chooser
+sets from its own sizeHint -- a combo's hint is font metrics rather
+than layout, so it is honest before a layout pass and can be settled
+at construction. Region, group, elements and Pattern therefore end at
+one edge. `FieldsStayAtSizeHint` alone gives each field its own hint,
+which is what stops this tab running the width of the window and is
+also why four rows built from different controls ended at four
+different edges; `AllNonFixedFieldsGrow` lines them up by making every
+one as wide as the window, which is the defect that started all this.
+A block of a known width is the third answer.
 
 **It is coupled to the assignment table's budget.**
 `COLUMN_SUM_BUDGET` is `MAX_WINDOW_WIDTH - 400`, where the 400 is a

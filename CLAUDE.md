@@ -5262,6 +5262,87 @@ here, and the decision to add one is the maintainer's. Recorded
   a different answer to one question, ask whether the QUESTION is
   answerable from the state you are asking it in. None of the three
   could be, and no fifth patch would have been either.
+- **A QTabWidget LAYS OUT ONLY ITS CURRENT PAGE, so measuring the
+  others measures the container.** (2026-08-30, and I reported the
+  result to the maintainer before re-measuring it.) Sweeping every tab
+  for controls stretched to the window returned 640px for a Save
+  button, a Load button, a Clear button, two combos and a spin box
+  across three tabs -- and 640px was the PAGE WIDTH. Those pages had
+  never been current, so nothing in them had been through a layout
+  pass and every child reported its parent's size, which reads exactly
+  like a control with no width of its own.
+  THE TELL WAS THE UNIFORM NUMBER, which this file already names: a
+  verdict that comes back identical for every input is almost always
+  the instrument. Six controls of four different kinds do not agree to
+  the pixel. Made current and pumped, the same sweep found two tabs
+  clean and one control 48px over.
+  SO: `setCurrentIndex`, pump, THEN measure -- and the same caution
+  reaches any stacked widget, any collapsed dock and anything else
+  whose children Qt does not lay out until somebody looks at it.
+- **A `processEvents()` LOOP LETS NO WALL TIME PASS, so a QgsTask
+  never finishes.** (Same day.) A probe pumped four hundred
+  iterations waiting for the topology build and concluded no topology
+  could be built -- on a design whose own `can_build` answered True.
+  The build runs on another thread and its callback needs the event
+  loop AND some seconds; spinning the loop supplies the first and none
+  of the second. Wait on the EVENT with a real `sleep` between passes
+  and a ceiling sized from a measured figure, which is this file's
+  standing rule about ceilings arriving inside a probe.
+- **A TEST'S POSITIVE CONTROL CAN BE THE DEFECT YOU ARE ABOUT TO
+  FIX.** (Same day.) `test_no_design_control_is_stretched_to_the_
+  window` proved its own measurement was live by asserting the region
+  chooser DOES take the width, "meant to take the width going". What
+  that meant in practice was that the chooser had no width of its own
+  and took whatever the STYLE handed it -- 861px under Fusion, a 33px
+  stub under macOS. Giving it a width in characters made the control
+  unable to fail, so the guard went red on a repair of the very thing
+  it was guarding.
+  A POSITIVE CONTROL IS A CLAIM ABOUT THE PRODUCT, not scaffolding.
+  When one starts failing, ask whether it was standing on something
+  that was wrong -- this file already records the same shape from the
+  other side, where a fix removed the footing a green oracle had been
+  resting on.
+- **A LAYOUT PASS THAT WIDENS WHAT IT MEASURES IS A FEEDBACK LOOP; A
+  MARGIN IS NOT.** (Same day, and it is the fourth failed repair to
+  this one layout.) Two form blocks stacked in a QVBoxLayout end their
+  label columns a few pixels apart, because a group box frames its own
+  form and that inset is unknowable before a layout pass. Measuring
+  the real right edges at show time and widening the short labels to
+  reach the furthest is the obvious repair and it RUNS AWAY: a wider
+  label grows its form's shared column, which moves the edge being
+  aimed at, so the next show does it again -- 1296px to 1618px in one
+  run.
+  MOVING THE FORM'S LEFT MARGIN settles instead, because a margin does
+  not feed a label's width, and the pass is flagged so even a wrong
+  reading could only be taken once. The general question for any
+  self-correcting layout pass: does the quantity I am adjusting feed
+  the quantity I am measuring?
+- **A STACKED WIDGET'S MINIMUM IS THE LARGEST OF ITS PAGES, AND THAT
+  IS WHY ONE TAB CAN SET THE WHOLE WINDOW'S SIZE.** (Same day,
+  maintainer's ask that the first tab open narrower.) The Design tab
+  needs 550px and Data & colours 1004 because of the assignment
+  table, so the window opened at 1296 whichever tab was in front, and
+  a floor of 1180px in `_fit_to_design` made sure of it. Qt's own
+  lever is a size policy: the page in front is `Preferred` and the
+  others `Ignored`, so the stack follows the current page. The window
+  opens at 825px now and GROWS when a wider tab is chosen.
+  GROW-ONLY IS A DECISION rather than an omission: a window that also
+  contracted would resize under the pointer on every tab click.
+- **WHEN A CONTROL'S PARAMETER COMES FROM A GESTURE, THE HANDLE SHOULD
+  BE A POSITION AND NOT A DELTA.** (Same day, recorded before it is
+  built.) A drag that reports how far it has travelled has to pass
+  that through a LEVER to become a parameter, and the lever is a gain
+  factor nobody can see: half the edge's length was too twitchy, the
+  full length still turned a 35px drag into a scale factor of 0.28.
+  Every such number is tuned by somebody guessing.
+  A HANDLE THAT IS A POSITION HAS NO LEVER. Put the end of a line
+  where you want it and the scale factor is the distance from the
+  middle over what it was; the angle of the handle about the middle
+  IS the rotation. The geometry follows the pointer exactly, nothing
+  needs tuning, and the handle becomes a READOUT as well as a control
+  -- it already sits where the current value puts it. Reach for
+  absolute before relative whenever the parameter has a geometric
+  meaning on screen.
 - **A FINISHED JOB'S LOG IS READABLE WHILE ITS RUN GOES ON.**
   `gh run view --log-failed` refuses until the whole RUN completes,
   which on this project means waiting for hour-long siblings; `gh api

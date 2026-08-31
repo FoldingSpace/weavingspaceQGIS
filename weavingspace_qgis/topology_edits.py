@@ -98,6 +98,29 @@ MANIPULATIONS = {
 _WHOLE = {"n", "smoothness"}
 
 
+def whole_where_needed(args: dict) -> dict:
+  """An argument mapping with the counts made whole.
+
+  Args:
+    args: what a control or a saved edit says, where every number is a
+      float because every parameter box is a QDoubleSpinBox.
+
+  Returns:
+    A new mapping, with the arguments named in `_WHOLE` rounded to
+    integers and the rest left as floats. The original is untouched.
+
+  IT IS A FUNCTION SO THAT BOTH CALLERS SHARE IT. `zigzag_edge` counts
+  zigzags with `range`, so a float `n` raises "'float' object cannot be
+  interpreted as an integer" -- and `apply` had done this inline since
+  it was written while the tab's own live PREVIEW did not, so a zigzag
+  drag drew nothing and said nothing (measured 2026-08-30). One fact
+  held in two places, mended in one, is this project's commonest
+  defect; here it is the same fact in one place.
+  """
+  return {name: int(round(value)) if name in _WHOLE else float(value)
+          for name, value in args.items()}
+
+
 def shelf_key(family: str, elements: int) -> str:
   """The key an edit list is shelved under.
 
@@ -246,9 +269,7 @@ def apply(topology, edits):
         f"applied, because an earlier change left a design whose "
         f"topology cannot be worked out.")
       continue
-    args = {}
-    for name, value in (edit.get("args") or {}).items():
-      args[name] = int(round(value)) if name in _WHOLE else float(value)
+    args = whole_where_needed(edit.get("args") or {})
     try:
       moved = current.transform_geometry(True, True, selector, how, **args)
     except Exception:                                 # noqa: BLE001

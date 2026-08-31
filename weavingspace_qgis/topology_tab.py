@@ -25,7 +25,9 @@ when they look at one of these.
 
 from __future__ import annotations
 
-from qgis.PyQt.QtCore import QPointF, Qt, pyqtSignal
+import math
+
+from qgis.PyQt.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from qgis.PyQt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from qgis.PyQt.QtWidgets import (
   QCheckBox,
@@ -66,8 +68,68 @@ _TILE_LINE = "#b9c6d2"
 _EDGE_INK = "#37474f"
 _VERTEX_INK = "#37474f"
 _CHOSEN_INK = "#d84315"
+# WARMER THAN THE INK AND COOLER THAN THE CHOSEN, so a class under the
+# pointer is legible as "this is what a click would take" without
+# competing with the class already chosen. Hover has to be a THIRD
+# state: with only two, the moment before a click looks like the
+# moment after it.
+_HOVER_INK = "#f9a825"
+# THE CLASS THE SELECTION BELONGS TO, in a light tint. An edit applies
+# to a whole transitivity class, so the drawing has to say both things
+# at once: THIS is the one you are holding, and THESE go with it. One
+# colour for both said only the second, and about half the drawing lit
+# up, so a click never looked aimed at anything.
+_CLASSMATE_INK = "#f0b95c"
 _DUAL_INK = "#7e57c2"
 _CENTRE_INK = "#90a4ae"
+_HANDLE_INK = "#00695c"
+_HANDLE_LIT = "#00bfa5"
+
+# WHAT EACH HANDLE MEANS, AND WHERE IT SITS. A handle IS the choice of
+# manipulation -- grabbing one selects it -- so the vocabulary is in
+# the drawing rather than in a chooser somebody has to set first.
+#
+#   at  : "end" | "middle" | "point", the anchor on the element
+#   out : how far perpendicular to that anchor, in pixels, so two
+#         handles on one anchor do not sit on top of each other
+#   shape: how it is drawn, so the three are told apart at a glance
+_EDGE_HANDLES = (
+  ("scale_edge", "end", 0, "square"),
+  ("rotate_edge", "end", 16, "circle"),
+  ("zigzag_edge", "middle", 16, "diamond"),
+)
+_VERTEX_HANDLES = (
+  ("nudge_vertex", "point", 0, "circle"),
+)
+_HANDLE_REACH = 9.0
+
+
+def _point_to_segment(point, start, finish) -> float:
+  """How far a point is from a line SEGMENT, not from its infinite line.
+
+  Args:
+    point: the QPointF being measured.
+    start: one end of the segment.
+    finish: the other.
+
+  Returns:
+    The distance in the same units the points are in. The projection
+    is clamped to the segment, so a point beyond an end measures to
+    that END rather than to somewhere off the edge -- which is what
+    stops a short edge claiming the whole line it happens to lie on.
+  """
+  run, rise = finish.x() - start.x(), finish.y() - start.y()
+  span = run * run + rise * rise
+  if span <= 0:
+    return ((point.x() - start.x()) ** 2 +
+            (point.y() - start.y()) ** 2) ** 0.5
+  along = ((point.x() - start.x()) * run +
+           (point.y() - start.y()) * rise) / span
+  along = max(0.0, min(1.0, along))
+  nearest_x = start.x() + along * run
+  nearest_y = start.y() + along * rise
+  return ((point.x() - nearest_x) ** 2 +
+          (point.y() - nearest_y) ** 2) ** 0.5
 
 
 class TopologyView(QWidget):
@@ -91,6 +153,9 @@ class TopologyView(QWidget):
   """
 
   chose = pyqtSignal(str, str)
+  # Which manipulation a grabbed handle means. The panel sets its own
+  # chooser from this, so the handle and the chooser cannot disagree.
+  grabbed = pyqtSignal(str)
   dragging = pyqtSignal(float, float)
   dropped = pyqtSignal()
 
@@ -116,7 +181,24 @@ class TopologyView(QWidget):
     self._message = "Generate a map to see its topology."
     self._shown = {key: on for key, _label, on in TOGGLES}
     self._chosen = ("", "")
+    # What the pointer is over, which is not the same as what is
+    # chosen. Mouse tracking was already on before this existed, so
+    # every move event was delivered and discarded.
+    self._hover = ("", "")
+    # THE CONCRETE THING SELECTED, not just its class. An edit applies
+    # to the class, but the handles have to be drawn ON something, and
+    # the honest something is the one the person clicked.
+    self._chosen_thing = None
+    # A handle under the pointer, and the one being dragged.
+    self._hover_handle = ""
+    self._held_handle = ""
     self._press = None
+    # The edge a drag took hold of, in UNIT coordinates:
+    # (mid_x, mid_y, along_x, along_y, length). Kept here because the
+    # view is what did the hit test and knows which concrete edge was
+    # grabbed, while the panel is what knows the manipulations -- so
+    # the geometry crosses over and the meaning does not.
+    self._press_edge = None
     self._scale = 1.0
     self._origin = (0.0, 0.0)
     self._bounds = (0.0, 0.0, 1.0, 1.0)
@@ -135,6 +217,12 @@ class TopologyView(QWidget):
     """
     self._topology = topology
     self._preview = None
+    # THE HELD OBJECT BELONGS TO THE OLD TOPOLOGY and every rebuild
+    # makes new ones, so keeping it would draw handles on geometry
+    # nothing else refers to -- and `is` comparisons against it would
+    # answer False for the edge that looks identical on screen. The
+    # CLASS survives a rebuild; the object does not.
+    self._chosen_thing = None
     self._message = "" if topology is not None else (
       message or "This design has no topology to show.")
     self.update()
@@ -282,14 +370,26 @@ class TopologyView(QWidget):
         if centre is not None:
           painter.drawEllipse(self._to_screen(centre.x, centre.y), 3, 3)
 
+    over, warm = self._hover
     if self._shown["edges"]:
       for edge in topology.edges.values():
         line = self._edge_line(edge)
         if line is None:
           continue
-        lit = (target == "edge" and edge.label == chosen and chosen)
-        painter.setPen(QPen(QColor(_CHOSEN_INK if lit else _EDGE_INK),
-                            3 if lit else 1.5))
+        # THREE STATES, NOT TWO. `held` is the one edge the person
+        # clicked; `kin` is the rest of its class, which an edit will
+        # change as well; `near` is what a click would take now. One
+        # colour for held and kin said only "these all change", so
+        # half the drawing lit at once and a click never looked aimed.
+        held = (target == "edge" and edge is self._chosen_thing)
+        kin = (not held and target == "edge" and edge.label == chosen
+               and chosen)
+        near = (not held and not kin and over == "edge"
+                and edge.label == warm and warm)
+        painter.setPen(QPen(QColor(
+          _CHOSEN_INK if held else _CLASSMATE_INK if kin
+          else _HOVER_INK if near else _EDGE_INK),
+          3 if held else 2 if kin or near else 1.5))
         painter.drawPath(line)
 
     if self._shown["edge_labels"]:
@@ -300,15 +400,46 @@ class TopologyView(QWidget):
           painter.drawText(where, str(edge.label))
 
     for vertex in topology.points.values():
-      lit = (target == "vertex" and vertex.label == chosen and chosen)
+      held = (target == "vertex" and vertex is self._chosen_thing)
+      kin = (not held and target == "vertex" and vertex.label == chosen
+             and chosen)
+      near = (not held and not kin and over == "vertex"
+              and vertex.label == warm and warm)
       point = self._to_screen(vertex.point.x, vertex.point.y)
-      painter.setBrush(QBrush(QColor(_CHOSEN_INK if lit else _VERTEX_INK)))
+      painter.setBrush(QBrush(QColor(
+        _CHOSEN_INK if held else _CLASSMATE_INK if kin
+        else _HOVER_INK if near else _VERTEX_INK)))
       painter.setPen(Qt.PenStyle.NoPen)
-      painter.drawEllipse(point, 5 if lit else 3, 5 if lit else 3)
+      size = 5 if held else 4 if kin or near else 3
+      painter.drawEllipse(point, size, size)
       if self._shown["vertex_labels"] and getattr(vertex, "label", None):
         painter.setPen(QPen(QColor(_VERTEX_INK)))
         painter.drawText(QPointF(point.x() + 6, point.y() - 6),
                          str(vertex.label))
+
+    # THE HANDLES GO ON TOP, because they are the thing being aimed at
+    # and they sit on the geometry they belong to. A preview is drawn
+    # from the topology as it stood before the drag, so during a drag
+    # the handles would be describing a shape that is no longer under
+    # them -- they are left out until the gesture ends.
+    if self._preview is None:
+      for key, where, shape in self.handles():
+        lit = (key in (self._hover_handle, self._held_handle))
+        painter.setBrush(QBrush(QColor(_HANDLE_LIT if lit
+                                       else _HANDLE_INK)))
+        painter.setPen(QPen(QColor("#ffffff"), 1.5))
+        size = 6.0 if lit else 5.0
+        if shape == "square":
+          painter.drawRect(QRectF(where.x() - size, where.y() - size,
+                                  size * 2, size * 2))
+        elif shape == "diamond":
+          painter.drawPolygon(
+            QPointF(where.x(), where.y() - size),
+            QPointF(where.x() + size, where.y()),
+            QPointF(where.x(), where.y() + size),
+            QPointF(where.x() - size, where.y()))
+        else:
+          painter.drawEllipse(where, size, size)
     painter.end()
 
   def _path(self, polygon):
@@ -395,15 +526,27 @@ class TopologyView(QWidget):
       point: where the pointer is.
 
     Returns:
-      (target, label, vertex) for the nearest thing within reach, else
-      ("", "", None). VERTICES WIN TIES within their radius, because a
-      vertex sits ON an edge and is the smaller target -- a person
-      aiming at one would otherwise get the edge underneath it.
+      (target, label, thing) for the nearest thing within reach, else
+      ("", "", None). `thing` is the Vertex or the Edge itself, so a
+      caller that needs its geometry does not have to find it again
+      from the label -- a class may hold several edges, and the one a
+      person grabbed is the one a drag is about. VERTICES WIN TIES
+      within their radius, because a vertex sits ON an edge and is the
+      smaller target -- a person aiming at one would otherwise get the
+      edge underneath it.
     """
     topology = self._drawn()
     if topology is None:
       return "", "", None
-    best, found = 12.0, ("", "", None)
+    # EIGHT PIXELS, NOT TWELVE. A vertex sits at the END of every edge
+    # meeting it, so its reach is subtracted from both. Measured
+    # 2026-08-30 on laves 3.3.4.3.4 at a realistic view size, edges run
+    # 31 to 43px on screen -- so a 12px reach at each end claimed 24 of
+    # a median 43, and MORE THAN HALF of every edge could not be
+    # clicked as an edge at all. At eight it is a third, which leaves
+    # the middle of an edge reliably an edge, and a vertex is still the
+    # easier target of the two because it wins ties inside its radius.
+    best, found = 8.0, ("", "", None)
     for vertex in topology.points.values():
       screen = self._to_screen(vertex.point.x, vertex.point.y)
       distance = ((screen.x() - point.x()) ** 2 +
@@ -412,41 +555,226 @@ class TopologyView(QWidget):
         best, found = distance, ("vertex", vertex.label or "", vertex)
     if found[0]:
       return found
-    best = 10.0
+    # AN EDGE IS CLICKABLE ALONG ITS LENGTH, not at a disc on its
+    # middle. Until 2026-08-30 this measured the distance to
+    # `_edge_midpoint` alone, so clicking squarely on an edge anywhere
+    # but its centre selected nothing -- and the design measured that
+    # day has 107 edges whose midpoints are small and crowded.
+    best = 8.0
     for edge in topology.edges.values():
-      where = self._edge_midpoint(edge)
-      if where is None:
-        continue
-      distance = ((where.x() - point.x()) ** 2 +
-                  (where.y() - point.y()) ** 2) ** 0.5
-      if distance < best:
-        best, found = distance, ("edge", edge.label or "", None)
+      distance = self._distance_to_edge(edge, point)
+      if distance is not None and distance < best:
+        best, found = distance, ("edge", edge.label or "", edge)
     return found
 
+  def _distance_to_edge(self, edge, point) -> float | None:
+    """How far a widget point is from an edge, in pixels.
+
+    Args:
+      edge: the Edge.
+      point: where the pointer is.
+
+    Returns:
+      The distance to the nearest point ON the edge, following every
+      vertex of it rather than the straight line between its ends --
+      an edge that has been zigzagged already is a wiggly line, and
+      the thing a person aims at is the line they can see. None where
+      the edge has no geometry.
+    """
+    try:
+      line = edge.get_geometry()
+      coords = list(getattr(line, "coords", []))
+    except Exception:                                 # noqa: BLE001
+      return None
+    if len(coords) < 2:
+      return None
+    best = None
+    previous = self._to_screen(*coords[0])
+    for x, y in coords[1:]:
+      current = self._to_screen(x, y)
+      distance = _point_to_segment(point, previous, current)
+      best = distance if best is None else min(best, distance)
+      previous = current
+    return best
+
+  def handles(self):
+    """Where the handles are, for the thing now selected.
+
+    Returns:
+      A list of (manipulation key, QPointF, shape). Empty where
+      nothing is selected or its geometry will not answer.
+
+    A HANDLE IS THE CHOICE OF MANIPULATION rather than a way of
+    supplying a number to one already chosen. That is the whole of the
+    redesign of 2026-08-30: the drag used to mean whatever the `how`
+    chooser said, which is a mapping that exists only in the code, so
+    nothing on screen said a drag would do anything or what. A handle
+    sits where the thing it moves actually moves -- the end that
+    swings, the end that stretches, the middle that bows out -- and
+    the previous arrangement grabbed the MIDPOINT for rotate and
+    scale, which is the one point neither of them moves.
+    """
+    target, _label = self._chosen
+    thing = self._chosen_thing
+    if thing is None:
+      return []
+    if target == "vertex":
+      try:
+        point = self._to_screen(thing.point.x, thing.point.y)
+      except Exception:                               # noqa: BLE001
+        return []
+      return [(key, point, shape)
+              for key, _at, _out, shape in _VERTEX_HANDLES]
+    frame = self._edge_frame(thing)
+    if frame is None:
+      return []
+    mid_x, mid_y, ax, ay, _length = frame
+    try:
+      coords = list(thing.get_geometry().coords)
+    except Exception:                                 # noqa: BLE001
+      return []
+    anchors = {"end": self._to_screen(*coords[-1]),
+               "middle": self._to_screen(mid_x, mid_y)}
+    # The perpendicular, in SCREEN terms. The view flips y, so the
+    # screen normal is taken from screen points rather than from the
+    # unit vector, or the handles sit on the wrong side.
+    start, finish = self._to_screen(*coords[0]), self._to_screen(*coords[-1])
+    run, rise = finish.x() - start.x(), finish.y() - start.y()
+    reach = (run * run + rise * rise) ** 0.5 or 1.0
+    normal = (-rise / reach, run / reach)
+    placed = []
+    for key, at, out, shape in _EDGE_HANDLES:
+      anchor = anchors.get(at)
+      if anchor is None:
+        continue
+      placed.append((key,
+                     QPointF(anchor.x() + normal[0] * out,
+                             anchor.y() + normal[1] * out),
+                     shape))
+    return placed
+
+  def _handle_at(self, point) -> str:
+    """The manipulation whose handle is under a point, or "".
+
+    Args:
+      point: where the pointer is.
+
+    Returns:
+      The manipulation key. Handles are tested BEFORE edges and
+      vertices, because a handle sits on top of the thing it belongs
+      to and is the smaller target.
+    """
+    for key, where, _shape in self.handles():
+      if ((where.x() - point.x()) ** 2 +
+          (where.y() - point.y()) ** 2) ** 0.5 < _HANDLE_REACH:
+        return key
+    return ""
+
+  def _edge_frame(self, edge):
+    """An edge's own axes, in unit coordinates.
+
+    Args:
+      edge: the Edge a drag took hold of.
+
+    Returns:
+      (mid_x, mid_y, along_x, along_y, length) with `along` a unit
+      vector from the first end to the last, or None where the edge
+      has no usable geometry. END TO END rather than following every
+      vertex: an edge that has already been zigzagged is a wiggly
+      line, and what a person drags is still the thing running between
+      its two ends.
+    """
+    try:
+      line = edge.get_geometry()
+      coords = list(getattr(line, "coords", []))
+    except Exception:                                 # noqa: BLE001
+      return None
+    if len(coords) < 2:
+      return None
+    (x0, y0), (x1, y1) = coords[0], coords[-1]
+    length = ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+    if length <= 0:
+      return None
+    return ((x0 + x1) / 2.0, (y0 + y1) / 2.0,
+            (x1 - x0) / length, (y1 - y0) / length, length)
+
+  def grabbed_edge(self):
+    """The frame of the edge a drag is holding, or None.
+
+    Returns:
+      The tuple `_edge_frame` describes, for the edge under the press.
+    """
+    return self._press_edge
+
+  def unit_span(self) -> float:
+    """How wide the unit is, in its own coordinates.
+
+    Returns:
+      The width the view fitted to. A drag arrives as a fraction of
+      this, so anything comparing a drag with an edge's LENGTH needs
+      it to get back into the same terms.
+    """
+    return self._bounds[2] - self._bounds[0]
+
   def mousePressEvent(self, event):  # noqa: N802 (Qt API)
-    """Choose the class under the pointer, and begin a drag."""
-    target, label, vertex = self._nearest(event.position()
-                                          if hasattr(event, "position")
-                                          else event.pos())
+    """Choose the class under the pointer, and begin a drag.
+
+    EDGES DRAG AS WELL AS VERTICES since 2026-08-30. Before that a
+    click on an edge selected its class and nothing more, so the three
+    manipulations that are ABOUT edges -- zigzag, rotate, scale -- were
+    reachable only by typing a number and pressing Apply.
+    """
+    point = (event.position() if hasattr(event, "position")
+             else event.pos())
+    # A HANDLE FIRST. It sits on the thing it belongs to, so testing
+    # the thing first would make the handles unreachable.
+    handle = self._handle_at(point)
+    if handle:
+      self._held_handle = handle
+      self._press = (self._to_unit(point), self._bounds[2] - self._bounds[0])
+      self._press_edge = (self._edge_frame(self._chosen_thing)
+                          if self._chosen[0] == "edge" else None)
+      self.grabbed.emit(handle)
+      self.setCursor(Qt.CursorShape.ClosedHandCursor)
+      return
+    target, label, thing = self._nearest(point)
     if not target:
       return
+    # SELECT, THEN ACT. The click chooses whatever is under the
+    # pointer, whatever manipulation happens to be named -- and the
+    # panel narrows its chooser to what suits the selection, rather
+    # than the chooser deciding in advance what may be clicked. The
+    # arrangement before this filtered the class list by the current
+    # manipulation, so clicking an edge while a vertex manipulation
+    # was chosen moved nothing in the panel while the DRAWING went on
+    # highlighting the edge: one fact, two stores, disagreeing on
+    # screen.
+    self._chosen_thing = thing
     self.set_chosen(target, label)
     self.chose.emit(target, label)
-    if target == "vertex" and vertex is not None:
-      self._press = (self._to_unit(event.position()
-                                   if hasattr(event, "position")
-                                   else event.pos()),
-                     self._bounds[2] - self._bounds[0])
 
   def mouseMoveEvent(self, event):  # noqa: N802 (Qt API)
-    """Report how far a drag has travelled, in unit terms."""
+    """Follow the pointer: report a drag, or light what is under it."""
+    point = event.position() if hasattr(event, "position") else event.pos()
     if self._press is None:
+      # NOT A DRAG, SO IT IS HOVER. `setMouseTracking(True)` has been
+      # on since this widget was written and every move event arrived
+      # here and was discarded, so nothing told a person that a click
+      # would land on anything until they made it.
+      handle = self._handle_at(point)
+      target, label, _thing = ("", "", None) if handle \
+          else self._nearest(point)
+      if (handle, target, label) != (self._hover_handle, *self._hover):
+        self._hover_handle, self._hover = handle, (target, label)
+        self.setCursor(Qt.CursorShape.OpenHandCursor
+                       if handle or target
+                       else Qt.CursorShape.ArrowCursor)
+        self.update()
       return
     (x0, y0), span = self._press
-    x, y = self._to_unit(event.position() if hasattr(event, "position")
-                         else event.pos())
-    # AS A FRACTION OF THE UNIT, not in map units: `nudge_vertex` takes
-    # a proportion, and a drag that meant different amounts at
+    x, y = self._to_unit(point)
+    # AS A FRACTION OF THE UNIT, not in map units: the manipulations
+    # take proportions, and a drag that meant different amounts at
     # different spacings would be a control nobody could learn.
     self.dragging.emit((x - x0) / span, (y - y0) / span)
 
@@ -455,7 +783,24 @@ class TopologyView(QWidget):
     if self._press is None:
       return
     self._press = None
+    self._press_edge = None
+    self._held_handle = ""
+    self.setCursor(Qt.CursorShape.OpenHandCursor
+                   if self._hover_handle or self._hover[0]
+                   else Qt.CursorShape.ArrowCursor)
     self.dropped.emit()
+
+  def leaveEvent(self, event):  # noqa: N802 (Qt API)
+    """Put the highlight out when the pointer goes.
+
+    Without this the last thing hovered stays lit after the pointer
+    has left the drawing, which says a click would land somewhere it
+    would not.
+    """
+    if self._hover != ("", ""):
+      self._hover = ("", "")
+      self.update()
+    super().leaveEvent(event)
 
 
 class TopologyPanel(QWidget):
@@ -483,6 +828,7 @@ class TopologyPanel(QWidget):
 
     self.view = TopologyView()
     self.view.chose.connect(self._on_chose)
+    self.view.grabbed.connect(self._on_grabbed)
     self.view.dragging.connect(self._on_dragging)
     self.view.dropped.connect(self._on_dropped)
     layout.addWidget(self.view, 1)
@@ -619,20 +965,58 @@ class TopologyPanel(QWidget):
   # -------------------------------------------------------- controls
 
   def _refresh_classes(self):
-    """Fill the class chooser for whatever the view is showing."""
+    """Fill the class chooser with everything the unit has.
+
+    SELECT, THEN ACT (2026-08-30). This used to list only the classes
+    the CURRENT manipulation could be aimed at, which made the tab
+    mode-first: you had to name the verb before the drawing would
+    answer to the noun. So somebody who opened the tab, saw an edge
+    they wanted to bend, and clicked it got nothing at all -- the
+    default manipulation targets vertices. Every drawing tool anybody
+    has used works the other way round, and worse, the VIEW
+    highlighted the clicked edge while the chooser did not follow, so
+    the two disagreed on screen.
+
+    Both kinds are offered now, and `_refresh_manipulations` narrows
+    the VERB to what suits whatever is selected.
+    """
     self.class_combo.blockSignals(True)
     self.class_combo.clear()
     if self._topology is not None:
       groups = edits_module.classes(self._topology)
-      target = edits_module.MANIPULATIONS[
-        self.how_combo.currentData()]["target"]
-      for label in groups.get(target, ""):
-        self.class_combo.addItem(f"{target} {label}", (target, label))
-      if groups.get(target):
-        self.class_combo.addItem(f"every {target}",
-                                 (target, groups[target]))
+      for target in ("vertex", "edge"):
+        for label in groups.get(target, ""):
+          self.class_combo.addItem(f"{target} {label}", (target, label))
+        if groups.get(target):
+          self.class_combo.addItem(f"every {target}",
+                                   (target, groups[target]))
     self.class_combo.blockSignals(False)
+    self._refresh_manipulations()
     self._on_class_chosen()
+
+  def _refresh_manipulations(self):
+    """Offer only the manipulations that suit what is selected.
+
+    Returns:
+      None. The chooser keeps whatever it was on where that is still
+      valid, so narrowing the list does not silently retarget an edit
+      somebody was in the middle of describing.
+    """
+    data = self.class_combo.currentData()
+    kind = data[0] if data else ""
+    wanted = self.how_combo.currentData()
+    self.how_combo.blockSignals(True)
+    self.how_combo.clear()
+    for key, spec in edits_module.MANIPULATIONS.items():
+      if not kind or spec["target"] == kind:
+        self.how_combo.addItem(spec["label"], key)
+    if wanted is not None:
+      for index in range(self.how_combo.count()):
+        if self.how_combo.itemData(index) == wanted:
+          self.how_combo.setCurrentIndex(index)
+          break
+    self.how_combo.blockSignals(False)
+    self._rebuild_arguments()
 
   def _rebuild_arguments(self):
     """Build the parameter boxes the chosen manipulation needs."""
@@ -655,7 +1039,12 @@ class TopologyPanel(QWidget):
       self._argument_grid.addWidget(caption, row, 0)
       self._argument_grid.addWidget(box, row, 1)
       self._argument_rows.append((caption, box))
-    self._refresh_classes()
+    # IT USED TO REFILL THE CLASS LIST FROM HERE, because the list was
+    # filtered by the manipulation. Under select-then-act the list
+    # holds every class whatever the verb is, so that call is not
+    # merely redundant -- `_refresh_classes` now calls
+    # `_refresh_manipulations`, which calls this, and the pair would
+    # recurse without end.
 
   def _arguments(self) -> dict:
     """What the parameter boxes currently say."""
@@ -663,10 +1052,14 @@ class TopologyPanel(QWidget):
             for _label, box in self._argument_rows}
 
   def _on_class_chosen(self):
-    """Highlight whatever class the chooser now names."""
+    """Highlight whatever class the chooser now names, and re-offer
+    the manipulations that suit it."""
     data = self.class_combo.currentData()
     if data:
       self.view.set_chosen(*data)
+    # The verb follows the noun. Safe to call from here: it touches
+    # the how chooser and the argument boxes and never the class list.
+    self._refresh_manipulations()
 
   def _on_chose(self, target, label):
     """Follow a click in the view back into the chooser.
@@ -676,10 +1069,11 @@ class TopologyPanel(QWidget):
       label: the class label that was clicked.
 
     Returns:
-      None. Where the chooser has no entry for that class -- which
-      happens when the current manipulation targets the other kind --
-      nothing moves, so clicking an edge while a vertex manipulation
-      is chosen does not silently retarget the edit.
+      None. The list holds every class of both kinds since
+      2026-08-30, so a click always lands somewhere -- which is the
+      whole of select-then-act. Before that the list was filtered by
+      the current manipulation and a click on the other kind moved
+      nothing here while the drawing highlighted it anyway.
     """
     for index in range(self.class_combo.count()):
       data = self.class_combo.itemData(index)
@@ -687,10 +1081,79 @@ class TopologyPanel(QWidget):
         self.class_combo.setCurrentIndex(index)
         return
 
+  def _on_grabbed(self, key: str):
+    """Take the manipulation from the handle somebody took hold of.
+
+    Args:
+      key: the manipulation that handle stands for.
+
+    Returns:
+      None. THE HANDLE IS THE CHOICE, so the chooser is set from it
+      rather than the other way round -- which is what makes the two
+      unable to disagree, and what lets somebody use this tab without
+      touching the chooser at all.
+    """
+    for index in range(self.how_combo.count()):
+      if self.how_combo.itemData(index) == key:
+        if index != self.how_combo.currentIndex():
+          self.how_combo.setCurrentIndex(index)
+        return
+
   # ------------------------------------------------------------ drag
 
+  def _drag_argument(self, key, frame, dx, dy, span):
+    """What a drag on an edge means for the chosen manipulation.
+
+    Args:
+      key: the manipulation the `how` chooser names.
+      frame: the grabbed edge's (mid_x, mid_y, along_x, along_y,
+        length), in unit coordinates.
+      dx: travel left to right, as a fraction of the unit.
+      dy: travel bottom to top, as the same fraction.
+      span: the unit's own width, to turn those fractions back into
+        unit coordinates so they can be compared with the edge.
+
+    Returns:
+      (argument name, value), or (None, None) where this manipulation
+      takes nothing a drag can supply.
+
+    A DRAG SUPPLIES THE PARAMETER OF THE MANIPULATION ALREADY CHOSEN,
+    rather than a gesture vocabulary of its own. The alternative
+    considered was direction-decides -- perpendicular means zigzag,
+    along means scale, around means rotate -- and it was refused
+    because the `how` chooser ALREADY says which manipulation is
+    meant, so a second, invisible way of saying it could only
+    disagree with the first. It also has to be learnt, where this has
+    only to be noticed.
+    """
+    _mx, _my, ax, ay, length = frame
+    # The drag resolved into the edge's own axes: how far along it,
+    # and how far across it.
+    along = (dx * ax + dy * ay) * span
+    across = (-dx * ay + dy * ax) * span
+    if key == "zigzag_edge":
+      # Amplitude relative to the edge's own length, so the same
+      # gesture means the same shape on a long edge and a short one.
+      return "h", abs(across) / length
+    # THE EDGE'S OWN LENGTH IS THE LEVER for both of the rest: drag
+    # across by as far as the edge is long and it turns 45 degrees;
+    # drag along by that far and it doubles.
+    #
+    # HALF THE LENGTH WAS THE FIRST LEVER AND IT WAS TOO TWITCHY.
+    # Measured 2026-08-30 on laves 3.3.4.3.4: a 60px drag along an edge
+    # asked for a scale factor below zero, which clamped to the box's
+    # minimum of 0.1 -- so an ordinary gesture inverted the edge, and
+    # nothing gentler could be asked for at all. The lever has to be a
+    # length the person can SEE, and the edge they are holding is the
+    # only such length on screen.
+    if key == "rotate_edge":
+      return "angle", math.degrees(math.atan2(across, length))
+    if key == "scale_edge":
+      return "sf", 1.0 + (along / length)
+    return None, None
+
   def _on_dragging(self, dx, dy):
-    """Preview a nudge while the pointer moves.
+    """Preview the chosen manipulation while the pointer moves.
 
     Args:
       dx: how far, left to right, as a fraction of the unit.
@@ -700,30 +1163,139 @@ class TopologyPanel(QWidget):
       None. The preview is applied from the topology as it stood
       BEFORE the drag, never from the last frame, so one gesture is
       one manipulation rather than a hundred composed.
+
+    IT USED TO BE A NUDGE AND NOTHING ELSE -- the method named
+    `nudge_vertex` outright, so a vertex drag meant a nudge even with
+    `push_vertex` chosen, and an edge drag meant nothing at all.
     """
     data = self.class_combo.currentData()
-    if self._topology is None or not data or data[0] != "vertex":
+    key = self.how_combo.currentData()
+    if self._topology is None or not data or not key:
       return
-    self._drag_from = (dx, dy)
+    spec = edits_module.MANIPULATIONS.get(key, {})
+    # A drag can only mean the manipulation in force, and only where
+    # that manipulation is about the kind of thing being dragged.
+    # Clicking an edge while a vertex manipulation is chosen already
+    # declines to retarget the edit; this declines to preview one.
+    if spec.get("target") != data[0]:
+      return
+    args = dict(self._arguments())
+    if data[0] == "vertex":
+      if key != "nudge_vertex":
+        return
+      args["dx"], args["dy"] = float(dx), float(dy)
+    else:
+      frame = self.view.grabbed_edge()
+      if frame is None:
+        return
+      name, value = self._drag_argument(
+        key, frame, dx, dy, self.view.unit_span())
+      if name is None:
+        return
+      args[name] = self._within_the_box(name, value)
+    self._drag_from = dict(args)
     try:
+      # THROUGH THE SAME COERCION THE COMMIT USES. Every parameter box
+      # is a QDoubleSpinBox, so `n` and `smoothness` arrive as floats
+      # and `zigzag_edge` raises "'float' object cannot be interpreted
+      # as an integer" -- which `apply()` has always avoided through
+      # `_WHOLE` and this path did not. Measured 2026-08-30: rotate and
+      # scale previewed while zigzag drew nothing, silently, because
+      # the raise is swallowed here.
       moved = self._topology.transform_geometry(
-        True, True, data[1], "nudge_vertex", dx=float(dx), dy=float(dy))
+        True, True, data[1], key, **edits_module.whole_where_needed(args))
     except Exception:                                 # noqa: BLE001
+      # AND A PREVIEW THAT FAILED COMMITS NOTHING. `_drag_from` is what
+      # the drop records, so leaving it set would let a gesture that
+      # drew nothing still add an edit -- the user would be shown one
+      # thing and given another.
+      self._drag_from = None
       return
     self.view.show_preview(moved)
+    # AND THE NUMBER BOXES FOLLOW, so a drag is a way of typing rather
+    # than a second, separate control: drag roughly, then read what it
+    # chose and correct it by hand.
+    self._show_arguments(args)
+
+  def _within_the_box(self, name, value):
+    """Clamp a dragged value to what its own control accepts.
+
+    Args:
+      name: the argument's name, as `MANIPULATIONS` spells it.
+      value: what the drag worked out.
+
+    Returns:
+      The value, held inside the spin box's own range -- which is the
+      range the library's parameter is documented at. A drag can reach
+      any number; the control is what says which of them are meanings.
+    """
+    for _label, box in self._argument_rows:
+      if box.property("argument") == name:
+        return max(box.minimum(), min(box.maximum(), float(value)))
+    return float(value)
+
+  def _show_arguments(self, args):
+    """Move the parameter boxes to what a drag worked out.
+
+    Args:
+      args: the argument mapping the preview was built from.
+
+    Returns:
+      None. The boxes carry no `valueChanged` connection, so setting
+      them starts nothing -- they are read when Apply is pressed.
+    """
+    for _label, box in self._argument_rows:
+      name = box.property("argument")
+      if name in args:
+        box.setValue(float(args[name]))
 
   def _on_dropped(self):
     """Commit the drag as an edit, or put the view back."""
     self.view.show_preview(None)
     if self._drag_from is None:
       return
-    dx, dy = self._drag_from
+    args = self._drag_from
     self._drag_from = None
     data = self.class_combo.currentData()
-    if not data or (abs(dx) < 1e-4 and abs(dy) < 1e-4):
+    key = self.how_combo.currentData()
+    if not data or not key:
       return
-    self._record({"classes": data[1], "how": "nudge_vertex",
-                  "args": {"dx": float(dx), "dy": float(dy)}})
+    # A PRESS THAT WENT NOWHERE IS A CLICK, and a click chooses a class
+    # rather than editing anything. The test is on what the drag
+    # actually asked for, per manipulation, because "nothing moved"
+    # is a different number for an angle than for a fraction.
+    if not self._drag_moved(key, args):
+      return
+    self._record({"classes": data[1], "how": key, "args": args})
+
+  def _drag_moved(self, key, args) -> bool:
+    """Did this drag ask for anything?
+
+    Args:
+      key: the manipulation.
+      args: what the drag worked out.
+
+    Returns:
+      True where the gesture asked for a real change. Each
+      manipulation has its own idea of nothing: zero travel for a
+      nudge, zero degrees for a rotation, and a factor of ONE for a
+      scale -- which is why this is not one comparison against zero.
+    """
+    if key == "nudge_vertex":
+      return abs(args.get("dx", 0.0)) > 1e-4 or abs(args.get("dy", 0.0)) > 1e-4
+    if key == "zigzag_edge":
+      return abs(args.get("h", 0.0)) > 0.01
+    if key == "rotate_edge":
+      return abs(args.get("angle", 0.0)) > 0.5
+    if key == "scale_edge":
+      # ONE PER CENT, not a thousandth. Measured 2026-08-30: a 34px
+      # drag mostly ACROSS an edge still resolves to a little travel
+      # ALONG it, and at a thousandth that committed a scale of 1.003
+      # -- an edit nobody asked for, from what was meant as a click to
+      # select the class. Each threshold is the smallest change of its
+      # own parameter somebody could have meant.
+      return abs(args.get("sf", 1.0) - 1.0) > 0.01
+    return False
 
   # --------------------------------------------------------- editing
 
