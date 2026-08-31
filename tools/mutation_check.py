@@ -2537,6 +2537,24 @@ MUTATIONS = [
        test="test_the_saved_unit_and_dual_carry_no_crs",
        why="the motif in a saved file carrying no CRS, rather than "
            "claiming to be somewhere it is not"),
+  dict(name="a-colour-nothing-can-attribute-is-not-a-hand-pick",
+       file=DIALOG,
+       # The reopen path recovers hand-picked colours by rebuilding
+       # what the RAMP would have painted and keeping whatever it does
+       # not explain. Where the ramp cannot be rebuilt at all -- no
+       # name to rebuild from, or the rebuild raised -- `expected` is
+       # None, and that was read as "the ramp explains none of them",
+       # so every colour on the layer became somebody's decision.
+       # Mutating the guard away restores exactly that: an element
+       # comes back owning a full set of picks, reads Custom, and
+       # outranks its own ramp for good.
+       old="""        if expected is None:
+          break""",
+       new="""        if expected is None:
+          pass""",
+       test="test_hostile_stored_properties_never_break_adoption",
+       why="a colour the plugin cannot attribute being declined rather "
+           "than recorded as a person's choice"),
   dict(name="the-topology-stamp-carries-the-modifiers", file=DIALOG,
        # `_queue_topology` builds from `self._unit`, which is the unit
        # AFTER the modifier chain, and any tile inset opens gaps that

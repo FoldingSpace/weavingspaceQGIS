@@ -4004,8 +4004,17 @@ def test_the_saved_dual_belongs_to_the_saved_unit():
       _settle_topology(dlg)
       _tick(300)
       assert panel.edits(), "PREMISE: the button recorded no edit"
-      dlg._generate()
-      _settle(dlg)
+      # WAIT FOR THE RUN THE DEFERRAL EVENTUALLY MAKES. A Generate with
+      # an edit outstanding is deferred until the edited unit can be
+      # restored, and says so; the run that draws the map is the one
+      # the topology build re-presses. Settling once waits on a run
+      # that DECLINED, so on a loaded machine the save arrived at an
+      # empty project and the plugin rightly said there was no map to
+      # save yet. Measured 2026-08-31 in the candidate's own sharded
+      # suite, where this passed alone and failed beside two siblings.
+      _generate_past_the_topology(dlg)
+      assert dlg._element_layer_ids, \
+        "PREMISE: the run drew nothing, so there is no map to save"
       assert press_save(dlg), "PREMISE: the save did not write"
       spec = dlg._current_spec()
     finally:

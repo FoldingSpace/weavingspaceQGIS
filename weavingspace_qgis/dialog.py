@@ -9125,14 +9125,44 @@ class WeavingSpaceDialog(QDialog):
       # and an element with ONE hand-picked colour would come back
       # owning five, so the record would stop meaning "what the user
       # chose" and start meaning "what is currently drawn".
+      # AND WHERE THE RAMP CANNOT BE REPRODUCED AT ALL, NOTHING IS
+      # RECOVERED. `expected` is None when there is no ramp name to
+      # rebuild from or when rebuilding raised, and both were treated
+      # as "the ramp explains none of these", so EVERY colour on the
+      # layer became somebody's hand-pick. That is the opposite of what
+      # not knowing means: a colour the plugin cannot attribute is not
+      # a person's decision, and this project's own rule for the
+      # attribution walk next door is that an absent record DECLINES.
+      # MEASURED 2026-08-31, and it cost two registered tests in the
+      # candidate's first full suite: a project written by an older
+      # plugin came back with four ramp colours owning the element
+      # instead of the one `#ff00aa` its stamp recorded, and hostile
+      # stored properties -- whose whole point is that the guards
+      # should leave nothing behind -- produced a full set of picks.
+      # Both then read Custom, and a pick outranks the ramp for good.
+      #
+      # AND IT IS STRICTER THAN ITS GRADUATED TWIN, DELIBERATELY. That
+      # one records when `expected is not None OR NOT named`: no ramp
+      # at all is read as "these colours are the person's", and only a
+      # named ramp that would not rebuild is declined. This branch
+      # declines both, because a categorical element's colours are a
+      # function of the MAP-WIDE value list rather than of its own
+      # class count -- the asymmetry the paragraph above this one is
+      # about -- so "no ramp named" here does not license the same
+      # inference. Written down rather than quietly differing: when
+      # twins disagree on purpose, the reason belongs at the site, and
+      # whether the twin's allowance is right on ITS side is a question
+      # worth a hunt rather than an assumption.
       recovered = {}
       for value, colour in pairs:
+        if expected is None:
+          break
         # the catch-all category carries no value; it is the one the
         # editor exposes under bridge.NO_DATA_KEY
         blank = value is None or str(value) in ("", "NULL")
         if blank:
           continue
-        if expected is not None and expected.get(str(value)) == colour:
+        if expected.get(str(value)) == colour:
           continue
         recovered[str(value)] = colour
       if recovered:
