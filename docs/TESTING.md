@@ -3838,6 +3838,51 @@ likelier: find what differs between them and vary it alone. Here the
 disagreement was worth more than either verdict, since it named a
 constraint neither probe had been looking for.
 
+## A TEST THAT LOCATES A MOMENT BY COUNTING IS RE-AIMED BY A SLOWER MACHINE
+
+2026-08-31, found by CI's coverage leg on the candidate's own commit
+and by nothing here: `a topology landing does not strand a live tick`
+passed three times out of three locally and failed on Linux under the
+per-test recorder, where every step costs several times what it costs
+on this Mac.
+
+THE ASSERTION READ `seen[1]` -- the SECOND call to `_generate` -- on
+the assumption that the topology landing's re-press is the second one.
+Measured here with a probe that recorded the CALLER of each call
+rather than counting them, the journey makes FOUR calls, and two of
+them arrive from timers whose order is timing's to choose:
+
+    [0] live=True   the test's own press
+    [1] live=False  a timer
+    [2] live=False  _maybe_live_generate
+    [3] live=False  a timer
+
+The competing caller is the LIVE TIMER. When it fires before the
+topology build lands -- which is what a slower machine buys -- the
+second call is its call, at which `_live_pending` is still True
+perfectly correctly, and the assertion is about a mechanism it was
+never written for. The failure sentence then describes the wrong
+thing, confidently, which is this file's own "a test's name is a
+hypothesis about its own failure" arriving at a POSITION instead.
+
+THE PRODUCT WAS INNOCENT AND THAT WAS PROVED, not assumed: the
+landing clears the flag before re-pressing, and the catalogue entry
+standing on that assignment still reports `caught` after the repair.
+A repair that had quietly disarmed the guard would have looked
+identical from the suite.
+
+THE REPAIR IS TO CLOSE THE WINDOW, not to widen a wait. The flag is
+what every reader downstream consults, so stopping the live timer
+stages the condition and removes the only competing caller, leaving
+the landing's re-press the only thing that can answer. And the test
+now records WHO called and refuses to judge a call from
+`_maybe_live_generate`, so if a competitor ever returns it says which
+mechanism it met rather than failing about the other one.
+
+ASK OF ANY TEST THAT READS A MOMENT: does it NAME that moment, or
+count to it? Where it counts, the count is a claim about how many
+things happen first, and that is a claim about the machine.
+
 ## A probe that cannot reach its own case (2026-08-31)
 
 Three of the day's findings were probes, not products, and all three

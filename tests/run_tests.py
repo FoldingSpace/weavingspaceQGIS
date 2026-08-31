@@ -5033,6 +5033,23 @@ def test_a_topology_landing_does_not_strand_a_live_tick():
       dlg.live_check.setChecked(True)
       dlg._live_pending = True
 
+      # AND THE COMPETING CALLER IS CLOSED OFF, not raced against.
+      # `_live_pending` is the outstanding tick this test is about; the
+      # live TIMER is a different mechanism that also reaches
+      # `_generate`, through `_maybe_live_generate`. If it fires before
+      # the topology build lands -- which it does on a slower machine,
+      # and did on CI's coverage leg where every step costs several
+      # times what it costs here -- then the second call to `_generate`
+      # is ITS call, at which `_live_pending` is still True perfectly
+      # correctly, and the assertion below reads a moment it was never
+      # about. Measured 2026-08-31: four calls here, two of them from
+      # timers whose order is timing's to choose.
+      # Stopping it stages the condition instead of sampling it, which
+      # is this project's own rule -- where a case depends on a window,
+      # close the window. The flag is what every reader downstream
+      # consults, so the harm is unchanged by the timer being idle.
+      dlg._live_timer.stop()
+
       # CAUGHT AT THE MOMENT THE LANDING RE-PRESSES, not afterwards.
       # The first draft asserted on `_live_pending` once everything
       # had settled, and the mutation SURVIVED: the tiling landing's
@@ -5046,7 +5063,16 @@ def test_a_topology_landing_does_not_strand_a_live_tick():
       real_generate = dlg._generate
 
       def watched_generate(*a, **kw):
-        seen.append(dlg._live_pending)
+        # THE CALLER, NOT ONLY THE FLAG. Reading `seen[1]` positionally
+        # is what let a slower machine hand this assertion the live
+        # timer's own call; recording who called lets the test say so
+        # rather than fail with a sentence about the wrong mechanism.
+        who = "?"
+        for frame in reversed(traceback.extract_stack()[:-1]):
+          if frame.name != "watched_generate":
+            who = frame.name
+            break
+        seen.append((dlg._live_pending, who))
         return real_generate(*a, **kw)
 
       dlg._generate = watched_generate
@@ -5062,7 +5088,11 @@ def test_a_topology_landing_does_not_strand_a_live_tick():
       assert len(seen) >= 2, (
         "PREMISE: the landing never re-pressed Generate, so there is "
         f"no moment at which to read what it left: {seen}")
-      assert not seen[1], (
+      assert seen[1][1] != "_maybe_live_generate", (
+        "PREMISE: the call being read is the LIVE TIMER's, not the "
+        "topology landing's re-press, so this assertion would be about "
+        f"the wrong mechanism: {seen}")
+      assert not seen[1][0], (
         "the topology landing consumed the press and left a live tick "
         "standing: at the moment it re-pressed Generate, "
         "`_live_pending` was still True. Everything that asks whether "
