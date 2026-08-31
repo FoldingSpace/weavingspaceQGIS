@@ -1103,12 +1103,19 @@ makes that decision cheap either way.
 - Ruling 2, built on Generate off the main thread and never on colour:
   BUILT. `_queue_topology` hangs off whatever rebuilds the unit, and
   `_topology_stamp` throws away a build whose design has moved on.
-- Ruling 3, an edit list governs: BUILT. The edit list is the record,
-  it is shelved, and since today it rides the working state so a saved
-  project brings the edits home. THE UNIT AND DUAL AS CRS-LESS LAYERS
-  AT SAVE ARE STILL OWED -- that is the half of ruling 3 that makes the
-  file self-describing, and the CRS caveat above is the trap waiting
-  in it.
+- Ruling 3, an edit list governs: BUILT, and so is its second half.
+  The edit list is the record, it is shelved, and it rides the working
+  state so a saved project brings the edits home. THE UNIT AND DUAL GO
+  IN AS CRS-LESS LAYERS TOO, which is what makes the file
+  self-describing; the CRS caveat above was the trap in it and the
+  names are what answer it. See the paragraph below for what that
+  cost.
+  (This bullet read "STILL OWED" until 2026-08-31, seventeen lines
+  above the paragraph recording the same work as done. Corrected while
+  re-reading the procedural documents, which is the direction
+  HUNT-RECORD.md warns about at its own head: a document that records
+  a question as open after it has been answered invites somebody to
+  answer it twice, and this project has already paid for that once.)
 - Ruling 4, shelved by family and element count: BUILT, keyed by
   `topology_edits.shelf_key`, idle when the design moves away and back
   when it returns.
