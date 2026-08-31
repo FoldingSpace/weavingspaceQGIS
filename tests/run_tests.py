@@ -3821,6 +3821,84 @@ def test_a_text_column_shares_one_classification():
       "a source with no features is the state that reads as success"
 
 
+def test_a_save_is_deferred_only_when_a_run_is_really_coming():
+  """A Save waits for a redraw only where a redraw is actually coming.
+
+  `_queue_live` arms the live timer on every output-affecting change
+  WHATEVER the checkbox says, and `_maybe_live_generate` then declines
+  at its second gate when live update is off. So an armed timer is not
+  the same fact as a run that will start, and
+  `_a_queued_run_would_redraw` read only the timer -- where its sibling
+  `_a_live_run_will_follow` asks about the checkbox on its first line.
+
+  THE HARM IS THE ONE THE RULING OF 2026-08-29 EXISTS TO PREVENT,
+  reached through a door that ruling did not know about. The press was
+  kept, the person was told the map would be saved once it was
+  redrawn, nothing redrew it, and the deferred save then wrote the
+  design they had just changed AWAY from. Close the window inside that
+  second and `closeEvent` clears the intent, so no file is written at
+  all and the promise is the last word.
+
+  BOTH ANSWERS ARE ASSERTED. With live update ON the deferral is
+  correct and must survive; with it off the press must be honoured at
+  once. A repair that simply stopped deferring would pass half of this
+  and destroy the behaviour the ruling asked for.
+
+  AND IT IS JUDGED BY WHAT THE PLUGIN SAYS, because the tile count
+  cannot tell "saved the map on screen" from "did nothing at all" --
+  with live update off the map deliberately does not follow the table,
+  so both answers leave the same tiles in the file. An earlier probe
+  tried to discriminate by deleting the file first, which left the
+  layers naming a table that no longer existed and made the save
+  refuse for a reason nothing to do with this.
+
+  Regression: with live update off, a Save pressed within the debounce of any design change was deferred behind a run that could never start; it promised to save after a redraw that never came and then wrote the design the person had changed away from, or nothing at all if they closed the window. [hunt]
+  """
+  import os
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  verdicts = {}
+  with _temp_dir() as td:
+    for live in (True, False):
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      try:
+        out = os.path.join(td, f"deferred-{live}.gpkg")
+        dlg.live_check.setChecked(live)
+        dlg.gpkg_widget.setFilePath(out)
+        _tick(200)
+        dlg._generate()
+        _settle(dlg)
+        assert press_save(dlg), "PREMISE: the first save did not write"
+
+        BAR_MESSAGES.clear()
+        dlg.spacing_spin.setValue(dlg.spacing_spin.value() / 2.0)
+        _tick(50)
+        assert dlg._live_timer.isActive(), \
+          "PREMISE: the design change did not arm the live timer, so " \
+          "this test never reaches the question it is about"
+        dlg._save_the_map()
+        said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+        verdicts[live] = (bool(getattr(dlg, "_save_pending", None)), said)
+      finally:
+        dlg.close()
+
+  deferred_on, said_on = verdicts[True]
+  deferred_off, said_off = verdicts[False]
+  assert deferred_on, (
+    "with live update ON a run really is coming, so the press must be "
+    f"kept for it -- the ruling of 2026-08-29. It said: {said_on!r}")
+  assert not deferred_off, (
+    "with live update OFF nothing will redraw the map, so a deferred "
+    "press waits for a run that can never start and then writes the "
+    f"design the person changed away from. It said: {said_off!r}")
+  assert "redrawn" not in said_off.lower(), (
+    "the plugin promised a redraw that is not coming, which is the "
+    f"half of this a person actually meets: {said_off!r}")
+  assert "saved" in said_off.lower(), (
+    f"the press was neither deferred nor honoured: {said_off!r}")
+
+
 def test_the_motif_s_key_ignores_the_crs_and_nothing_else():
   """A CRS reassignment must not read as the motif going stale.
 
@@ -77671,6 +77749,8 @@ def main():
         test_the_topology_matrix)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
+  check("a save is deferred only when a run is really coming",
+        test_a_save_is_deferred_only_when_a_run_is_really_coming)
   check("the motif's key ignores the crs and nothing else",
         test_the_motif_s_key_ignores_the_crs_and_nothing_else)
   check("a reopen does not take the motif out of the file",

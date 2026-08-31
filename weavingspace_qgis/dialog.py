@@ -15772,6 +15772,36 @@ class WeavingSpaceDialog(QDialog):
     # prevent, through a door that ruling did not know about.
     if self._live_pending or self._press_pending:
       return True
+    # AND THE TIMER LIMB ASKS WHETHER LIVE UPDATE IS ON, which the
+    # flags limb above deliberately does not. `_queue_live` arms the
+    # timer on every output-affecting change WHATEVER THE CHECKBOX
+    # SAYS, and `_maybe_live_generate` then declines at its second gate
+    # (`LIVE-GATE live-update-off`). So with the box unticked an armed
+    # timer promises a redraw that is never coming -- and this method's
+    # own docstring says "the run it will start", which was false for
+    # exactly that case.
+    # THE HARM IS THE ONE THE RULING OF 2026-08-29 EXISTS TO PREVENT,
+    # arriving through a door it did not know about: the press was
+    # KEPT, the person was told the map would be saved after it was
+    # redrawn, nothing redrew it, and the deferred save then wrote the
+    # design they had just changed AWAY from. Measured 2026-08-31 by
+    # the tiles in the file, which is a fact about the map rather than
+    # about any store the dialog holds: at a spacing halved inside the
+    # debounce, live update ON gave 312 tiles then 1104, and live
+    # update OFF gave 312 then 312. And if the window is closed inside
+    # that second, `closeEvent` clears the intent and NO file is ever
+    # written, with the promise as the last word.
+    # WITH THE BOX OFF, SAVING WHAT IS ON SCREEN IS RIGHT rather than a
+    # lesser evil: "preserve, do not repaint" means the map
+    # deliberately does not follow the table until somebody presses
+    # Generate, so the map on screen IS the map, and the press should
+    # write it now instead of waiting for a run nobody will start.
+    # THE FLAGS LIMB IS UNTOUCHED, and the asymmetry is the point: a
+    # deferred press or tick redraws whatever the checkbox says,
+    # because something has already undertaken to run.
+    live = getattr(self, "live_check", None)
+    if live is None or not live.isChecked():
+      return False
     if not self._live_timer.isActive():
       return False
     pending, last = self._run_signature(), self._last_run_sig

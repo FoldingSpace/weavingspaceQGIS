@@ -8733,6 +8733,27 @@ MUTATIONS = [
        why="experimental until designated otherwise (maintainer, "
            "2026-08-30): a box that starts ticked offers work still "
            "being designed to somebody who never asked for it"),
+  dict(name="a-save-waits-only-for-a-run-that-is-coming", file=DIALOG,
+       # `_queue_live` arms the live timer on every output-affecting
+       # change WHATEVER the checkbox says, and `_maybe_live_generate`
+       # then declines at its second gate when live update is off. So
+       # an armed timer is not a run that will start, and this
+       # predicate read only the timer where its sibling
+       # `_a_live_run_will_follow` asks the checkbox on its first line.
+       # MUTATED AWAY, a Save pressed inside the debounce with live
+       # update off is deferred behind a run that can never begin: the
+       # plugin promises to save once the map is redrawn, nothing
+       # redraws it, and the write then lands on the design the person
+       # changed AWAY from -- or on nothing at all, since closing the
+       # window clears the intent.
+       old="""    live = getattr(self, "live_check", None)
+    if live is None or not live.isChecked():
+      return False""",
+       new="""    live = getattr(self, "live_check", None)""",
+       test="test_a_save_is_deferred_only_when_a_run_is_really_coming",
+       why="a promise that depends on a run nobody will start is a "
+           "save that quietly did not happen, which is the harm the "
+           "maintainer's ruling of 2026-08-29 was made to prevent"),
   dict(name="the-motifs-key-does-not-hash-the-crs", file=DIALOG,
        # The two tables this key names are written in UNIT SPACE with
        # no CRS -- the file calls them `..._no_crs` -- so the region

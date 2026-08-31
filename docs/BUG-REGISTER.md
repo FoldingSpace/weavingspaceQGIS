@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-461 defect(s) with a regression test.
+462 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -194,6 +194,8 @@ there is no separate list to remember.
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
 - **a Save As told the file where the map had gone and never told the group, so returning to the map reverted the output box to the file it was saved away from and the next Save overwrote the older version. Found by the colourpicks hunt of 2026-08-28.**  
   guarded by `test_a_save_as_tells_the_group_where_the_map_went`
+- **with live update off, a Save pressed within the debounce of any design change was deferred behind a run that could never start; it promised to save after a redraw that never came and then wrote the design the person had changed away from, or nothing at all if they closed the window.**  
+  guarded by `test_a_save_is_deferred_only_when_a_run_is_really_coming`
 - **with a map open on a shared GeoPackage, a save after somebody else had changed that file skipped every element whose table they had replaced and then dropped what they HAD written, so an element left the file altogether and both people lost it under the word "Saved". Found by the sharing hunt of 2026-08-28, ledger row 35.**  
   guarded by `test_a_save_leaves_a_shared_file_somebody_else_has_changed`
 - **saving into a GeoPackage holding somebody else's map deleted their element tables and their embedded region copy, one line after a question promising to leave the rest of the file alone. Found by the shared-file hunt of 2026-08-28.**  
@@ -977,7 +979,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 149
-- a bug hunt pointed in a named direction: 132
+- a bug hunt pointed in a named direction: 133
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15
