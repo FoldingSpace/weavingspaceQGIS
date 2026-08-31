@@ -2326,6 +2326,11 @@ class WeavingSpaceDialog(QDialog):
     # categorical field that gains or loses a class can be
     # reported: its existing colours will have moved.
     self._category_counts = {}
+    # {control: (its form, its row layout)}, filled by `_form_row` as
+    # the UI is built, so a row can be taken OUT of its layout rather
+    # than merely emptied. Hiding a label and a control leaves the row
+    # reserving its height, because the field is a layout.
+    self._form_rows = {}
     self._build_ui()
     self._limit_the_figures_on_show()
     # ...and now that the widget exists, show the path adoption
@@ -2517,6 +2522,7 @@ class WeavingSpaceDialog(QDialog):
     # ---- tab 1: design
     design = QWidget()
     form = QFormLayout(design)
+    self._settle_a_form(form)
 
     # QgsMapLayerComboBox is QGIS's own layer chooser: it tracks the
     # project's layer list by itself and emits layerChanged
@@ -2525,8 +2531,9 @@ class WeavingSpaceDialog(QDialog):
     self.layer_combo.setToolTip(
       "The polygon layer whose attributes will be mapped. Best not to use "
       "lat-long datasets.")
+    self._ask_for_a_name_s_width(self.layer_combo)
     self.layer_combo.layerChanged.connect(self._on_layer_changed)
-    form.addRow("Region layer", self.layer_combo)
+    self._form_row(form, "Region layer", self.layer_combo)
 
     # THE OUTPUT GROUP, CHOSEN RATHER THAN INFERRED (ruling 1 of
     # 2026-08-25). It sits beside the region chooser because the two
@@ -2538,8 +2545,9 @@ class WeavingSpaceDialog(QDialog):
     self.group_combo = QComboBox()
     self.group_combo.setToolTip(
       "Which map to work on, or start another beside it.")
+    self._ask_for_a_name_s_width(self.group_combo)
     self.group_combo.activated.connect(self._on_group_chosen)
-    form.addRow("QGIS Layer Group", self.group_combo)
+    self._form_row(form, "QGIS Layer Group", self.group_combo)
 
     # THE ELEMENT COUNT IS A SLIDER (maintainer's ask, 2026-08-29),
     # and the box beside it is part of the control rather than a
@@ -2583,12 +2591,17 @@ class WeavingSpaceDialog(QDialog):
     # the two pin controls, and for the same reason.
     self.n_slider.valueChanged.connect(self._on_element_count_moved)
     self.n_spin.valueChanged.connect(self._on_element_count_moved)
+    # THE TRACK IS AS WIDE AS THE TWO CHOOSERS ABOVE IT, so the three
+    # top rows end at one edge instead of three. A short track is a
+    # coarse track -- 255 counts over an 84px stub is three values a
+    # pixel -- and this row used to get whichever answer the STYLE
+    # happened to give it: 802px under Fusion and 84 under macOS.
+    self.n_slider.setMinimumWidth(self._a_name_s_width())
     n_row = QHBoxLayout()
     n_row.setContentsMargins(0, 0, 0, 0)
-    # The slider is the one control on this tab that SHOULD take the
-    # width going: a short track is a coarse track.
     n_row.addWidget(self.n_slider, 1)
     n_row.addWidget(self.n_spin)
+    n_row.addStretch(1)
     form.addRow("Number of elements", n_row)
 
     # KIND, FAMILY, SPACING AND AUTO SHARE ONE LINE (maintainer,
@@ -2635,6 +2648,13 @@ class WeavingSpaceDialog(QDialog):
     # the same signal and neither reads the other's work.
     self.spacing_spin.valueChanged.connect(self._spacing_typed)
     auto = QPushButton("Auto")
+    # NOT THE DEFAULT BUTTON. On macOS a dialog's default button is
+    # painted in the accent colour, so this one was the brightest
+    # thing on the tab -- louder than Generate, for a convenience that
+    # suggests a spacing. Qt promotes the first button it finds unless
+    # told otherwise, which is why nobody chose this.
+    auto.setAutoDefault(False)
+    auto.setDefault(False)
     auto.setToolTip("A coarse value from the layer extent, good for iterating")
     auto.clicked.connect(self._auto_spacing)
     pattern_row = QHBoxLayout()
@@ -2751,6 +2771,7 @@ class WeavingSpaceDialog(QDialog):
     # leave the map visible behind it
     mods = QGroupBox("Transformations")
     mform = QFormLayout(mods)
+    self._settle_a_form(mform)
 
     def spin(lo, hi, val, step):
       """One modifier's spin box, wired to the preview.
@@ -2891,6 +2912,37 @@ class WeavingSpaceDialog(QDialog):
       "Shrink each unit in place, into separate glyphs.")
     self.mod_glyph.toggled.connect(self._queue_preview)
     mform.addRow(self.mod_glyph)
+
+    # ONE WIDTH FOR EVERY MODIFIER BOX. A spin box's hint comes from
+    # its MAXIMUM's text, so seven boxes holding small numbers came out
+    # at seven widths -- 59, 43, 43, 51, 51, 43 and 37 px measured
+    # 2026-08-30 -- because Rotate goes to 360.0 and the tile inset to
+    # 5.0. Nothing about the values a person types varies that way, and
+    # the ragged second column follows from it: Skew's right-hand box
+    # sat 8px right of Scale's and Inset's.
+    #
+    # THE NUMBER IS TAKEN FROM THE WIDEST OF THE SEVEN rather than
+    # written down, so it is a measurement of this machine's font at
+    # run time rather than a claim about fonts in general -- the
+    # distinction this project paid a Windows round to learn.
+    modifier_boxes = (self.mod_rotate, self.mod_scale_x, self.mod_scale_y,
+                      self.mod_skew_x, self.mod_skew_y,
+                      self.mod_p_inset, self.mod_t_inset)
+    widest = max(box.sizeHint().width() for box in modifier_boxes)
+    for box in modifier_boxes:
+      box.setFixedWidth(widest)
+
+    # AND ONE LABEL COLUMN ACROSS BOTH BLOCKS. They are two separate
+    # QFormLayouts stacked in a QVBoxLayout, so each sized its label
+    # column to its own widest label and nothing lined up across the
+    # boundary: "Number of elements" at 119px above
+    # "Skew Left-Right / Up-Down (°)" at 180.
+    self._align_the_label_columns(form, mform)
+    # ...and kept for the show-time pass, which is the only moment the
+    # two blocks' CONTAINER offsets are known: the group box frames
+    # its own form, so equal label widths still leave the two columns
+    # a few pixels apart until real geometry exists.
+    self._design_forms = (form, mform)
 
     wrapper = QWidget()
     wl = QVBoxLayout(wrapper)
@@ -3332,6 +3384,159 @@ class WeavingSpaceDialog(QDialog):
     return (min(width, int(room.width() * SCREEN_SHARE)),
             min(height, int(room.height() * SCREEN_SHARE)))
 
+  # A LAYER NAME'S WORTH OF CHARACTERS, which is what the region and
+  # group choosers hold. The number is the length of a group name this
+  # plugin composes for itself -- "WeavingSpace tiles — nyc blocks" is
+  # thirty -- plus a little, so the commonest thing either combo shows
+  # is readable without the combo taking the window. It is in
+  # CHARACTERS on purpose: a pixel width is a claim about one machine's
+  # font, and this tab has already been wrong in both directions for
+  # exactly that reason.
+  NAME_CHARACTERS = 34
+
+  def _settle_a_form(self, form: QFormLayout) -> None:
+    """Decide a form's field growth and label alignment ourselves.
+
+    Args:
+      form: the QFormLayout to settle. Mutated in place.
+
+    Returns:
+      None.
+
+    WHETHER A FIELD COLUMN STRETCHES BELONGS TO THE STYLE, and that is
+    the whole of a defect the maintainer reported on 2026-08-30 ("the
+    alignment and spacing and sizing of these UI elements is just
+    nonsensical"). `QFormLayout`'s default `fieldGrowthPolicy` is
+    `AllNonFixedFieldsGrow` under Fusion, which QGIS ships, and
+    `FieldsStayAtSizeHint` under the macOS style, which the maintainer
+    was using. So a row that sets no width takes whichever answer the
+    style hands it, and BOTH are wrong here: measured on one tree, the
+    region chooser came out 861px wide under Fusion and a 33px stub
+    under macOS -- too narrow to show a layer's name at all.
+
+    The repair of 2026-08-29 put a stretch on the Pattern row, the six
+    family-option rows and the modifier pairs, and left three rows
+    bare; this settles the question for every row at once, including
+    any row somebody adds later without thinking about it. Controls
+    that genuinely need room ask for it in characters.
+    """
+    form.setFieldGrowthPolicy(
+      QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+    form.setLabelAlignment(
+      Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+  def _a_name_s_width(self) -> int:
+    """How wide `NAME_CHARACTERS` characters are in the font in force.
+
+    Returns:
+      A width in pixels, measured now rather than remembered, so it
+      follows the platform's font instead of describing this one.
+    """
+    return self.fontMetrics().horizontalAdvance("n" * self.NAME_CHARACTERS)
+
+  def _ask_for_a_name_s_width(self, combo: QComboBox) -> None:
+    """Make a chooser wide enough for the names it shows.
+
+    Args:
+      combo: the chooser. Mutated in place.
+
+    Returns:
+      None.
+
+    A combo's own hint is the width of its widest ITEM, so an empty or
+    nearly-empty model gives a stub and a long catalogue gives
+    something enormous -- widths decided by whatever the data happens
+    to be rather than by anybody. `setMinimumContentsLength` states the
+    width as a number of characters instead, which is the shape the
+    family chooser has used since 2026-08-29 and for the same reason.
+    """
+    combo.setSizeAdjustPolicy(
+      QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    combo.setMinimumContentsLength(self.NAME_CHARACTERS)
+
+  def _align_the_label_columns(self, *forms: QFormLayout) -> None:
+    """Give several forms one label column between them.
+
+    Args:
+      *forms: the QFormLayouts to align. Their label widgets are
+        mutated in place.
+
+    Returns:
+      None.
+
+    A QFormLayout sizes its label column to its own widest label, so
+    two forms stacked one above the other line up with each other only
+    by accident. Here they did not: the Design block's widest label is
+    "Number of elements" and the Transformations block's is "Skew
+    Left-Right / Up-Down (°)", 61px apart, so the two halves of one tab
+    read as two unrelated dialogs.
+
+    The width is the widest label ACROSS the forms, measured from the
+    labels themselves, so it follows the font and the wording rather
+    than a number written down here.
+    """
+    labels = []
+    for form in forms:
+      for row in range(form.rowCount()):
+        item = form.itemAt(row, QFormLayout.ItemRole.LabelRole)
+        if item is not None and item.widget() is not None:
+          labels.append(item.widget())
+    if not labels:
+      return
+    widest = max(label.sizeHint().width() for label in labels)
+    for label in labels:
+      label.setMinimumWidth(widest)
+
+  # A SHOW-TIME PASS TO CLOSE THE LAST THREE PIXELS WAS TRIED AND
+  # WITHDRAWN, 2026-08-30, and the shape is worth not repeating. The
+  # two blocks' label columns end 3px apart because the Transformations
+  # group box frames its own form, and that offset is not knowable
+  # before a layout pass. Measuring the real right edges in showEvent
+  # and widening the short labels to reach the furthest LOOKS right and
+  # is a feedback loop: the widened labels grow their form's shared
+  # column, so the furthest edge moves too, and the next show does it
+  # again. Measured -- the window went from 1296px to 1618px in one
+  # run. This project has already recorded a sizeHint feedback loop as
+  # one of four failed repairs to this same layout, and the rule that
+  # goes with it is that the approach is wrong rather than the
+  # constant. Three pixels between two blocks is not what anybody
+  # meant by a layout being wrong; a window 322px too wide is.
+
+  def _set_option_row_visible(self, lab: QWidget, widget: QWidget,
+                              visible: bool) -> None:
+    """Show or hide a family-option row, INCLUDING its space.
+
+    Args:
+      lab: the row's label.
+      widget: the control itself.
+      visible: whether the family in force uses this option.
+
+    Returns:
+      None.
+
+    HIDING A CONTROL DOES NOT GIVE ITS ROW BACK when the row's field is
+    a LAYOUT rather than a widget, and `_form_row` wraps every option
+    in a QHBoxLayout so the control can sit snugly. So the six
+    family-option rows went on reserving their height while empty, and
+    the Design tab carried a block of dead space above Transformations
+    that changed size with the family chosen. `setRowVisible` is Qt's
+    own answer and it takes the row out of the layout properly.
+
+    IT FALLS THROUGH where that call is unavailable, to the older
+    behaviour of hiding both widgets: a row that leaves a gap is worse
+    than one that does not, and much better than an AttributeError on
+    a Qt this plugin has not met yet.
+    """
+    entry = self._form_rows.get(widget)
+    if entry is not None:
+      form, row = entry
+      setter = getattr(form, "setRowVisible", None)
+      if setter is not None:
+        setter(row, visible)
+        return
+    lab.setVisible(visible)
+    widget.setVisible(visible)
+
   def _form_row(self, form: QFormLayout, label: str, widget: QWidget):
     """Add a labelled row to a form.
 
@@ -3360,6 +3565,12 @@ class WeavingSpaceDialog(QDialog):
     row.addWidget(widget)
     row.addStretch(1)
     form.addRow(lab, row)
+    # THE ROW IS REMEMBERED SO IT CAN BE TAKEN OUT OF THE LAYOUT, not
+    # merely emptied: hiding the label and the control leaves the row
+    # reserving its height, because the field here is a LAYOUT. The
+    # LAYOUT is recorded rather than the row's index, which a later
+    # insertion would silently shift.
+    self._form_rows[widget] = (form, row)
     return (lab, widget)
 
   # ------------------------------------------------------------- UI dynamics
@@ -3537,8 +3748,7 @@ class WeavingSpaceDialog(QDialog):
       self.opt_grid_row: tiling_type == "grid",
     }
     for (lab, widget), visible in show.items():
-      lab.setVisible(visible)
-      widget.setVisible(visible)
+      self._set_option_row_visible(lab, widget, visible)
     if "dissect" in tiling_type:
       self._re_range_remembering(self.opt_offset, 0, 1)
       lo, hi = ((-50, 85) if "hex" in tiling_type else (-30, 70))
@@ -15097,6 +15307,20 @@ class WeavingSpaceDialog(QDialog):
     with live update on today, choosing a file re-tiles the map. It is
     in the ledger rather than changed here.
     """
+    # A DEFERRED RUN COUNTS TOO, and it does not need the timer.
+    # (2026-08-31, found by a hunt at the topology deferral and
+    # MEASURED on the default path.) That deferral remembers a press or
+    # a tick with NO task running and the timer disarmed -- a state
+    # that could not exist before, since `_press_pending` used to imply
+    # a task, which the still-drawing guard caught. So: with live
+    # update on, apply a topology edit, let the debounce pass, press
+    # Save. The file was written from the PRE-EDIT map and the plugin
+    # said "Saved", then the replay landed and redrew the screen. File
+    # and screen silently different, with no Generate press anywhere in
+    # it -- exactly the harm the ruling of 2026-08-29 exists to
+    # prevent, through a door that ruling did not know about.
+    if self._live_pending or self._press_pending:
+      return True
     if not self._live_timer.isActive():
       return False
     pending, last = self._run_signature(), self._last_run_sig
@@ -15426,18 +15650,7 @@ class WeavingSpaceDialog(QDialog):
     # for a press that arrives at a bad moment, and the maintainer's
     # own ruling that a refusal nobody reads is a promise quietly
     # broken.
-    if (getattr(self, "_topology_task", None) is not None
-        and self._topology_edit_key()
-        and not self._restore_the_edited_unit()):
-      if live:
-        self._live_pending = True
-      else:
-        self._press_pending = True
-      _dump("GEN-GATE", "waiting-for-the-topology", "live=", live)
-      self._report_quietly(
-        "Working out the changes to the design; the map will be "
-        "redrawn when they are ready.")
-      return
+    # (moved below the flush -- see `_wait_for_the_topology`)
     # A REQUEST FOR A SECOND MAP CANNOT BE ANSWERED BY REPAINTING THE
     # FIRST. "Create as new group" has always taken the full path --
     # it is a settled decision, and the comparison escape hatch the
@@ -15484,6 +15697,41 @@ class WeavingSpaceDialog(QDialog):
       _dump("GEN-GATE", "no-unit", "live=", live)
       if not live:
         self._warn("The tile unit could not be built.")
+      return
+
+    # A RUN WAITS FOR A TOPOLOGY REPLAY THAT HAS NOT ARRIVED, and this
+    # sits BELOW the flush deliberately -- the first version of it sat
+    # above, which is the whole of what was wrong with it.
+    #
+    # (2026-08-31, found by a hunt at that repair and measured in three
+    # arms.) The gate asked whether a build was IN FLIGHT. The real
+    # precondition is that this design has edits and the unit in hand
+    # does not carry them -- which holds just as readily with NOTHING
+    # in flight, because the flush above re-derives the plain unit
+    # whenever the design's stamp has moved. So: make an edit at
+    # spacing 500, change the spacing to 900, press Generate with no
+    # build running, and the map came back PLAIN and stayed plain --
+    # every later press taking the restyle fast path while the tab
+    # still listed the edits. Measured: plain `dfdc8b13c49f`, edited
+    # `3a172ef3ec7b`, and the journey above giving `dfdc8b13c49f`.
+    # Nudging the spacing was not the way out of that one; it was the
+    # way in.
+    #
+    # ASKED AFTER THE REBUILD, the question answers itself: if the
+    # edits are in force and `_restore_the_edited_unit` cannot put them
+    # back, the unit about to be tiled is the wrong one, whatever the
+    # task record says. Queue the build and keep the press.
+    if self._topology_edit_key() and not self._restore_the_edited_unit():
+      if getattr(self, "_topology_task", None) is None:
+        self._queue_topology()
+      if live:
+        self._live_pending = True
+      else:
+        self._press_pending = True
+      _dump("GEN-GATE", "waiting-for-the-topology", "live=", live)
+      self._report_quietly(
+        "Working out the changes to the design; the map will be "
+        "redrawn when they are ready.")
       return
     # An inset large enough to swallow elements is checked BEFORE the
     # variable guard below, because when it has taken all of them the
@@ -20851,6 +21099,19 @@ class WeavingSpaceDialog(QDialog):
       elif self._live_pending and not _dialog_is_gone(self):
         self._live_pending = False
         QTimer.singleShot(0, self._queue_live)
+      # AND A SAVE QUEUED BEHIND IT, as the tiling twin does and for
+      # the same reason: `_generate` can REFUSE. (2026-08-31, found by
+      # a hunt at this repair and measured.) Defer a press into the
+      # replay window, press Save -- correctly deferred, with the
+      # notice promising it will be written afterwards -- then remove
+      # the region layer. The re-pressed Generate warns "Choose a
+      # region layer" and returns, and `_save_pending` was left True
+      # with no task, no timer and nothing pending: a promise standing
+      # with no consumer alive and nothing said. The twin arms this
+      # tail precisely because a re-press is not a guarantee of a
+      # landing, and this site was written without it.
+      if not _dialog_is_gone(self):
+        QTimer.singleShot(0, self._honour_a_queued_save)
       if self._topology_wanted:
         self._topology_wanted = False
         self._queue_topology()

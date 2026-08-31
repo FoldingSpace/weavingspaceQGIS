@@ -928,6 +928,71 @@ in a stranger's GeoPackage even our own table names were written for
 THEM, which is the line the source copy and the stale-table drop both
 hold.
 
+**THE DROP HAS BEEN WRONG FOUR TIMES AND NEEDS A REDESIGN RATHER THAN
+A FIFTH PATCH.** Read this before touching
+`_write_or_drop_the_topology`; the paragraph above describes what it
+is FOR, and this one describes why it does not yet do it.
+
+- v1 dropped whenever the experimental box was unticked. The box is
+  unticked on EVERY new dialog, so opening a saved map and pressing
+  Save DELETED its motif.
+- v2 guarded with a per-file memory plus a count of box touches.
+  Three faults: ticking the box to LOOK at the tab counted as speaking
+  about the file; the memory was written only on the LOAD door, so
+  adoption was unguarded; and it returned False beside tables it had
+  spared.
+- v3 -- what is in the tree -- drops only where a build has ASSESSED
+  this design and found no topology. But with the box off no build
+  runs, so IGNORANCE IS THE PERMANENT STATE of the common journey and
+  v3 makes ignorance mean "spare". Measured: save laves, switch to
+  hex-slice 4 (which has no topology at all), Save; the file keeps the
+  laves motif and its record says `topology_written: True`.
+- and the WRITE branch was separately wrong -- a current unit paired
+  with a STALE dual -- repaired by stamping the dual and checking the
+  stamp matches before writing it.
+
+WHAT ALL THREE VERSIONS SHARE is that each asks whether we MAY drop,
+and none records WHAT THE TABLES ARE ABOUT. The fact missing is not
+"does this design have a topology", which needs a build nobody has
+run; it is WHICH DESIGN THE TABLES IN THIS FILE DESCRIBE, which the
+file can answer for itself and which makes staleness DETECTABLE rather
+than inferred. Write the design key beside the tables at write time,
+drop when it differs from the design being saved, and leave the tables
+alone when there is no key -- the pre-ruling file, which keeps the
+older rules exactly as the region stamp does. DESIGN IT BEFORE CODING
+IT: none of the three was designed.
+
+**A CONNECTED SLOT THE DIALOG DOES NOT HOLD IS FREED, AND THE
+MECHANISM IS NOT ESTABLISHED.** `_layer_slots` holds each layer's
+`(style, repaint)` closure pairs so they outlive the connect call,
+with `_already_watching` guarding the adoption site against a second
+connection to one layer. THE FIX IS MEASURED -- two tests that aborted
+the process at exit 134 pass with it and abort without it -- and the
+mechanism is NOT: a hunt measured layer and QgsStyle connections
+SURVIVING collection, an explicit gc pass and heap churn, so the
+comfortable story about a wrapper being collected and freeing the
+closure is not something this project has shown. The measurement lives
+at the test rather than in a comment asserting a cause. Remember that
+PyQt6 ABORTS the process when an exception escapes a slot, so the
+symptom of anything wrong in this family is a shard that stops with no
+verdict at all rather than a failure you can read.
+
+**THE WAIT-FOR-THE-TOPOLOGY GATE SITS BELOW THE FLUSH, DELIBERATELY.**
+`_generate` defers a run while an edit list exists and the edited unit
+has not been restored, so the map is drawn from the edited unit rather
+than the unedited one. That gate was first written ABOVE the flush,
+which is wrong in a way that only shows on the second press: the
+pending intent is what the flush exists to consume, so returning in
+front of it left the press remembered AND unconsumed, and the run that
+eventually landed drew a design two edits old. It reads
+`_topology_edit_key()`, arms `_live_pending` or `_press_pending`
+according to which path asked, and says in words that the map will be
+redrawn when the changes are ready -- the shape the maintainer's
+ruling of 2026-08-29 requires of a deferral, since a refusal nobody
+reads is work lost. `_a_queued_run_would_redraw` answers True on
+either pending flag before it looks at the timer, or a save queued
+behind a deferred run would be honoured against the old map.
+
 ## The door that arms a new group
 
 `force_new` decides whether a run builds its own group instead of
@@ -982,6 +1047,66 @@ family options, `pair` for the modifier pairs, and the kind, family,
 spacing and Auto row shares one line with a stretch at the end. The
 spacing box also asks for less: a spin box's hint comes from its
 MAXIMUM's text, and 1e12 at six decimals is twenty characters.
+
+**AND IT REACHED ONLY THREE ROWS OF FOUR, WHICH IS THE MAINTAINER'S
+REPORT OF 2026-08-30** ("the alignment and spacing and sizing of these
+UI elements is just nonsensical"). `Region layer`, `QGIS Layer Group`
+and `Number of elements` were added with a bare `form.addRow`, so they
+had NO WIDTH POLICY AT ALL and took whatever `fieldGrowthPolicy` the
+style supplied. Measured on one tree, one run each:
+
+    control            macOS (the report)   Fusion    own hint
+    Region layer       33px stub            861px     33
+    QGIS Layer Group   ~180px               861px     99
+    element slider     84px stub            802px     84
+    Pattern row        correct              correct   --
+
+A stub too narrow to show a layer's name is the worse of the two wrong
+answers, and it is the one the maintainer was looking at. So the
+POLICY IS SET EXPLICITLY on both forms now, by `_settle_a_form`, and
+the widths come from the controls: `_ask_for_a_name_s_width` gives the
+two choosers `NAME_CHARACTERS` of room -- in characters, because a
+pixel width is a claim about one machine's font -- and the slider asks
+for the same, so the three top rows end at one edge.
+
+FOUR MORE CAME WITH IT, all style-independent and all measured. The
+seven modifier boxes were seven widths (59, 43, 43, 51, 51, 43, 37),
+because a spin box sizes to its MAXIMUM's text and Rotate reaches
+360.0 where the tile inset reaches 5.0; they take the widest of the
+seven at run time, which also lands the second column at one x instead
+of three. The two blocks had independent label columns, since they are
+separate forms in a QVBoxLayout. A HIDDEN FAMILY-OPTION ROW KEPT ITS
+HEIGHT, because a form reserves space for a row whose field is a
+LAYOUT and `_form_row` wraps every option in one -- which is a block of
+dead space above Transformations that CHANGES SIZE WITH THE FAMILY;
+`_set_option_row_visible` uses `setRowVisible` and falls through to
+hiding both widgets where that call is unavailable. And `Auto` was
+Qt's default button, so macOS painted it in the accent colour, making
+the loudest thing on the tab a convenience.
+
+**A SHOW-TIME PASS FOR THE LAST THREE PIXELS WAS TRIED AND WITHDRAWN,
+and the shape is the one this file already records.** Equal label
+WIDTHS are not one column when the group box frames its own form, and
+that offset is unknowable before a layout pass. Measuring the real
+right edges in `showEvent` and widening the short labels is a FEEDBACK
+LOOP: the widened labels grow their form's shared column, the furthest
+edge moves with them, and the next show does it again -- 1296px to
+1618px in one run. That is the third of the four failed repairs to
+this same layout wearing new clothes, and the rule is the same: the
+approach is wrong rather than the constant. The reasoning is kept at
+the code so nobody writes it a second time.
+
+**TWO GUARDS FAILED ON THE REPAIR AND BOTH WERE THE TESTS.**
+`test_no_design_control_is_stretched_to_the_window` used the region
+chooser as its POSITIVE CONTROL, on the reasoning that it "is meant to
+take the width going" -- so its proof that the measurement works was
+the defect itself, and it could no longer fail once the chooser asked
+for a width. It stands on the glyph checkbox now, which spans its row
+by construction. And `test_the_window_fits_its_design_tab_when_shown`
+assumed the Design tab is the tallest page in the window; once it
+stopped reserving the hidden rows' height another tab became taller,
+and `resize` is refused below `minimumSizeHint`. It quotes that floor
+from Qt rather than writing it down.
 
 **AND THE GUARD SETS THE STYLE**, because it otherwise measures
 nothing: `test_no_design_control_is_stretched_to_the_window` switches

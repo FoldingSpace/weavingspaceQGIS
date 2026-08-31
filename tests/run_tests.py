@@ -4777,12 +4777,23 @@ def _measure_the_design_tabs_widths():
     f"only {measured} of the {len(snug)} controls were visible to measure"
   assert not wide, "controls stretched to the window: " + "; ".join(wide)
 
-  # THE POSITIVE CONTROL: the region chooser is above the element
-  # count and is meant to take the width going, so a dialog in which
-  # nothing stretches would fail here.
-  assert dlg.layer_combo.width() > dlg.layer_combo.sizeHint().width() + 1, \
-    f"the region chooser is {dlg.layer_combo.width()}px for a hint of " \
-    f"{dlg.layer_combo.sizeHint().width()}px, so nothing on this tab " \
+  # THE POSITIVE CONTROL, and it MOVED on 2026-08-30 because the thing
+  # it used to stand on was a defect. It was the region chooser, "meant
+  # to take the width going" -- and what that meant in practice was
+  # that the chooser had no width of its own and took whatever the
+  # STYLE handed it: 861px under Fusion, and a 33px stub under macOS
+  # too narrow to show a layer's name, which is what the maintainer
+  # photographed. The chooser asks for a width in characters now, so it
+  # no longer stretches and this control could no longer fail.
+  #
+  # The checkbox is the honest replacement: a checkbox spans its form
+  # row by construction, which nothing here wants to change, so it is
+  # the one control on the tab whose width is genuinely the layout's
+  # rather than its own. If the loop above were reading hints instead
+  # of real geometry, this would not stretch either.
+  assert dlg.mod_glyph.width() > dlg.mod_glyph.sizeHint().width() + 1, \
+    f"the glyph checkbox is {dlg.mod_glyph.width()}px for a hint of " \
+    f"{dlg.mod_glyph.sizeHint().width()}px, so nothing on this tab " \
     f"stretches and the measurement above proves nothing"
 
   # AND THE LABELS SPEAK IN THE SCREEN'S TERMS. EW and NS were the
@@ -5021,13 +5032,29 @@ def test_the_window_fits_its_design_tab_when_shown():
   # +96 for the tab bar and the bottom bar, and a 400px floor: the
   # same arithmetic _fit_to_design uses, quoted from it rather than
   # guessed, so a change there fails here instead of drifting
-  allowed = max(400, needed + 96)
+  # AND THE DIALOG'S OWN MINIMUM IS A FLOOR NOTHING CAN GO UNDER,
+  # which this arithmetic had to learn on 2026-08-30. `resize` is
+  # refused below `minimumSizeHint`, and a QTabWidget's minimum is the
+  # largest of its PAGES -- so once the Design tab stopped reserving
+  # height for family-option rows it hides, another tab became the
+  # taller one and the window stopped being able to follow the Design
+  # tab down. Before that the two coincided and this assertion passed
+  # because the Design tab happened to be the tallest thing in the
+  # window, not because the fit was doing anything it is not doing now.
+  #
+  # The floor is quoted from Qt rather than written down, so it moves
+  # with whatever the other tabs need, and the test still fails if the
+  # fit stops working: a window taller than BOTH the content and the
+  # floor is one nothing shrank.
+  floor = dlg.minimumSizeHint().height()
+  allowed = max(400, needed + 96, floor)
   assert dlg.height() <= allowed, \
     f"the window is {dlg.height()}px tall where its Design tab needs " \
-    f"{allowed}px including the chrome, so it covers more of the map " \
-    f"than it has any content for. The fit after showEvent is what " \
-    f"brings it down to the content; without it Qt leaves the window " \
-    f"at its own minimum and nothing shrinks it"
+    f"{needed + 96}px including the chrome and the dialog's own " \
+    f"minimum is {floor}px, so it covers more of the map than it has " \
+    f"any content for. The fit after showEvent is what brings it down " \
+    f"to the content; without it Qt leaves the window at its own " \
+    f"minimum and nothing shrinks it"
 
   dlg.close()
 

@@ -5190,6 +5190,78 @@ here, and the decision to add one is the maintainer's. Recorded
   is not, the guard is about something else, however reasonable it
   looks.
 
+- **A GUARD ON A PyQGIS CALL THAT RETURNS A TUPLE CAN NEVER FIRE.**
+  (2026-08-30, and it cost this project categorical colour on every
+  text column.) `if not provider.addFeatures(features):` reads as
+  careful code. PyQGIS returns `(ok, features)`, and a two-element
+  tuple is TRUTHY however `ok` reads -- measured `(False, [...])`,
+  truthy, with zero features added. So the shared classification
+  source came back EMPTY for any text column, and `if not everywhere:
+  everywhere = values` then silently restored the per-element
+  sampling that the one-colour-one-meaning ruling of 2026-08-15
+  abolished. One colour meant different values on different elements
+  of one map, and the same wrong renderers went into the saved file.
+  Text is what categorical mapping is FOR.
+  THE SWEEP: any PyQGIS setter or writer whose success you branch on
+  -- `addFeatures`, `changeAttributeValues`, `deleteFeatures` and
+  their kin -- may hand back a tuple or a bare bool depending on the
+  call and the version. Unpack explicitly, or test
+  `isinstance(x, tuple)` and take `x[0]`; never truth-test the return
+  whole. And ask of any guard you did not watch fire whether it CAN.
+- **A TEST THAT SUPPLIES ITS OWN INPUT MEASURES THE FUNCTION, NOT THE
+  PRODUCT, AND CAN HIDE A SHIPPED DEFECT FOR MONTHS.** (Same day, and
+  it is the transferable half of the entry above.)
+  `test_one_colour_means_one_value_across_elements` -- the guard for a
+  settled ruling -- passes `classify_from=layer`, the region layer,
+  which is A SOURCE THE DIALOG NEVER SUPPLIES. The ruling was
+  therefore verified against a FUNCTION while the product handed over
+  something else entirely, and no differential crossed the gap:
+  file-against-map agrees, because both sides carry the same wrong
+  colours. This project already knows that a fixture leaving the
+  plugin to DERIVE the thing under test measures the derivation; this
+  is the mirror -- a fixture that SUPPLIES the thing under test
+  measures nothing about how the product produces it. Ask of any test
+  whose subject is a value: who computes this value in the shipped
+  path, and does my test make them do it?
+- **AND A FIX THAT WIDENS A SCOPE RE-AIMS EVERY TRIAL THAT COMPARED
+  AGAINST THE OLD ONE.** (Same day, and the fix exposed it within the
+  hour.) With maps painted map-wide, the reopen path's adoption trial
+  was still computed from each ELEMENT's own values, so it reproduced
+  nothing and the walk "recovered" every ramp colour as somebody's
+  HAND-PICKS. After a reopen those rows read Custom, picks outrank
+  the ramp, and one later edit left one colour meaning two things.
+  Its graduated twin is safe BY LUCK, which is worth knowing rather
+  than trusting: class colours are a function of the class COUNT,
+  categorical colours of the map-wide VALUE LIST. When you widen what
+  a value is computed FROM, grep every site that recomputes the same
+  value to compare against it.
+- **THE DROP HAS BEEN WRONG FOUR TIMES: THE MISSING FACT IS WHAT THE
+  ARTEFACT DESCRIBES, NOT WHETHER WE MAY REMOVE IT.** (2026-08-30.)
+  `_write_or_drop_the_topology` decides whether a saved unit and dual
+  belong in the file. v1 dropped whenever the experimental box was
+  unticked -- and the box is unticked on EVERY new dialog, so opening
+  a saved map and pressing Save DELETED its motif. v2 guarded with a
+  per-file memory plus a count of box touches, and ticking the box to
+  LOOK at the tab counted as speaking about the file. v3 drops only
+  where a build has ASSESSED this design and found no topology -- but
+  with the box off no build runs, so ignorance is the PERMANENT state
+  of the common journey and v3 makes ignorance mean "spare": save
+  laves, switch to a design with no topology at all, Save, and the
+  file keeps the laves motif while its record says
+  `topology_written: True`.
+  WHAT ALL THREE SHARE is that each asks whether we MAY drop, and none
+  records WHAT THE TABLES ARE ABOUT. The fact needed is not "does this
+  design have a topology", which needs a build nobody has run, but
+  "WHICH DESIGN DO THE TABLES IN THIS FILE DESCRIBE" -- which the file
+  can answer for itself, and which makes staleness DETECTABLE rather
+  than inferred. Write the design key beside the tables at write time;
+  drop when it differs from the design being saved; leave alone when
+  absent.
+  THIS FILE ALREADY SAYS three failed attempts mean the approach is
+  wrong. What the fourth adds is the diagnostic: when every attempt is
+  a different answer to one question, ask whether the QUESTION is
+  answerable from the state you are asking it in. None of the three
+  could be, and no fifth patch would have been either.
 - **A FINISHED JOB'S LOG IS READABLE WHILE ITS RUN GOES ON.**
   `gh run view --log-failed` refuses until the whole RUN completes,
   which on this project means waiting for hour-long siblings; `gh api
