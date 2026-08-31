@@ -6317,7 +6317,19 @@ class WeavingSpaceDialog(QDialog):
     described at _on_layer_changed and applies to every other reading
     the dialog takes of this layer.
     """
-    layer = self.layer_combo.currentLayer()
+    # THE CHOOSER MAY NOT EXIST YET, and reading it through the
+    # attribute raised where it did not. Adoption runs while the
+    # dialog is still being built, so `_adopt_row_symbology` asks this
+    # question before `layer_combo` is assigned -- and the
+    # AttributeError travelled into that caller's `except`, where it
+    # became "the ramp explains none of these colours" and every
+    # colour on the layer was recorded as somebody's hand-pick.
+    # Measured 2026-08-31 by dumping the exception that decided it.
+    # Answering None is what this already does for a chooser holding
+    # nothing, and it means the same thing: classify from the element
+    # layer, as this did before the map-wide question existed.
+    combo = getattr(self, "layer_combo", None)
+    layer = combo.currentLayer() if combo is not None else None
     if layer is None:
       return None
     index = layer.fields().indexOf(field_name)
@@ -9115,8 +9127,15 @@ class WeavingSpaceDialog(QDialog):
           expected = {str(c.value()): c.symbol().color().name()
                       for c in from_ramp.categories()}
         except Exception:
+          # NAME WHAT WENT WRONG. Whether the ramp can be rebuilt
+          # decides whether every colour on this layer is read as
+          # somebody's hand-pick, and a silent `None` here left that
+          # turning on an exception nobody could see.
+          _dump("ADOPTCOLOUR", tile_id, "no-expected",
+                traceback.format_exc(limit=3))
           expected = None
       else:
+        _dump("ADOPTCOLOUR", tile_id, "no-ramp-named")
         expected = None
 
       # Recover only the colours the ramp does NOT explain. Recording
@@ -9141,20 +9160,37 @@ class WeavingSpaceDialog(QDialog):
       # should leave nothing behind -- produced a full set of picks.
       # Both then read Custom, and a pick outranks the ramp for good.
       #
-      # AND IT IS STRICTER THAN ITS GRADUATED TWIN, DELIBERATELY. That
-      # one records when `expected is not None OR NOT named`: no ramp
-      # at all is read as "these colours are the person's", and only a
-      # named ramp that would not rebuild is declined. This branch
-      # declines both, because a categorical element's colours are a
-      # function of the MAP-WIDE value list rather than of its own
-      # class count -- the asymmetry the paragraph above this one is
-      # about -- so "no ramp named" here does not license the same
-      # inference. Written down rather than quietly differing: when
-      # twins disagree on purpose, the reason belongs at the site, and
-      # whether the twin's allowance is right on ITS side is a question
-      # worth a hunt rather than an assumption.
+      # THE RULE IS ITS GRADUATED TWIN'S, and matching it was the
+      # second attempt rather than the first. Declining whenever
+      # `expected` is None is too strict: an element wearing an
+      # IMPORTED class scheme has no ramp to rebuild from, so
+      # `expected` is None and every colour is genuinely the person's
+      # -- and a reopened project stopped recording any of them, which
+      # `test_a_reopened_project_keeps_an_imported_class_scheme` said
+      # at once. What cannot be inferred is the OTHER case: a ramp
+      # NAMED that will not rebuild, where the colours may be the
+      # ramp's own and there is no way to tell. The twin has read it
+      # that way all along (`expected is not None or not named`), and
+      # the two agree now.
       recovered = {}
       for value, colour in pairs:
+        # NOT KNOWING IS NOT EVIDENCE. Where the ramp cannot be
+        # rebuilt at all, this used to keep every colour on the layer
+        # as somebody's hand-pick -- the opposite of what an
+        # unanswerable question means, and the rule the attribution
+        # walk forty lines away already states: an absent record
+        # DECLINES.
+        # IT IS HELD REDUNDANTLY AND THAT IS WRITTEN DOWN RATHER THAN
+        # LEFT TO BE FOUND. Since `_classification_values` stopped
+        # raising during construction, `expected` is computable on
+        # every journey this suite drives, so nothing can currently
+        # make this line fire -- its catalogue entry was RETIRED on
+        # 2026-08-31 for exactly that reason, an entry that can only
+        # ever be red being worse than none. It stays as the second
+        # line of defence, because the failure it prevents is silent
+        # and expensive: an element that comes back owning colours it
+        # never chose reads Custom, and a pick outranks its ramp for
+        # good.
         if expected is None:
           break
         # the catch-all category carries no value; it is the one the

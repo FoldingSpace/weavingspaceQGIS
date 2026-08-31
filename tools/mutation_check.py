@@ -2537,24 +2537,30 @@ MUTATIONS = [
        test="test_the_saved_unit_and_dual_carry_no_crs",
        why="the motif in a saved file carrying no CRS, rather than "
            "claiming to be somewhere it is not"),
-  dict(name="a-colour-nothing-can-attribute-is-not-a-hand-pick",
+  dict(name="the-chooser-may-not-exist-when-adoption-asks",
        file=DIALOG,
-       # The reopen path recovers hand-picked colours by rebuilding
-       # what the RAMP would have painted and keeping whatever it does
-       # not explain. Where the ramp cannot be rebuilt at all -- no
-       # name to rebuild from, or the rebuild raised -- `expected` is
-       # None, and that was read as "the ramp explains none of them",
-       # so every colour on the layer became somebody's decision.
-       # Mutating the guard away restores exactly that: an element
-       # comes back owning a full set of picks, reads Custom, and
-       # outranks its own ramp for good.
-       old="""        if expected is None:
-          break""",
-       new="""        if expected is None:
-          pass""",
-       test="test_hostile_stored_properties_never_break_adoption",
-       why="a colour the plugin cannot attribute being declined rather "
-           "than recorded as a person's choice"),
+       # Adoption runs while the dialog is still being built, so it
+       # asks for the classification values before `layer_combo` is
+       # assigned. Reading the attribute directly raised, the
+       # AttributeError travelled into the caller's `except`, and
+       # "cannot rebuild the ramp" was read as "the ramp explains none
+       # of these colours" -- so on EVERY reopen every colour on the
+       # layer was recorded as somebody's hand-pick. Mutating the
+       # tolerant read back to the attribute restores exactly that.
+       old="""    combo = getattr(self, "layer_combo", None)
+    layer = combo.currentLayer() if combo is not None else None""",
+       new="""    layer = self.layer_combo.currentLayer()""",
+       # AIMED AT THE TEST THAT DISCRIMINATES. The hostile-properties
+       # test passes either way, because the two halves of this repair
+       # hold each other up: without the tolerant read the ramp cannot
+       # be rebuilt, and the decline below then keeps the record empty,
+       # which is what that test asks for. The imported-scheme test
+       # requires the recovery to HAPPEN, so only it can tell whether
+       # this half is doing anything.
+       test="test_a_reopened_project_keeps_an_imported_class_scheme",
+       why="a question asked during construction being answered rather "
+           "than raising into a guard that reads the failure as an "
+           "answer"),
   dict(name="the-topology-stamp-carries-the-modifiers", file=DIALOG,
        # `_queue_topology` builds from `self._unit`, which is the unit
        # AFTER the modifier chain, and any tile inset opens gaps that
