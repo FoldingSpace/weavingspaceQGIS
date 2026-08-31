@@ -3821,6 +3821,61 @@ def test_a_text_column_shares_one_classification():
       "a source with no features is the state that reads as success"
 
 
+def test_the_rules_are_checked_over_every_file_a_user_reads():
+  """The standards check covers everything the review queue does.
+
+  `check_standards.USER_FACING` decides which files the hard rules are
+  enforced over -- never explaining the plugin in terms of the web app,
+  and Canadian spelling. `text_review.SOURCES` and `DOCUMENTS` decide
+  which files a person must read before they ship. Those are two
+  answers to one question, "what does a user read", and the comment
+  above USER_FACING already asks that they be kept in step.
+
+  THEY DRIFTED ANYWAY, which is what a hand-kept list does.
+  `metadata.txt` joined the review queue on 2026-08-12, after a stale
+  changelog shipped, and never joined this one -- so the `changelog=`
+  and `about=` entries were unchecked for a HARD RULE. That is the most
+  read prose this project ships: QGIS's plugin manager displays it, and
+  `release_notes.py` puts the same words at the top of the GitHub
+  release body.
+
+  MEASURED by planting one sentence in both places. "The tile color is
+  chosen for you, reproducing what the web app does." in README.md
+  fails twice over, on the web-app rule and on the spelling; the
+  identical sentence in the changelog passed clean.
+
+  THE RULE IS GUARDED RATHER THAN THE INSTANCE. Asserting that
+  metadata.txt is present would go quiet the next time a file joins
+  one list and not the other; asserting the two lists agree cannot.
+
+  Regression: metadata.txt was missing from check_standards.USER_FACING, so a web-app explanation or an American spelling could ship in the changelog QGIS's plugin manager shows and the GitHub release body repeats. [hunt]
+  """
+  import importlib.util
+  import os
+
+  def load(name):
+    path = os.path.join(ROOT, "tools", f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"_{name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+  standards, review = load("check_standards"), load("text_review")
+  covered = {os.path.relpath(p, ROOT) for p in standards.USER_FACING}
+  wanted = set(review.DOCUMENTS) | {
+    os.path.join("weavingspace_qgis", name) for name in review.SOURCES}
+
+  assert len(covered) >= 10 and len(wanted) >= 10, (
+    f"one of the lists has been gutted or could not be read, so this "
+    f"comparison proves nothing: {len(covered)} against {len(wanted)}")
+  missing = sorted(wanted - covered)
+  assert not missing, (
+    "the standards check does not enforce the hard rules over files "
+    "the text-review queue makes somebody read, so a web-app "
+    "explanation or an American spelling can ship in them: "
+    + ", ".join(missing))
+
+
 def test_ticking_the_experimental_box_fills_the_topology_tab():
   """Opening the experiments asks for the work they need.
 
@@ -77816,6 +77871,8 @@ def main():
         test_the_topology_matrix)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
+  check("the rules are checked over every file a user reads",
+        test_the_rules_are_checked_over_every_file_a_user_reads)
   check("ticking the experimental box fills the topology tab",
         test_ticking_the_experimental_box_fills_the_topology_tab)
   check("a save is deferred only when a run is really coming",

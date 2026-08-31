@@ -61,6 +61,24 @@ USER_FACING = [
   os.path.join(ROOT, "docs", "USER-GUIDE.md"),
   os.path.join(ROOT, "README.md"),
   os.path.join(ROOT, "docs", "index.html"),
+  # metadata.txt IS THE MOST-READ PROSE THIS PROJECT SHIPS, and it was
+  # missing from this list until 2026-08-31. Its `changelog=` and
+  # `about=` are what QGIS's plugin manager displays, and
+  # `release_notes.py` puts the same changelog entry at the top of the
+  # GitHub release body -- two renderers, one text, neither of them
+  # checked here. MEASURED by planting one sentence in both places:
+  # "The tile color is chosen for you, reproducing what the web app
+  # does." in README.md fails this check twice over, on the web-app
+  # rule and on the spelling; the identical sentence in the changelog
+  # passed clean. So a HARD RULE -- never explain the plugin in terms
+  # of something the reader cannot see -- was unenforced in the one
+  # file most users read, and so was Canadian spelling.
+  # THE COMMENT ABOVE THIS LIST ALREADY SAID SO: it asks that this
+  # stay in step with `text_review.py`'s SOURCES and DOCUMENTS, and
+  # DOCUMENTS has carried metadata.txt since 2026-08-12, when a stale
+  # changelog shipped and the queue was widened to catch it. The two
+  # drifted anyway, which is what a hand-kept list does.
+  os.path.join(PLUGIN, "metadata.txt"),
 ]
 
 problems = []

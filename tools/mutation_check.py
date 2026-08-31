@@ -8733,6 +8733,26 @@ MUTATIONS = [
        why="experimental until designated otherwise (maintainer, "
            "2026-08-30): a box that starts ticked offers work still "
            "being designed to somebody who never asked for it"),
+  dict(name="the-hard-rules-reach-the-changelog", file="tools/check_standards.py",
+       # `metadata.txt` joined the text-review queue on 2026-08-12 and
+       # never joined this list, so the `changelog=` and `about=`
+       # entries -- what QGIS's plugin manager displays, and what
+       # `release_notes.py` puts at the top of the GitHub release body
+       # -- were unchecked for a HARD RULE and for Canadian spelling.
+       # MEASURED by planting one sentence in both places: "The tile
+       # color is chosen for you, reproducing what the web app does."
+       # fails twice in README.md and passed clean in the changelog.
+       # MUTATED AWAY, the file drops off the list again and the guard
+       # must notice -- which it does by comparing the two lists rather
+       # than by naming this file, so it cannot go quiet the next time
+       # something joins one list and not the other.
+       old="""  os.path.join(PLUGIN, "metadata.txt"),
+]""",
+       new="""]""",
+       test="test_the_rules_are_checked_over_every_file_a_user_reads",
+       why="a web-app explanation or an American spelling ships in the "
+           "most-read prose this project has, past a checker whose "
+           "whole job is to refuse exactly those two things"),
   dict(name="opening-the-experiments-asks-for-the-topology", file=DIALOG,
        # The box's `toggled` reached the gate and the touch counter and
        # nothing else, while `_queue_topology` runs only from

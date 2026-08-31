@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-463 defect(s) with a regression test.
+464 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -306,6 +306,8 @@ there is no separate list to remember.
   guarded by `test_the_retirement_guard_is_asked_the_right_question`
 - **a renderer changed in QGIS back to something the plugin can express left the row reading "Deferring to QGIS" with its controls disabled, and the next Generate overwrote the map.**  
   guarded by `test_the_row_follows_the_dock_back_out_of_deferring`
+- **metadata.txt was missing from check_standards.USER_FACING, so a web-app explanation or an American spelling could ship in the changelog QGIS's plugin manager shows and the GitHub release body repeats.**  
+  guarded by `test_the_rules_are_checked_over_every_file_a_user_reads`
 - **after saving a map, saving the project and reopening it, the Save box came back empty and a press was refused while the map read from that file. Found by the projectacts hunt of 2026-08-28.**  
   guarded by `test_the_save_box_comes_home_when_the_project_reopens`
 - **the spacing a refusal advised was printed with hard-coded punctuation, so under a comma-decimal locale typing it back gave a number ten times larger and the map was drawn far too coarse with nothing said.**  
@@ -981,7 +983,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 149
-- a bug hunt pointed in a named direction: 134
+- a bug hunt pointed in a named direction: 135
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15
