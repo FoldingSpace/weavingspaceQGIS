@@ -106,7 +106,7 @@ from qgis.core import (
 )
 from qgis.gui import QgsColorButton, QgsFileWidget, QgsMapLayerComboBox
 
-from . import bridge, catalog, perception
+from . import bridge, catalog, perception, said
 from .category_editor import CategoryColourDialog
 from .widgets import TrimmedSpinBox
 from .worker import TilingTask
@@ -1832,12 +1832,12 @@ class WeavingSpaceDialog(QDialog):
     # to fewer elements, whether a large run went ahead -- so a log
     # holding the question without the answer describes a decision
     # nobody can reconstruct.
-    self._said = []
-    # Anything that outlasts a session wants a bound. Fifty thousand
-    # notices from a long afternoon of live update would be a slow
-    # leak nobody would look for, and nobody reads past the newest few
-    # hundred: the oldest fall off the end.
-    self._said_ceiling = 500
+    # A VIEW OF THE MODULE'S LIST, not a copy: `plugin.py` records the
+    # consent dialogue and the two setup failures BEFORE this dialog
+    # exists, and two of them mean it never does. Holding the same
+    # list means those are already in the tab the first time somebody
+    # opens it, rather than being the messages it cannot show.
+    self._said = said.SAID
     # True only while `_on_group_chosen` is moving the region chooser
     # on the user's behalf. Choosing a group is RESUMING work, so the
     # protections a change of dataset arms must not fire: they exist
@@ -19856,14 +19856,7 @@ class WeavingSpaceDialog(QDialog):
     own memory of what they were doing, which is the one case the rule
     names as wall clock's own.
     """
-    self._said.append({
-      "at": time.strftime("%H:%M:%S"),
-      "kind": kind,
-      "text": " ".join(str(text).split()),
-      "answer": answer,
-    })
-    if len(self._said) > self._said_ceiling:
-      del self._said[:len(self._said) - self._said_ceiling]
+    said.record(kind, text, answer)
     self._refresh_messages_tab()
 
   def _warn(self, text: str) -> None:
@@ -19986,7 +19979,7 @@ class WeavingSpaceDialog(QDialog):
       None. The log is a record of what was SAID, not of what is
       true, so clearing it loses nothing but the reading.
     """
-    self._said = []
+    said.clear()
     self._refresh_messages_tab()
 
   def _report_quietly(self, message: str) -> None:

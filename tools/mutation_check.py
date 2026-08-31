@@ -4216,9 +4216,15 @@ MUTATIONS = [
            "new counts on the chooser with almost nothing to pick, "
            "which is worse than not offering them"),
   dict(name="consent-gates-the-download", file=PLUGIN,
+       # RE-ANCHORED 2026-08-30, when the answer began being recorded
+       # for the Messages tab: the arm gained a line and the condition
+       # itself is unchanged, which is the point -- the guard on this
+       # method's wording is why it was left alone.
        old="""    if box.clickedButton() is not approve:
+      said.record("question", asked, "No")
       return False""",
        new="""    if False:  # mutation: download whatever the user clicked
+      said.record("question", asked, "No")
       return False""",
        test="test_pypi_provisioning_is_reached_only_through_consent",
        why="the consent dialogue is the ONLY thing standing between "
@@ -8277,6 +8283,19 @@ MUTATIONS = [
            "log holding the question without the answer describes a "
            "decision nobody can reconstruct -- which is half of what "
            "the Messages tab was asked for"),
+  dict(name="the-consent-answer-is-recorded",
+       file="weavingspace_qgis/plugin.py",
+       old="""    if box.clickedButton() is not approve:
+      said.record("question", asked, "No")
+      return False
+    said.record("question", asked, "Yes")""",
+       new="""    if box.clickedButton() is not approve:
+      return False""",
+       test="test_the_consent_answer_is_recorded_either_way",
+       why="the consent dialogue is the most consequential question "
+           "this plugin asks and it is raised BEFORE any dialog "
+           "exists, so somebody who declined and later wondered why "
+           "nothing worked had nothing whatever to look back at"),
   dict(name="a-modal-reaches-the-messages-tab", file=DIALOG,
        old="""    self._record_said("warning", text)
     QMessageBox.warning(self, "WeavingSpace", text)""",
@@ -8286,10 +8305,14 @@ MUTATIONS = [
            "two stores nothing brings together; a modal that skips "
            "the record rebuilds exactly that split inside the one "
            "place meant to end it"),
-  dict(name="the-message-log-is-bounded", file=DIALOG,
-       old="""    if len(self._said) > self._said_ceiling:
-      del self._said[:len(self._said) - self._said_ceiling]""",
-       new="""    pass  # mutation: the log grows without bound""",
+  dict(name="the-message-log-is-bounded",
+       # RE-ANCHORED 2026-08-30: the bound moved into `said.py` with
+       # the record itself, because plugin.py writes to it before any
+       # dialog exists to hold it.
+       file="weavingspace_qgis/said.py",
+       old="""  if len(SAID) > CEILING:
+    del SAID[:len(SAID) - CEILING]""",
+       new="""  pass  # mutation: the log grows without bound""",
        test="test_the_messages_tab_records_what_the_plugin_said",
        why="an afternoon of live update speaks thousands of times, "
            "and an unbounded session-scoped list is a slow leak "

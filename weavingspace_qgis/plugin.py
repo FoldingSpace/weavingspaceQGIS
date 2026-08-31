@@ -17,7 +17,7 @@ import os
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox, QProgressDialog
 
-from . import deps
+from . import deps, said
 
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -171,12 +171,25 @@ class WeavingSpacePlugin:
     # of them -- so a person who read it and approved had seven
     # distributions downloaded where it listed one. The hard rule is
     # that the box names the packages; this is what makes it true.
-    box, approve = dependency_consent_box(
-      self.iface.mainWindow(),
-      list(missing) + deps.support_that_would_be_fetched())
+    wanted = list(missing) + deps.support_that_would_be_fetched()
+    box, approve = dependency_consent_box(self.iface.mainWindow(), wanted)
     box.exec()
+    # RECORDED WITH ITS ANSWER, for the Messages tab. This is the most
+    # consequential question the plugin asks, and until 2026-08-30 it
+    # left no trace whatever: somebody who declined and later wondered
+    # why nothing worked had nothing to look back at.
+    #
+    # THE TEST OF THE ANSWER KEEPS ITS EXACT WORDING, and the record
+    # goes around it rather than through it. A registered guard pins
+    # the literal `clickedButton() is not approve` in this method,
+    # because consent is a hard rule and the one place to be
+    # conservative about phrasing; rewriting the condition to read
+    # more neatly is what a defect in this method would look like.
+    asked = "Download " + ", ".join(wanted) + " from PyPI?"
     if box.clickedButton() is not approve:
+      said.record("question", asked, "No")
       return False
+    said.record("question", asked, "Yes")
 
     progress = QProgressDialog(
       "Downloading components...", None, 0, 0, self.iface.mainWindow())
@@ -213,11 +226,12 @@ class WeavingSpacePlugin:
       why = [f"{name}: {deps.LAST_FAILURES[name]}"
              for name in still_missing if name in deps.LAST_FAILURES]
       detail = ("\n\n" + "\n".join(why)) if why else ""
+      unset_up = ("Could not set up: " + ", ".join(still_missing) +
+                  detail + "\n\nYou can try again, or install these "
+                  "packages into QGIS's Python yourself.")
+      said.record("problem", unset_up)
       QMessageBox.critical(
-        self.iface.mainWindow(), "WeavingSpace",
-        "Could not set up: " + ", ".join(still_missing) + detail +
-        "\n\nYou can try again, or install these packages into "
-        "QGIS's Python yourself.")
+        self.iface.mainWindow(), "WeavingSpace", unset_up)
       return False
     deps.ensure_pyproj_data()
     return True
@@ -234,9 +248,10 @@ class WeavingSpacePlugin:
     try:
       import weavingspace  # noqa: F401 - fail fast with a clear message
     except Exception as e:  # noqa: BLE001
+      unloadable = f"The weavingspace library failed to load:\n{e}"
+      said.record("problem", unloadable)
       QMessageBox.critical(
-        self.iface.mainWindow(), "WeavingSpace",
-        f"The weavingspace library failed to load:\n{e}")
+        self.iface.mainWindow(), "WeavingSpace", unloadable)
       return
     if self.dialog is None:
       from .dialog import WeavingSpaceDialog

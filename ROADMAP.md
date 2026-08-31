@@ -836,9 +836,26 @@ own guard, and it means the first tab to arrive lands behind a gate
 that is already tested rather than beside one written in the same
 hurry.
 
-**A MESSAGES TAB: everything the plugin has said, in one place.** A
-reverse-chronological, timestamped, scrolling log of what the plugin
-issues -- the message bar's notices, the text of every modal AND THE
+**A MESSAGES TAB -- SHIPPED EXPERIMENTAL IN 0.24.4, and what is left
+here is the part that did not ship.** The tab exists: everything the
+plugin has said this session, newest first, with the answer beside any
+question, behind the Experimental features box. Every modal and every
+message-bar push goes through one recording door, which settles the
+question this entry asked below; the record lives in `said.py` rather
+than on the dialog, because `plugin.py` speaks -- including the
+consent dialogue -- before any dialog exists, and two of the things it
+says mean the window never opens.
+
+WHAT IS STILL WANTED HERE: whether the log should survive the window
+closing (it does not, by the maintainer's own ask, and that may be
+worth revisiting once people have used it), and whether QGIS's own Log
+Messages panel should be mirrored into it -- the plugin writes nothing
+there today, measured 2026-08-30, so there is nothing to mirror until
+it does.
+
+The original ask, kept because the reasoning is what a later session
+will not have: a reverse-chronological, timestamped, scrolling log of
+what the plugin issues -- the message bar's notices, the text of every modal AND THE
 ANSWER GIVEN TO IT, the QGIS warnings it raises. It need not survive
 the session, and it carries a Clear button.
 

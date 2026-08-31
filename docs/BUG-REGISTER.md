@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-437 defect(s) with a regression test.
+439 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -491,6 +491,8 @@ there is no separate list to remember.
   guarded by `test_every_declared_offset_is_pinned`
 - **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
   guarded by `test_every_design_control_is_reachable`
+- **three modals in plugin.py, including the consent dialogue whose answer matters most, left no trace in the tab at all.**  
+  guarded by `test_everything_the_plugin_says_reaches_the_record`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
   guarded by `test_installed_palettes_span_their_declared_colours`
 - **keeping a previous result protected its group and not its GeoPackage, so a run wrote over the file the kept group draws from.**  
@@ -527,6 +529,8 @@ there is no separate list to remember.
   guarded by `test_saving_holds_on_every_route`
 - **nine catalogue entries sat ambiguous and reported nothing at all while every gate was green, found by the first full sweep in weeks rather than by any push.**  
   guarded by `test_the_catalogue_gate_refuses_an_ambiguous_anchor`
+- **the consent dialogue's answer was recorded nowhere, so the plugin's most consequential question left no trace.**  
+  guarded by `test_the_consent_answer_is_recorded_either_way`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
 - **the two element-count widgets could disagree, and nothing read the count off the design that was actually built.**  
@@ -926,7 +930,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - a bug hunt pointed in a named direction: 131
-- the mutation campaign: 128
+- the mutation campaign: 130
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

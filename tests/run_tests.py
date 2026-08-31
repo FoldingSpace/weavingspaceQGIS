@@ -2754,6 +2754,213 @@ def test_live_update_gates():
   dlg.close()
 
 
+def test_the_consent_answer_is_recorded_either_way():
+  """Whether the download was approved is written down, before any
+  dialog exists to write it into.
+
+  The consent dialogue is the most consequential question this plugin
+  asks, and it is raised on the way to opening the window -- so a
+  person who declined, and later wondered why nothing worked, had
+  nothing whatever to look back at. The record lives in its own module
+  for exactly this reason: `plugin.py` speaks before the dialog does,
+  and two of the three things it says mean the window never opens.
+
+  BOTH ANSWERS ARE DRIVEN. A test of the Yes arm alone would pass on
+  code that recorded "Yes" unconditionally, which is the answer that
+  matters least -- somebody who agreed can see the packages arrive.
+
+  AND IT IS A BEHAVIOURAL TEST BECAUSE THE SHAPE GUARD CANNOT SEE
+  THIS. `test_everything_the_plugin_says_reaches_the_record` walks for
+  QMessageBox and message-bar calls; the consent box is neither, being
+  a QMessageBox INSTANCE the caller execs. Its catalogue entry
+  survived against that walk, which is how the gap was found.
+
+  Regression: the consent dialogue's answer was recorded nowhere, so the plugin's most consequential question left no trace. [mutation]
+  """
+  from weavingspace_qgis import deps, plugin as plugin_module
+  from weavingspace_qgis import said as said_module
+
+  class _Box:
+    """Stands in for the consent dialogue, answering as told."""
+
+    def __init__(self, agreed):
+      self._agreed = agreed
+
+    def exec(self):
+      """Shown and answered; nothing is drawn in a headless run."""
+      return 0
+
+    def clickedButton(self):  # noqa: N802 (Qt API)
+      """The approve button when the arm says yes, and not it when no."""
+      return _APPROVE if self._agreed else object()
+
+  _APPROVE = object()
+
+  # A REAL WIDGET, not a stand-in: `_ensure_dependencies` parents a
+  # QProgressDialog on whatever this returns, and Qt refuses anything
+  # that is not a QWidget. A stub written from memory tests the memory.
+  from qgis.PyQt.QtWidgets import QWidget
+  window = QWidget()
+
+  class _Iface2:
+    """Only what `_ensure_dependencies` asks of the interface."""
+
+    def mainWindow(self):  # noqa: N802 (Qt API)
+      """A parent for the dialogue and the progress bar."""
+      return window
+
+  # STUBBED SO THE CONSENT PATH IS REACHED AND NOTHING IS DOWNLOADED.
+  # Every one of these is put back in the `finally` below: this walks
+  # the module's own attributes, and a stub left behind would make the
+  # next test in the shard measure a plugin that cannot provision.
+  saved = {name: getattr(deps, name) for name in
+           ("add_paths", "missing_packages", "provision_from_bundled",
+            "support_that_would_be_fetched", "provision_from_pypi",
+            "ensure_pyproj_data")}
+  real_box = plugin_module.dependency_consent_box
+  for agreed in (False, True):
+    said_module.clear()
+    fetched = []
+    try:
+      deps.add_paths = lambda: None
+      deps.ensure_pyproj_data = lambda: None
+      deps.missing_packages = lambda: ["geopandas"]
+      # still missing after the bundled wheels, or the consent box is
+      # never reached and this test measures nothing
+      deps.provision_from_bundled = lambda missing: list(missing)
+      deps.support_that_would_be_fetched = lambda: ["pyproj"]
+      # NOTHING IS DOWNLOADED BY A TEST. The Yes arm must reach the
+      # record without reaching the network, so the fetch is stubbed;
+      # it reports everything still missing, which sends the method
+      # down its own "could not set up" path and back out.
+      deps.provision_from_pypi = (
+        lambda missing, progress=None: fetched.append(missing) or
+        list(missing))
+      plugin_module.dependency_consent_box = (
+        lambda parent, wanted: (_Box(agreed), _APPROVE))
+      instance = plugin_module.WeavingSpacePlugin(_Iface2())
+      answered = instance._ensure_dependencies()
+      assert answered is False, \
+        "the stubbed provisioning reports everything still missing, so " \
+        "this must come back False whichever way the box was answered"
+      assert bool(fetched) is agreed, \
+        f"the box was answered {'yes' if agreed else 'no'} and the " \
+        f"download was {'not ' if agreed else ''}attempted"
+      questions = [row for row in said_module.SAID
+                   if row["kind"] == "question"]
+      assert questions, \
+        f"the consent dialogue was answered {'yes' if agreed else 'no'} " \
+        f"and nothing was recorded at all"
+      answer = questions[-1]["answer"]
+      assert answer == ("Yes" if agreed else "No"), \
+        f"the box was answered {'yes' if agreed else 'no'} and the " \
+        f"record says {answer!r}"
+      assert "geopandas" in questions[-1]["text"], \
+        f"the recorded question does not name what it would fetch: " \
+        f"{questions[-1]['text']!r}"
+    finally:
+      plugin_module.dependency_consent_box = real_box
+      for name, original in saved.items():
+        setattr(deps, name, original)
+  said_module.clear()
+
+
+def test_everything_the_plugin_says_reaches_the_record():
+  """No way of speaking to the user bypasses the Messages tab.
+
+  The tab is worth having only if it is COMPLETE: a record that holds
+  most of what was said is the same fault it was built to end, because
+  a reader cannot tell an empty log from a quiet session. So this is a
+  shape guard over the shipped package rather than a list of the sites
+  that existed when it was written -- a list would go stale the first
+  time somebody raised a new modal, and that is exactly the day the
+  tab would start lying.
+
+  THE PLUGIN SPEAKS IN THREE WAYS, and each has one door: a modal
+  (`_warn`, `_problem`, `_ask` on the dialog), QGIS's message bar, and
+  -- before any dialog exists -- `plugin.py`, which asks for consent
+  and reports the two setup failures that mean the window never opens.
+  That last is why the record lives in its own module rather than on
+  the dialog.
+
+  Regression: three modals in plugin.py, including the consent dialogue whose answer matters most, left no trace in the tab at all. [mutation]
+  """
+  import ast as syntax
+  package = os.path.join(ROOT, "weavingspace_qgis")
+
+  # The wrappers themselves are the door; they are allowed to call
+  # QMessageBox, and nothing else is.
+  allowed = {("dialog.py", "_warn"), ("dialog.py", "_problem"),
+             ("dialog.py", "_ask")}
+  offenders, scanned, speaking, spoke_in = [], 0, 0, set()
+  for name in sorted(os.listdir(package)):
+    if not name.endswith(".py"):
+      continue
+    path = os.path.join(package, name)
+    text = open(path, encoding="utf-8").read()
+    scanned += 1
+    tree = syntax.parse(text)
+    # which function each line belongs to, so an offender can be named
+    owner = {}
+    for node in syntax.walk(tree):
+      if isinstance(node, (syntax.FunctionDef, syntax.AsyncFunctionDef)):
+        for line in range(node.lineno, (node.end_lineno or node.lineno) + 1):
+          owner[line] = node.name
+    for node in syntax.walk(tree):
+      if not (isinstance(node, syntax.Call)
+              and isinstance(node.func, syntax.Attribute)):
+        continue
+      speaks = (
+        (isinstance(node.func.value, syntax.Name)
+         and node.func.value.id == "QMessageBox"
+         and node.func.attr in ("warning", "critical", "question",
+                                "information"))
+        or node.func.attr in ("pushWarning", "pushSuccess", "pushCritical",
+                              "pushMessage", "pushInfo"))
+      if not speaks:
+        continue
+      speaking += 1
+      spoke_in.add(name)
+      where = owner.get(node.lineno, "<module>")
+      if (name, where) in allowed:
+        continue
+      # the record has to be written by the same function
+      body = syntax.get_source_segment(text, tree) or text
+      function = next(
+        (n for n in syntax.walk(tree)
+         if isinstance(n, (syntax.FunctionDef, syntax.AsyncFunctionDef))
+         and n.name == where), None)
+      records = False
+      if function is not None:
+        for inner in syntax.walk(function):
+          if (isinstance(inner, syntax.Call)
+              and isinstance(inner.func, syntax.Attribute)
+              and inner.func.attr in ("record", "_record_said")):
+            records = True
+            break
+      if not records:
+        offenders.append(f"{name}:{node.lineno} in {where}() speaks "
+                         f"without recording")
+  # COUNT WHAT WAS LOOKED AT, twice: a walk that read no files and a
+  # walk that found no speaking are the same green as a clean one.
+  assert scanned >= 8, f"only {scanned} modules were scanned"
+  # THE PREMISE IS THE KINDS, NOT A TOTAL. A count goes stale the
+  # moment the sites are refactored -- this very walk was written
+  # against fifteen, and routing fourteen modals through three
+  # wrappers made the honest number ten within the hour. What must
+  # hold is that the walk still RECOGNISES both places the plugin
+  # speaks from: the dialog, and plugin.py before a dialog exists.
+  assert speaking >= 5, \
+    f"only {speaking} speaking calls were found, so the plugin has " \
+    f"either gone quiet or this walk has stopped recognising it"
+  assert {"dialog.py", "plugin.py"} <= spoke_in, \
+    f"the walk saw speaking only in {sorted(spoke_in)}; it has to see " \
+    f"both the dialog and plugin.py, which speaks before one exists"
+  assert not offenders, \
+    "the user is told something the Messages tab will not have:\n  " + \
+    "\n  ".join(offenders)
+
+
 def test_the_window_never_grows_past_the_screen():
   """The dialog is bounded by the display it is on, not by a constant.
 
@@ -2991,13 +3198,21 @@ def test_the_messages_tab_records_what_the_plugin_said():
     assert dlg.messages_table.rowCount() == 0, \
       "Clear left rows behind"
 
-    # the log is bounded, or a long afternoon of live update leaks
-    dlg._said_ceiling = 5
-    for number in range(12):
-      dlg._record_said("notice", f"notice {number}")
-    assert dlg.messages_table.rowCount() == 5, \
-      f"the ceiling is 5 and the tab shows " \
-      f"{dlg.messages_table.rowCount()} rows"
+    # the log is bounded, or a long afternoon of live update leaks.
+    # THE CEILING LIVES IN THE MODULE, not on the dialog: the record
+    # outlives any one window because plugin.py writes to it before a
+    # window exists at all.
+    from weavingspace_qgis import said as said_module
+    was = said_module.CEILING
+    try:
+      said_module.CEILING = 5
+      for number in range(12):
+        dlg._record_said("notice", f"notice {number}")
+      assert dlg.messages_table.rowCount() == 5, \
+        f"the ceiling is 5 and the tab shows " \
+        f"{dlg.messages_table.rowCount()} rows"
+    finally:
+      said_module.CEILING = was
     assert dlg.messages_table.item(0, 2).text() == "notice 11", \
       "the newest notice fell off instead of the oldest"
   finally:
@@ -74189,6 +74404,10 @@ def main():
         test_live_update_gates)
   check("design cascade (n/kind/family/options/fit)",
         test_design_cascade)
+  check("the consent answer is recorded either way",
+        test_the_consent_answer_is_recorded_either_way)
+  check("everything the plugin says reaches the record",
+        test_everything_the_plugin_says_reaches_the_record)
   check("the window never grows past the screen",
         test_the_window_never_grows_past_the_screen)
   check("the experimental box gates its tabs",

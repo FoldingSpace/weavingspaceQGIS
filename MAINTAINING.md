@@ -111,6 +111,7 @@ Files you will actually touch:
 | `weavingspace_qgis/catalog.py` | The tiling/weave menu: a verbatim copy of the web app's dictionary, plus two library extras (stripes, grid) appended by a loop after it. Sync the literal against the app; add further extras to the loop. |
 | `weavingspace_qgis/deps.py` | Checks/downloads Python dependencies on QGIS builds that lack them. Version floors and pinned candidates at the top. |
 | `weavingspace_qgis/help_content.py` | The Help tab text. Keep in step with `docs/USER-GUIDE.md`. |
+| `weavingspace_qgis/said.py` | Everything the plugin has said, for the Messages tab. Its own module because `plugin.py` speaks before any dialog exists, and it imports nothing but `time` so that holding four strings does not drag the vendored library into QGIS start-up. |
 | `weavingspace_qgis/vendor/weavingspace/` | The upstream library, vendored and patched; see below before touching. |
 
 ## When a new QGIS version breaks things
@@ -741,13 +742,39 @@ eleven — and it has cost real diagnoses, because a run refused through
 a QMessageBox leaves the bar empty and is indistinguishable from a run
 that was never launched. A user has no `MODALS` list to read.
 
-Since 2026-08-30 there is one door and one record. `_record_said` keeps
-`{at, kind, text, answer}` in `_said`, session-scoped and bounded at
-`_said_ceiling` entries; `_warn`, `_problem` and `_ask` are thin
-wrappers that record and then call QMessageBox exactly as the call
-sites used to, so the suite's own modal shim intercepts them unchanged
-and no harness had to learn anything. `_report_quietly` and the four
-direct `messageBar()` pushes record too.
+Since 2026-08-30 there is one door and one record. `said.record` keeps
+`{at, kind, text, answer}` in `said.SAID`, session-scoped and bounded
+at `said.CEILING`; `_warn`, `_problem` and `_ask` on the dialog are
+thin wrappers that record and then call QMessageBox exactly as the
+call sites used to, so the suite's own modal shim intercepts them
+unchanged and no harness had to learn anything. `_report_quietly` and
+the four direct `messageBar()` pushes record too.
+
+**THE RECORD IS A MODULE, NOT THE DIALOG'S OWN LIST, and that is the
+part worth knowing.** `plugin.py` speaks BEFORE any dialog exists --
+the dependency consent dialogue, the failure to provision, and the
+failure to import the library -- and two of those mean the window
+never opens at all. A record beginning at the dialog's construction
+would be missing exactly the messages somebody most needs to look back
+at. `said.py` therefore imports nothing but `time`, so holding four
+strings does not drag the vendored library into QGIS start-up, and the
+dialog's `_said` is a VIEW of the same list rather than a copy.
+
+`said.clear()` empties the list IN PLACE for the same reason: the
+dialog holds a reference, and rebinding would leave the tab reading a
+list nothing writes to any more -- the watched-attribute-that-is-a-view
+trap this project has already paid for once.
+
+**AND THE COMPLETENESS IS GUARDED AS A SHAPE.** A list of the sites
+that existed the day it was written would go stale the first time
+somebody raised a new modal, which is the day the tab would start
+lying. `test_everything_the_plugin_says_reaches_the_record` walks the
+shipped package for QMessageBox and message-bar calls and requires the
+function making one to record as well. It cannot see the consent
+dialogue -- that is a QMessageBox INSTANCE the caller execs, not a
+call to the class -- so the consent answer has its own behavioural
+test driving both arms, which is how that gap was found: the
+catalogue entry survived against the shape guard.
 
 **THE ANSWER IS KEPT WITH THE QUESTION**, and that is half the point:
 many of this plugin's modals decide something — whether a file was
