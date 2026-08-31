@@ -3901,3 +3901,98 @@ separate command issued immediately and verified by reading the file
 back. This project's own rule already says a mutating job must ASSERT
 that it put the file back; the addition is that a TIMEOUT is one of
 the ways it fails to.
+
+## Five instrument faults in one day, every one already written here
+
+2026-08-31, round five. Counted because a day whose findings are mostly
+its own instruments is a day nobody should act on -- and because every
+one of these was made by somebody who had read the entry describing it
+that morning.
+
+**TWO ARMS SHARING ONE `QgsProject` IS A CONTAMINATED CONTROL, AND IT
+READS AS MACHINE CONTENTION.** A two-arm probe ran its control first;
+the treatment's dialog then met the control's output layers and its
+topology never built, so the arm died on its own premise. That was
+reported -- twice, out loud, before it was measured -- as six
+concurrent hunts saturating the machine. It reproduced identically with
+the machine idle. `QgsProject.instance().clear()` at the top of each
+arm settled it in one line.
+ASK OF ANY MULTI-ARM PROBE WHAT THE ARM BEFORE IT LEFT BEHIND, and
+prefer an explanation you can test over one you can feel.
+
+**A DISCRIMINATOR MUST NOT DISTURB THE THING IT DISCRIMINATES.** With
+live update off the map deliberately does not follow the table, so
+"saved the map on screen" and "did nothing at all" leave the same tiles
+in the file. Deleting the file first to make its reappearance
+meaningful left the layers naming a table that no longer existed, so
+the save refused for a reason nothing to do with the defect. What
+discriminated without disturbing anything was WHAT THE PLUGIN SAYS.
+
+**A FILTER MATCHING A PHRASE COPIED OUT OF THE PRODUCT IS RETUNED BY
+THE APPROVAL PIPELINE.** An arm counted messages containing `"cannot
+carry"`; the maintainer reworded that notice the same afternoon,
+`text_review --apply` wrote the new words into the source, and the
+filter matched nothing -- so the arm counted zero and its "at most
+once" assertion could not fail. Match on what a sentence is ABOUT (the
+control's name) where there is no function to compose it from.
+
+**A REPAIR THAT ENABLES A GUARDED WRITE MUST SUPPLY WHAT THE WRITE
+DEMANDS.** Stopping a gate refusing a write changed nothing observable
+three times running, because the write itself then declined for a
+reason written at the write rather than at the gate. The only evidence
+was a dump line behind a flag.
+
+**A WIDENED PATTERN MUST BE RUN AGAINST THE CLEAN TREE.** Widening a
+version check to match a claim rather than one phrasing of it caught
+the planted fault AND produced two false alarms on a document that
+names other versions correctly. A gate whose failures are mostly false
+is one people learn to silence, so it was scoped to the files whose job
+is to state the fact, with the reason at the line.
+
+## A ceiling is the case, and a fence is the boundary
+
+Two more from the same day, both about a check that stops seeing.
+
+**A ``` FENCE SHIFTS EVERY INLINE SPAN BELOW IT.** A fence line carries
+three backticks; a span pattern needs a non-backtick between a pair, so
+the third becomes an opener and everything after it inverts -- real
+spans read as prose, prose reads as spans. A gate reading documents for
+quoted commands therefore went blind from the first fence onward, and
+its per-document check could not catch that, because a document
+contributing SOMETHING passes. Blank fenced blocks with SPACES, so
+every offset and every quoted line number is unchanged.
+
+**AND THE FIX MUST NOT MOVE THE LINE NUMBERS A FAILURE QUOTES.**
+Removing the fenced text instead of blanking it would shorten the copy
+and move every line number below, so a failure would name the wrong
+line -- worse than not reporting it, because somebody would go and
+look.
+
+## Assert both answers when a rule has two, and the second is usually
+## the one that catches the repair
+
+Three guards written that day each assert a pair, and in each case the
+second half is what stops a lazy repair passing:
+
+- a CRS must NOT move the file's topology key, AND a tile inset and a
+  rotation still MUST -- a key insensitive to everything would be a
+  worse fault than the one being cured;
+- a Save must be deferred with live update ON, AND honoured at once
+  with it off -- a repair that simply stopped deferring would pass half
+  and destroy the behaviour the maintainer's ruling asked for;
+- a file's motif must be PRESENT after a design change, AND its key
+  must have MOVED -- keeping the old pair satisfies the first alone and
+  is the exact fault that preceded this one.
+
+## A sandbox must carry every document the suite reads
+
+`tools/sandbox.py` copied CLAUDE.md and MAINTAINING.md and not README.md
+or ROADMAP.md, though `DOCUMENTED_COMMAND_DOCS` names all four. A test
+reading either died with FileNotFoundError inside the sandbox, so its
+catalogue entries came back UNJUDGEABLE -- counted as neither caught
+nor survived, which is the state that list's own comment already calls
+worse than a failure. Found while proving an entry whose test reads
+README.md.
+ASK OF ANY HARNESS THAT COPIES A TREE what the tests it runs actually
+open, and prefer to derive that list rather than keep it by hand.
+

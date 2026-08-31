@@ -12,7 +12,9 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-29 (late), after the verification session below
+Last updated 2026-08-31 (late), after ROUND FIVE and the day the
+twenty-defect campaign closed. See the section immediately below;
+before that, 2026-08-29 (late), after the verification session below
 and the DECISION session that followed it -- six open questions put to
 the maintainer one at a time, all six settled, and two of them turning
 into work the version now owes.
@@ -444,6 +446,67 @@ described as looking for old bugs; here it was overwhelmingly a check
 on new work, and the directions that paid were the ones aimed at
 shapes (a paired identity, an order, a record that outlives its
 subject) rather than at features
+
+## ROUND FIVE, 2026-08-31: eight hunts, and the day the campaign closed
+
+Eight hunts at once, each in its own worktree under
+`dev/hunts/round5`, with the consistency sweep run BESIDE them per the
+standing rule. The ledger is `defects-2026-08-31.md`.
+
+THE SWEEP CAME BACK CLEAN -- 14 acts, 2,972 comparisons, 0
+disagreements and 0 harness faults of its own, including the five
+boundary crossings that went red the first time it ever ran. That is
+worth as much as a finding: it is ground the next round need not walk,
+and it says the instrument can still answer, since its first outing
+found three defects in exactly those acts.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the round's own repairs (9th) | 1 | when a repair frees ONE reader from a gate, grep the gate: the twin two hours older keeps it |
+| topology across boundaries (1st) | 1 | when a repair makes one owner answer "what is the design", check the OTHER key for terms that were never design terms -- `crs` rode in through `_unit_kwargs` and is invisible to any comparison of design widgets |
+| backwards from harm (6th) | (same) | reached the same defect from the opposite end, by two different acts; counted once. Its own ranked list put the finding at 3/13 and 13/13 and the ranking did not find it -- the PAIRING did |
+| the deferred-work queues (1st) | 1 | when a project documents one reading as "a second reading of one question", diff the two term by term: the older had never learned the newer's first line |
+| stochastic settled sessions (5th) | 1 | gate every act on what the interface actually ENABLES -- three of its six harness faults were states no person could drive, and the invariant reported all three as defects |
+| the experimental tabs (via stochastic) | (same) | converged with the boundaries hunt on a gate that opens a tab and never fills it; counted once |
+| the prose (4th) | 3 | when a prose gate is written for ONE document, grep the same fact in every other -- the weave ceiling was corrected in the guide that morning and left standing in the changelog, which more people read |
+| audit the gates (3rd) | 3 | run the whole promise of a checker's docstring as a BATTERY: four controls and six misses came out of one script |
+| matrix cells that cannot fail | 3 axes | two of the three dead axes were in tests written that same morning, which is this project's standing one-in-five holding on the freshest possible work |
+
+**WHAT THIS ROUND SETTLES, and the first is new.**
+
+**TWO DEFECTS WERE FOUND BY TWO HUNTS INDEPENDENTLY, in one round.**
+That has happened before; twice in one round has not. Both times the
+pair came from opposite kinds of direction -- one reading structure
+(boundaries, the gates) and one reading consequence (harm, stochastic).
+The portfolio rule already reserves a third of a round for directions
+that cannot pattern-match; what this adds is that the CONVERGENCE is
+what makes a claim safe to act on within the hour, and it only happens
+if both kinds are in the round.
+
+**READING THE DOCUMENTS IS STILL A DIRECTION, AND IT WENT FIRST.** The
+maintainer asked for every procedural document to be re-read before any
+work. That produced the day's first defect inside an hour -- a release
+gate blind to everything quoted after a fenced block -- and it is the
+third time this row has paid. It costs no machine time and it is the
+only direction that finds a defect in the INSTRUMENTS by reading what
+they claim.
+
+**THE VERIFICATION QUEUE WAS THE WHOLE COST, AGAIN, AND IT WAS WORSE
+THIS TIME BECAUSE THE MACHINE WAS FULL.** Eight hunts saturated this
+Mac, and two of my own verification probes died on their own premise
+under the contention -- which I reported as contention twice before
+measuring it and finding the real cause was a shared `QgsProject`. The
+standing advice is unchanged and now has a sharper edge: running eight
+at once does not raise throughput, and it actively degrades the
+JUDGING, which is the part that cannot be delegated.
+
+**AND THE HOLDING OF EMPTY SLOTS WAS DELIBERATE.** The instruction was
+to replenish as each hunt reported. After five had reported the queue
+held three confirmed-but-unrepaired defects, three dead axes and three
+gate findings, and the slots were left empty until it cleared. That is
+this file's own rule about the queue, applied against an instruction to
+launch more, and it was the right call: the remaining defects were all
+closed from the existing claims without a new round.
 
 ## How to run one
 

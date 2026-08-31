@@ -5532,3 +5532,143 @@ here, and the decision to add one is the maintainer's. Recorded
   log where your watcher does not read, or name it so the pattern
   misses it -- and retire your OWN superseded logs, since a directory
   of stale failing logs makes any watcher lie.
+
+- **A ``` FENCE SHIFTS EVERY INLINE SPAN BELOW IT, AND A GATE READING
+  PROSE GOES BLIND FROM THERE DOWN.** (2026-08-31, found by re-reading
+  the procedural documents at the maintainer's asking, which is a
+  direction docs/process/HUNT-RECORD.md carries a row for.) A fence
+  line carries THREE backticks; a span pattern needs a non-backtick
+  between a pair, so the first two cannot pair and the THIRD opens a
+  span running to the next backtick. After that, every real span reads
+  as prose and every scrap of prose reads as a span: on a three-line
+  document two ordinary script references went invisible while "Then" and
+  "and" were collected as commands.
+  MEASURED ACROSS THE GATED DOCUMENTS: fifteen references hidden,
+  TWELVE of them in MAINTAINING.md, which contributed ONE where it
+  carries thirteen -- and the one the gate could not see named
+  a gitignored path under dev/instruments that does not exist. That is the rc6 CI failure's SIBLING, left standing
+  because the repair went to the instance CI named rather than
+  sweeping for the question.
+  THE PER-DOCUMENT CHECK COULD NOT CATCH IT EITHER: a document that
+  contributes SOMETHING passes. Ask of any gate that reads prose what
+  its own markup does to its reading, and blank fenced blocks with
+  SPACES rather than removing them, so every offset -- and every line
+  number a failure quotes -- is unchanged.
+
+- **WHEN ONE FUNCTION IS MADE THE OWNER OF "WHAT IS X", CHECK EVERY
+  OTHER KEY FOR TERMS THAT WERE NEVER X TERMS.** (2026-08-31, found by
+  TWO hunts independently -- one from the boundaries, one backwards
+  from harm.) `_capture_design` was extracted that morning as the one
+  answer to "what is the design", and the save's staleness guard was
+  moved onto it. The FILE's key went on hashing `_topology_stamp()`,
+  which is built from `_unit_kwargs()` and carries `crs` off the region
+  layer -- the one stamp term `_capture_design` cannot see. So
+  reassigning a layer's CRS, the ordinary repair for a shapefile with
+  no `.prj`, moved the key while the guard reported agreement, the drop
+  read that as staleness, and nothing wrote a replacement.
+  THE DIRECTION WAS CHECKED RATHER THAN FOLLOWED, which is what made
+  the repair narrow: `make_unit` at EPSG:3857 and EPSG:27700 gives
+  identical tile WKT and identical topology classes, and the tables are
+  written in unit space with no CRS at all -- so the CRS describes
+  nothing about them and the KEY was the wrong half, not the guard.
+  The term left the FILE's key only; the stamp keeps it, because it
+  also judges whether a landed build still describes the design on
+  screen, and widening the repair into that question would change a
+  second thing while measuring one.
+
+- **AN ARMED TIMER IS NOT A RUN THAT WILL START.** (2026-08-31.)
+  `_queue_live` arms the live timer on every output-affecting change
+  WHATEVER the checkbox says, and `_maybe_live_generate` then declines
+  at its second gate. `_a_queued_run_would_redraw` read only the timer
+  where its sibling `_a_live_run_will_follow` asks about the checkbox
+  on its FIRST LINE -- two readings of one question, one of which had
+  never learned the other's opening move. A Save pressed inside the
+  debounce with live update off was kept, the person was told the map
+  would be saved once redrawn, nothing redrew it, and the write landed
+  on the design they had changed AWAY from; closing the window in that
+  second cleared the intent and wrote nothing at all.
+  THE RULE THIS JOINS is the project's own about deferred work: ask
+  what CONSUMES a remembered intent, and whether that consumer can
+  DECLINE for a reason having nothing to do with the act deferred.
+  WHEN A PROJECT DOCUMENTS ONE READING AS "A SECOND READING OF ONE
+  QUESTION", DIFF THE TWO TERM BY TERM.
+
+- **A GATE THAT OPENS A DOOR MUST ASK FOR WHAT IS BEHIND IT.**
+  (2026-08-31, found by two hunts independently.) `opt_experimental`
+  reached `_gate_experimental_tabs` and a touch counter; the topology
+  build runs only from `_rebuild_unit`. So the gate OPENED the Topology
+  tab and nothing filled it -- an empty class chooser beside an ENABLED
+  Apply button -- and after a design change made with the box off, the
+  tab offered the classes of a design nobody was looking at, so the
+  edge somebody clicked was not the edge that moved.
+  THE COST RULING SURVIVES BY HANGING THE WORK ON THE BOX rather than
+  on the tab: the tick IS the asking, so nobody who has not asked pays
+  the 0.75-4.4s. When a control gates VISIBILITY, ask what fills what
+  it reveals, and whether that filler has any idea the control exists.
+
+- **A HAND-KEPT LIST DRIFTS EVEN WHERE A COMMENT SAYS TO KEEP IT IN
+  STEP.** (2026-08-31, twice in one day.) `check_standards.USER_FACING`
+  decides which files the hard rules are enforced over, and its own
+  comment asks that it match `text_review`'s SOURCES and DOCUMENTS.
+  `metadata.txt` joined the review queue on 2026-08-12 and never joined
+  this one -- so the `changelog=` and `about=` entries, which QGIS's
+  plugin manager displays and which `release_notes.py` puts at the top
+  of the GitHub release body, were unchecked for a HARD RULE and for
+  Canadian spelling. Measured by planting one sentence in both places:
+  caught in README.md, clean in the changelog.
+  AND `sandbox.INCLUDE_FILES` carried CLAUDE.md and MAINTAINING.md but
+  not README.md or ROADMAP.md, though the suite reads all four -- so
+  any catalogue entry whose test touches them came back UNJUDGEABLE,
+  which that list's own comment calls worse than a failure.
+  THE REPAIR IS TO GUARD THE RULE, NOT THE INSTANCE: a test comparing
+  the two lists cannot go quiet the next time a file joins one and not
+  the other, which is exactly how both of these arose. Assert both
+  lists are non-trivial while you are there -- two empty sets agree
+  perfectly.
+
+- **A WANTED WRITE THAT FAILS STILL CLEARS, SO ENABLING THE WRITE IS
+  HALF A REPAIR.** (2026-08-31, and it is the third failed repair to
+  one method in one day.) `_write_or_drop_the_topology` refused to
+  write a motif while the experimental box was unticked, and stopping
+  it asking the box changed nothing observable: on the commonest
+  journey nothing has BUILT a topology, so `wanted` stayed false. Given
+  a synchronous build, `wanted` went true -- and the both-or-neither
+  test then found `_topology_dual` empty, declined the write, and the
+  clear below ran exactly as before. The only evidence was a dump line.
+  SO WHEN YOU ENABLE A GUARDED WRITE, ENUMERATE EVERYTHING THE WRITE
+  ITSELF DEMANDS. Here the dual had to be built AND STAMPED beside the
+  unit, which is a requirement written at the write and not at the
+  gate. THREE REPAIRS FAILED BEFORE I READ WHAT THE BRANCH DID, having
+  quoted this file's own rule about that twice the same day.
+
+- **A TEST THAT MATCHES A PHRASE COPIED OUT OF THE PRODUCT IS BROKEN BY
+  THE MAINTAINER'S OWN EDIT.** (2026-08-31, and the route is new.) An
+  arm counted messages containing `"cannot carry"`. The maintainer
+  reworded that notice, `tools/text_review.py --apply` wrote the new
+  sentence into the source, and the filter matched nothing -- so the
+  arm counted zero and its "at most once" assertion held whatever the
+  code did. This file already says to compose an expected sentence from
+  the function the product uses; where the sentence is a LITERAL and
+  there is no function, match on what the sentence is ABOUT (here the
+  control's name, "Topology tab"), never on a phrase from inside it.
+  THE APPROVAL PIPELINE IS THE DELIVERY MECHANISM, which is what makes
+  this worth its own entry: approving prose is the act that silently
+  retunes every test transcribing it.
+
+- **UPSTREAM MOVED TWELVE COMMITS WITHOUT BUMPING ITS VERSION, AND
+  FIXED ONE OF OUR FINDINGS.** (2026-08-31.) The vendored stamp reads
+  `0.0.7.89 (bf1bbbf)`; upstream's head is `6190917` with `topology.py`
+  at +179/-207 and `_tiling_geometries.py` at +44/-67 -- and the
+  version string is `0.0.7.89` at BOTH ends. That is exactly why the
+  stamp records a commit as well as a version, and why the standing
+  rule says to compare both before running the suite.
+  `b3650e0` is *"fixed bug in zigzag edges code where it was doubling
+  up tiling vertices"*, two lines: the endpoints were added once as
+  `edge.vertices[0]`/`[-1]` and again from `ls.coords`, which includes
+  them. This project measured that independently on 2026-08-30 and had
+  it recorded as a conversation to have; it is answered at the source.
+  THE RE-VENDOR IS ITS OWN ROUND, by the maintainer's decision: twelve
+  commits touching `topology.py` heavily is not a licence-header bump,
+  and the tab, the manipulations, the edit shelf and the topology
+  matrix all stand on that module.
+
