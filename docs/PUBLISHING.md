@@ -676,6 +676,94 @@ invokes `build.py` without forwarding anything, so
 `release.py --rc --no-install` is an argparse error. Corrected
 2026-08-18, having documented a flag the command could not take.
 
+## READING CI: three ways the reading itself fails
+
+Each of these cost real time on 2026-08-31, and each looks like an
+answer rather than a broken instrument.
+
+**`gh api .../jobs/<id>/logs` RETURNS ZERO BYTES AND EXIT 1 WITHOUT
+`--allow-escape-sequences`.** The response carries terminal colour
+codes and gh refuses to print it. A grep over that empty file finds
+nothing, which reads exactly like a clean log -- and the first reading
+of a failing job here was precisely that. Pass the flag and strip the
+codes.
+
+**AND IT IS 404 WHILE THE JOB IS STILL RUNNING.** A completed job's log
+is readable immediately, which is the difference between a
+fifteen-minute diagnosis and waiting for hour-long siblings; a RUNNING
+job's is not available at all, so there is no way to watch progress
+from outside. That is the argument for `tools/platform_probe.py`
+running first: it is the only thing that reports before the hour is
+spent.
+
+**`gh --jq` TAKES A FILTER AND NOT jq's OWN FLAGS.** `--jq --arg c "$X"
+'...'` is silently no filter at all, so the command returns everything
+or nothing depending on the shape. Pipe to `jq` proper when you need
+`--arg`. Caught here only because the watcher said its reading had
+failed rather than printing an empty line.
+
+## What the legs actually take, measured 2026-08-31
+
+The figures in this file and in CLAUDE.md were taken on 2026-08-11 and
+the suite has grown to 727 tests since. Measured across three rounds of
+one day:
+
+    Linux suite legs   60, 66, 68 minutes   (documented as 52-54)
+    macOS              78, 79 minutes
+    Windows            97, 105, 133 minutes (documented as 53-89)
+    mutation coverage  41 (failing), 47 (passing)
+
+CEILINGS ARE NOT THE PROBLEM: `windows` and `macos` carry 300-minute
+job limits with 180 on the suite step, which is why a 133-minute run
+was never in danger. THE HABIT IS: compare a running job against THE
+SAME JOB ON THE PREVIOUS ROUND, never against the document. A figure in
+prose is true until somebody adds a test, and this project has now had
+that both ways round -- a ceiling sized from a stale number, and a
+healthy run read as over-running because the number it was compared
+with had aged.
+
+## A TEST REPAIR SPENDS A CANDIDATE NUMBER, AND THAT IS NOT A WASTE
+
+2026-08-31: three candidates were built and two thrown away to publish
+one, and not a byte of the plugin changed between them. Measured
+member by member, `weavingspace_qgis-0.24.4rc7.zip`, `...rc8.zip` and
+`...rc9.zip` differ in exactly ONE file, `metadata.txt`, which carries
+the candidate label. What changed twice was a TEST.
+
+WHY A TEST FIX COSTS A NUMBER. `publish_candidate` requires every CI
+workflow to be green ON THE CANDIDATE'S OWN COMMIT, and no later fix
+turns an earlier commit's history green. So a red leg means a repair,
+a repair means a new commit, and a candidate built from the old commit
+can never be published however correct the software is.
+
+    rc7  92cfaab  mutation red (Linux coverage leg), tests red
+                  (macos and windows) -- one test, three runners
+    rc8  ce61686  tests red (windows only) -- a different test
+    rc9  2a63e7d  every job green -- published
+
+THE ALTERNATIVE IS WORSE AND IS AVAILABLE: `--despite-ci <reason>`
+publishes past a red and prints the reason in the release body. It was
+not taken here, and the bar for taking it should stay high -- a
+candidate exists to be trusted by somebody who did not watch it being
+built, and "we knew about that one" is exactly the sentence that
+erodes it.
+
+WHAT TO DO INSTEAD OF ECONOMISING. Expect the numbers to run ahead of
+the versions, and do not let that push you into batching repairs to
+save a candidate: each of these two repairs was verified separately,
+and the second was found only because the first had been cut and
+pushed on its own. A gap in the sequence confuses nobody, which this
+project already says about candidate numbering from the other side.
+
+AND THE HONEST NOTE FOR TESTERS. Where the candidates really are the
+same software, SAY SO in the notes -- rc9's open with "if you have
+already installed rc7 or rc8 you have this software, since every file
+in the three archives is identical bar the version label". It is one
+sentence and it stops somebody re-installing to chase a difference
+that does not exist. Verify it rather than assuming it: compare the
+archives member by member, since the claim is cheap to check and
+embarrassing to get wrong.
+
 ## Publishing a candidate
 
 Every candidate goes to GitHub as a PRE-RELEASE, and has since ten of

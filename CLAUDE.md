@@ -5774,3 +5774,42 @@ here, and the decision to add one is the maintainer's. Recorded
   document whose backtick count is odd is a document the gate reads
   wrongly from somewhere onward; the parity is one command to check and
   worth checking whenever a lesson is appended.
+
+- **`lines[-1]` ON A FILE ENDING IN A NEWLINE REPLACES THE EMPTY
+  STRING, SO THE EDIT APPENDS INSTEAD OF REPLACING.** (2026-08-31, and
+  it reached the point of publication.) A paragraph of a candidate's
+  release notes was rewritten by assigning to `lines[-1]` after
+  `read().split("\n")`. A file ending in a newline yields a final EMPTY
+  element, so the assignment replaced nothing and put the new paragraph
+  AFTER the old one -- and the body carried the broken draft and its
+  replacement, one after the other.
+  WHAT LET IT THROUGH WAS THE VERIFICATION. It was `tail -1`, which
+  showed the corrected paragraph and said nothing whatever about the
+  broken one two lines above it. That is this file's own rule --
+  ASSERT THE POSTCONDITION, NOT JUST THE ANCHOR -- with the anchor
+  replaced by "the new text is present", which is the weaker half of
+  the same question.
+  SO ASSERT WHAT SHOULD BE GONE. `assert old not in text` and, where
+  the thing is a section, assert HOW MANY of it remain: the repair
+  here checks the broken phrase is absent AND that exactly one such
+  paragraph exists. What caught it in the end was `--dry-run` printing
+  the body, which is the standing rule about verifying against what
+  ships rather than what you wrote, doing its job one step before a
+  public page.
+
+- **A WATCHER'S HEADLINE MUST CARRY WHAT IS LIVE, NOT WHAT MATTERS IN
+  GENERAL.** (2026-08-31, the truncation fault three times in one day
+  and the third is the interesting one.) A notification is TRUNCATED,
+  so a line below the cut is a line nobody reads. First the candidate's
+  CI run printed last, which hid a failing mutation leg for half an
+  hour and a passing one for five minutes. Moving the candidate's runs
+  to the top fixed that -- until the candidate was PUBLISHED, after
+  which its two runs were green and static while the only moving thing
+  on the branch, the tip's own round, sat below the fold again.
+  THE HEADLINE IS ABOUT WHAT CAN STILL CHANGE. It names the tip as well
+  as the candidate now, and drops the tip line when the two are the
+  same commit. Ask of any watcher not merely whether its output CAN
+  express the failure, but whether the reader REACHES that part of it
+  -- and re-ask it whenever the thing being watched reaches a resting
+  state, because a headline that was right while something was in
+  flight becomes furniture the moment it settles.

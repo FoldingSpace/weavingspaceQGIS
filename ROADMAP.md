@@ -68,6 +68,88 @@ is how a branch becomes archaeology.
 
 ---
 
+## Conflicts to settle by grilling
+
+Collected 2026-08-31 at the maintainer's asking. Every entry here is
+TWO SETTLED RULES GIVING ONE ACT TWO ANSWERS -- not a defect, not work
+somebody forgot, and not a thing an assistant may decide by picking
+the more convenient rule. This project's own answer to that shape is
+`/grill-me`: one question at a time, the facts looked up first, a
+recommendation offered, and nothing built until the maintainer
+confirms.
+
+THEY ARE NAMED HERE AND LEFT WHERE THEY LIVE. Each still sits in its
+own version's section, because moving an entry between sections is
+deferring it and that is the maintainer's act; this is an index, so
+that the set can be seen at once rather than found by re-reading the
+file. Delete a line here when its grilling settles it.
+
+WHY THEY ACCUMULATE, which is worth saying once. When two rules
+collide, the answer is usually BOTH -- with the thing that tells them
+apart written down. That is how the kept-scheme ruling of 2026-08-26
+was settled, and it is why none of these should be closed by choosing
+a side quickly.
+
+**1. THE RECORD CAN LIST MORE ELEMENTS THAN ITS OWN DESIGN HAS.**
+(Under 0.24.4.) Only a landing may move the record's DESIGN half,
+which is the ruling of 2026-08-26; everything the colour editor writes
+must be re-read live at the landing, which this project learned three
+times at the cost of somebody's pinned bounds. Both hold, and together
+they let a Save write `n=4` beside `elements a..f` in three presses.
+Trimming is ruled out: the surplus entries are the per-element,
+per-field memory ruling 6 of 2026-08-21 requires to survive a switch.
+The likely answer is at the READER, but that is a decision about what
+the record MEANS.
+
+**2. THE TOPOLOGY TAB DRAWS THE UN-EDITED MOTIF.** (Under 0.24.4.) One
+fact in two stores must not disagree on screen; and an edit is replayed
+by class LABEL against a topology built from the UN-EDITED unit, so the
+labels somebody aims with have to keep coming from that one. Draw the
+edited geometry and hit-test the un-edited topology and the highlight
+sits away from the ink; hit-test the edited one and the labels recorded
+mean something else on replay. IT IS READ AND NOT DRIVEN, so the
+grilling wants a probe first -- a harm named by reading is a
+hypothesis, which is this project's own standing rule.
+
+**3. THE MUTATION WORKFLOW GATES A CANDIDATE, THOUGH IT IS DOCUMENTED
+AS REPORTING.** (Under 0.24.4, added 2026-08-31.) The decision of
+2026-08-11 took the mutation instruments out of the gating path
+deliberately; `publish_candidate` refuses unless EVERY workflow on the
+candidate's commit is green. It stopped rc7 rightly, because that
+workflow's coverage leg runs the whole suite and had found a real test
+fault -- so the question is whether the split belongs per JOB rather
+than per workflow, the sampling jobs reporting and the whole-suite leg
+gating.
+
+**4. THE ELEMENT SLIDER'S TRACK AGAINST `test_design_cascade`.**
+(Under 0.24.4, flagged rather than decided.) The track spans the whole
+catalogue, 2 to 256, where a weave-capped track would offer thirteen
+counts with no weave family behind them AND retire a contract that
+test states outright -- that a count offering only one kind flips the
+toggle silently. One line either way, and the line retires a contract.
+
+**5. THE COLOURSPACE LIMIT WAS CALIBRATED ON A PROFILE NO USER HAS.**
+(Under "Design decisions already settled", in CLAUDE.md.) A gate
+certifying colour fidelity must not pass because of one machine's
+seeded style library; and re-deriving a limit whose baseline was never
+representative is close enough to loosening a threshold for a green
+run that nobody should do it quietly. Reproduced in thirty seconds
+under `QGIS_CUSTOM_CONFIG_PATH=$(mktemp -d)`.
+
+**6. WHETHER THE REFERENCE COLUMN STILL SPEAKS FOR THE WEB APP.** The
+comparison PDF's reference column was both the library and the app,
+because the app pinned the same library version. The vendor is thirty
+versions ahead of the app's pin, six of twelve modules changed
+behaviourally, so the claim now rests on a gate that measures the
+VENDOR. A live browser capture is the honest third column, and whether
+to add one is a decision about what the PDF promises.
+
+**7. THE WINDOW CEILING AGAINST THE THREE LAYOUT PRIORITIES.** At the
+real macOS system font the assembled window measures 1334px against a
+1280 ceiling, and the three priorities settled on 2026-08-09 cannot
+all hold there. Which one gives is a decision, and no runner here can
+measure the assembled window -- offscreen reports 1279 at both fonts.
+
 ## Needs the maintainer, not the assistant
 
 **An OSGeo user ID**, for submitting to plugins.qgis.org. It belongs
@@ -785,6 +867,39 @@ twenty-six after the guide was corrected -- one fact, two documents,
 one of them checked. Widening the gate to `metadata.txt` is a few
 lines; it is here rather than done because it was found while a
 candidate's gates were reading the tree.
+
+A THIRD QUESTION OPENED ON 2026-08-31, AND IT IS TWO OF THIS
+PROJECT'S OWN RULES DISAGREEING ABOUT THE SAME EVENT.
+
+CLAUDE.md and docs/PUBLISHING.md both say the mutation instruments
+REPORT RATHER THAN GATE -- that was a deliberate change of 2026-08-11,
+made because a red meaning "write tests over the next few days" is a
+work list and treating it as a gate teaches people to route around it.
+`tools/publish_candidate.py` asks a different question: it refuses
+unless EVERY workflow on the candidate's commit is green, and the
+mutation workflow is one of them.
+
+SO A MUTATION RED DOES GATE, at the last step, and it did: rc7 was
+stopped by the mutation workflow's coverage leg. That leg is not the
+sampling instrument the 2026-08-11 decision was about -- it runs the
+whole suite under the per-test recorder, and what it found was a real
+test fault that macOS and Windows found independently. The refusal was
+RIGHT on that occasion, which is exactly what makes the rule worth
+stating rather than leaving to luck.
+
+WHAT NEEDS DECIDING, and it is one sentence either way: does
+`publish_candidate` require every workflow, or every workflow whose
+red would stop a release? If the latter, the mutation workflow's
+SAMPLING jobs are reporting instruments and its whole-suite coverage
+leg is not, so the honest split is per JOB rather than per workflow.
+Leaving it as it is has a cost too, and it is the one the 2026-08-11
+decision warned about: the first time a genuine sampling survivor
+blocks a candidate, somebody reaches for `--despite-ci` and the habit
+starts there.
+
+RECORDED RATHER THAN CHANGED because it is a release gate, and this
+project's own rule is that a gate is changed deliberately or not at
+all.
 
 TWO QUESTIONS ARE OPEN AND BOTH ARE THE MAINTAINER'S, recorded here
 rather than settled because each is two settled rules colliding.
