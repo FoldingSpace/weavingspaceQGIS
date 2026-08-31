@@ -4149,11 +4149,28 @@ def test_a_save_is_deferred_only_when_a_run_is_really_coming():
         assert press_save(dlg), "PREMISE: the first save did not write"
 
         BAR_MESSAGES.clear()
-        dlg.spacing_spin.setValue(dlg.spacing_spin.value() / 2.0)
+        # THE PREMISE BENEATH THE PREMISE: that the spacing actually
+        # MOVED. Reading `isActive()` alone says the timer is not armed
+        # and leaves you guessing which of two facts failed -- the
+        # change, or the arming. A spin box clamps in silence, and this
+        # one spans 1e-6 to 1e12 with its own text rules, so "I called
+        # setValue" is not "the value changed". Windows failed this
+        # premise on 2026-08-31 having passed it on the previous round,
+        # and the message could not say which half went.
+        # This is docs/TESTING.md's own rule -- assert the premise off
+        # the THING, not off what you handed it.
+        was = dlg.spacing_spin.value()
+        dlg.spacing_spin.setValue(was / 2.0)
         _tick(50)
+        assert dlg.spacing_spin.value() != was, \
+          "PREMISE: the spacing did not move when halved -- it was " \
+          f"{was} and still is, so nothing was queued and the timer " \
+          "was never asked to arm"
         assert dlg._live_timer.isActive(), \
-          "PREMISE: the design change did not arm the live timer, so " \
-          "this test never reaches the question it is about"
+          "PREMISE: the spacing moved from " \
+          f"{was} to {dlg.spacing_spin.value()} and the live timer is " \
+          "still not armed, so this test never reaches the question " \
+          "it is about"
         dlg._save_the_map()
         said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
         verdicts[live] = (bool(getattr(dlg, "_save_pending", None)), said)

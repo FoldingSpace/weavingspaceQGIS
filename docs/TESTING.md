@@ -3902,6 +3902,22 @@ ASK OF ANY TEST THAT READS A MOMENT: does it NAME that moment, or
 count to it? Where it counts, the count is a claim about how many
 things happen first, and that is a claim about the machine.
 
+AND A SIBLING THE SAME DAY, from the same Windows runner: a premise
+that reads ONE fact where TWO must hold names neither. `a save is
+deferred only when a run is really coming` asserted that a design
+change had armed the live timer, and failed that premise on Windows
+having passed it on the previous round -- with no way to tell whether
+the SPACING had moved or the ARMING had not. A spin box clamps in
+silence, and that one spans 1e-6 to 1e12 with its own text rules, so
+"I called setValue" is not "the value changed". The premise is two
+assertions now and the message says which half went.
+WHAT WAS RULED OUT RATHER THAN GUESSED: the arming is SYNCHRONOUS --
+`_queue_preview` calls `_queue_live` on its own last line -- so a
+longer wait would have cured nothing, and the reach for one would have
+been a fix invented for a cause nobody had found. Recording that the
+cause is still open is worth more than a repair that happens to go
+green.
+
 ## A probe that cannot reach its own case (2026-08-31)
 
 Three of the day's findings were probes, not products, and all three
