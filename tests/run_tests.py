@@ -4606,28 +4606,58 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
     _settle_topology(live_dlg, seconds=30)
     _tick(400)
     assert panel.edits(), "PREMISE: no edit was recorded"
+    # CLEARED BEFORE THE PRESS THAT SAYS IT, not after: the sentence is
+    # said on the FIRST Generate that meets a design which cannot carry
+    # the edits, and a clear placed below that press throws away the
+    # only occurrence there will ever be. That is how the arm below
+    # came to measure zero and assert "at most one".
+    BAR_MESSAGES.clear()
+    MODALS.clear()
     live_dlg.mod_t_inset.setValue(25.0)
     _tick(400)
     live_dlg._generate()
     _settle(live_dlg)
     for _ in range(15):
       _tick(200)
-    # ...now turn live update ON and nudge the design repeatedly, which
-    # is the journey that repeated the sentence.
-    BAR_MESSAGES.clear()
-    MODALS.clear()
-    live_dlg.live_check.setChecked(True)
-    for value in (26.0, 27.0, 28.0, 29.0):
-      live_dlg.mod_t_inset.setValue(value)
-      _settle(live_dlg)
-      for _ in range(4):
-        _tick(200)
-    spoken = sum(1 for _kind, text in BAR_MESSAGES
-                 if "cannot carry" in text)
-    assert spoken <= 1, (
-      f"the plugin said the design cannot carry its edits {spoken} "
-      f"times while somebody moved one slider; it is one fact and it "
-      f"has not changed, so it belongs said once")
+    # ...now press GENERATE, which is the door the sentence is behind.
+    # THIS ARM USED TO DRIVE LIVE TICKS AND COULD NOT FAIL. It turned
+    # live update on and moved a slider four times, then asserted the
+    # sentence was said at most once -- and it was said NOT AT ALL, so
+    # the assertion held whatever the gate did. A debounced tick goes
+    # through `_maybe_live_generate`, which has its own ten gates and
+    # never reaches the deferral notice in `_generate` at all, so the
+    # arm was measuring a journey with no path to the code it named.
+    # Found 2026-08-31 by a hunt mutating per assertion: hoisting the
+    # notice out of its guard, so it fires on every arrival, still left
+    # `spoken` at 0 and the arm green.
+    # WHAT IT ASSERTS NOW IS THE CONTRACT ITSELF, both halves: the
+    # sentence is SAID, because a deferral nobody is told about is work
+    # that silently did not happen; and it is said ONCE for a state
+    # that has not changed, because a notice that repeats is one people
+    # learn to ignore.
+    # MATCHED ON THE CONTROL'S NAME, not on a phrase copied out of the
+    # sentence. This filter read "cannot carry" until 2026-08-31, when
+    # the maintainer reworded the notice and `text_review --apply`
+    # wrote the new words into the source -- after which the filter
+    # matched nothing, counted zero, and the arm passed. "Topology tab"
+    # is what the sentence is ABOUT and survives a rewording of it.
+    said_first = sum(1 for _kind, text in BAR_MESSAGES
+                     if "Topology tab" in text)
+    assert said_first == 1, (
+      f"pressing Generate on a design that cannot carry its edits said "
+      f"so {said_first} times; it must be said exactly once, or a "
+      f"person is left thinking their edits reached the map")
+
+    # the same press again, with NOTHING changed: the fact has not
+    # moved, so it must not be repeated
+    live_dlg._generate()
+    _settle(live_dlg)
+    said_again = sum(1 for _kind, text in BAR_MESSAGES
+                     if "Topology tab" in text)
+    assert said_again == said_first, (
+      f"the sentence was repeated on a second press with nothing "
+      f"changed ({said_first} then {said_again}); it is one fact and "
+      f"it has not moved")
   finally:
     live_dlg.close()
     QgsProject.instance().removeAllMapLayers()
