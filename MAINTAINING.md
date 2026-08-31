@@ -1412,6 +1412,72 @@ wide fonts put another in, and it is how the guard reaches the case;
 `tools/platform_probe.py` asks the real question on the real platform
 in about fifteen minutes.
 
+## Three mechanisms settled on 2026-08-31
+
+**A FILE THAT ALREADY HOLDS A MOTIF GETS A FRESH ONE.** (Maintainer's
+decision, after this method's fifth fault.) The two topology tables
+describe a design and their coordinates scale with the spacing, so once
+the design moves they are stale and dropping them is right -- what was
+missing is putting a new one in their place. On the commonest journey
+nothing has built a topology at all: the box is unticked on every new
+dialog, so reopening a saved map, nudging the spacing, pressing
+Generate and pressing Save moved the key while `topology` was None, and
+the drop fired alone.
+
+`_write_or_drop_the_topology` now BUILDS one, and three conditions keep
+that affordable and honest. It asks only where the file in front of it
+already carries our unit table, so somebody who has never opened the
+Topology tab pays none of the 0.75-4.4s. It is SYNCHRONOUS, because the
+save already turns the event loop once per element behind a determinate
+progress bar with both buttons down -- there is a window to build in
+and no press can land in it, where orchestrating the QgsTask from
+inside a write would add a second way for a save to be half done. And
+where the design genuinely has no topology the build returns None with
+a reason and the drop is correct.
+
+**THE DUAL IS BUILT AND STAMPED BESIDE THE UNIT, or the write declines
+and the clear runs anyway.** This is the part that made two repairs
+look like they did nothing. The write demands both frames and demands
+that the pair be of ONE design, so a build that sets `topology` and
+leaves `_topology_dual` empty produces a wanted write that FAILS -- and
+a wanted write that fails still clears. The tables then go exactly as
+they did before the repair, with a dump line the only evidence.
+
+**AND THE FILE'S KEY DOES NOT HASH THE CRS.** `_topology_stamp()` is
+built from `_unit_kwargs()`, which carries `crs` off the region layer,
+and `crs` is the ONE stamp term `_capture_design()` cannot see -- so
+the save's staleness guard reported the design unchanged while the key
+had moved. `_topology_description_key()` strips it. The STAMP keeps its
+crs, deliberately and narrowly: it also decides whether an off-thread
+build that has just landed is still about the design on screen.
+Measured: `make_unit` at EPSG:3857 and EPSG:27700 gives identical tile
+WKT and identical topology classes, and the tables are written in unit
+space with no CRS at all, so the CRS describes nothing about them.
+
+**A SAVE WAITS ONLY FOR A RUN THAT IS COMING.** `_queue_live` arms the
+live timer on every output-affecting change whatever the checkbox says,
+and `_maybe_live_generate` then declines at its second gate -- so an
+armed timer is not a run that will start.
+`_a_queued_run_would_redraw` asks the checkbox on its timer limb now,
+as its sibling `_a_live_run_will_follow` always did on its first line.
+The FLAGS limb is untouched and the asymmetry is the point: a deferred
+press or tick redraws whatever the box says, because something has
+already undertaken to run. With the box off, saving what is on screen
+is right rather than a lesser evil -- "preserve, do not repaint" means
+the map deliberately does not follow the table until somebody presses
+Generate, so the map on screen IS the map.
+
+**TICKING THE EXPERIMENTAL BOX ASKS FOR THE TOPOLOGY.** The box's
+`toggled` reached the gate and a touch counter, and the build runs from
+`_rebuild_unit` -- so the gate opened the tab and nothing filled it.
+`_ask_for_a_topology_when_the_experiments_open` queues one when the box
+goes ON, and only then: unticking neither builds nor discards, since
+putting an experiment away is not a request for work. The cost ruling
+survives because the work hangs on the BOX rather than on the tab. The
+stale half was worse than the empty one -- a design changed while the
+box was off left the panel holding the previous design's unit, so the
+tab offered classes of a design nobody was looking at.
+
 ## Invariants — do not break these
 
 1. **The worker thread never touches pyproj/PROJ.** QGIS uses the same

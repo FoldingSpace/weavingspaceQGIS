@@ -777,6 +777,15 @@ remains the maintainer's decision and no tool may make it; it has
 stayed here by default, which is the status quo rather than a choice
 anybody made.
 
+AND ONE SMALL THING IS RECORDED RATHER THAN DONE, from the prose hunt
+of 2026-08-31: `test_the_documents_numbers_match_the_code` reads the
+element ceilings out of the catalogue and compares them with the USER
+GUIDE ONLY. That is exactly why the changelog kept saying a weave holds
+twenty-six after the guide was corrected -- one fact, two documents,
+one of them checked. Widening the gate to `metadata.txt` is a few
+lines; it is here rather than done because it was found while a
+candidate's gates were reading the tree.
+
 TWO QUESTIONS ARE OPEN AND BOTH ARE THE MAINTAINER'S, recorded here
 rather than settled because each is two settled rules colliding.
 
@@ -1781,6 +1790,43 @@ expensive stratum, which nothing has ever measured -- 1,172 of the
 about them. And a certification batch, once the suite stops changing,
 since improvement rounds cannot certify themselves.
 
+## 0.24.5 — and the re-vendor comes first
+
+**RE-VENDOR UPSTREAM BEFORE ANYTHING ELSE IN THIS VERSION.**
+(Maintainer's decision, 2026-08-31, taken while rc7's gates were
+running rather than folded into them.)
+
+WHAT MOVED, measured that day: the vendored stamp reads
+`0.0.7.89 (bf1bbbf)` and upstream's head is `6190917`, TWELVE COMMITS
+ahead, with `weavingspace/topology.py` at +179/-207 and
+`weavingspace/_tiling_geometries.py` at +44/-67. The third changed file
+is `examples/topology-working.ipynb`, which does not ship.
+
+**THE VERSION STRING DID NOT MOVE.** It is `0.0.7.89` at both ends.
+That is precisely the case the stamp records a commit for, and why the
+standing rule says to compare the COMMIT as well as the version before
+running the suite -- a version comparison alone reports us current.
+
+WHY IT IS ITS OWN ROUND rather than a line in this one. Twelve commits
+touching `topology.py` heavily is not a licence-header bump, and that
+module is what the Topology tab, the five manipulations, the edit
+shelf, the shelf's replay and the topology matrix all stand on. It
+wants `tools/vendor_weavingspace.py`, the patch family re-applied and
+each patch's anchor checked, and then the topology work driven against
+the result -- with its own hunts and its own full suite, exactly as the
+save rewrite below is scoped.
+
+WHAT IT SHOULD BRING BACK, so the round starts from a measurement:
+`b3650e0` fixes the doubled zigzag vertices at the source, which is
+what our own dedupe and then upstream's `get_clean_polygon` have been
+compensating for. Expect `topology_edits`'s repair stages to become
+redundant in the common case -- and KEEP OURS AS THE FALLBACK anyway,
+since a later re-vendor could rename the cleaner.
+
+WHAT TO WATCH FOR: `_tiling_geometries.py` supplies `TILE_IDS`, which
+is what the two element ceilings stand on, so the doubled-letter range
+and `bridge.element_order` are the first things to re-measure.
+
 ## Waiting on the upstream project
 
 Blocked on the weavingspace project rather than on this repository, so
@@ -1863,8 +1909,31 @@ invisible from where they were looking. Worth sending with the
 measurement, the design and the two-line repair, since the fix belongs
 in `zigzag_between_points` rather than in every consumer.
 
-**AND THE AUTHOR HAS ALREADY ANSWERED THE DIAGNOSIS, SAME DAY, WHICH
-CHANGES WHAT IS LEFT TO SEND.** They said "there's probably some
+**AND UPSTREAM HAS NOW FIXED IT AT THE SOURCE, SO THIS CONVERSATION IS
+CLOSED.** (Measured 2026-08-31 at the maintainer's asking.) Commit
+`b3650e0`, *"fixed bug in zigzag edges code where it was doubling up
+tiling vertices and creating invalid polygons"*, is two lines: the
+endpoints were added once as `edge.vertices[0]`/`[-1]` and again from
+`ls.coords`, which includes them.
+
+    -    new_corners = [... for xy in ls.coords]
+    -    edge.corners = edge.vertices[:1] + new_corners + edge.vertices[-1:]
+    +    new_corners = [... for xy in ls.coords[1:-1]]
+    +    edge.corners = [edge.vertices[0], *new_corners, edge.vertices[-1]]
+
+That is exactly what this project measured independently on 2026-08-30,
+and it is the question this entry said was worth sending: whether
+`zigzag_between_points` should stop emitting the coincident vertices
+rather than every consumer cleaning up after it. They chose the same
+answer. NOTHING IS OWED TO UPSTREAM HERE ANY MORE; what remains is to
+take the fix, which is the re-vendor below.
+
+OUR OWN DEDUPE STAYS AS THE FALLBACK regardless, for the reason it was
+kept in the first place: a re-vendor that dropped or renamed
+`get_clean_polygon` would otherwise take the repair away in silence.
+
+**THE EARLIER STATE OF THIS ENTRY, kept because the reasoning still
+instructs.** They said "there's probably some
 doubling up of coordinates happening" -- the same fault, reached
 independently from the two sides -- and pointed at
 `tiling_utils.get_clean_polygon`, which recovers valid polygons and
