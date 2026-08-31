@@ -3245,7 +3245,7 @@ class WeavingSpaceDialog(QDialog):
     messages_tab = QWidget()
     mlayout = QVBoxLayout(messages_tab)
     mlayout.addWidget(QLabel(
-      "Everything this plugin has said since the window opened, "
+      "Everything this plugin has said this session, "
       "newest first."))
     self.messages_table = QTableWidget(0, 4)
     self.messages_table.setHorizontalHeaderLabels(
@@ -20552,6 +20552,74 @@ class WeavingSpaceDialog(QDialog):
     from . import topology_edits
     panel = getattr(self, "topology_panel", None)
     topology = getattr(panel, "_topology", None) if panel else None
+    # A FILE THAT ALREADY HOLDS A MOTIF GETS A FRESH ONE RATHER THAN
+    # NOTHING. (Maintainer's decision, 2026-08-31, after this method's
+    # sixth fault: it is not enough to stop the BOX refusing the write,
+    # because on the commonest journey nothing has built a topology at
+    # all -- reopen a saved map, nudge the spacing, Generate, Save, and
+    # the key has moved while `topology` is None, so the drop fired
+    # alone and the file lost tables it had.)
+    # THE COST FALLS ONLY WHERE THE FEATURE IS ALREADY IN USE. A build
+    # is 0.75-4.4s, and this asks for one ONLY when the file in front
+    # of us already carries our unit table -- so somebody who has never
+    # opened the Topology tab pays nothing, which is the whole of the
+    # ruling the off-thread build was written under.
+    # IT IS SYNCHRONOUS, DELIBERATELY. The save already turns the event
+    # loop once per element behind a determinate progress bar and takes
+    # its buttons down for the duration, so there is a window to build
+    # in and no press can land in it. Orchestrating the QgsTask from
+    # inside a write would mean a second way for a save to be half
+    # done, which is the thing this method has least earned the right
+    # to add.
+    # WHERE THE DESIGN GENUINELY HAS NO TOPOLOGY the build returns None
+    # with a reason and the drop below is correct: a design with gaps
+    # has no motif to describe it, and leaving the previous one would
+    # be the v3 fault this file records.
+    _dump("TOPO-WRITE", "topology=", topology is not None,
+          "path=", bool(path), "ours=", ours,
+          "unit=", self._unit is not None)
+    if topology is None and path and ours and self._unit is not None:
+      try:
+        holds = bridge.gpkg_tables(path)
+      except Exception as problem:                      # noqa: BLE001
+        _dump("TOPO-WRITE", "could-not-read-the-file", problem)
+        holds = ()
+      _dump("TOPO-WRITE", "file-holds-our-unit=",
+            bridge.UNIT_TABLE_NAME in holds)
+      if bridge.UNIT_TABLE_NAME in holds:
+        # FROM THE PLAIN UNIT AND A COPY OF IT, exactly as
+        # `_queue_topology` does and for the same two reasons:
+        # `self._unit` may already carry the edits, so building from it
+        # would replay them twice; and the CRS is stripped because the
+        # motif lives in unit space and `Topology` is asked about
+        # shapes rather than about ground.
+        import copy
+        source = copy.deepcopy(
+          getattr(self, "_unit_before_topology", None) or self._unit)
+        source.crs = None
+        for attribute in ("tiles", "prototile", "regularised_prototile"):
+          part = getattr(source, attribute, None)
+          if part is not None:
+            part.crs = None
+        built, why = topology_edits.build(source)
+        _dump("TOPO-WRITE", "rebuilt=", built is not None, "why=", why)
+        if built is not None:
+          topology = built
+          # AND THE DUAL IS BUILT AND STAMPED BESIDE IT, because the
+          # write below refuses a unit without one -- both or neither,
+          # and the pair must be of ONE design. Leaving this out is
+          # what made the first version of this repair look like it did
+          # nothing: the build succeeded, `wanted` went true, the
+          # both-or-neither test found `_topology_dual` empty, declined
+          # the write, and a wanted write that fails still clears. So
+          # the tables went exactly as before and the only evidence was
+          # a dump line. That is this project's own rule about copying
+          # a call without the reasoning at its twin, met inside a
+          # repair for the same method's fifth fault.
+          self._topology_dual = (
+            self._topology_stamp(), topology_edits.dual_frame(built))
+          if panel is not None:
+            panel.set_unit(source, built)
     # THE BOX GATES THE TAB, NOT THE MAP'S CONTENT -- and this is the
     # SECOND site to learn it. `_queue_topology` was freed from
     # `opt_experimental` at 8107b88 on the reasoning that somebody who

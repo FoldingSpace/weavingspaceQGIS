@@ -262,7 +262,7 @@ It is off until you turn it on, and while it is off those tabs show
 their titles greyed and cannot be opened. 
 
 The *Messages* tab, the first of those, keeps everything the plugin
-has told you since the window opened, newest first, with your answer
+has told you this session, newest first, with your answer
 beside anything it asked. 
 
 ## Saving and sharing
