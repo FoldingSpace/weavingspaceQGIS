@@ -3038,6 +3038,7 @@ class WeavingSpaceDialog(QDialog):
       "Unlocks tabs that are still being designed.")
     self.opt_experimental.setChecked(False)
     self.opt_experimental.toggled.connect(self._gate_experimental_tabs)
+    self.opt_experimental.toggled.connect(self._note_an_experimental_touch)
     olayout.addWidget(self.opt_experimental)
 
     olayout.addStretch(1)
@@ -3109,6 +3110,15 @@ class WeavingSpaceDialog(QDialog):
     # and the file no longer redrawable.
     self._embed_touches = 0
     self.opt_embed_source.toggled.connect(self._note_an_embed_touch)
+    # THE TOPOLOGY TABLES NEED BOTH OF THOSE TOO, and the reason they
+    # did not have them is worth keeping: the drop was written with a
+    # comment calling it "the same shape as unticking the source copy",
+    # which was true of the shape and false of the SAFEGUARDS -- the
+    # two records above are exactly what the source copy's own repair
+    # added, and the topology drop shipped with neither. Naming a
+    # precedent is not implementing it.
+    self._topology_when_resumed = {}
+    self._experimental_touches = 0
     # ...and the other end, built from the same widget so the two rows
     # read as one pair. Choosing a file here is NOT the act either: a
     # chooser that loaded the moment it was filled would be the same
@@ -3195,6 +3205,17 @@ class WeavingSpaceDialog(QDialog):
     # never a key. Collected here, where the tabs have just been
     # added, so the pair cannot drift from what was built.
     self._experimental_tabs = (tabs.count() - 2, tabs.count() - 1)
+    # ...and WHICH of them is the topology, since that one stays
+    # reachable while it holds edits in force. Taken by index here for
+    # the same reason as the pair above: the tabs have just been added,
+    # so this cannot drift from what was built, and a title is a label
+    # rather than a key.
+    self._topology_tab_index = tabs.count() - 1
+    self._messages_tab_index = tabs.count() - 2
+    self._messages_tab_is_stale = False
+    # THE TAB CATCHES UP WHEN IT APPEARS, which is what lets the record
+    # be redrawn lazily instead of on every message.
+    tabs.currentChanged.connect(self._catch_the_messages_tab_up)
     self._gate_experimental_tabs()
     # Anything recorded while the tabs were still being built now has
     # somewhere to appear.
@@ -3380,12 +3401,38 @@ class WeavingSpaceDialog(QDialog):
     other for ever. `_sync_pin_controls` takes the same care over the
     two controls that name a pinned end, and says so.
     """
+    self._put_both_element_widgets_at(value)
+    self._on_n_changed()
+
+  def _put_both_element_widgets_at(self, value: int) -> None:
+    """Set the slider and the box together, without either answering.
+
+    Args:
+      value: the element count both should show.
+
+    Returns:
+      None. Signals are blocked for the sync, or setting a control
+      right fires the handler that set it right and each widget answers
+      for the other for ever. `_sync_pin_controls` takes the same care
+      over the two controls that name a pinned end.
+
+    THIS EXISTS SO A RESTORE CAN CALL IT. (2026-08-30, found by a hunt
+    on fresh ground and measured.) `_apply_working_state` writes the
+    design through `WORKING_STATE_DESIGN`, which names `n_spin` and
+    deliberately only `n_spin`, with signals blocked -- so
+    `_on_element_count_moved` never ran and the SLIDER was never moved.
+    A resumed map of 40 elements left the box reading 40 and the slider
+    sitting at 4, and the slider is a loaded gun in that state: one
+    arrow key moves it from ITS OWN stale 4, so a person nudging it to
+    look at 41 got a five-element design with the family reset. All
+    three restore doors were affected -- the group chooser, the project
+    read, and Load.
+    """
     for widget in (self.n_slider, self.n_spin):
       if widget.value() != value:
         widget.blockSignals(True)
         widget.setValue(value)
         widget.blockSignals(False)
-    self._on_n_changed()
 
   def _on_n_changed(self):
     """Repopulate the family list for the chosen element count.
@@ -5687,11 +5734,38 @@ class WeavingSpaceDialog(QDialog):
       self._unit = self._build_unit()
     except Exception as e:
       self._unit = None
+      self._unit_before_topology = None
       self.preview.show_message(f"Could not build tile unit:\n{e}")
       return
     if self._unit is None:
+      self._unit_before_topology = None
       self.preview.show_message("Pick a design to preview it.")
       return
+    # THE UNIT AS THE CATALOGUE MAKES IT, kept beside the one on
+    # screen. `_adopt_edited_unit` replaces `self._unit` with the
+    # topology-edited version, so without this the plain unit is gone
+    # and two things go wrong at once (both measured 2026-08-30):
+    #
+    # A DEFERRED BUILD REPLAYS THE LIST ONTO AN ALREADY-EDITED UNIT.
+    # `_queue_topology` snapshots `self._unit`, and when a build is in
+    # flight it defers -- so the deferred one snapshots a unit that
+    # already carries edit 1 and applies the whole list again. Press
+    # Apply twice inside one build, which is the ordinary rhythm of
+    # making a few changes, and edit 1 lands twice while the list says
+    # once.
+    #
+    # AND A REPLAY THAT HAS NOT LANDED YET IS LOST BY THE NEXT REBUILD,
+    # which is what makes Generate tile the un-edited design.
+    #
+    # So the topology always starts from THIS, and the edited unit is
+    # something the dialog holds rather than something it overwrites.
+    self._unit_before_topology = self._unit
+    # ...AND THE EDITS GO BACK ON, where this design has some and the
+    # edited unit is still about it. Without this every rebuild throws
+    # the replay away, which is what made Generate tile the un-edited
+    # design: the flush at the top of `_generate` rebuilds, and the
+    # tiling below it reads whatever the rebuild left.
+    self._restore_the_edited_unit()
     self._refresh_table()
     self.preview.show_unit(self._unit, self._table_id_colours(),
                            self.shells_spin.value())
@@ -5729,14 +5803,31 @@ class WeavingSpaceDialog(QDialog):
     it was not made on. The record knows what it is about.
     """
     edits = design.get("topology_edits")
-    if not edits:
-      return
     from . import topology_edits
     family = design.get("family") or self.family_combo.currentText()
     count = design.get("n") or self._element_count()
     try:
       key = topology_edits.shelf_key(str(family), int(count))
     except (TypeError, ValueError):
+      return
+    # SILENCE CLEARS, which is the group chooser's whole contract and
+    # what this returned early on until 2026-08-30. It was inert while
+    # a shelved edit only mattered to a tab nobody had opened; the
+    # moment edits became GEOMETRY -- replayed whatever the
+    # experimental box says -- a stale entry stopped being harmless.
+    # Measured by a hunt at that repair: switch from an edited group to
+    # a DIFFERENT, unedited group of the same family and element count,
+    # and A's edits reshaped B's map (tiles 249944/250133/251074/251143
+    # where plain is 250000 four times).
+    #
+    # AND THE ABSENCE HAS ONE MEANING HERE, which is the question this
+    # project insists on before deleting on silence: a group record
+    # with no `topology_edits` is a group nobody edited -- either never,
+    # or written before the key existed. Both mean the same thing, so
+    # clearing is right. It is NOT the `_assignments` case, where a key
+    # is empty merely because the row wears another style.
+    if not edits:
+      self._topology_shelf.pop(key, None)
       return
     self._topology_shelf[key] = [dict(edit) for edit in edits]
 
@@ -9542,15 +9633,31 @@ class WeavingSpaceDialog(QDialog):
     layer.repaintRequested.connect(_repaint_if_alive)
 
     # AND THE DIALOG HOLDS THEM, which is what keeps them callable.
-    # (2026-08-30, measured: a topology build makes this fail within
-    # one Save.) Qt keeps a Python callable alive through the QObject
-    # it is connected to -- and the object here is the LAYER, whose
-    # Python wrapper the interpreter is free to collect while the C++
-    # layer lives on in the project. Collected, the closure's memory is
-    # reused, and PyQt then calls something that is no longer a
-    # function: the error reads `() missing 3 required keyword-only
-    # arguments: 'lid', 'tid', and 'dialog'` -- the parameters are
-    # these, and the defaults and the name are simply gone.
+    # (2026-08-30, measured in four arms: with a topology task running,
+    # a Save produced four of these and aborted; holding the layers
+    # alive produced none. The FIX is established.)
+    #
+    # WHAT IS NOT ESTABLISHED IS THE MECHANISM, and the first version
+    # of this comment asserted one confidently. It said Qt keeps a slot
+    # alive only through the QObject it is connected to, so the layer's
+    # Python wrapper being collected frees the closure and its memory
+    # is reused. A hunt aimed at this family MEASURED AGAINST THAT: a
+    # connection to a layer survives its wrapper being dropped,
+    # garbage-collected and the heap churned -- plain function,
+    # keyword-default closure and bound method all still fired -- and
+    # so does one to `QgsStyle.defaultStyle()`. A plain attribute write
+    # on a sip-deleted dialog raises nothing either.
+    #
+    # So the story needs something the simple probes do not have, most
+    # likely the worker thread that is running in the failing case, and
+    # the honest record is: HOLDING THEM FIXES IT, REPRODUCIBLY, AND
+    # WHY IS NOT SETTLED. What the error says is that PyQt called
+    # something that is no longer a function -- `() missing 3 required
+    # keyword-only arguments: 'lid', 'tid', and 'dialog'`, the
+    # parameters being these three, with the defaults and the name
+    # gone. Do not remove this on the strength of the paragraph above
+    # being incomplete; remove it when somebody measures the tree
+    # without it and gets no aborts.
     #
     # AN EXCEPTION ESCAPING A SLOT ABORTS THE PROCESS under PyQt6, so
     # this is not a wrong map, it is QGIS closing on somebody. It fired
@@ -9565,11 +9672,30 @@ class WeavingSpaceDialog(QDialog):
     # alone, and holding the slots alive -- and only the arm that runs
     # a task fails, while holding them alive fixes it outright.
     #
-    # KEYED BY LAYER ID, so a re-run replaces its own entry rather than
-    # growing a list for ever: element layers are rebuilt on every
-    # Generate, and an unbounded list here would be a leak in the one
-    # method a long session calls most.
-    self._layer_slots[layer.id()] = (_style_if_alive, _repaint_if_alive)
+    # EVERY PAIR IS KEPT, NOT THE LATEST, and the first version of this
+    # got that wrong in the way that mattered. (2026-08-30, found by a
+    # hunt at this repair and measured on the suite's own journey.)
+    # `_watch_element_layer` has TWO callers -- the landing and the
+    # adoption loop -- and adoption re-watches layers that are still
+    # LIVE. Keyed one-pair-per-id, the second watch EVICTED the first
+    # pair while it was still connected, which is precisely the unheld
+    # slot this store exists to prevent, on four layers at once.
+    # Measured: generate, then pick your own group in the output
+    # chooser, and 8 of 8 layers were watched twice with 4 pairs
+    # dropped.
+    #
+    # AND THE PRUNE IS WHAT KEEPS IT BOUNDED. The old comment claimed
+    # keying by id stopped this growing for ever; that was false, since
+    # every Generate makes NEW layers with new ids, so the dict grew by
+    # N a run either way. Entries for layers the project no longer
+    # holds are dropped here, which is the one place that runs often
+    # enough to do it and cheap enough not to matter.
+    project = QgsProject.instance()
+    for gone in [lid for lid in self._layer_slots
+                 if project.mapLayer(lid) is None]:
+      self._layer_slots.pop(gone, None)
+    self._layer_slots.setdefault(layer.id(), []).append(
+      (_style_if_alive, _repaint_if_alive))
 
   def _on_style_signal(self, layer_id, tile_id):
     """The styleChanged entry point, stamped so its echo is known.
@@ -13677,6 +13803,22 @@ class WeavingSpaceDialog(QDialog):
       layer.id() if layer is not None else None,
       self.family_combo.currentText(), self._element_count(),
       tuple(sorted(kwargs.items())),
+      # A TOPOLOGY EDIT CHANGES THE TILES, so it belongs with
+      # everything else that does. (2026-08-30, found by a hunt and
+      # measured four ways.) Without this term an edit was not a
+      # geometry change at all, so Generate took the restyle fast path
+      # and every element layer came back byte for byte as it was: the
+      # preview moved, the change list grew, no refusal was printed,
+      # and the map never changed however often the button was pressed.
+      # The feature reached the picture and not the map.
+      #
+      # IT IS THE EDIT LIST, NOT THE EDITED UNIT, deliberately. The
+      # edited unit arrives on an asynchronous side channel a second or
+      # more later, so a signature reading `self._unit` would be asking
+      # a question whose answer has not arrived yet. The list moves the
+      # instant somebody presses Apply, which is when the map became
+      # out of date.
+      self._topology_edit_key(),
       self.mod_rotate.value(), self.mod_scale_x.value(),
       self.mod_scale_y.value(), self.mod_skew_x.value(),
       self.mod_skew_y.value(), self.mod_p_inset.value(),
@@ -14972,6 +15114,22 @@ class WeavingSpaceDialog(QDialog):
       layer.id() if layer is not None else None,
       self.family_combo.currentText(), self._element_count(),
       tuple(sorted(kwargs.items())),
+      # A TOPOLOGY EDIT CHANGES THE TILES, so it belongs with
+      # everything else that does. (2026-08-30, found by a hunt and
+      # measured four ways.) Without this term an edit was not a
+      # geometry change at all, so Generate took the restyle fast path
+      # and every element layer came back byte for byte as it was: the
+      # preview moved, the change list grew, no refusal was printed,
+      # and the map never changed however often the button was pressed.
+      # The feature reached the picture and not the map.
+      #
+      # IT IS THE EDIT LIST, NOT THE EDITED UNIT, deliberately. The
+      # edited unit arrives on an asynchronous side channel a second or
+      # more later, so a signature reading `self._unit` would be asking
+      # a question whose answer has not arrived yet. The list moves the
+      # instant somebody presses Apply, which is when the map became
+      # out of date.
+      self._topology_edit_key(),
       self.mod_rotate.value(), self.mod_scale_x.value(),
       self.mod_scale_y.value(), self.mod_skew_x.value(),
       self.mod_skew_y.value(), self.mod_p_inset.value(),
@@ -15198,6 +15356,40 @@ class WeavingSpaceDialog(QDialog):
       else:
         self._press_pending = True
       _dump("GEN-GATE", "already-running", "live=", live)
+      return
+
+    # A RUN WAITS FOR A TOPOLOGY REPLAY THAT IS STILL COMING, or it
+    # draws one design and RECORDS ANOTHER. (2026-08-30, found by a
+    # hunt aimed at the signature term this repair added, and measured
+    # in two arms.) The replay is queued about 180ms after Apply and
+    # takes 0.75-4.4s. Press Generate inside that window and the run
+    # tiles the PLAIN unit -- the edited one has not arrived -- while
+    # the signature it stores at the landing already carries the edit
+    # key. From then on `_geometry_signature() == _last_geometry_sig`
+    # for ever, so every later press is answered by the restyle fast
+    # path and the map NEVER gets the edit, however many times the
+    # button is pressed, with the preview and the change list both
+    # showing it. Nudging the spacing was the only way out.
+    #
+    # THE REPAIR IS NOT TO SOFTEN THE SIGNATURE. A signature stored at
+    # a landing is a claim about what was DRAWN, and the honest fix is
+    # to make the drawing match the claim rather than the claim match
+    # a half-finished drawing. So the press is KEPT and honoured when
+    # the replay lands, which is the machinery this dialog already has
+    # for a press that arrives at a bad moment, and the maintainer's
+    # own ruling that a refusal nobody reads is a promise quietly
+    # broken.
+    if (getattr(self, "_topology_task", None) is not None
+        and self._topology_edit_key()
+        and not self._restore_the_edited_unit()):
+      if live:
+        self._live_pending = True
+      else:
+        self._press_pending = True
+      _dump("GEN-GATE", "waiting-for-the-topology", "live=", live)
+      self._report_quietly(
+        "Working out the changes to the design; the map will be "
+        "redrawn when they are ready.")
       return
     # A REQUEST FOR A SECOND MAP CANNOT BE ANSWERED BY REPAINTING THE
     # FIRST. "Create as new group" has always taken the full path --
@@ -15816,7 +16008,35 @@ class WeavingSpaceDialog(QDialog):
     self._task = TilingTask(
       f"WeavingSpace: tiling with {family}", work, done)
 
-    def on_progress(p):
+    def on_progress(p, dialog=self):
+      """Move the progress bar, while there is still one to move.
+
+      Args:
+        p: the worker's percentage.
+        dialog: the dialog that launched this run, bound as a default
+          so the closure holds it explicitly rather than reaching into
+          an enclosing scope.
+
+      Returns:
+        None, and nothing at all once this dialog has been retired or
+        destroyed.
+
+      THE GATE IS WHY THIS IS A NAMED CLOSURE. (2026-08-30, found by a
+      hunt and MEASURED to abort the process.) A QgsTask is owned by
+      the task manager, cancellation is only a REQUEST, and the worker
+      reports 40 before an uninterruptible library call and 90 after it
+      -- an 11.7 second window on the measured fixture. Do File > New
+      inside that window and the project clear cancels the run and
+      clears `_task`, and this slot still fires afterwards for a run
+      the dialog has forgotten. With the dialog's C++ half gone,
+      `self.progress.setValue` raises through a Qt slot, and an
+      exception escaping a slot ABORTS QGIS: exit 134, on somebody who
+      started a big tiling and then opened another project.
+      Its twin `done` has had this gate all along; this one never did.
+      """
+      if _dialog_is_gone(dialog) or _live_dialog() is not dialog:
+        return
+      self = dialog
       self.progress.setValue(int(p))
       if p < 40:
         self.progress.setFormat("laying out the tiling… %p%")
@@ -17418,6 +17638,13 @@ class WeavingSpaceDialog(QDialog):
     # `_rebuild_unit` is what asks for them: it restores this design's
     # shelf entry and queues the topology, so a list put back after it
     # would describe a map already drawn without it.
+    # THE SLIDER FOLLOWS THE BOX, which the whitelist walk cannot do
+    # for it: that table names `n_spin` alone and writes with signals
+    # blocked, so the pair's own sync never runs on a restore. Left
+    # undone, the two widgets disagree and the next touch of the slider
+    # rewrites the design from its stale position.
+    self._put_both_element_widgets_at(self._element_count())
+
     self._restore_recorded_topology_edits(design)
 
     self._apply_element_records(record, keep_adopted, from_file)
@@ -19247,6 +19474,20 @@ class WeavingSpaceDialog(QDialog):
     # the file and the control is left alone.
     self._embedded_when_resumed[self._gpkg_key(path)] = (
       bool(record.get("region_embedded")), self._embed_touches)
+    # AND THE SAME FOR THE TOPOLOGY THE FILE ARRIVED WITH, for exactly
+    # the reason above and after making exactly the same mistake
+    # (2026-08-30, found by a hunt within an hour of the code being
+    # written). The topology tables are written when "Experimental
+    # features" is ticked and dropped when it is not -- and that box is
+    # unticked on EVERY new dialog, because it is a default rather than
+    # a stored preference. So the drop, written for the act of
+    # unticking, fired for the act's ABSENCE: open a map you saved
+    # yesterday, change a colour, press Save, and the motif and dual
+    # the file was written to describe are deleted. Measured through
+    # the whole dialog, not merely the mechanism.
+    self._topology_when_resumed[self._gpkg_key(path)] = (
+      bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(path),
+      self._experimental_touches)
 
     wanted = record.get("region")
     if wanted:
@@ -19403,14 +19644,27 @@ class WeavingSpaceDialog(QDialog):
               and topology is not None and path)
     if wanted:
       try:
+        # THE DUAL COMES FROM `_topology_dual`, WHICH IS THE DUAL OF
+        # THE UNIT WE ARE WRITING. It used to be `dual_frame(topology)`
+        # -- `panel._topology`, the topology built BEFORE the edits
+        # were replayed -- while the unit came from `self._unit`, which
+        # `_adopt_edited_unit` had since replaced with the EDITED one.
+        # `apply` rebinds rather than mutates, so the panel's topology
+        # is never the edited one and the two halves were of different
+        # designs. Measured 2026-08-30 by two hunts and again by hand:
+        # the file carried a dual of area 191,476 beside a motif whose
+        # own dual is 154,550, so a colleague opening the pair -- which
+        # is the entire argument for ruling 3's two tables -- got a
+        # motif beside somebody else's dual.
         frames = ((bridge.UNIT_TABLE_NAME,
                    topology_edits.unit_frame(self._unit)),
                   (bridge.DUAL_TABLE_NAME,
-                   topology_edits.dual_frame(topology)))
-        # BOTH OR NEITHER. A unit with no dual beside it is a file
-        # that answers half the question, and the pair is what makes
-        # it worth opening; a partial write would also leave the drop
-        # below unable to say whether what it found was stale.
+                   getattr(self, "_topology_dual", None)))
+        # BOTH OR NEITHER, AND THE PAIR MUST BE OF ONE DESIGN. The
+        # count test below is necessary and was never sufficient: two
+        # frames that are both present satisfied it while describing
+        # different motifs, which is the shape this project calls a
+        # gate that checks half of what it names.
         if all(frame is not None for _, frame in frames):
           written = [bridge.write_gpkg_layer(
             bridge.gdf_to_layer(frame, name), path, name, first=False)
@@ -19423,11 +19677,67 @@ class WeavingSpaceDialog(QDialog):
       # A WANTED WRITE THAT FAILED STILL CLEARS. Leaving the previous
       # save's unit behind would describe this map with another
       # design's motif, which is worse than describing it with none.
-    if ours:
+
+    # NOTHING IS DROPPED ON A GUESS, and the only thing that licenses a
+    # drop is having ASKED THIS DESIGN and been told it has no
+    # topology.
+    #
+    # THE FIRST REPAIR ASKED THE BOX AND WAS WRONG THREE WAYS, all
+    # measured by a hunt aimed at it within the hour (2026-08-30). It
+    # kept a per-file memory taken at the resume and compared a count
+    # of deliberate opinions about "Experimental features", copying the
+    # source copy's own precedent. But that precedent works because
+    # "include the source data" IS a claim about the file, and this box
+    # is not: the maintainer's ruling calls it "a PREFERENCE ABOUT THE
+    # PLUGIN, NOT A FACT ABOUT A MAP". So (1) ticking it merely to LOOK
+    # at the tab counted as speaking about the file, and since ticking
+    # builds no topology by itself the guard disarmed and the drop ran
+    # -- the original harm, through the one door the feature invites;
+    # (2) the memory was written only in `_recover_the_source`, which
+    # the LOAD button reaches and reopening the plugin does not, so
+    # adoption -- something the docstring calls constant -- was
+    # unguarded; and (3) it returned False while the tables were still
+    # there, contradicting the record it feeds.
+    #
+    # SO THE QUESTION IS ABOUT THE DESIGN, NOT THE PERSON. A build sets
+    # `_topology_assessed` to (stamp, whether there is one). We drop
+    # only where that answer is about the design in front of us AND
+    # says there is none -- an inset that closed the gaps, a family
+    # that cannot carry one. With the box off no build runs, nothing is
+    # assessed, and we know nothing, which is exactly when a file must
+    # be left alone.
+    assessed_for, assessed_has = getattr(
+      self, "_topology_assessed", (None, None))
+    knows = assessed_for is not None and assessed_for == self._topology_stamp()
+    if ours and knows and not assessed_has:
       for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
         if name in bridge.gpkg_tables(path):
           bridge.drop_gpkg_layer(path, name)
-    return False
+      return False
+    # AND THE ANSWER IS WHAT THE FILE HOLDS, asked of the file rather
+    # than inferred from which branch we took -- the record this feeds
+    # is supposed to agree with the tables by construction, and the
+    # first repair returned False beside tables it had deliberately
+    # spared.
+    try:
+      return bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(path)
+    except Exception:                                   # noqa: BLE001
+      return False
+
+  def _note_an_experimental_touch(self, _on):
+    """Count a deliberate opinion about the experimental features.
+
+    Args:
+      _on: the box's new state, which this does not need -- ticking and
+        unticking are both somebody having an opinion, and it is the
+        HAVING that decides whether the file's own record may be
+        overruled.
+
+    Returns:
+      None. Advances a counter that `_write_or_drop_the_topology` reads
+      against the count taken when each file was opened.
+    """
+    self._experimental_touches += 1
 
   def _note_an_embed_touch(self, _on):
     """Count a deliberate opinion about including the source data.
@@ -20105,7 +20415,64 @@ class WeavingSpaceDialog(QDialog):
     names as wall clock's own.
     """
     said.record(kind, text, answer)
-    self._refresh_messages_tab()
+    # THE RECORD IS UNGATED AND THE VIEW IS NOT. (2026-08-30, found by
+    # a hunt on this tab and measured four ways.) Redrawing rebuilt all
+    # four columns of up to 500 rows and re-measured every cell:
+    # 1.9 ms for the first messages, 37.7 ms by row 450, plateauing at
+    # about 42 -- of which 32.8 is `resizeColumnsToContents` alone.
+    # Paid on the MAIN THREAD, per message, whether or not the tab is
+    # enabled, in front, or has ever been looked at. A run's notices
+    # land inside `_on_generated`, so an ordinary Generate went from
+    # 0.11s to 0.22s purely because the log had filled up, and with
+    # live update on that is every design tweak.
+    #
+    # THE RECORD MUST STAY UNGATED -- that is the whole argument of
+    # `said.py`, since `plugin.py` speaks before any dialog exists --
+    # but the VIEW has no reason to redraw while nobody can see it. The
+    # sibling shipped under the same ruling gates itself in exactly
+    # these terms: nobody who has not asked for the feature should pay
+    # for it on every Generate.
+    #
+    # SO IT CATCHES UP WHEN THE TAB IS SHOWN, which it never did
+    # before: `_refresh_messages_tab` had only two callers and neither
+    # was the tab appearing, so a gate here without that would have
+    # been a tab that shows a stale log.
+    if self._messages_tab_is_watchable():
+      self._refresh_messages_tab()
+    else:
+      self._messages_tab_is_stale = True
+
+  def _messages_tab_is_watchable(self) -> bool:
+    """Whether anybody could currently be looking at the Messages tab.
+
+    Returns:
+      True when the tab is enabled AND is the one in front. False is
+      the ordinary answer for somebody who has never ticked
+      "Experimental features", which is who this exists to spare.
+
+    IT ASKS THE TABS RATHER THAN THE BOX, because the box is not the
+    only thing that decides: a tab can be enabled and still be behind
+    four others, and redrawing five hundred rows for a widget nobody is
+    looking at costs exactly as much as doing it for a disabled one.
+    """
+    tabs = getattr(self, "_tabs", None)
+    index = getattr(self, "_messages_tab_index", None)
+    if tabs is None or index is None or index >= tabs.count():
+      return False
+    return tabs.isTabEnabled(index) and tabs.currentIndex() == index
+
+  def _catch_the_messages_tab_up(self, *_args) -> None:
+    """Redraw the Messages tab if it missed anything while hidden.
+
+    Returns:
+      None. Connected to the tab widget's `currentChanged`, which is
+      the moment a stale log becomes visible -- and the moment the
+      gate above stops being free.
+    """
+    if getattr(self, "_messages_tab_is_stale", False) and \
+       self._messages_tab_is_watchable():
+      self._messages_tab_is_stale = False
+      self._refresh_messages_tab()
 
   def _warn(self, text: str) -> None:
     """Warn in a modal, and remember having done so.
@@ -20192,9 +20559,24 @@ class WeavingSpaceDialog(QDialog):
     if tabs is None:
       return
     allowed = self.opt_experimental.isChecked()
+    # ...EXCEPT THAT A TAB HOLDING WORK IN FORCE STAYS REACHABLE.
+    # (2026-08-30, found by a hunt at the queue-gate repair and
+    # measured.) Since a design's topology edits are now replayed
+    # whatever the box says -- they have to be, or a saved map reverts
+    # -- unticking the box while edits stand used to grey out the only
+    # controls that can UNDO them. The design stayed edited for ever
+    # with nothing on screen able to change it, which is a worse
+    # surprise than seeing a tab somebody has switched off.
+    #
+    # THE RULING IS UNTOUCHED FOR EVERYBODY ELSE: with no edits in
+    # force the box gates all three tabs exactly as it always has. What
+    # this refuses to do is strand somebody's work behind a preference.
+    holding_work = bool(self._topology_edit_key())
+    topology_index = getattr(self, "_topology_tab_index", None)
     for index in getattr(self, "_experimental_tabs", ()):
       if index < tabs.count():
-        tabs.setTabEnabled(index, allowed)
+        keep = allowed or (holding_work and index == topology_index)
+        tabs.setTabEnabled(index, keep)
     if not allowed and tabs.currentIndex() in getattr(
         self, "_experimental_tabs", ()):
       tabs.setCurrentIndex(0)
@@ -20223,8 +20605,24 @@ class WeavingSpaceDialog(QDialog):
     topology is pure geometry in unit space, so it needs no CRS at
     all, and none is reattached.
     """
-    if not getattr(self, "opt_experimental", None) or \
-       not self.opt_experimental.isChecked():
+    # THE BOX GATES THE TAB, NOT THE MAP'S CONTENT. (2026-08-30, found
+    # by a hunt with a control arm and measured: save a map with a
+    # topology edit, open it in a fresh dialog -- where the box is back
+    # at its default, being a default and not a stored preference --
+    # and press Generate. 312 of 312 tiles came back as the UN-EDITED
+    # design. Their saved map was gone.) The restores are not gated by
+    # the box and never were, so the edits came home into the shelf and
+    # the panel and nothing ever replayed them.
+    #
+    # SO A DESIGN THAT HAS EDITS IS BUILT WHATEVER THE BOX SAYS. The
+    # ruling the gate came from is about not making people who have not
+    # asked for the feature pay 0.75-4.4s on every Generate, and that
+    # reasoning is untouched: somebody with no edits still pays
+    # nothing. What it never meant is that a map already made with the
+    # feature should quietly revert.
+    wanted_by_the_box = bool(getattr(self, "opt_experimental", None)) and \
+      self.opt_experimental.isChecked()
+    if not wanted_by_the_box and not self._topology_edit_key():
       return
     panel = getattr(self, "topology_panel", None)
     if panel is None or self._unit is None:
@@ -20236,7 +20634,14 @@ class WeavingSpaceDialog(QDialog):
       self._topology_wanted = True
       return
     import copy
-    unit = copy.deepcopy(self._unit)
+    # FROM THE PLAIN UNIT, NEVER FROM THE ONE ON SCREEN. `self._unit`
+    # may already carry the edits this build is about to replay, and
+    # replaying them onto it applies each one twice -- measured
+    # 2026-08-30, driven through the button: two presses inside one
+    # build gave a unit matching the DOUBLED reference exactly, against
+    # a change list saying once.
+    unit = copy.deepcopy(
+      getattr(self, "_unit_before_topology", None) or self._unit)
     unit.crs = None
     for attribute in ("tiles", "prototile", "regularised_prototile"):
       part = getattr(unit, attribute, None)
@@ -20269,10 +20674,52 @@ class WeavingSpaceDialog(QDialog):
         edited, refusals = topology_edits.apply(topology, wanted_edits)
         built["edited"] = edited
         built["refusals"] = refusals
+        # AND THE DUAL OF THE UNIT WE WILL ACTUALLY WRITE, computed
+        # HERE because this is the thread that can afford it.
+        # (2026-08-30, found by a hunt and confirmed by measurement:
+        # the file carried the dual of the motif BEFORE the edit --
+        # 191,476 against the edited motif's 154,550, 24% wrong -- so
+        # a colleague opening it got a motif beside somebody else's
+        # dual, which is exactly what ruling 3's two tables exist to
+        # prevent.) The cause was that `apply` REBINDS rather than
+        # mutates, so `panel._topology` is never the edited one, and
+        # the save paired the edited unit with the original topology.
+        built["edited_topology"], _why_again = topology_edits.build(
+          edited)
       return None
 
-    def done(_result, error):
-      """Back on the main thread, with the answer or the reason."""
+    def done(_result, error, dialog=self):
+      """Back on the main thread, with the answer or the reason.
+
+      Args:
+        _result: unused; the answer travels in `built`.
+        error: whatever the worker raised, or None.
+        dialog: the dialog that launched this build, bound as a default
+          for the reason every other long-lived closure here binds one.
+
+      Returns:
+        None, and nothing at all once this dialog has been retired or
+        destroyed.
+
+      THE GATE WAS MISSING ENTIRELY. (2026-08-30, found by the same
+      hunt as `on_progress` above and measured in three arms.) This
+      build is never cancelled at any door -- `closeEvent`,
+      `_retire_previous_instance` and `_forget_the_last_project` each
+      cancel `self._task` and not this one -- so closing the dialog
+      mid-build leaves it in flight and this landing writes into a
+      closed window's panel. With the dialog destroyed it reaches a
+      deleted combo and raises.
+      IT DID NOT ABORT ONLY BECAUSE `TilingTask._report` HAPPENS TO
+      CATCH, which is this project's "held redundantly" met at its most
+      precarious: one try/except in a file nobody thinks of as a guard
+      is the whole difference between this and the abort its twin
+      produced. The always-present cost, even without a crash, is a
+      0.75-4.4s worker build and a re-armed queue for a window nobody
+      is looking at.
+      """
+      if _dialog_is_gone(dialog) or _live_dialog() is not dialog:
+        return
+      self = dialog
       self._topology_task = None
       if error is not None:
         panel.set_unit(None, None, "The topology could not be worked out.")
@@ -20286,6 +20733,22 @@ class WeavingSpaceDialog(QDialog):
         panel.set_unit(built.get("unit"), built.get("topology"),
                        built.get("why", ""))
         panel.report(built.get("refusals") or [])
+        # THE DUAL OF WHAT WE WILL WRITE, kept beside the unit it
+        # belongs to. Computed on the worker (see `work` above) because
+        # a rebuild costs 0.75-4.4s; kept HERE because the save is on
+        # the main thread and must not build anything. Where there were
+        # no edits the plain topology's dual is the right one, which is
+        # what the fallback says.
+        for_dual = built.get("edited_topology") or built.get("topology")
+        self._topology_dual = (
+          topology_edits.dual_frame(for_dual) if for_dual is not None
+          else None)
+        # AND WHAT WE NOW KNOW ABOUT THIS DESIGN, which is the only
+        # thing that licenses the save to remove a motif from a file.
+        # Recorded against the STAMP so an answer about another design
+        # cannot authorise a drop -- the same pairing the landing uses
+        # to decide whether this build is still about anything.
+        self._topology_assessed = (stamp, built.get("topology") is not None)
         edited = built.get("edited")
         if edited is not None:
           # THE CRS GOES BACK ON HERE, on the main thread, because
@@ -20293,6 +20756,19 @@ class WeavingSpaceDialog(QDialog):
           # never do that -- the same rule, and the same reattachment
           # point, as the tiling's own result.
           self._adopt_edited_unit(edited, result_crs)
+      # AND A PRESS THAT WAITED FOR THIS IS HONOURED NOW. Without it
+      # the deferral above is a promise nobody keeps: the person
+      # pressed Generate, read that the map would be redrawn when the
+      # changes were ready, and nothing would ever redraw it. Through
+      # `singleShot(0)` for the same reason the other deferred presses
+      # use it -- `_generate` is entitled to a plugin at rest, and this
+      # is still inside the task's own callback.
+      if self._press_pending and not _dialog_is_gone(self):
+        self._press_pending = False
+        QTimer.singleShot(0, self._generate)
+      elif self._live_pending and not _dialog_is_gone(self):
+        self._live_pending = False
+        QTimer.singleShot(0, self._queue_live)
       if self._topology_wanted:
         self._topology_wanted = False
         self._queue_topology()
@@ -20321,6 +20797,7 @@ class WeavingSpaceDialog(QDialog):
     describe, and `_queue_live` is left to the ordinary rules.
     """
     if edited is None:
+      _dump("TOPOLOGY", "adopt-nothing")
       return
     try:
       edited.crs = result_crs
@@ -20329,10 +20806,114 @@ class WeavingSpaceDialog(QDialog):
         if part is not None:
           part.crs = result_crs
     except Exception:                                 # noqa: BLE001
+      _dump("TOPOLOGY", "adopt-crs-failed", traceback.format_exc(limit=3))
       return
     self._unit = edited
+    # AND IT IS KEPT AGAINST THE DESIGN AND EDITS IT IS FOR, so a
+    # rebuild can put it back instead of tiling the plain unit.
+    # (2026-08-30, measured: `_generate` flushes a pending rebuild --
+    # rightly, so the settings on screen are what gets drawn -- and
+    # that rebuild re-derives the unit from the catalogue with no edit
+    # on it. The replay is a 0.75-4.4s background build that lands
+    # AFTER the run, so the map, its tables and its embedded styles
+    # were of the un-edited motif while the tab and the file's record
+    # both said otherwise. The run launched with tile areas
+    # (62500, 62500, 62500, 62500) against the edited
+    # (62485, 62485, 62514, 62514).)
+    self._edited_unit = edited
+    self._edited_unit_for = self._edited_unit_key()
     self.preview.show_unit(self._unit, self._table_id_colours(),
                            self.shells_spin.value())
+
+  def _restore_the_edited_unit(self) -> bool:
+    """Put a topology-edited unit back after a plain rebuild.
+
+    Returns:
+      True where `self._unit` now carries the edits this design has,
+      False where there was nothing to put back -- no edits, or an
+      edited unit belonging to a design somebody has since changed
+      away from.
+
+    WHY A CACHE RATHER THAN A REPLAY. Replaying costs a topology build,
+    0.75-4.4s, and this is called from the synchronous path a Generate
+    takes; paying it there would put seconds in front of every press.
+    The edited unit is already computed, and the only question is
+    whether it is still ABOUT this design -- which is what the stamp
+    and the edit key together answer, the same pair the build itself is
+    judged by when it lands.
+    """
+    wanted = self._edited_unit_key()
+    if not self._topology_edit_key():
+      return False
+    edited = getattr(self, "_edited_unit", None)
+    if edited is None or getattr(self, "_edited_unit_for", None) != wanted:
+      _dump("TOPOLOGY", "no-edited-unit-to-restore")
+      return False
+    self._unit = edited
+    return True
+
+  def _edited_unit_key(self):
+    """What a cached topology-edited unit is ABOUT.
+
+    Returns:
+      A hashable tuple: the topology stamp, the edit list, AND the
+      modifier chain.
+
+    THE MODIFIERS ARE THE HALF THE FIRST VERSION MISSED, and it cost a
+    wrong map. (2026-08-30, found by a hunt at this very repair and
+    measured end to end.) `_topology_stamp` is deliberately blind to
+    modifiers -- ruling 1 says the topology is of the UN-MODIFIED unit,
+    and that is right for judging a BUILD. It is wrong for judging a
+    cached unit, because `_build_unit` applies the modifier chain, so
+    the thing in the cache has rotation, scale, skew, insets and glyph
+    mode baked into its geometry.
+    Keyed on the stamp alone, moving Rotate to 30 and pressing Generate
+    put the pre-rotation unit back and drew a map TILE FOR TILE
+    identical to rotate 0 -- and Generate is guaranteed to land inside
+    that window, because it flushes the rebuild itself. The design view
+    showed the same wrong design, healing only when the background
+    build landed seconds later.
+    """
+    return (self._topology_stamp(), self._topology_edit_key(),
+            (self.mod_rotate.value(), self.mod_scale_x.value(),
+             self.mod_scale_y.value(), self.mod_skew_x.value(),
+             self.mod_skew_y.value(), self.mod_p_inset.value(),
+             self.mod_t_inset.value(), self.mod_glyph.isChecked()))
+
+  def _topology_edit_key(self):
+    """What the topology edits are, as a term for a signature.
+
+    Returns:
+      A hashable tuple describing the edits in force for the design on
+      screen, or () where there are none. Read from the SHELF rather
+      than from the panel, because the shelf is what a rebuild consults
+      and what a restored project fills -- so a design whose edits came
+      home from a file counts as edited even before the tab has been
+      looked at.
+
+    IT IS DELIBERATELY CHEAP. This is called from both signatures, and
+    a signature is computed on every debounce tick; the shelf holds a
+    handful of small dicts, so this is a tuple build rather than any
+    kind of measurement of geometry.
+
+    AND IT MUST NOT RAISE. A signature that throws takes the whole
+    debounce with it, and this runs before the topology machinery is
+    necessarily set up at all -- on a dialog whose experimental box has
+    never been ticked, `_topology_shelf` may be empty and the panel may
+    hold nothing.
+    """
+    try:
+      from . import topology_edits
+      key = topology_edits.shelf_key(self.family_combo.currentText(),
+                                     self._element_count())
+      edits = (getattr(self, "_topology_shelf", None) or {}).get(key) or []
+      return tuple(
+        (str(edit.get("classes", "")), str(edit.get("how", "")),
+         tuple(sorted((str(name), float(value))
+                      for name, value in (edit.get("args") or {}).items())))
+        for edit in edits)
+    except Exception:                                   # noqa: BLE001
+      return ()
 
   def _topology_stamp(self):
     """What the current topology would be ABOUT.

@@ -832,12 +832,30 @@ refuses, and `can_build` says which it is in words rather than letting
 the constructor raise. Zigzag additionally needs its unit REPAIRED
 first: the manipulation emits repeated vertices — six coincident pairs
 among thirty-seven points on the case measured — which is what makes
-the result invalid, not floating point and not the amplitude. The
-repair is two stages, an exact dedupe and then `make_valid` on
-whatever survives it, and it moves no area (agreement to 1e-9).
-`chavey K` tiles at 1802 tiles afterwards where it refused before;
-`laves 3.3.4.3.4` and `hex-slice 4` still refuse, and that is recorded
-rather than worked around.
+the result invalid, not floating point and not the amplitude.
+
+**THE REPAIR IS UPSTREAM'S OWN, and that is a correction of 2026-08-30
+rather than the original design.** `tiling_utils.get_clean_polygon`
+removes corners that are merely VERY CLOSE and then the COLINEAR ones;
+this module's exact dedupe only ever removed exact repeats. The
+library's author named it — "I can recover valid polygons from the ones
+it makes with `tiling_utils.get_clean_polygon`", and "there's probably
+some doubling up of coordinates happening", which is the same fault
+this project had measured independently, confirmed from the side that
+wrote the manipulation.
+
+MEASURED AS A PAIR, both arms in one run
+(`dev/instruments/probe_zigzag_cleaners.py`): with our dedupe alone,
+`laves 3.3.4.3.4` and `hex-slice 4` REFUSE and `hex-slice 3` and
+`chavey K` draw. With upstream's cleaner first, ALL FOUR draw with no
+invalid geometry. So the sentence that used to stand here — that two of
+the four still refuse — is superseded, and zigzag now applies wherever
+it has been tried.
+
+OURS IS KEPT AS THE FALLBACK rather than deleted, because this is a
+VENDORED dependency: a re-vendor that dropped or renamed that function
+would otherwise take the repair with it in silence. `make_valid` still
+runs on whatever residue survives both.
 
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
 which is the family and the element count. Move the design away and

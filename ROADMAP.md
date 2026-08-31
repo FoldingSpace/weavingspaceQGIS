@@ -1030,15 +1030,36 @@ makes that decision cheap either way.
   see the repeated-vertices finding below, which was measured after
   the ruling was written and replaces `make_valid` alone.
 
-STILL OWED BESIDES THE LAYERS: the four race families named in the
-grilling -- a stale topology landing, an edit aimed at a class that has
-gone, an edit made during a run, and the restore dropping the record in
-silence. THE LAST OF THOSE IS CLOSED, by
-`test_topology_edits_survive_the_working_state` and two catalogue
-entries standing on the write and the read separately, because writing
-here is permissive and reading is strict and the pair is exactly what
-this project has been caught by four times. The other three are
-unmeasured, and unmeasured is not the same as absent.
+THE LAYERS ARE BUILT TOO, on 2026-08-30, which completes ruling 3:
+`weavingspace_unit_no_crs` and `weavingspace_dual_no_crs` go into the
+file at Save, one method writes and drops them, and the names carry the
+CRS warning the ruling asked for. Two entries proved caught.
+
+THREE OF THE FOUR RACE FAMILIES ARE CLOSED. The restore dropping the
+record in silence, by `test_topology_edits_survive_the_working_state`
+and two entries standing on the write and the read separately. An edit
+aimed at a class that has gone, by
+`test_an_edit_for_a_class_that_has_gone_is_reported` -- and that one
+found a real defect rather than confirming a guess: the library ACCEPTS
+a selector matching nothing, neither raising nor complaining, so the
+change list grew while the map stood still and nothing said why. A
+stale topology landing, by `test_a_topology_that_lands_late_is_
+discarded`, which stages the stamp either side of a design change
+rather than betting on a slow machine.
+
+STILL OWED: an edit made DURING A RUN, which wants an aftermath of its
+own in the matrix rather than a test of its own -- the symbology matrix
+already carries "while a run is in flight" as a route and this one does
+not.
+
+**AND A TOPOLOGY MATRIX EXISTS**, five manipulations crossed with
+designs found from the catalogue and three aftermaths, spine plus a
+seeded sample. Its first honest run failed thirteen of thirty-one and
+TEN were the harness's own -- a fingerprint reading only the unit's
+envelope, which a vertex pushed inward does not move, and a settle
+waiting on the ABSENCE of a build task, true before the build is queued
+as well as after it lands. The survivor was real and is fixed: a
+manipulation can be accepted, be drawable, and change nothing.
 
 **THE DEFAULT STRAND WIDTH STAYS AT 0.75, having been changed to 1.0
 and changed back the same day** (maintainer, 2026-08-30). Recorded
@@ -1110,17 +1131,43 @@ because a null segment has no length. Mending the single genuine
 residue takes it to none, and measured on that case moved no tile's
 area either. Chavey K then tiles at 1802 tiles.
 
-WHAT THAT BUYS, and it is not everything. With the repair, zigzag
+WHAT THAT BUYS, and it is not everything. With OUR repair alone, zigzag
 applies on chavey K and hex-slice 3 and is still refused on laves
-3.3.4.3.4 and hex-slice 4. So ruling 5 stands exactly as decided --
-offer it, attempt the repair, refuse in words where it cannot -- and
-what changed is that the refusal is now the minority case rather than
-the only one.
+3.3.4.3.4 and hex-slice 4.
+
+**AND THE AUTHOR ANSWERED IT ON 2026-08-30, WHICH SUPERSEDES THAT
+SENTENCE.** Their words: "I can recover valid polygons from the ones it
+makes with `tiling_utils.get_clean_polygon`", and "there's probably
+some doubling up of coordinates happening". The second half is this
+project's own measurement arriving from the side that wrote the
+manipulation, which is agreement rather than correction; the first half
+is a function ALREADY IN OUR VENDOR that does the job better than the
+repair written here.
+
+MEASURED AS A PAIR, both arms in one run
+(`dev/instruments/probe_zigzag_cleaners.py`): ours alone refuses laves
+3.3.4.3.4 and hex-slice 4; upstream's cleaner first draws ALL FOUR
+designs with nothing invalid. It removes corners that are merely VERY
+CLOSE and then the COLINEAR ones, where ours removed only exact
+repeats.
+
+SO RULING 5 STANDS AND ITS REFUSAL IS NOW RARE rather than the
+majority case -- offer every manipulation, attempt the repair, refuse
+in words where it cannot. Ours is kept as the FALLBACK, because a
+re-vendor that renamed that function would otherwise take the repair
+away in silence.
+
+THE HABIT WORTH CARRYING: before writing a repair for a dependency's
+output, grep the dependency for one. A day of measurement from outside
+reached the same diagnosis the author gave in a sentence, and the
+library already had the cure.
 
 AND IT IS STILL WORTH TELLING UPSTREAM, in "Two conversations to have"
 below: a manipulation that emits coincident vertices is a defect
 whatever the caller does about it, and the fix belongs in
-`zigzag_between_points` rather than in every consumer's repair.
+`zigzag_between_points` rather than in every consumer's repair --
+which is now a SMALLER ask, since they have already named the
+function that cleans up after it.
 
 **AND CLICK-AND-DRAG IS AFFORDABLE, which the first reading of the cost
 said it was not.** One edit costs 1.23s end to end on the fastest
@@ -1615,6 +1662,22 @@ draws an invalid polygon without complaint, which is why this is
 invisible from where they were looking. Worth sending with the
 measurement, the design and the two-line repair, since the fix belongs
 in `zigzag_between_points` rather than in every consumer.
+
+**AND THE AUTHOR HAS ALREADY ANSWERED THE DIAGNOSIS, SAME DAY, WHICH
+CHANGES WHAT IS LEFT TO SEND.** They said "there's probably some
+doubling up of coordinates happening" -- the same fault, reached
+independently from the two sides -- and pointed at
+`tiling_utils.get_clean_polygon`, which recovers valid polygons and
+which the plugin now uses as its first repair stage.
+
+SO THE CONVERSATION IS NARROWER THAN THIS ENTRY ASSUMED. What is still
+worth sending is not the diagnosis, which they have, but the QUESTION
+it leaves: whether `zigzag_between_points` should stop emitting the
+coincident vertices in the first place, rather than every consumer
+calling a cleaner afterwards. That is their design decision. The
+measurement to send with it is the pair -- ours alone refuses two of
+four designs, their cleaner draws all four -- since it says exactly
+what the cleaner is worth and where the remaining sharp edge is.
 
 ## Later, or never
 

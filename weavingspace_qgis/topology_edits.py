@@ -265,9 +265,83 @@ def apply(topology, edits):
     # and refusing those threw away a drawable map to protect an
     # ability nobody had asked to keep. Rebuilding is for AIMING THE
     # NEXT EDIT; drawing needs only the tileable.
+    # AND AN EDIT THAT CHANGES NOTHING IS REPORTED TOO, which is a
+    # different sentence from "this could not be drawn" and was missing
+    # until the topology matrix asked for it (2026-08-30). The library
+    # is entitled to accept a manipulation and move nothing -- a
+    # selector matching no edge of that class, or a parameter this
+    # geometry is indifferent to -- and `transform_geometry` neither
+    # raises nor says so. Without this the person presses Apply, the
+    # list of changes grows, the map is identical, and NOTHING explains
+    # why: a control that takes a click and does nothing at all, which
+    # is this plugin's second characteristic failure.
+    if _same_shape(tileable, drawable):
+      refusals.append(
+        f"{MANIPULATIONS[how]['label']} on {selector or 'this design'} "
+        f"changed nothing about it, so the design is as it was. A "
+        f"different class, or a larger value, usually does something.")
     tileable = drawable
     current, _why = build(drawable)
   return tileable, refusals
+
+
+def _same_shape(before, after) -> bool:
+  """Whether two units are the same shape, for reporting purposes.
+
+  Args:
+    before: the unit as it stood.
+    after: the unit a manipulation produced.
+
+  Returns:
+    True where nothing a person could see has moved. Compares the
+    COORDINATES of every tile, within a tolerance scaled to the unit.
+
+  IT TOOK TWO WRONG INSTRUMENTS TO GET HERE, and both are worth
+  knowing, because each looked obviously right.
+
+  ROUNDING AREAS TO NINE DECIMAL PLACES is an ABSOLUTE tolerance, and a
+  unit at spacing 500 has tiles of area 62,500. Measured 2026-08-30:
+  asking for a manipulation on a class that does not exist still moves
+  every area by about 4e-5 -- the library rebuilding and re-gridding
+  the geometry, not an edit -- so the test called that a change and the
+  report never fired. That is this project's rule about magnitude being
+  a fixture dimension, met from the other side.
+
+  COMPARING AREAS AT ALL IS THE SECOND MISTAKE, and it survived the
+  first repair. `push_vertex` on this suite's own fixture moves
+  vertices while leaving every tile's area inside any sane tolerance --
+  the four tiles of laves 3.3.4.3.4 are 62,500 apiece before and after
+  -- so a summary statistic said "nothing happened" about an edit whose
+  WKT plainly differs. A statistic is not a shape: two different
+  polygons can share an area, and this fixture is full of tiles that
+  do.
+
+  SO THE COORDINATES ARE COMPARED, with `shapely.equals_exact` and a
+  tolerance of a millionth of the unit's own span. At spacing 500 that
+  is 5e-4: three orders above the re-gridding noise, and far below the
+  smallest manipulation on offer, a nudge of 0.05 units.
+
+  IT ANSWERS FALSE WHEN IT CANNOT TELL, deliberately: a unit whose
+  geometry will not be read is not evidence that nothing happened, and
+  saying "this changed nothing" wrongly is worse than staying quiet.
+  """
+  try:
+    import shapely
+    one = getattr(before, "tiles", None)
+    two = getattr(after, "tiles", None)
+    if one is None or two is None or len(one) != len(two):
+      return False
+    # THE TOLERANCE IS SCALED TO THE UNIT, which is the whole trick: a
+    # unit's coordinates follow the SPACING, so a fixed number is a
+    # different question at 500 than at 5.
+    low_x, low_y, high_x, high_y = one.total_bounds
+    span = max(abs(high_x - low_x), abs(high_y - low_y), 1.0)
+    tolerance = span * 1e-6
+    return all(
+      shapely.equals_exact(a, b, tolerance=tolerance)
+      for a, b in zip(one.geometry, two.geometry))
+  except Exception:                                     # noqa: BLE001
+    return False
 
 
 def _refusal(how: str, selector: str) -> str:
@@ -319,7 +393,8 @@ def _make_drawable(unit):
     # in 1e9. A repeated vertex is a zero-length segment, which
     # shapely reports as a self-intersection, so removing it changes
     # no shape whatever.
-    step_one = [_without_repeats(g) or g for g in mended.geometry]
+    step_one = [_upstream_clean(g) or _without_repeats(g) or g
+                for g in mended.geometry]
     # STEP TWO IS FOR THE RESIDUE, and is a repair rather than a
     # tidy-up: a genuine crossing. It is applied only to the tiles
     # that are still invalid, so a design needing none is untouched by
@@ -340,6 +415,51 @@ def _make_drawable(unit):
   except Exception:                                   # noqa: BLE001
     pass
   return None, False
+
+
+def _upstream_clean(polygon):
+  """Upstream's own repair for the polygons a manipulation emits.
+
+  Args:
+    polygon: a shapely Polygon or MultiPolygon.
+
+  Returns:
+    The cleaned polygon, or None where the library has no such function
+    or it will not run -- in which case the caller falls back to this
+    module's own exact dedupe, so a vendor without it still works.
+
+  THE LIBRARY'S AUTHOR NAMED THIS, 2026-08-30: "I can recover valid
+  polygons from the ones it makes with tiling_utils.get_clean_polygon",
+  and "there's probably some doubling up of coordinates happening" --
+  which is the same fault this module measured independently as
+  repeated vertices, confirmed from the side that wrote the
+  manipulation.
+
+  IT IS PREFERRED OVER OUR OWN FOR TWO REASONS, and neither is
+  deference. It removes corners that are merely VERY CLOSE as well as
+  exactly coincident, and then the COLINEAR ones -- a zigzag emits both
+  -- where ours only ever removed exact repeats. And it is upstream's,
+  so it moves with the library at a re-vendor instead of being a second
+  implementation of the same idea that has to be kept in step.
+
+  OURS IS KEPT AS THE FALLBACK rather than deleted, because this is a
+  vendored dependency: a re-vendor that drops or renames the function
+  would otherwise take the repair with it silently.
+  """
+  try:
+    from .vendor.weavingspace import tiling_utils
+  except Exception:                                     # noqa: BLE001
+    return None
+  clean = getattr(tiling_utils, "get_clean_polygon", None)
+  if clean is None:
+    return None
+  try:
+    mended = clean(polygon)
+  except Exception:                                     # noqa: BLE001
+    # A polygon it cannot clean is not a reason to lose the tile; the
+    # caller's own dedupe and `make_valid` still have a turn.
+    return None
+  return mended if mended is not None and not mended.is_empty else None
 
 
 def _without_repeats(polygon, tol: float = 1e-9):

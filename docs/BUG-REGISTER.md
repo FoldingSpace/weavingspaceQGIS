@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-443 defect(s) with a regression test.
+446 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -471,8 +471,12 @@ there is no separate list to remember.
   guarded by `test_a_tiling_may_carry_two_letter_elements`
 - **an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control.**  
   guarded by `test_a_topology_edit_reaches_the_map`
+- **a topology built for one design was shown against another, so the tab described a unit the map was not made of.**  
+  guarded by `test_a_topology_that_lands_late_is_discarded`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
+- **an edit naming a class the design does not have was replayed silently, leaving a list describing a design the map did not have.**  
+  guarded by `test_an_edit_for_a_class_that_has_gone_is_reported`
 - **an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27.**  
   guarded by `test_an_element_follows_the_layer_it_takes_its_classes_from`
 - **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
@@ -579,6 +583,8 @@ there is no separate list to remember.
   guarded by `test_the_size_guard_warns_where_it_used_to_refuse`
 - **the switch notice flattened its per-element pairs, so an element left with nothing was affirmatively covered by a sentence about the elements that landed somewhere -- and the re-point path lacked the `or fields` fallback its deleted-column twin has carried since 2026-08-20, which is what made the mixed case reachable only here. Found by the switchdoor hunt of round nine (2026-08-26).**  
   guarded by `test_the_switch_notice_owns_every_element`
+- **a manipulation that took a click and did nothing at all, on designs where it cannot apply.**  
+  guarded by `test_the_topology_matrix`
 - **nothing bounded the dialog's height, so a tall design on a small display put its own buttons off the screen.**  
   guarded by `test_the_window_never_grows_past_the_screen`
 - **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
@@ -937,7 +943,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 134
+- the mutation campaign: 137
 - a bug hunt pointed in a named direction: 131
 - not written down at the time: 88
 - reported by a user: 30

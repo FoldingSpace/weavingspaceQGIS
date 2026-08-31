@@ -2407,6 +2407,18 @@ MUTATIONS = [
        test="test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt",
        why="a reopened project finding the output group its own "
            "dataset made, rather than piling a second one beside it"),
+  dict(name="an-edit-that-changes-nothing-says-so", file=TOPOLOGY_EDITS,
+       # Found by the topology matrix on its first honest run. The
+       # library accepts a manipulation aimed at a class that does not
+       # exist, neither raising nor complaining, and hands back a unit
+       # identical to the one it was given -- so without this the change
+       # list grows, the map is unchanged, and nothing explains it.
+       # Mutating the report away leaves exactly that silence.
+       old="""    if _same_shape(tileable, drawable):""",
+       new="""    if False:""",
+       test="test_an_edit_for_a_class_that_has_gone_is_reported",
+       why="an edit that did nothing saying so, rather than leaving a "
+           "list that describes a design the map does not have"),
   dict(name="the-unit-and-dual-are-written-with-no-crs", file=TOPOLOGY_EDITS,
        # The unit is built AT THE SPACING and sits about the origin of
        # its own space, so a CRS on it is a lie about where it is: QGIS
@@ -2429,14 +2441,12 @@ MUTATIONS = [
        # the previous one's motif in the file, describing a map it is
        # no longer made of. Mutating the drop keeps the write and
        # removes the clearing.
-       old="""    if ours:
-      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
-        if name in bridge.gpkg_tables(path):
-          bridge.drop_gpkg_layer(path, name)""",
-       new="""    if False:
-      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
-        if name in bridge.gpkg_tables(path):
-          bridge.drop_gpkg_layer(path, name)""",
+       # RE-ANCHORED 2026-08-30: the drop is no longer decided by the
+       # experimental box but by whether a build has ASSESSED this
+       # design and found no topology. Mutating the assessment away
+       # restores the old behaviour of never dropping.
+       old="""    if ours and knows and not assessed_has:""",
+       new="""    if False:""",
        test="test_a_design_without_a_topology_leaves_none_in_the_file",
        why="a file showing the limit of what it contains, rather than "
            "a motif belonging to a design the map no longer has"),
@@ -2479,14 +2489,21 @@ MUTATIONS = [
        # facts are told apart; mutating it puts a button press back
        # onto the path that cannot run it, which is exactly the
        # shipped behaviour before the fix.
+       # NARROWED 2026-08-30: this two-line shape now appears TWICE in
+       # `_generate` -- the run-in-flight gate and the new
+       # wait-for-the-topology gate -- so the bare anchor became
+       # ambiguous and the tool refused it. Bound to the dump line
+       # below, which is unique to the site this entry is about.
        old="""      if live:
         self._live_pending = True
       else:
-        self._press_pending = True""",
+        self._press_pending = True
+      _dump("GEN-GATE", "already-running", "live=", live)""",
        new="""      if live:
         self._live_pending = True
       else:
-        self._live_pending = True""",
+        self._live_pending = True
+      _dump("GEN-GATE", "already-running", "live=", live)""",
        test="test_a_generate_pressed_during_a_run_is_not_swallowed",
        why="a Generate pressed while a run is in flight still drawing "
            "the design it asked for, rather than leaving the previous "
@@ -8352,10 +8369,15 @@ MUTATIONS = [
            "2026-08-30): a box that starts ticked offers work still "
            "being designed to somebody who never asked for it"),
   dict(name="the-experimental-box-closes-again", file=DIALOG,
-       old="""      if index < tabs.count():
-        tabs.setTabEnabled(index, allowed)""",
-       new="""      if index < tabs.count() and allowed:
-        tabs.setTabEnabled(index, allowed)""",
+       # RE-ANCHORED 2026-08-30: the loop body now computes `keep`,
+       # because a topology tab holding edits in force stays reachable
+       # even with the box unticked -- otherwise unticking strands the
+       # only controls that can undo them. The mutation still removes
+       # the SHUTTING half, which is what this entry is about.
+       old="""        keep = allowed or (holding_work and index == topology_index)
+        tabs.setTabEnabled(index, keep)""",
+       new="""        keep = allowed or (holding_work and index == topology_index)
+        tabs.setTabEnabled(index, True)""",
        test="test_the_experimental_box_gates_its_tabs",
        why="a gate that opens and never shuts is the same fault "
            "facing the other way, and it leaves somebody unable to "
