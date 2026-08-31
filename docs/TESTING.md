@@ -3953,7 +3953,7 @@ is to state the fact, with the reason at the line.
 
 Two more from the same day, both about a check that stops seeing.
 
-**A ``` FENCE SHIFTS EVERY INLINE SPAN BELOW IT.** A fence line carries
+**A TRIPLE-BACKTICK FENCE SHIFTS EVERY INLINE SPAN BELOW IT.** Such a
 three backticks; a span pattern needs a non-backtick between a pair, so
 the third becomes an opener and everything after it inverts -- real
 spans read as prose, prose reads as spans. A gate reading documents for

@@ -1797,6 +1797,37 @@ expensive stratum, which nothing has ever measured -- 1,172 of the
 about them. And a certification batch, once the suite stops changing,
 since improvement rounds cannot certify themselves.
 
+**PAIR INLINE SPANS WITHIN A PARAGRAPH, NOT ACROSS A WHOLE
+DOCUMENT.** (Recorded 2026-08-31 rather than done, because it changes
+`tests/run_tests.py` while a candidate's suite result is standing.)
+
+`test_every_documented_command_still_exists` finds inline spans with a
+pattern applied to the WHOLE document, deliberately, because a span may
+wrap across a line and the gate has to join it. The cost is that ONE
+unpaired backtick re-pairs every span after it, so the gate reads the
+tail of that document wrongly -- and the tail of CLAUDE.md is where
+every new lesson is appended.
+
+MEASURED THAT DAY, red and green: this project's own entry describing
+the fenced-block fault opened with three literal backticks in prose,
+which the fence blanking does not touch because the line begins with a
+dash rather than with the fence. With that odd count in place a planted
+path that does not exist passed the gate; with the sentence rewritten to
+describe the delimiter it fails with the file, the line and the name.
+The documents are mended and the GATE still has the weakness.
+
+WHAT WOULD FIX IT AT THE GATE: pair within a PARAGRAPH -- the documents
+separate paragraphs with a blank line, the pattern already drops any
+span containing one, and a wrapped span never crosses one -- so
+paragraph-wise pairing keeps every wrapped reference working while
+confining a stray backtick to the paragraph that carries it. It wants
+its own control: plant a stray, require a later reference to still be
+seen.
+
+AND A PARITY CHECK IS THE CHEAPER HALF, worth doing either way: a
+document whose backtick count is odd is one the gate reads wrongly from
+somewhere onward, and the count is one command.
+
 ## 0.24.5 — and the re-vendor comes first
 
 **RE-VENDOR UPSTREAM BEFORE ANYTHING ELSE IN THIS VERSION.**

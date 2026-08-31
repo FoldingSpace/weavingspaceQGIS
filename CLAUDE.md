@@ -5533,7 +5533,7 @@ here, and the decision to add one is the maintainer's. Recorded
   misses it -- and retire your OWN superseded logs, since a directory
   of stale failing logs makes any watcher lie.
 
-- **A ``` FENCE SHIFTS EVERY INLINE SPAN BELOW IT, AND A GATE READING
+- **A TRIPLE-BACKTICK FENCE SHIFTS EVERY INLINE SPAN BELOW IT, AND A
   PROSE GOES BLIND FROM THERE DOWN.** (2026-08-31, found by re-reading
   the procedural documents at the maintainer's asking, which is a
   direction docs/process/HUNT-RECORD.md carries a row for.) A fence
@@ -5672,3 +5672,100 @@ here, and the decision to add one is the maintainer's. Recorded
   and the tab, the manipulations, the edit shelf and the topology
   matrix all stand on that module.
 
+
+- **THE TWENTIETH AND TWENTY-FIRST WATCHER FAULTS ARE ONE RULE: KEY ON
+  THE THING, NOT A SNAPSHOT OF IT.** (2026-08-31, both mine, both
+  within ten minutes of arming a watcher, and both while the candidate
+  was building.) This file already carries that rule from 2026-08-12,
+  where a poller pinned to one commit sha sat silent while two more
+  pushes superseded it. It came back twice in one morning.
+  A WATCHER KEYED TO RUN IDS GOES BLIND AT THE NEXT PUSH. The beat
+  named two CI run ids, which was accurate when it was written and
+  false the moment a push created a third and fourth: it would have
+  gone on reporting the old pair in flight while the runs answering for
+  the tree in front of it were invisible. It lists runs BY BRANCH now
+  and prints each one's own head sha.
+  AND THE CI POLLER PRINTED A SHA IT NO LONGER FOLLOWED. Its own source
+  is the evidence -- `SHA=$(git rev-parse HEAD)` captured ONCE at
+  arming time and printed on every line, with `--limit 1` so it only
+  ever looked at the newest run. It duly announced a run belonging to
+  `8cbdff8` under the label `92cfaab`. A verdict with the wrong subject
+  is a verdict about whatever the reader is thinking of, which is the
+  twelfth fault's own sentence arriving at a SHA rather than a branch.
+  THE CHEAP CHECK, before arming anything: name what would have to
+  happen for this watcher's subject to change, and ask whether the
+  watcher would notice. A push, a relaunch, a new run, a superseded
+  commit -- if the answer is no, it is keyed to a snapshot.
+
+- **THREE MORE FROM THE SAME MORNING, ALL CAUGHT BY HAND-RUNNING THE
+  WATCHER ONCE BEFORE ARMING IT.** That is the practice this file has
+  been recommending since the tenth fault, and it is the first time it
+  has been done here before rather than after.
+  `gh` GIVES A RUNNING JOB AN EMPTY STRING CONCLUSION, NOT NULL, and
+  jq's `//` falls through only on null or false -- so
+  `.conclusion // .status` printed `macos=` for every job still going,
+  which is the one state that line exists to show. Test the empty
+  string explicitly.
+  AN UNANCHORED `FAIL` FILTER NAMED A CLEAN SHARD. The word appears
+  inside test names ("a failed stage is not remembered"), so a log
+  reading `242 passed, 0 failed` was reported as the newest failing
+  one. A watcher whose alarms are mostly false is one people learn to
+  silence, and it takes the true alarms with it.
+  AND THE SHARD BLOCK GLOBBED, which is the stale-log fault for the
+  fourth time. `release.py` CLEARS its stage logs when the suite
+  finishes, so `ls | tail -3` fell back to a run from two days earlier
+  and reported 2,621-minute-old logs as this run's. THE AGE LINE IS
+  WHAT CAUGHT IT -- print an age beside anything read off disk, bound
+  the search to the run, and SAY when there is nothing rather than
+  reading somebody else's.
+
+- **A DOCUMENTATION MERGE IS NOT A NO-OP FOR THE SUITE.** (Same day.)
+  `test_every_documented_command_still_exists` opens CLAUDE.md,
+  MAINTAINING.md, README.md and ROADMAP.md, which is exactly why those
+  four are in `STAGE_DEPENDS` -- a documentation edit really can break
+  a test, and it is the kind of change that feels as though it cannot.
+  So a docs branch merged into a candidate's branch gets the prose
+  gates run over the MERGED tree before the push, not merely
+  `check_standards` in the worktree it was written in. Cheap: three
+  tests, 160 quotations, 38 scripts and 19 long flags, in under a
+  minute.
+  AND THE RECEIPT CLAIM IS MEASURED RATHER THAN REASONED. "No shipped
+  file moved, so the candidate's receipt still holds" is a reading
+  until `release.tree_digest()` is recomputed and compared with the
+  receipt, which is one line and settles it. The digest deliberately
+  ignores documentation, so the answer is nearly always yes -- and
+  nearly always is not a thing to publish an artefact on.
+
+- **THE ENTRY DESCRIBING THE FENCE FAULT IS WHAT BLINDED THE GATE
+  NEXT.** (2026-08-31, hours after the fence repair, and found by
+  planting a control rather than by reading.) This morning's lesson was
+  written as a bullet opening `- **A ` followed by three literal
+  backticks and the word FENCE. `_prose_outside_fences` toggles only on
+  a line that STARTS with the fence, and that line starts with a dash --
+  so the three backticks stayed in the prose, and three is ODD. The
+  span pattern pairs positionally over the whole document, so from that
+  line to the end of the file every backtick pairs with the wrong
+  neighbour.
+  WHAT IT COST IS EXACTLY WHERE IT HURTS: the end of CLAUDE.md is where
+  this project appends every new lesson. A quoted path added there
+  formed no span at all -- its opening backtick was consumed closing
+  the runaway span, and the leftover opened one that never closed.
+  MEASURED, RED AND GREEN. With the odd count in place, a planted
+  reference to a script under tools/ that does not exist -- described
+  here rather than quoted, since this gate refuses a quoted path and
+  cannot tell a demonstration from a recommendation -- sat at the end
+  of the file and PASSED, reporting the same 160 quotations it reports
+  on a clean tree. With the sentence rewritten to DESCRIBE the delimiter -- "a
+  triple-backtick fence" -- the same plant fails with the file, the
+  line and the name. Both documents carrying that sentence were odd;
+  the other four were balanced.
+  THE TELL WAS A COUNT THAT DID NOT MOVE. Adding sixteen backtick spans
+  to the file left "160 quotations, 38 scripts, 19 long flags"
+  unchanged, which is this file's own rule that a uniform verdict is
+  almost always the instrument -- met as a verdict that would not
+  BUDGE.
+  SO: DESCRIBE A DELIMITER, DO NOT QUOTE IT, which is the rule this
+  project already keeps for a path that no longer exists. And a
+  document whose backtick count is odd is a document the gate reads
+  wrongly from somewhere onward; the parity is one command to check and
+  worth checking whenever a lesson is appended.
