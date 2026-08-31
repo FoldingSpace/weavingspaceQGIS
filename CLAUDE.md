@@ -843,7 +843,12 @@ obligations: they exist so nobody pays twice for the same discovery.
 - **A ceiling a healthy run can reach is worse than no ceiling, and
   is sized from the SLOWEST machine ever measured.** Made twice on
   2026-08-11, hours apart: a forty-minute CI job limit sized against
-  a twenty-four-minute macOS suite (the Linux legs take 52-54, and
+  a twenty-four-minute macOS suite (the Linux legs took 52-54 THAT
+  DAY -- measured again on 2026-08-31 at 60, 66 and 68 minutes for the
+  three of them, the suite having grown to 727 tests since, which is
+  why the figure is dated rather than stated flat: an entry warning
+  against sizing a ceiling from a stale number is the last place a
+  stale number should sit -- and
   one leg was cancelled mid-run), and a six-hundred-second per-test
   watchdog against a test that had already been measured at 550 on a
   Linux runner. Both produced a red result that meant nothing, which
