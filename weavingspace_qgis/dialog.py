@@ -16222,9 +16222,10 @@ class WeavingSpaceDialog(QDialog):
         # draws` counts this sentence across four slider moves and is
         # what would notice.
         self._report_quietly(
-          "This design cannot carry the changes listed on the "
-          "Topology tab, so the map is drawn without them. They are "
-          "kept, and return when the design can take them again.")
+          "This design / these settings do not support making the changes "
+          "listed on the Topology tab, so the map is drawn without them. The "
+          "changes you specified are kept, and return if/when the design can "
+          "take them.")
       else:
         if getattr(self, "_topology_task", None) is None:
           self._queue_topology()
@@ -20517,11 +20518,33 @@ class WeavingSpaceDialog(QDialog):
     as unticking the source copy.
     """
     from . import topology_edits
-    box = getattr(self, "opt_experimental", None)
     panel = getattr(self, "topology_panel", None)
     topology = getattr(panel, "_topology", None) if panel else None
-    wanted = (box is not None and box.isChecked()
-              and topology is not None and path)
+    # THE BOX GATES THE TAB, NOT THE MAP'S CONTENT -- and this is the
+    # SECOND site to learn it. `_queue_topology` was freed from
+    # `opt_experimental` at 8107b88 on the reasoning that somebody who
+    # has already made a map with the feature must not have it quietly
+    # revert; this writer kept the box as a term of `wanted` and was
+    # never re-aimed, so the two halves of one decision disagreed for a
+    # day. With edits standing the topology IS built and the dual IS
+    # held and of this design -- only the write was refused, and the
+    # drop below then removed what was already in the file.
+    # MEASURED 2026-08-31 at three doors: a Load journey, a
+    # same-session untick, and a reopened plugin ADOPTING the group.
+    # In the last, a file holding `weavingspace_unit_no_crs` and
+    # `weavingspace_dual_no_crs` came back holding NEITHER after an
+    # ordinary reopen, spacing nudge, Generate and Save, with the map
+    # unchanged on screen and "Saved to ..." the only thing said. The
+    # control arm -- the same journey with the box ticked -- kept both
+    # tables, which is what says the BOX was deciding rather than the
+    # reopen. The box is unticked on every new dialog, so the harm
+    # needs nobody to touch the Topology tab at all.
+    # This is the fifth fault in this one method, and the fourth of the
+    # five was ignorance of what the tables DESCRIBE. The rule that
+    # replaced them stands: the key below decides. A preference about
+    # which tabs a person wants to see is not a fact about what a file
+    # contains, which is the two-relationships framing in CLAUDE.md.
+    wanted = topology is not None and bool(path)
     key = self._topology_description_key()
 
     # THE MOTIF DESCRIBES THE MAP IN THE FILE, NOT THE DIALOG, and
@@ -22028,7 +22051,37 @@ class WeavingSpaceDialog(QDialog):
     from . import topology_edits
     panel = getattr(self, "topology_panel", None)
     edits = panel.edits() if panel is not None else []
-    options = json.dumps(str(self._topology_stamp()), sort_keys=True)
+    # THE CRS IS NOT A TERM OF WHAT THESE TABLES DESCRIBE, and leaving
+    # it in was this method's sixth fault. `_topology_stamp()` is built
+    # from `_unit_kwargs()`, which carries `crs` off the region layer,
+    # and `crs` is the ONE stamp term `_capture_design()` cannot see --
+    # so the save's staleness guard reported the design unchanged while
+    # this key had moved, and the drop read that as staleness. With the
+    # box at its default nothing writes a fresh motif afterwards, so
+    # the tables went and nothing put them back.
+    # THE JOURNEY IS AN ORDINARY ONE: reassigning a layer's CRS is the
+    # standard repair for a shapefile with no `.prj`, and this plugin
+    # watches for it and announces it.
+    # AND THE DIRECTION WAS CHECKED RATHER THAN ASSUMED. Measured
+    # 2026-08-31, `catalog.make_unit` at EPSG:3857 and EPSG:27700 gives
+    # identical tile WKT and identical topology classes, and these two
+    # tables are written in UNIT SPACE with no CRS at all -- so the CRS
+    # describes nothing whatever about them. The key was the wrong
+    # half, not the guard. Confirmed at the decision as well as through
+    # the file: `_capture_design()` answers byte-identically across the
+    # two while this key moved from `d0c5dafa` to `1d1516cb`.
+    # THE STAMP ITSELF KEEPS ITS CRS, deliberately and narrowly: it
+    # also decides whether an off-thread BUILD that has just landed is
+    # still about the design on screen, and widening this repair into
+    # that question would be changing a second thing while measuring
+    # one. Only the FILE's key drops the term.
+    stamp = self._topology_stamp()
+    without_crs = tuple(
+      tuple((name, value) for name, value in part if name != "crs")
+      if isinstance(part, tuple) and part and isinstance(part[0], tuple)
+      else part
+      for part in stamp)
+    options = json.dumps(str(without_crs), sort_keys=True)
     made = json.dumps(edits, sort_keys=True, default=str)
     return "|".join((
       topology_edits.shelf_key(self.family_combo.currentText(),

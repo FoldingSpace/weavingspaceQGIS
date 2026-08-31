@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-460 defect(s) with a regression test.
+461 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -294,6 +294,8 @@ there is no separate list to remember.
   guarded by `test_the_icon_notice_reads_the_same_ground_in_either_crs`
 - **`distance` converts BOTH its arguments to CIELAB on every call, and the clash search compared every class of one element against every class of another -- so it did 2*k*k conversions where 2*k would do, at about twelve microseconds each. Measured: four categorized elements of 401 classes froze QGIS for 36.75s, of which 35.70s was here, on the GUI thread with the event loop dead; the tiling those colours belonged to took 1.05s. The live path paid it on every tweak.**  
   guarded by `test_the_legibility_check_agrees_with_its_own_distance`
+- **reassigning the region layer's CRS moved the file's topology key while the design guard saw no change, so an ordinary Save deleted the motif and dual from the GeoPackage and nothing replaced them.**  
+  guarded by `test_the_motif_s_key_ignores_the_crs_and_nothing_else`
 - **the "data has changed since this map was drawn" notice compared a session-wide fingerprint against whichever dataset the region chooser held, so returning to an earlier map through the group chooser and pressing Save reported that the data had moved when nothing about it had. Found by the repairs hunt of 2026-08-28.**  
   guarded by `test_the_moved_data_notice_is_about_the_map_being_saved`
 - **the notice that the region layer had been removed depended on which of two Qt handlers ran first, so it was silent on every CI runner while passing locally.**  
@@ -975,7 +977,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 149
-- a bug hunt pointed in a named direction: 131
+- a bug hunt pointed in a named direction: 132
 - not written down at the time: 88
 - reported by a user: 30
 - reading the code: 15

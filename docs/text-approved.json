@@ -394,6 +394,11 @@
   "excerpt": "Slant the pattern left-right.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "2b7a450b687ac15a": {
+  "approved": "2026-08-31",
+  "excerpt": "How many variables to map is a design question as well as a ",
+  "where": "docs/USER-GUIDE.md"
+ },
  "2bf9c666f7764119": {
   "approved": "2026-08-15",
   "excerpt": "[general]\nname=WeavingSpace\nqgisMinimumVersion=4.0\nqgisMaxim",
@@ -1937,6 +1942,11 @@
  "d6c442e792c7e42c": {
   "approved": "2026-08-31",
   "excerpt": "Working out the changes to the design; the map will be redra",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d6ed5caea4b85e18": {
+  "approved": "2026-08-31",
+  "excerpt": "This design / these settings do not support making the chang",
   "where": "weavingspace_qgis/dialog.py"
  },
  "d801def964994fd0": {

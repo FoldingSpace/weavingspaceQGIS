@@ -8733,6 +8733,29 @@ MUTATIONS = [
        why="experimental until designated otherwise (maintainer, "
            "2026-08-30): a box that starts ticked offers work still "
            "being designed to somebody who never asked for it"),
+  dict(name="the-motifs-key-does-not-hash-the-crs", file=DIALOG,
+       # The two tables this key names are written in UNIT SPACE with
+       # no CRS -- the file calls them `..._no_crs` -- so the region
+       # layer's EPSG code describes nothing about them. It rode in
+       # through `_unit_kwargs()`, and it is the ONE term of
+       # `_topology_stamp()` that `_capture_design()` cannot see, so
+       # the save's staleness guard reported agreement while the key
+       # had moved and the drop read that as staleness.
+       # MUTATED AWAY, the crs goes back into the key: reassigning a
+       # layer's CRS -- the ordinary repair for a missing `.prj` --
+       # moves it, and the guard still sees no change.
+       # FOUND BY TWO HUNTS INDEPENDENTLY on 2026-08-31, one arriving
+       # from the boundaries and one backwards from harm, and confirmed
+       # a third way at the decision: `_capture_design()` byte-identical
+       # across EPSG:3857 and EPSG:27700 while the key moved d0c5dafa
+       # -> 1d1516cb.
+       old="""      tuple((name, value) for name, value in part if name != "crs")""",
+       new="""      tuple((name, value) for name, value in part)""",
+       test="test_the_motif_s_key_ignores_the_crs_and_nothing_else",
+       why="a colleague opening the GeoPackage gets no motif at all, "
+           "because an act that changes nothing about the design read "
+           "as the motif going stale and the drop was never followed "
+           "by a write"),
   dict(name="the-experimental-box-closes-again", file=DIALOG,
        # RE-ANCHORED 2026-08-30: the loop body now computes `keep`,
        # because a topology tab holding edits in force stays reachable

@@ -3821,6 +3821,84 @@ def test_a_text_column_shares_one_classification():
       "a source with no features is the state that reads as success"
 
 
+def test_the_motif_s_key_ignores_the_crs_and_nothing_else():
+  """A CRS reassignment must not read as the motif going stale.
+
+  The file's two topology tables are written in UNIT SPACE with no CRS
+  at all, and `_topology_description_key()` names the design they
+  describe. `crs` rode into that key through `_unit_kwargs()`, and it
+  is the ONE term of `_topology_stamp()` that `_capture_design()`
+  cannot see -- so the save's staleness guard reported the design
+  unchanged while the key had moved, the drop read that as staleness,
+  and with the experimental box at its default nothing wrote a fresh
+  motif to replace what it removed.
+
+  THE DOOR IS AN ORDINARY ONE. Reassigning a layer's CRS is the
+  standard repair for a shapefile with no `.prj`; this plugin watches
+  for it and announces it.
+
+  BOTH ANSWERS ARE ASSERTED, because a reader meeting either alone
+  would take it for the whole rule, and because a repair that made the
+  key insensitive to the CRS *and to everything else* would be worse
+  than the fault -- the modifiers were put into this stamp earlier the
+  same day precisely because their absence let a design that had lost
+  its topology compare equal to one that had it.
+
+  THE DIRECTION WAS MEASURED RATHER THAN ASSUMED: `catalog.make_unit`
+  at EPSG:3857 and EPSG:27700 gives identical tile WKT and identical
+  topology classes, so the CRS describes nothing about the motif and
+  the KEY was the wrong half rather than the guard.
+
+  Regression: reassigning the region layer's CRS moved the file's topology key while the design guard saw no change, so an ordinary Save deleted the motif and dual from the GeoPackage and nothing replaced them. [hunt]
+  """
+  from qgis.core import QgsCoordinateReferenceSystem
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    _tick(300)
+    before_key = dlg._topology_description_key()
+    before_design = json.dumps(dlg._capture_design(), sort_keys=True,
+                               default=str)
+
+    layer.setCrs(QgsCoordinateReferenceSystem("EPSG:27700"))
+    _tick(400)
+    after_key = dlg._topology_description_key()
+    after_design = json.dumps(dlg._capture_design(), sort_keys=True,
+                              default=str)
+
+    assert before_design == after_design, \
+      "PREMISE: _capture_design now sees the CRS, so this test is " \
+      "about a different asymmetry from the one it was written for"
+    assert before_key == after_key, (
+      "a CRS reassignment moved the key naming what the file's motif "
+      f"describes, so an ordinary Save would drop it: {before_key} "
+      f"-> {after_key}")
+
+    # AND THE CONTROL: the key must still move for a term that really
+    # does change what those tables describe. A tile inset is the
+    # sharpest of them -- it opens gaps, so the design stops carrying
+    # a topology at all.
+    moved = {}
+    for label, widget, value in (
+        ("a tile inset", dlg.mod_t_inset, 5.0),
+        ("a rotation", dlg.mod_rotate, 30.0)):
+      was = widget.value()
+      here = dlg._topology_description_key()
+      widget.setValue(value)
+      _tick(400)
+      moved[label] = dlg._topology_description_key() != here
+      widget.setValue(was)
+      _tick(300)
+    assert all(moved.values()), (
+      "the key has stopped following the design itself, which is a "
+      f"worse fault than the one this guards: {moved}")
+  finally:
+    dlg.close()
+
+
 def test_a_reopen_does_not_take_the_motif_out_of_the_file():
   """A file's motif survives being opened by somebody at their defaults.
 
@@ -46989,16 +47067,46 @@ def test_the_documents_numbers_match_the_code():
   # as semantic. This is the roadmap gate's own family -- there a
   # declaration was invisible because it had been wrapped through the
   # middle.
-  claim = re.search(
-    r"catalogue\s+runs\s+to\s+([a-z-]+(?:\s+[a-z-]+)*?)"
-    r"\s+elements\s+for\s+a\s+weave\s+and\s+to\s+"
-    r"([a-z-]+(?:\s+[a-z-]+)*?)\s+for\s+a\s+tiling", guide)
-  assert claim, \
-    "the user guide no longer states BOTH catalogue ceilings, so " \
-    "this check has silently stopped checking anything"
+  # AND THE PATTERN BINDS TO THE NUMBER WORDS, NOT TO THE SENTENCE
+  # AROUND THEM. (2026-08-31, the second time in one day this gate was
+  # disarmed by an edit nobody thought of as semantic.) The version
+  # above spelled out "catalogue runs to ... and to ...", so it could
+  # only find the ceilings while that clause survived verbatim -- and
+  # the maintainer rewrote the paragraph the same evening, to "the
+  # catalogue currently has options for up to ... elements for a weave
+  # and for up to ... elements for a tiling". The gate went red with
+  # its own "this check has silently stopped checking anything", which
+  # is the right words in the right place and is the second time that
+  # assertion has earned its keep today.
+  # SO THE ALTERNATION IS BUILT FROM `words` ITSELF, which makes it
+  # impossible for the vocabulary the check accepts and the vocabulary
+  # it can FIND to drift apart, and the only fixed text it needs is
+  # "for a weave" and "for a tiling" -- the two phrases that say which
+  # ceiling is being quoted and cannot be dropped without the sentence
+  # ceasing to make the claim at all. `elements` is optional because it
+  # is a word a rewrite may reasonably move; every gap is `\s+`.
+  # Escaped word by word and joined with `\s+`, NOT escaped whole and
+  # then space-substituted: `re.escape` escapes a space to a backslash
+  # and a space, so replacing the space afterwards leaves a stray
+  # backslash and the multi-word spellings match nothing. "twelve" has
+  # no space and matched perfectly throughout, which is how the fault
+  # presented -- one ceiling found, the other reported missing.
+  spelled = "|".join(
+    r"\s+".join(re.escape(part) for part in spelling.split())
+    for spelling in sorted(words, key=len, reverse=True))
+  found = {}
+  for family in ("weave", "tiling"):
+    hit = re.search(
+      rf"({spelled})(?:\s+elements)?\s+for\s+a\s+{family}", guide)
+    assert hit, (
+      f"the user guide no longer states the {family} ceiling in a form "
+      f"this check can read, so it has silently stopped checking "
+      f"anything about it. It must give the number in WORDS, followed "
+      f"by 'for a {family}'.")
+    found[family] = hit.group(1)
   for said, ceiling, family in (
-      (claim.group(1), weave_ceiling, "weave"),
-      (claim.group(2), catalog.MAX_ELEMENTS_TILING, "tiling")):
+      (found["weave"], weave_ceiling, "weave"),
+      (found["tiling"], catalog.MAX_ELEMENTS_TILING, "tiling")):
     stated = words.get(" ".join(said.split()))
     assert stated is not None, \
       f"the guide states a {family} ceiling this test cannot read: " \
@@ -77563,6 +77671,8 @@ def main():
         test_the_topology_matrix)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
+  check("the motif's key ignores the crs and nothing else",
+        test_the_motif_s_key_ignores_the_crs_and_nothing_else)
   check("a reopen does not take the motif out of the file",
         test_a_reopen_does_not_take_the_motif_out_of_the_file)
   check("a save with an edit outstanding leaves the motif alone",
