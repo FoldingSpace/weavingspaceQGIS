@@ -5430,7 +5430,16 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
         "PREMISE: no topology was built, so there is nothing to edit"
       panel = dlg.topology_panel
       view = panel.view
-      view.resize(600, 600)
+      # THE VIEW IS NOT ASKED FOR A SIZE, because it cannot keep one.
+      # This used to call `view.resize(600, 600)` and read as though
+      # the drawing were 600px square; measured 2026-09-01, the widget
+      # is 420x462 with that call, without it, and with the WINDOW
+      # driven to 1200x900 -- a widget inside a layout is given
+      # whatever the layout leaves it, and the number here was
+      # decoration. It matters because every cell below aims at
+      # whatever is drawn INSIDE the widget, so believing a size that
+      # is not the size is how a cell silently stops being able to
+      # aim.
       _tick(100)
       # PAINT IT, OR IT HAS NO TRANSFORM: `_fit` runs inside
       # `paintEvent`, so offscreen -- where nothing ever exposes a
@@ -5438,6 +5447,35 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       # below would mean widget pixels.
       view.grab()
       _tick(50)
+
+      def settled(before_stores, wanted, seconds=20):
+        """The stores that moved, once the wanted ones have.
+
+        Args:
+          before_stores: the reading taken before the act.
+          wanted: the store names this cell is waiting for.
+          seconds: how long to wait for them before answering anyway.
+
+        Returns:
+          The set of store names that changed. A SETTLE RETURNS BEFORE
+          THE RESULT IS ADOPTED -- `_settle_topology` waits for the
+          build to stop being in flight, and the panel takes the new
+          unit a beat later -- so reading once behind it asks the
+          question before the answer exists. Windows and macOS both
+          failed cells here that this machine passes, with `design`
+          moved and `drawn` not, which is exactly that beat. Waiting
+          for the wanted stores rather than for a fixed time keeps the
+          verdict honest: a cell that never moves them still fails,
+          and it fails with what it saw.
+        """
+        _settle_topology(dlg, seconds=40)
+        _settle(dlg)
+        for _ in range(seconds * 5):
+          seen = moved(before_stores, stores(dlg))
+          if wanted <= seen:
+            return seen
+          _tick(200)
+        return moved(before_stores, stores(dlg))
 
       dead = []
 
@@ -5480,9 +5518,7 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
         during = moved(before, stores(dlg))
         QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
                            QtNamespace.KeyboardModifier.NoModifier, far)
-        _settle_topology(dlg, seconds=40)
-        _settle(dlg)
-        after = moved(before, stores(dlg))
+        after = settled(before, {"design", "drawn"})
         if "preview" not in during:
           dead.append(f"dragging a {kind} showed nothing while it moved")
         if not {"design", "drawn"} <= after:
@@ -5494,10 +5530,20 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
                   "scale_edge", "zigzag_edge"):
         wanted = "vertex" if "vertex" in how else "edge"
         at = aim_at(view, wanted)
-        if at is not None:
-          QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
-                           QtNamespace.KeyboardModifier.NoModifier, at)
-          _tick(150)
+        # A CELL THAT COULD NOT AIM MEASURED NOTHING, AND MUST SAY SO
+        # IN ITS OWN WORDS. It used to fall through with whatever the
+        # previous cell had selected still held, so a fixture that
+        # could not find a vertex reported "nudge_vertex is not
+        # offered while holding a edge" -- which is CORRECT product
+        # behaviour, the verb list narrowing to the selection, dressed
+        # up as a defect. Windows said exactly that twice.
+        if at is None:
+          dead.append(f"FIXTURE: no {wanted} could be aimed at for "
+                      f"{how}, so that cell measured nothing")
+          continue
+        QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, at)
+        _tick(150)
         index = panel.how_combo.findData(how)
         held = (panel.class_combo.currentData() or ("", ""))[0]
         if index < 0:
@@ -5508,9 +5554,7 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
         _tick(100)
         before = stores(dlg)
         panel.apply_button.click()
-        _settle_topology(dlg, seconds=40)
-        _settle(dlg)
-        after = moved(before, stores(dlg))
+        after = settled(before, {"design", "drawn", "edits"})
         if not {"design", "drawn", "edits"} <= after:
           dead.append(f"Apply {how} left {sorted(after)} rather than "
                       f"moving the design, the drawing and the record")
@@ -5520,9 +5564,7 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
                            ("Clear", panel.clear_button)):
         before = stores(dlg)
         button.click()
-        _settle_topology(dlg, seconds=40)
-        _settle(dlg)
-        after = moved(before, stores(dlg))
+        after = settled(before, {"design", "drawn", "edits"})
         if not {"design", "drawn", "edits"} <= after:
           dead.append(f"{name} left {sorted(after)} rather than moving "
                       f"the design, the drawing and the record")

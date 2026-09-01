@@ -4191,3 +4191,34 @@ repair was to put the previous design's topology and dual back by
 hand, in one line, which is the same state arrived at without a race.
 Where a case depends on a window, close the window; a premise about a
 window is still a bet on the machine.
+
+## A CELL THAT CANNOT SET ITS OWN STAGE MUST SAY SO IN ITS OWN WORDS
+
+2026-09-01, from Windows, and the message it produced was a sentence
+about the PRODUCT that happens to describe correct behaviour.
+
+The topology matrix aims each cell at a vertex or an edge drawn inside
+the widget, and fell through with whatever the previous cell had
+selected when it could not find one. The verb list narrows to the
+selection -- by design, since select-then-act is what the tab is built
+on -- so a fixture that could not aim reported "nudge_vertex is not
+offered while holding a edge", twice, which reads as a dead control
+and is the tab working exactly as ruled. A cell that cannot stage its
+own case now says `FIXTURE:` and names what it could not aim at.
+
+**AND A SETTLE RETURNS BEFORE THE RESULT IS ADOPTED**, which is the
+other half of the same red. `_settle_topology` waits for the build to
+stop being in flight and the panel takes the new unit a beat later, so
+a reading taken straight behind it asks the question before the answer
+exists: `design` moved, `drawn` did not, on two platforms, in cells
+this machine passes every time. The repair is to wait for the STORES
+THE CELL IS ABOUT to move, bounded, rather than for a fixed time -- a
+cell that never moves them still fails, and fails with what it saw.
+
+**AND A WIDGET INSIDE A LAYOUT DOES NOT KEEP A SIZE YOU HAND IT**, so
+`view.resize(600, 600)` was decoration: measured with the call,
+without it, and with the WINDOW driven to 1200x900, the drawing is
+420x462 every time. It matters because the aiming is over what is
+drawn INSIDE the widget, so a believed size that is not the size is
+how a cell quietly stops being able to aim on a machine whose fonts
+are wider.
