@@ -6576,9 +6576,27 @@ def test_topology_edits_come_back_from_the_file():
       edited = ground(dlg._unit)
       assert len(made) == 2, \
         f"PREMISE: the tab kept {len(made)} edits rather than two"
+      # WHAT THE REPLAY SAID, so a failure here names the cause rather
+      # than the assertion. (2026-09-01: this premise failed once on a
+      # Linux runner with `edited` equal to PLAIN rather than to the
+      # rotated design -- which says both edits were refused and the
+      # replay handed back the original, not that the reading was
+      # early. The message carried neither the marks nor the refusals,
+      # so the run could only be guessed at.) `set_marks` holds one
+      # entry per edit, oldest first, and the dialog keeps the
+      # refusals the same pass produced.
+      # THE REFUSALS ARE WHAT THE PANEL WAS TOLD, which is where they
+      # end up: the dialog hands them to `panel.report`, which writes
+      # them into the note. The marks are per edit, oldest first.
+      told = (panel.note.text() or "").strip()
+      marks = list(getattr(panel, "_marks", []) or [])
       assert edited != plain, (
         "PREMISE: the edits moved nothing, so a roundtrip that "
-        f"preserved nothing would pass -- both {edited}")
+        f"preserved nothing would pass -- both {edited}. "
+        f"After the rotation alone it was {after_one}, so equality "
+        f"with the PLAIN design means the replay handed back the "
+        f"original rather than the reading being early. "
+        f"Marks {marks}; the panel says {told!r}")
 
       # A MAP HAS TO EXIST BEFORE IT CAN BE SAVED: the tab edits the
       # design whether or not anything is drawn.
