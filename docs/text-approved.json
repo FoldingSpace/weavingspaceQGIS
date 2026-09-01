@@ -604,6 +604,11 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "422e0532a33a5f51": {
+  "approved": "2026-09-01",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "42562fd4c77de6c3": {
   "approved": "2026-08-08",
   "excerpt": "The weavingspace library failed to load: {}",
@@ -918,6 +923,11 @@
   "approved": "2026-08-09",
   "excerpt": "That layer's data is no longer available. Reload it in QGIS,",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "60923cf0dfb522a1": {
+  "approved": "2026-09-01",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "60ce038cebf7e701": {
   "approved": "2026-08-08",
@@ -2238,6 +2248,11 @@
   "approved": "2026-08-08",
   "excerpt": "Could not re-open {} from {}",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "ec16345994742eee": {
+  "approved": "2026-09-01",
+  "excerpt": "laves 3.3.4.3.4 (cairo)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "ec3d4afc12789d1c": {
   "approved": "2026-08-27",

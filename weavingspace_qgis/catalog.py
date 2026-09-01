@@ -551,6 +551,13 @@ def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
 # cited table calls it the snub TRIhexagonal tiling. Corrected rather
 # than defended.
 #
+# AND ONE IS DELIBERATELY THE SHORT FORM. The cited table calls the
+# dual of 3.3.4.3.4 the Cairo PENTAGONAL tiling, and this label reads
+# "cairo" on the maintainer's decision of 2026-09-01: it is the word
+# somebody searches for, upstream's own `tiling_type` spells it that
+# way, and a label is a way in rather than a full citation. The formal
+# name is one line above, where it can be checked.
+#
 # THE KEY IS WHAT EVERYTHING ELSE USES. Adding a label must never move
 # what a saved GeoPackage or project holds, which is why the record
 # stores the catalogue key and the combo carries it as item data --
@@ -570,7 +577,7 @@ COMMON_NAMES = {
   "laves 3.12.12": "triakis triangular",
   "laves 3.3.3.3.6": "floret pentagonal",
   "laves 3.3.3.4.4": "prismatic pentagonal",
-  "laves 3.3.4.3.4": "cairo pentagonal",
+  "laves 3.3.4.3.4": "cairo",
 }
 
 

@@ -97,6 +97,59 @@ changelog=0.24.4 Saving a map is now something you do rather than
     And a Save pressed while the map was about to be redrawn saved
     the map you had just changed away from; it is now kept and done
     once the new map has landed.
+    Experimental features: a box on Map options turns on three tabs
+    that are not finished yet — Messages, Topology and Legend. Until
+    you tick it their titles are greyed and they cannot be opened.
+    Messages lists everything the plugin has said this session,
+    newest first, with the answer beside any question it asked you.
+    The structure of a design: the Topology tab draws the repeating
+    unit's own structure — its edges, its vertices, and the classes
+    they fall into — and lets you change it: nudge or push a vertex,
+    rotate, scale or zigzag an edge. Drag a handle on the drawing, or
+    type a number and press Apply. Each change is listed oldest first
+    and can be taken off one at a time or cleared. What you see is the
+    design as you have edited it, with the original ghosted
+    underneath, and the unit before any inset or strand width is
+    applied rather than the map on the ground.
+    Aiming an edit: click an edge or a vertex on the drawing to choose
+    its class. Shift-click adds another class to the selection, and a
+    list beside the chooser says which are in hand, so one change can
+    move several classes at once.
+    Symmetries: a switch draws the design's own symmetries — a
+    rotation centre as a shape of its own order, a mirror as a line
+    across the drawing — and each tile's symmetry group is named
+    beside the class list. Where a design's symmetry holds a class in
+    place, the push that could not move it is greyed with the reason,
+    rather than offering a control that does nothing.
+    The dual: the tab draws the dual of a design, and Map the dual
+    instead tiles your map with it. Where a design has no dual to
+    build — an inset opens gaps, and a design with gaps has none —
+    you are told, and the map is tiled with the design itself.
+    Design names: the Archimedean and Laves families now read with
+    their common names as well as their formal ones — laves 3.3.4.3.4
+    (cairo), archimedean 4.8.8 (truncated square) — so a design you
+    know by name can be found by it. Maps saved before this open
+    exactly as they did.
+    Speed: a large map is drawn in about a third of the time it took.
+    The pattern library is updated to the latest version of the work
+    behind it.
+    In the Topology tab: dragging in it
+    moved the design by a different amount from the one the drawing
+    showed, so nothing seemed to happen until you let go and then the
+    design jumped. A drag went on changing what it meant while you
+    held the pointer still. A drag past a control's range recorded a
+    number the box would not show. The dual was drawn once in the
+    middle of the pattern instead of repeating with it. A design
+    finishing in the background while you were dragging put the old
+    design back under your hand and dropped what you had selected.
+    Somebody else's file: saving into a GeoPackage holding their
+    map could delete their element layers on the second press, and
+    their own copy of their data with them. Nothing of theirs is
+    removed now.
+    Two more: saving a map whose design had changed since it was drawn took
+    the design's structure out of the file. Choosing an element count
+    no weave family has now says that your design is a tiling, rather
+    than moving the tiling-or-weave switch without a word.
     0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.
