@@ -2316,16 +2316,19 @@ MUTATIONS = [
        # tables, columns and values in the file somebody sends on.
        # Mutating the file's record out of the candidate set restores
        # exactly that.
-       old="""    record = bridge.read_working_state(path)
-    if isinstance(record, dict):
-      for element in (record.get("elements") or []):
-        if isinstance(element, dict) and element.get("id"):
-          knew.add(str(element["id"]))""",
-       new="""    record = None
-    if isinstance(record, dict):
-      for element in (record.get("elements") or []):
-        if isinstance(element, dict) and element.get("id"):
-          knew.add(str(element["id"]))""",
+       # RE-ANCHORED 2026-09-01: the candidate set stopped matching by
+       # prefix and started naming what our own record accounts for,
+       # so the record's own read is where the decision now lives.
+       # The mutation is unchanged in meaning -- the file's record out
+       # of the candidate set -- and the entry still catches.
+       # NARROWED with the line above it: `record =
+       # bridge.read_working_state(path)` appears three times in this
+       # file, and an anchor matching three sites mutates the first
+       # while its siblings do the work.
+       old="""    # must not travel.
+    record = bridge.read_working_state(path)""",
+       new="""    # must not travel.
+    record = None  # mutation: the file's own record is not asked""",
        test="test_a_design_that_shrank_leaves_nothing_behind_in_the_file",
        why="a file that holds this map and nothing the design has "
            "dropped, so a column name and its values do not travel to "
@@ -7967,8 +7970,11 @@ MUTATIONS = [
   dict(name="the-stale-table-drop-asks-the-file", file=DIALOG,
        # RE-ANCHORED 2026-08-27: the loop moved into
        # `_drop_tables_this_map_no_longer_has` and lost two spaces.
-       old="""    for name in bridge.gpkg_tables(path):""",
-       new="""    for name in []:  # mutation: ask the session, never the file""",
+       # RE-ANCHORED 2026-09-01 for the same reason as its sibling:
+       # the file is read once, into `present`, and everything the
+       # drop considers is filtered through it.
+       old="""    present = set(bridge.gpkg_tables(path))""",
+       new="""    present = set()  # mutation: ask the session, never the file""",
        test="test_a_switched_variable_leaves_no_orphan_in_the_file",
        why="a dialog that had never adopted or resumed the output "
            "GeoPackage knew nothing about what an earlier session "

@@ -21114,7 +21114,13 @@ class WeavingSpaceDialog(QDialog):
       if not isinstance(element, dict) or not element.get("id"):
         continue
       tid = str(element["id"])
-      variable = element.get("variable")
+      # `var`, WHICH IS WHAT THE RECORD CALLS IT. Asking for
+      # "variable" composed nothing at all, so the drop spared every
+      # table including this map's own orphans -- and the two tests
+      # that guard the case it exists for went red, which is how it
+      # was caught. WORKING_STATE_ELEMENT is the record's real
+      # definition; read the key out of it rather than from memory.
+      variable = element.get("var")
       written.add(f"tiles_{tid}")
       if variable:
         written.add(bridge.element_table_name(tid, variable))
