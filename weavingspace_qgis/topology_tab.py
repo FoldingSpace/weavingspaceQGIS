@@ -1138,19 +1138,6 @@ class TopologyPanel(QWidget):
     note.setWordWrap(True)
     side.addWidget(note)
 
-    show = QGroupBox("Show")
-    show_layout = QVBoxLayout(show)
-    self.toggles = {}
-    for key, label, on in TOGGLES:
-      box = QCheckBox(label)
-      box.setChecked(on)
-      box.setToolTip(f"Draws {label.lower()} in the view.")
-      box.toggled.connect(
-        lambda checked, k=key: self.view.set_shown(k, checked))
-      show_layout.addWidget(box)
-      self.toggles[key] = box
-    side.addWidget(show)
-
     change = QGroupBox("Change")
     grid = QGridLayout(change)
     self.class_combo = QComboBox()
@@ -1193,6 +1180,30 @@ class TopologyPanel(QWidget):
     # and must not set the floor for every other tab.
     self.edit_list.setMinimumHeight(48)
     side.addWidget(self.edit_list, 1)
+
+    # WHAT TO DRAW GOES LAST, AND IN TWO COLUMNS. (Maintainer's
+    # screenshot, 2026-08-31.) These seven checkboxes stood FIRST and in
+    # one column, so the side panel opened with a legend and the
+    # controls the tab exists for -- the class, the manipulation, its
+    # arguments, Apply -- were below the fold of a scroll area, with
+    # "Change" cut off at the bottom edge. Somebody opening the tab had
+    # to scroll to find out that it does anything.
+    # THEY ARE A DISPLAY PREFERENCE, not an act: nothing here changes a
+    # design, so nothing here should come before the things that do.
+    # Two columns halves the height they take, which is what stops the
+    # change list being squeezed on a short window.
+    show = QGroupBox("Show")
+    show_layout = QGridLayout(show)
+    self.toggles = {}
+    for index, (key, label, on) in enumerate(TOGGLES):
+      box = QCheckBox(label)
+      box.setChecked(on)
+      box.setToolTip(f"Draws {label.lower()} in the view.")
+      box.toggled.connect(
+        lambda checked, k=key: self.view.set_shown(k, checked))
+      show_layout.addWidget(box, index // 2, index % 2)
+      self.toggles[key] = box
+    side.addWidget(show)
 
     self.note = QLabel("")
     self.note.setWordWrap(True)

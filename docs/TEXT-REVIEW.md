@@ -18,7 +18,7 @@ The README, the project page and the user guide, one paragraph at a time. Edit i
 
 **`README.md:135`**
 
-<!-- id:d67743c402ca82ee -->
+<!-- id:decdbae79a19e15c -->
 ````
 How the tests are held to account, including a mutation-testing
 campaign and the commitments that keep its score from becoming a
@@ -26,6 +26,7 @@ vanity metric, is described in
 [docs/MUTATION-TESTING.md](docs/MUTATION-TESTING.md). Releases go
 through `release.py`, which gates on the suite and writes a per-test
 report. The vendored library in `weavingspace_qgis/vendor/` is upstream
-v0.0.7.89 (commit 6190917), patched only to make matplotlib optional. The tiling catalogue in `catalog.py` mirrors the library's,
-and `build.py` produces the installable zip.
+v0.0.7.89 (commit 6190917), patched only to make matplotlib optional.
+The tiling catalogue in `catalog.py` mirrors the library's, and
+`build.py` produces the installable zip.
 ````
