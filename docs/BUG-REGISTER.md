@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-472 defect(s) with a regression test.
+473 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -428,6 +428,8 @@ there is no separate list to remember.
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
+- **saving after moving to another design with the experimental box off left the file with no motif and no dual, and nothing in their place.**  
+  guarded by `test_a_later_save_replaces_a_motif_rather_than_dropping_it`
 - **an element table that would not open was skipped in silence when resuming a GeoPackage, so a map came back missing an element with nothing said. Found by the notices hunt, 2026-08-27.**  
   guarded by `test_a_layer_that_will_not_open_is_named`
 - **a layer whose CRS does not match its coordinates produced infinite bounds that the tile estimate never saw, because a caller supplying the measured ground discards the extent -- so the run was accepted and died as an unhandled IndexError. Found by the size-guard hunt, 2026-08-27.**  
@@ -998,7 +1000,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 152
+- the mutation campaign: 153
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 33

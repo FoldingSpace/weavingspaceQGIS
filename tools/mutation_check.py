@@ -2511,6 +2511,24 @@ MUTATIONS = [
        test="test_the_dual_repeats_however_the_lattice_is_keyed",
        why="seeing the dual where the tiles are, on the two thirds of "
            "the catalogue whose lattice is not keyed by pairs"),
+  dict(name="a-stale-topology-is-not-a-topology",
+       file=DIALOG,
+       # The rebuild was guarded on "is there a topology" where the
+       # question is "is the one in hand ABOUT this design" -- which
+       # the dual's own check two hundred lines below already asks.
+       # With the box off the panel keeps the previous design's
+       # object, so the rebuild was skipped, the write declined for a
+       # mismatched pair, and the drop took both tables with nothing
+       # put back. Restoring the old guard is the defect as it
+       # shipped.
+       old="""    if topology is not None and (
+        held_dual is None or held_dual[0] != self._topology_stamp()):
+      _dump("TOPO-WRITE", "held-topology-is-of-another-design")
+      topology = None""",
+       new="""    pass  # mutation: a topology of another design is kept""",
+       test="test_a_later_save_replaces_a_motif_rather_than_dropping_it",
+       why="a saved file going on describing itself after the design "
+           "moves, rather than losing its motif to a checkbox"),
   dict(name="a-drop-names-only-what-this-map-wrote",
        file=DIALOG,
        # The candidate sweep matched every table in the file whose

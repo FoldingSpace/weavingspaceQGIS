@@ -5888,6 +5888,117 @@ def test_a_save_never_removes_a_layer_this_map_did_not_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
+  """A file keeps a motif it can have, and loses one it cannot.
+
+  The two topology tables are a DESCRIPTION of the design a file's
+  tiles were drawn at, so when the design moves they are stale and
+  dropping them is right -- but only where nothing can be put in their
+  place. The repair of 2026-08-31 builds a fresh one, and it was
+  guarded on `topology is None`.
+
+  A TOPOLOGY OF ANOTHER DESIGN IS NO BETTER THAN NONE. With the
+  experimental box off, `_queue_topology` returns early and the panel
+  keeps the PREVIOUS design's object -- not None, so the rebuild was
+  skipped; the write then declined, because the dual is stamped for
+  that other design and the pair must be of one; and the drop below
+  removed both tables with nothing put back. Measured 2026-09-01 by
+  staging the journey and watching the panel's own object: with the
+  box OFF it never moved and the file came back empty, and with it ON
+  the same journey rewrote the pair. A checkbox was deciding what a
+  file contains, which is what two earlier commits were written to
+  stop.
+
+  BOTH ANSWERS ARE ASSERTED, because a repair that simply stopped
+  dropping would pass half of this and reintroduce the fault the
+  method exists for: a design that genuinely carries no topology --
+  here the same family with a tile inset, which opens gaps -- must
+  still lose the stale pair. The first attempt at the repair did
+  exactly that, carrying the stale object into the rebuild so the
+  pair was WRITTEN over a design it does not describe.
+
+  Regression: saving after moving to another design with the experimental box off left the file with no motif and no dual, and nothing in their place. [mutation]
+  """
+  from weavingspace_qgis import bridge as bridge_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def topology_tables(path):
+    return sorted(name for name in bridge_module.gpkg_tables(path)
+                  if name.startswith("weavingspace_")
+                  and name.endswith("_no_crs"))
+
+  def journey(folder, inset):
+    """Edit a motif, save, move the design, save again."""
+    path = os.path.join(folder, f"motif_{'inset' if inset else 'family'}.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), \
+        "PREMISE: laves 3.3.4.3.4 built no topology to edit"
+      panel = dlg.topology_panel
+      panel.apply_button.click()
+      _tick(400)
+      _settle_topology(dlg, seconds=40)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save wrote nothing"
+      before = topology_tables(path)
+      assert len(before) == 2, (
+        f"PREMISE: the first save left {before} rather than a unit and "
+        f"a dual, so there is no motif for a later save to lose")
+
+      # THE BOX GOES OFF, which is what leaves a stale topology in the
+      # panel: no build is queued while it is unticked.
+      dlg.opt_experimental.setChecked(False)
+      _tick(200)
+      held = id(getattr(panel, "_topology", None))
+      if inset:
+        dlg.mod_t_inset.setValue(25.0)
+      else:
+        dlg.n_spin.setValue(3)
+        _tick(200)
+        dlg.family_combo.setCurrentText("hex-slice")
+      _tick(400)
+      assert id(getattr(panel, "_topology", None)) == held, (
+        "PREMISE: the panel's topology moved with the box unticked, so "
+        "this journey no longer stages a stale one and the guard "
+        "under test is not reached")
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the second save wrote nothing"
+      return topology_tables(path)
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as folder:
+    try:
+      kept = journey(folder, inset=False)
+      assert len(kept) == 2, (
+        f"after moving to another design that HAS a topology and "
+        f"saving, the file holds {kept}: its motif and dual were "
+        f"dropped and nothing was put in their place, so a file that "
+        f"described itself stopped doing so")
+      QgsProject.instance().removeAllMapLayers()
+      QgsProject.instance().addMapLayer(make_region_layer())
+      gone = journey(folder, inset=True)
+      assert not gone, (
+        f"after moving to a design that carries NO topology the file "
+        f"still holds {gone}: a motif describing a design the map is "
+        f"not made of is worse than none, which is what this method "
+        f"drops for")
+    finally:
+      QgsProject.instance().removeAllMapLayers()
+
+
 def test_topology_edits_come_back_from_the_file():
   """A saved design opens as the design that was saved.
 
@@ -79067,6 +79178,8 @@ def main():
         test_the_dual_repeats_however_the_lattice_is_keyed)
   check("a save never removes a layer this map did not write",
         test_a_save_never_removes_a_layer_this_map_did_not_write)
+  check("a later save replaces a motif rather than dropping it",
+        test_a_later_save_replaces_a_motif_rather_than_dropping_it)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

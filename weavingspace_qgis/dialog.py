@@ -20651,6 +20651,40 @@ class WeavingSpaceDialog(QDialog):
     _dump("TOPO-WRITE", "topology=", topology is not None,
           "path=", bool(path), "ours=", ours,
           "unit=", self._unit is not None)
+    # ...AND A TOPOLOGY OF ANOTHER DESIGN IS NO BETTER THAN NONE.
+    # (2026-09-01, found by a hunt across the tab's boundaries and
+    # confirmed here by staging the journey with the panel's own
+    # object watched.) The guard asked whether there IS a topology,
+    # where the question -- already asked correctly of the DUAL two
+    # hundred lines below -- is whether the one in hand is ABOUT the
+    # design being saved. With the box off, `_queue_topology` returns
+    # early and the panel keeps the PREVIOUS design's object; it is
+    # not None, so the rebuild was skipped, the write then declined
+    # because the dual is stamped for that other design, and the drop
+    # removed both tables with nothing put in their place. Measured:
+    # the same journey with the box ON rewrites the pair, so a
+    # checkbox decided what a file contains -- the thing 8107b88 and
+    # 1546077 were both written to stop.
+    # WHOSE DESIGN IT IS is asked of the record that already answers
+    # it, rather than by adding a store: `_topology_dual` is kept as
+    # (stamp, frame) and set beside the topology every time one is
+    # built.
+    # A STALE ONE IS DISCARDED RATHER THAN CARRIED INTO THE BRANCH,
+    # and the first attempt at this repair got that wrong in the worse
+    # direction: it entered the rebuild with the old object still in
+    # `topology`, so where the new design has NO topology the rebuild
+    # returned None, the stale object survived, and the pair was
+    # WRITTEN -- a file describing a motif its map is not made of,
+    # which is the v3 fault this method's own docstring warns about.
+    # Caught by running the control the last repair taught me to run.
+    # Cleared here, everything below is the path that already exists:
+    # rebuild where the file carries our unit, and where the design
+    # genuinely has none, the drop is correct.
+    held_dual = getattr(self, "_topology_dual", None)
+    if topology is not None and (
+        held_dual is None or held_dual[0] != self._topology_stamp()):
+      _dump("TOPO-WRITE", "held-topology-is-of-another-design")
+      topology = None
     if topology is None and path and ours and self._unit is not None:
       try:
         holds = bridge.gpkg_tables(path)
