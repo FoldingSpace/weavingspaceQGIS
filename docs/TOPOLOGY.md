@@ -478,3 +478,25 @@ against the 0.75 to 4.4 seconds recorded above. The cost tracks the
 number of distinct shapes and their corners, which this document
 already said; nobody had run it far enough up the catalogue to meet a
 design where you wait that long before an edit can be aimed.
+
+## A build that lands while you are dragging
+
+Found on 2026-09-01, from CI rather than here. `show_topology` clears
+the drag's preview and the chosen thing -- both belong to the topology
+being replaced -- so a build finishing under the pointer snapped the
+drawing back to the design the person had already moved away from and
+dropped the highlight showing what the gesture was aimed at, while the
+drop went on to commit the edit anyway.
+
+It reproduces about one run in eight on this machine and failed all
+three CI platforms at once, on the drag guard's own premise: "the drag
+drew no preview at all", 730 passed and 1 failed on macOS, Linux 4.0.3
+and Linux 4.0.0 alike.
+
+**The panel holds a landing until the drop.** Where the gesture
+committed an edit the held landing is discarded, because that record
+makes the dialog chain and land again within the tick and drawing the
+older design first would be a flicker; where it committed nothing,
+the held landing is the one that draws. Both halves carry a catalogue
+entry, since either alone leaves a tab that either wipes a gesture or
+goes on drawing a design the plugin has already replaced.

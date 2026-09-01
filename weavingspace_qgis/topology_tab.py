@@ -387,7 +387,7 @@ class TopologyView(QWidget):
     # the drag's own origin was taken in; the fit resumes at the drop,
     # when `_press` is cleared and the next paint measures the design
     # as it finally stands.
-    if getattr(self, "_press", None) is not None and self._bounds:
+    if self.gesture_in_progress() and self._bounds:
       return
     core = topology.tiles[:getattr(topology, "n_tiles", len(topology.tiles))]
     xs, ys = [], []
@@ -1160,6 +1160,22 @@ class TopologyView(QWidget):
     self.set_chosen(target, label)
     self.chose.emit(target, label)
 
+  def gesture_in_progress(self) -> bool:
+    """Is a drag under way, with the button still down?
+
+    Returns:
+      True between a press on a handle and the release that ends it.
+
+    ASKED BY TWO THINGS FOR ONE REASON. `_fit` returns early while this
+    is true, so the frame a drag is measured in cannot move under the
+    gesture; and the panel HOLDS a topology landing for the same
+    length of time, since adopting one wipes the preview and the
+    highlight the gesture is aimed with. Both are the same rule --
+    what a gesture is measured against is fixed until it ends -- and
+    it is one method so they cannot come apart.
+    """
+    return self._press is not None
+
   def mouseMoveEvent(self, event):  # noqa: N802 (Qt API)
     """Follow the pointer: report a drag, or light what is under it."""
     point = event.position() if hasattr(event, "position") else event.pos()
@@ -1236,6 +1252,9 @@ class TopologyPanel(QWidget):
     # rather than guessing while it is.
     self._marks = []
     self._drag_from = None
+    # A BUILD THAT LANDS WHILE THE POINTER IS DOWN, held until the drop.
+    # See `set_unit`, which is where the reasoning lives.
+    self._landing_held = None
     layout = QHBoxLayout(self)
 
     self.view = TopologyView()
@@ -1429,8 +1448,33 @@ class TopologyPanel(QWidget):
         nothing has been edited and there is nothing to compare with.
 
     Returns:
-      None.
+      None. A landing that arrives while a DRAG is in progress is held
+      until the drop rather than applied, and `_settle_a_landing_the_
+      drag_held` is what applies it.
+
+    WHY A GESTURE OUTRANKS A LANDING. `show_topology` clears the drag's
+    preview and the chosen thing -- correctly, since both belong to the
+    topology being replaced -- so a build finishing under the pointer
+    wiped the picture the person was dragging, put the un-edited design
+    back beneath their hand, and dropped the highlight showing what
+    they were aiming at. The drop then committed the edit anyway, out
+    of a record they could no longer see. Measured 2026-09-01: one run
+    in eight here, and all three CI platforms failed the drag guard's
+    own premise -- "the drag drew no preview at all" -- which is what
+    an intermittent wipe looks like from a runner.
+    IT IS THE SIBLING OF THE FROZEN FRAME. A drag reads every position
+    against the frame it began in; adopting a new topology mid-gesture
+    moves the thing that frame describes, so the same rule applies to
+    both -- a gesture's world is fixed for the length of the gesture.
     """
+    if self.view.gesture_in_progress():
+      self._landing_held = (unit, topology, message, ghost)
+      return
+    # AND A LANDING THAT ARRIVES WITH NO GESTURE SUPERSEDES A HELD ONE,
+    # which is what stops a press nobody ever released -- a button held
+    # while the window goes away -- leaving a stale design behind for
+    # ever.
+    self._landing_held = None
     self._unit = unit
     self._topology = topology
     # WHERE THE TILES NO LONGER MEET, computed once here rather than at
@@ -1794,7 +1838,44 @@ class TopologyPanel(QWidget):
         box.setValue(float(args[name]))
 
   def _on_dropped(self):
-    """Commit the drag as an edit, or put the view back."""
+    """Commit the drag as an edit, or put the view back.
+
+    Returns:
+      None. Whatever this does with the drag, a landing HELD while the
+      pointer was down is settled on the way out -- through a `finally`
+      rather than at each of the four exits, since an exit added later
+      would otherwise strand a build nobody applied.
+    """
+    edits_before = len(self._edits)
+    try:
+      self._commit_the_drag()
+    finally:
+      self._settle_a_landing_the_drag_held(edits_before)
+
+  def _settle_a_landing_the_drag_held(self, edits_before: int) -> None:
+    """Apply a build that finished while the pointer was down.
+
+    Args:
+      edits_before: how many edits stood when the drop began, which is
+        what says whether this gesture committed one.
+
+    Returns:
+      None. The held landing is DISCARDED where the drop recorded an
+      edit, because that record makes the dialog chain and land again
+      within the tick -- and the held one describes the design as it
+      was BEFORE the edit, so applying it would draw the previous
+      design over the new one and then be corrected, which is a flicker
+      rather than a picture. Where the gesture committed nothing there
+      is no second landing coming, so this is the one that draws it.
+    """
+    held = self._landing_held
+    self._landing_held = None
+    if held is None or len(self._edits) != edits_before:
+      return
+    self.set_unit(*held)
+
+  def _commit_the_drag(self):
+    """Turn the gesture just ended into an edit, or discard it."""
     self.view.show_preview(None)
     if self._drag_from is None:
       return

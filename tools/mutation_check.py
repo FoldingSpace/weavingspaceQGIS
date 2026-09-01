@@ -2550,6 +2550,42 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="a-landing-waits-for-the-pointer-to-come-up", file=TOPOLOGY_TAB,
+       # MUTATED AWAY, a topology build finishing under the pointer is
+       # adopted at once -- which clears the drag's preview and the
+       # chosen thing, since `show_topology` owns both. The drawing
+       # snaps back to the design the person has already moved away
+       # from, the highlight saying what they are aiming at goes, and
+       # the drop commits an edit out of a record they can no longer
+       # see. Measured 2026-09-01: one run in eight here, and all three
+       # CI platforms failing the sibling drag guard on its own
+       # premise, "the drag drew no preview at all".
+       old="""    if self.view.gesture_in_progress():
+      self._landing_held = (unit, topology, message, ghost)
+      return""",
+       new="""    if False:
+      self._landing_held = (unit, topology, message, ghost)
+      return""",
+       test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
+       why="a gesture keeping the picture and the selection it is "
+           "being made against, however a background build is timed"),
+  dict(name="a-held-landing-is-applied-when-the-drag-ends",
+       file=TOPOLOGY_TAB,
+       # THE OTHER HALF, and it needs its own entry: holding a landing
+       # and never applying it is worse than adopting it too early,
+       # because the tab then draws a design the plugin has already
+       # replaced and nothing says so. An entry that either half could
+       # satisfy would report `caught` about nothing, which is the
+       # rule this project settled on the topology record's two entries.
+       old="""    if held is None or len(self._edits) != edits_before:
+      return
+    self.set_unit(*held)""",
+       new="""    if held is None or len(self._edits) != edits_before:
+      return
+    pass  # mutation: the landing is dropped on the floor""",
+       test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
+       why="the build that arrived during a gesture being drawn once "
+           "the gesture is over, rather than discarded with it"),
   dict(name="a-drag-keeps-the-frame-it-began-in",
        file=TOPOLOGY_TAB,
        # `_fit` re-measures the drawn extent on every paint, and
@@ -2557,7 +2593,11 @@ MUTATIONS = [
        # the transform is an output of the thing the gesture is
        # changing, and the loop that follows takes a stationary
        # pointer from 0.104 to 0.356 in six repaints.
-       old="""    if getattr(self, "_press", None) is not None and self._bounds:
+       # RE-ANCHORED 2026-09-01: the question moved into
+       # `gesture_in_progress`, which the panel's landing hold asks
+       # too, so the two halves of "a gesture's world is fixed until
+       # it ends" cannot come apart. Only the FIT is mutated here.
+       old="""    if self.gesture_in_progress() and self._bounds:
       return""",
        new="""    pass  # mutation: the frame is re-fitted mid-gesture""",
        test="test_a_drag_is_measured_in_the_frame_it_began_in",

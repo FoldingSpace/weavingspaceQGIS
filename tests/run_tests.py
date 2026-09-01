@@ -5720,6 +5720,191 @@ def test_a_drag_previews_the_move_it_will_commit():
     QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
+  """A topology arriving under the pointer leaves the drag alone.
+
+  `TopologyView.show_topology` clears the drag preview and the chosen
+  thing, which is right for a rebuild -- both belong to the topology
+  being replaced -- and wrong while somebody is dragging. A build
+  finishing under their hand put the un-edited design back, dropped
+  the highlight saying what they were aiming at, and left the drop to
+  commit an edit out of a record they could no longer see.
+
+  FOUND FROM A RUNNER, which is the part worth keeping. It shows here
+  about one run in eight, and all three CI platforms failed
+  `test_a_drag_previews_the_move_it_will_commit` on its own PREMISE --
+  "the drag drew no preview at all" -- 730 passed and 1 failed, three
+  times over. An intermittent wipe reads from a distance as a flaky
+  test; the stack said otherwise, naming the topology task's own `done`
+  callback.
+
+  THE CONDITION IS STAGED, NOT RACED, which is this project's standing
+  answer to a case that depends on a window: the landing is delivered
+  by hand, mid-gesture, through the same method the task's callback
+  uses. Measuring how often the race is won measures the machine.
+
+  BOTH ARMS, because the rule has two halves and a reader meeting one
+  would take it for the whole. A gesture that COMMITS discards the
+  held landing, since the edit makes the dialog chain and land again
+  within the tick and drawing the older design first is a flicker; a
+  gesture that asks for nothing has no second landing coming, so the
+  held one is what draws.
+
+  Regression: a topology build finishing while a vertex was being dragged wiped the preview and the selection under the pointer, so the drawing snapped back mid-gesture and the drop committed an edit nobody could see. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def a_second_design():
+    """A unit and topology from another family, to land mid-drag."""
+    named = [k for k in catalog.TILINGS_BY_N.get(3, {})
+             if k.startswith("hex-slice")]
+    assert named, "PREMISE: the catalogue offers no hex-slice at n=3"
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[3][named[0]],
+                             spacing=500, crs=3857)
+    topology, why = topology_edits.build(unit)
+    assert topology is not None, \
+      f"PREMISE: the second design built no topology to land ({why})"
+    return unit, topology
+
+  def drag_to(view, panel, travel):
+    """Press a vertex handle and move by `travel` pixels, holding.
+
+    Args:
+      view: the drawing widget, driven through its own mouse events
+        rather than by calling the handlers, so a connection that was
+        deleted would show.
+      panel: the tab holding it, kept in the signature because a
+        caller reads its record straight after this returns.
+      travel: how far to move in pixels, along x. ZERO is a press that
+        did not travel, which is the only gesture that records a drag
+        and commits nothing.
+
+    Returns:
+      (grab_at, moved_to) -- where the press went and where the
+      pointer now is, so the caller can release where it left off.
+    """
+    topology = view._drawn()
+    middle = (view.width() / 2, view.height() / 2)
+    seat = None
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      if seat is None or away < seat[0]:
+        seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
+    assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, seat[1])
+    _tick(150)
+    handles = view.handles()
+    assert handles, "PREMISE: the chosen vertex offers no handle to drag"
+    grab_at = QPoint(int(round(handles[0][1].x())),
+                     int(round(handles[0][1].y())))
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(50)
+    moved_to = grab_at + QPoint(travel, 0)
+    QTest.mouseMove(view, moved_to)
+    _tick(150)
+    return grab_at, moved_to
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: no topology was built, so there is nothing to drag"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.grab()
+    _tick(50)
+    other_unit, other_topology = a_second_design()
+
+    # ---- THE ARM THAT COMMITS: a real drag, a landing under it.
+    aimed_at = panel._topology
+    _grab, moved_to = drag_to(view, panel, 60)
+    assert view._preview is not None, \
+      "PREMISE: the drag drew no preview, so there is nothing to wipe"
+    chosen_before = view._chosen_thing
+    assert chosen_before is not None, \
+      "PREMISE: nothing is selected, so the wipe of a selection cannot show"
+    edits_before = len(panel.edits())
+
+    # THE LANDING, delivered by hand through the method the task's own
+    # callback uses.
+    panel.set_unit(other_unit, other_topology, ghost=None)
+    _tick(50)
+    assert view._preview is not None, (
+      "a topology landing while the pointer was down wiped the drag's "
+      "preview, so the drawing snapped back to the design the person "
+      "had already moved away from, under their own hand")
+    assert view._chosen_thing is chosen_before, (
+      "the landing dropped the highlight showing what the drag is "
+      "aimed at, so the drop commits an edit against a selection "
+      "nobody can see")
+    assert panel._topology is aimed_at, (
+      "the panel adopted a new topology mid-gesture, so the drop will "
+      "chain the edit from something other than the design the person "
+      "was dragging")
+
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, moved_to)
+    _tick(200)
+    assert len(panel.edits()) == edits_before + 1, (
+      f"the drag committed no edit: {edits_before} before and "
+      f"{len(panel.edits())} after, so this arm measured nothing")
+
+    # ---- THE ARM THAT COMMITS NOTHING: the held landing is what draws.
+    _settle_topology(dlg, seconds=40)
+    _tick(200)
+    landed = panel._topology
+    # A GESTURE THAT ASKS FOR NOTHING IS A PRESS THAT DID NOT TRAVEL,
+    # and it has to be exactly that: `_drag_moved` calls a nudge real
+    # at a ten-thousandth of the unit, which on this design is four
+    # hundredths of a PIXEL, so there is no small-but-nonzero drag that
+    # commits nothing. One pixel commits, which is what the first
+    # attempt at this arm measured.
+    _grab, moved_to = drag_to(view, panel, 0)
+    assert panel._drag_from is not None, (
+      "PREMISE: a press that has not travelled recorded no drag at "
+      "all, so this arm is not holding a live gesture")
+    quiet_before = len(panel.edits())
+    panel.set_unit(other_unit, other_topology, ghost=None)
+    _tick(50)
+    assert panel._topology is landed, (
+      "the landing was applied under the pointer even on a gesture "
+      "that asks for nothing")
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, moved_to)
+    _tick(200)
+    assert len(panel.edits()) == quiet_before, (
+      "a one-pixel drag committed an edit, so this arm is not the "
+      "gesture-that-asks-for-nothing it is written as")
+    assert panel._topology is other_topology, (
+      "a build that landed during a gesture which committed nothing "
+      "was never applied, so the tab goes on drawing a design the "
+      "plugin has already replaced")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_the_dual_repeats_however_the_lattice_is_keyed():
   """A hex design's dual is drawn on its lattice, not once in the middle.
 
@@ -79485,6 +79670,8 @@ def main():
         test_a_dragged_vertex_records_what_its_box_shows)
   check("a drag is measured in the frame it began in",
         test_a_drag_is_measured_in_the_frame_it_began_in)
+  check("a build that lands mid drag does not wipe the gesture",
+        test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

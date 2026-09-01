@@ -6038,3 +6038,24 @@ here, and the decision to add one is the maintainer's. Recorded
   repair, one of which then needed narrowing because
   `record = bridge.read_working_state(path)` appears three times in
   `dialog.py`.
+
+- **A LANDING THAT ARRIVES MID-GESTURE MUST WAIT FOR THE POINTER TO
+  COME UP.** (2026-09-01, found FROM A RUNNER.) `show_topology` clears
+  the drag preview and the chosen thing, which is right for a rebuild
+  and wrong while somebody is dragging: a topology build finishing
+  under their hand put the un-edited design back, dropped the
+  highlight saying what they were aiming at, and left the drop to
+  commit an edit out of a record they could no longer see. It shows
+  here about one run in eight, and all three CI platforms failed the
+  drag guard on its own PREMISE -- "the drag drew no preview at all",
+  730 passed and 1 failed, three times over. From a distance that
+  reads as a flaky test; the stack named the topology task's own
+  callback. THE PANEL HOLDS THE LANDING NOW and settles it at the
+  drop, discarding it where the gesture committed an edit, since that
+  record makes the dialog chain and land again within the tick. It
+  asks `gesture_in_progress`, which is the same method the frozen
+  frame asks, so the two halves of one rule cannot come apart.
+  ASK OF ANY BACKGROUND RESULT WHETHER IT MAY LAND ON A GESTURE, and
+  where an intermittent failure is on a PREMISE rather than an
+  assertion, suspect something erasing the state the premise is about
+  rather than a slow machine.
