@@ -79,6 +79,116 @@ forbids a move is not that something fixes the point but what its
 linear part does to a direction, so the test became the rank of the
 stacked `L - I` matrices. A count is not a fixed subspace.
 
+## What each step costs
+
+Written as bounds derived from the loops, and then CHECKED against a
+measurement, because a complexity claim nobody ran is the same kind of
+statement as a site named by reading.
+
+The quantities: `n` core tiles, `c` corners over those tiles, `V`
+tiling vertices and `E` edges in the core, `|S|` candidate transforms,
+and `P(c)` the cost of a polygon intersection test.
+
+### What we do now
+
+| step | where | bound |
+|---|---|---|
+| build the patch and index it | `Topology.__init__` | O(n·c) |
+| assign vertex and edge base IDs | `_assign_*_base_IDs` | O(n·c) |
+| candidate transforms: lattice | `get_vectors` | O(1), four or six of them |
+| candidate transforms: prototile and per-tile self-matches | `ShapeMatcher`, KMP over corner codes | O(n·c) |
+| candidate transforms: pairwise within a shape group | `get_polygon_matches` | O(n²·c) |
+| drop duplicates | `_remove_duplicate_symmetries` | O(\|S\|²) |
+| tile classes | `_find_tile_transitivity_classes` | O(\|S\|·n²·P(c)) |
+| vertex classes | `_find_vertex_transitivity_classes` | O(\|S\|·V²) |
+| edge classes | `_find_edge_transitivity_classes` | O(\|S\|·E²) |
+| the dual | `generate_dual` | O(V + E) |
+
+The quadratic in V and E is not incidental: `_match_geoms_under_transform`
+is a LINEAR SCAN over the candidate partners, once per transform per
+element, so every orbit question costs a sweep of everything else.
+With `|S|` itself O(n·c), the dominant term is
+
+    O( n·c · (V² + E²) )
+
+and since V and E are themselves O(n·c) on these designs, the worst
+case is cubic in the size of the unit.
+
+### The measurement that checks it
+
+Ten designs, built through `catalog.make_unit`, timed with the
+monotonic clock. If the bound has the right shape then time divided by
+`|S|(V² + E²)` is roughly constant while time divided by `n` is not.
+
+| design | n | c | \|S\| | V | E | build s | s/n | µs per \|S\|(V²+E²) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| laves 3.3.4.3.4 | 4 | 20 | 24 | 72 | 107 | 0.79 | 0.197 | 1.97 |
+| hex-slice 3 | 3 | 12 | 27 | 31 | 51 | 0.36 | 0.121 | 3.78 |
+| hex-slice 4 | 4 | 16 | 10 | 41 | 68 | 0.32 | 0.079 | 5.01 |
+| hex-slice 6 | 6 | 18 | 84 | 31 | 72 | 1.99 | 0.331 | 3.85 |
+| archimedean 4.8.8 | 2 | 12 | 18 | 54 | 71 | 0.31 | 0.153 | 2.14 |
+| archimedean 3.12.12 | 3 | 18 | 32 | 64 | 84 | 0.95 | 0.317 | 2.66 |
+| archimedean 3.6.3.6 | 3 | 12 | 16 | 40 | 66 | 0.30 | 0.100 | 3.14 |
+| square-colouring 5 | 5 | 20 | 96 | 64 | 108 | 2.79 | 0.559 | 1.85 |
+| hex-colouring 4 | 4 | 24 | 112 | 96 | 131 | 4.41 | 1.103 | 1.49 |
+| hex-colouring 7 | 7 | 42 | 216 | 126 | 174 | 19.76 | 2.823 | 1.98 |
+
+**Per element the cost varies by a factor of 36; per `|S|(V²+E²)` it
+varies by 3.4, and seven of the ten sit between 1.9 and 3.9 µs.** So
+the bound is the right shape, and the residual spread is the tile term
+`O(|S|·n²·P(c))` this ratio leaves out — polygon intersections are the
+expensive test and the cheap designs carry proportionally more of them.
+
+It also settles a practical fact that was not previously written down:
+**`hex-colouring 7` takes 19.8 seconds to build a topology**, against
+the 0.75–4.4 s docs/TOPOLOGY.md records. The cost tracks `|S|`, which
+grows with `n·c`, so the ceiling is not the element spinner but the
+number of distinct shapes and their corners.
+
+### What a wallpaper approach would cost
+
+| step | method | bound |
+|---|---|---|
+| the lattice | already known from `get_vectors` | O(1) |
+| candidate rotation centres | vertices, edge midpoints, tile centroids, cell fractions; orders restricted to 2, 3, 4, 6 | O(V + E + n) candidates |
+| pre-filter a candidate | compare the multiset of neighbour distances about the centre | O(1) amortised, kills most candidates |
+| test one surviving isometry | transform V points, look each up in a hash grid | O(V) expected, O(V log V) with a tree |
+| candidate reflection axes | directions fixed by the lattice and the rotation orders found | O(V + E) candidates, same test |
+| name the group | match generators against the seventeen | O(1), a table |
+| orbits of vertices and edges | union-find under g generators, g ≤ 6 | O((V + E)·g·α) — near linear |
+| site symmetry per class | stabiliser is at most the point group, order ≤ 12 | O(1) per class |
+| fixed subspace per class | rank of the stacked 2×2 matrices `L − I` | O(1) per class |
+
+The whole detection is therefore **O((V + E + n)·V)** worst case and
+near linear in practice, against the present **O(|S|·(V² + E²))**. The
+saving is not a constant factor: it comes from replacing a linear scan
+per element per transform with a hash lookup, and from enumerating a
+bounded candidate set instead of generating one blind.
+
+**What that predicts, stated as a prediction rather than a
+measurement.** For `hex-colouring 7` the present work term is about
+216 × (126² + 174²) ≈ 1.0 × 10⁷ element tests. The wallpaper route
+needs roughly (V + E + n)·V ≈ 3.9 × 10⁴ point lookups plus about
+1.8 × 10³ union-find operations. The per-operation costs are similar —
+both are an affine transform and a distance — so the expectation is
+two to three orders of magnitude fewer tests, and seconds becoming
+milliseconds. **Nobody has built it, so that figure is arithmetic on
+the bounds and not a timing.**
+
+### What the crystallographic step adds, and what it costs
+
+Once the group and a normalised cell are in hand, classifying a point
+by Wyckoff position is a table lookup after reducing its coordinates
+into the cell: **O(V + E)** for the whole design, with the site
+symmetry and multiplicity coming with the entry rather than being
+computed. The asymmetric unit is then O(1) to state and O(V + E) to
+select representatives for.
+
+So the expensive step in every version of this is finding the group.
+Everything the crystallography is FOR — which control is dead, which
+displacement is allowed, what the minimal editable piece is — is
+linear or constant once you have it.
+
 ## What a wallpaper-group approach would add
 
 Naming is the least of it. Three things follow from holding the group
