@@ -84,6 +84,15 @@ _DUAL_INK = "#7e57c2"
 _CENTRE_INK = "#90a4ae"
 _HANDLE_INK = "#00695c"
 _HANDLE_LIT = "#00bfa5"
+# The design an edit was made FROM, under the edited one. Paler than
+# the tile outline it sits beneath, because it is there to be compared
+# against rather than looked at: a ghost that competes with the ink
+# makes the drawing harder to aim at, which is the fault the design
+# view's own no-outline rule was written about.
+_GHOST_INK = "#c9b8d8"
+# Ground the tiles no longer cover. Warm, so it reads as a condition
+# rather than as ink somebody drew, and hatched rather than filled.
+_GAP_INK = "#e57373"
 
 # WHAT EACH HANDLE MEANS, AND WHERE IT SITS. A handle IS the choice of
 # manipulation -- grabbing one selects it -- so the vocabulary is in
@@ -177,6 +186,15 @@ class TopologyView(QWidget):
     self.setMinimumSize(180, 150)
     self.setMouseTracking(True)
     self._topology = None
+    # The design the edits were made FROM, drawn as a wireframe under
+    # the edited one so a change reads as a change rather than as a
+    # picture somebody has to remember the previous state of.
+    self._ghost = None
+    # The ground the tiles no longer cover, where an edit has opened
+    # gaps. Drawn subtly, because it is a fact about the design rather
+    # than an error: some editing goes on working when not all of it
+    # does, which is the maintainer's ruling of 2026-08-31.
+    self._gaps = None
     self._preview = None
     self._message = "Generate a map to see its topology."
     self._shown = {key: on for key, _label, on in TOGGLES}
@@ -205,17 +223,26 @@ class TopologyView(QWidget):
 
   # ----------------------------------------------------------- state
 
-  def show_topology(self, topology, message: str = ""):
+  def show_topology(self, topology, message: str = "", ghost=None,
+                    gaps=None):
     """Draw this topology, or a message where there is none.
 
     Args:
       topology: a built Topology, or None.
       message: what to say instead when there is nothing to draw.
+      ghost: a second topology to draw UNDER it as a wireframe -- the
+        design the edits were made from. None where there is nothing
+        to compare against, which is every unedited design.
+      gaps: the ground the tiles no longer cover, drawn so that a
+        design which has stopped carrying a topology SHOWS where,
+        rather than only saying so. None where they still meet.
 
     Returns:
       None; the widget repaints.
     """
     self._topology = topology
+    self._ghost = ghost
+    self._gaps = gaps
     self._preview = None
     # THE HELD OBJECT BELONGS TO THE OLD TOPOLOGY and every rebuild
     # makes new ones, so keeping it would draw handles on geometry
@@ -348,11 +375,40 @@ class TopologyView(QWidget):
     self._fit(topology)
     target, chosen = self._chosen
 
+    # THE GHOST FIRST, so everything else is drawn over it. It is the
+    # design the edits were made from, in a thin dashed outline and no
+    # fill: enough to see what moved, not enough to compete with the
+    # thing you are aiming at. It is deliberately NOT fitted separately
+    # -- both are drawn through the same transform, or the comparison
+    # would be between two pictures at different scales, which is no
+    # comparison at all.
+    if self._ghost is not None:
+      painter.setBrush(Qt.BrushStyle.NoBrush)
+      ghost_pen = QPen(QColor(_GHOST_INK), 1)
+      ghost_pen.setStyle(Qt.PenStyle.DashLine)
+      painter.setPen(ghost_pen)
+      for tile in self._ghost.tiles:
+        painter.drawPath(self._path(tile.shape))
+
     if self._shown["tiles"]:
       painter.setBrush(QBrush(QColor(_TILE_FILL)))
       painter.setPen(QPen(QColor(_TILE_LINE), 1))
       for tile in topology.tiles:
         painter.drawPath(self._path(tile.shape))
+
+    # WHERE THE TILES NO LONGER MEET, over the tiles and under
+    # everything a person aims at. Hatched rather than filled: this is
+    # the same mark the pin column uses for "nothing can go here", and
+    # the design view's own rule is that a heavy mark competes with the
+    # thing being judged. It is drawn on the EDITED design, which is
+    # the only one that can have gaps.
+    if self._gaps is not None:
+      painter.setPen(Qt.PenStyle.NoPen)
+      painter.setBrush(QBrush(QColor(_GAP_INK),
+                              Qt.BrushStyle.BDiagPattern))
+      for part in getattr(self._gaps, "geoms", [self._gaps]):
+        if not part.is_empty:
+          painter.drawPath(self._path(part))
 
     if self._shown["dual"]:
       painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -823,6 +879,11 @@ class TopologyPanel(QWidget):
     self._topology = None
     self._unit = None
     self._edits = []
+    # One per edit, as the replay reported them: whether each was
+    # applied, and whether the design still carried a topology after
+    # it. Empty until a replay has answered, and the list says nothing
+    # rather than guessing while it is.
+    self._marks = []
     self._drag_from = None
     layout = QHBoxLayout(self)
 
@@ -852,8 +913,14 @@ class TopologyPanel(QWidget):
       Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     layout.addWidget(side_scroll)
 
+    # ONE LINE, BECAUSE THE LABEL WRAPS. `setWordWrap(True)` reflows to
+    # whatever width the panel has, so an embedded newline is the
+    # plugin fighting the renderer: it broke after "inset or" with room
+    # to spare and left a ragged two-and-a-bit lines. Same rule as the
+    # release body against the changelog -- the question is always
+    # whether the renderer reflows, and here it does.
     note = QLabel(
-      "The structure of the repeating unit, before any inset or\n"
+      "The structure of the repeating unit, before any inset or "
       "strand width is applied — not of the map on the ground.")
     note.setWordWrap(True)
     side.addWidget(note)
@@ -943,20 +1010,38 @@ class TopologyPanel(QWidget):
     self._edits = [dict(edit) for edit in (edits or [])]
     self._refresh_list()
 
-  def set_unit(self, unit, topology, message: str = ""):
+  def set_unit(self, unit, topology, message: str = "", ghost=None):
     """Show a new design's topology.
 
     Args:
       unit: the Tileable the topology was built from, before modifiers.
-      topology: the built Topology, or None.
+        Since 2026-08-31 this is the design AS EDITED, where there are
+        edits, because a picture that does not answer to what somebody
+        just did is not worth drawing.
+      topology: the built Topology, or None. Where there are edits this
+        is the CHAINED object, whose classes are the ones the person
+        has been aiming with -- and which exists even on a design whose
+        gaps would refuse a fresh build.
       message: why there is none, when there is none.
+      ghost: the topology the edits were made FROM, drawn underneath as
+        a wireframe so the change is visible as a change, or None where
+        nothing has been edited and there is nothing to compare with.
 
     Returns:
       None.
     """
     self._unit = unit
     self._topology = topology
-    self.view.show_topology(topology, message)
+    # WHERE THE TILES NO LONGER MEET, computed once here rather than at
+    # every repaint: 0.3 ms is cheap against a build and not against a
+    # hover. None where the design is sound, which is the ordinary case
+    # and draws nothing at all.
+    where = None
+    if unit is not None:
+      ratio, missing = edits_module.gaps(unit)
+      if ratio >= edits_module.GAP_TOLERANCE:
+        where = missing
+    self.view.show_topology(topology, message, ghost=ghost, gaps=where)
     self._refresh_classes()
     self.note.setText(message if topology is None else "")
     for widget in (self.class_combo, self.how_combo, self.apply_button):
@@ -1340,17 +1425,51 @@ class TopologyPanel(QWidget):
       self.edits_changed.emit()
 
   def _refresh_list(self):
-    """Redraw the list of changes, oldest first."""
+    """Redraw the list of changes, oldest first, with their marks.
+
+    EACH ROW SAYS WHETHER THE DESIGN STILL CARRIED A TOPOLOGY once that
+    change had been made, which is what tells somebody how far back
+    they would have to roll to get one that does. (Maintainer's ask,
+    2026-08-31.) The mark is deliberately quiet -- a suffix rather than
+    a colour, since the drawing is where colour has work to do -- and
+    it is ABSENT rather than guessed where no mark has arrived yet,
+    because a row silently claiming to be sound is worse than a row
+    that says nothing.
+    """
     self.edit_list.clear()
-    for edit in self._edits:
+    for index, edit in enumerate(self._edits):
       spec = edits_module.MANIPULATIONS.get(edit.get("how"), {})
       args = ", ".join(f"{k} {v:g}" for k, v in
                        sorted((edit.get("args") or {}).items()))
+      mark = self._marks[index] if index < len(self._marks) else None
+      if mark is None:
+        suffix = ""
+      elif not mark.get("applied"):
+        suffix = "  — not applied"
+      elif mark.get("sound"):
+        suffix = ""
+      else:
+        suffix = "  — from here the tiles no longer meet"
       self.edit_list.addItem(
         f"{spec.get('label', edit.get('how'))} on {edit.get('classes')}"
-        + (f" ({args})" if args else ""))
+        + (f" ({args})" if args else "") + suffix)
     self.undo_button.setEnabled(bool(self._edits))
     self.clear_button.setEnabled(bool(self._edits))
+
+  def set_marks(self, marks):
+    """Say, per edit, whether the design still had a topology after it.
+
+    Args:
+      marks: one entry per edit in `edits()`, oldest first, as
+        `topology_edits.apply` returns them. An empty list clears the
+        annotations rather than leaving stale ones, since a mark that
+        outlives the replay it came from describes another design.
+
+    Returns:
+      None; the change list is redrawn.
+    """
+    self._marks = list(marks or [])
+    self._refresh_list()
 
   def report(self, refusals):
     """Say what could not be drawn.

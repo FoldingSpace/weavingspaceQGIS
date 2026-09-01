@@ -3115,7 +3115,7 @@ def test_a_topology_edit_reaches_the_map():
       if how == "push_vertex" else
       ("laves 3.3.4.3.4", topology, groups))
     classes = its_groups[topology_edits.MANIPULATIONS[how]["target"]]
-    tileable, refusals = topology_edits.apply(
+    tileable, refusals, _ = topology_edits.apply(
       its_topology, [{"classes": classes, "how": how, "args": args}])
     assert not refusals, f"{how} on {on} was refused: {refusals}"
     # THE GROUND, NOT THE TEXT. This compared WKT until 2026-08-31 and
@@ -3137,7 +3137,7 @@ def test_a_topology_edit_reaches_the_map():
   # takes a click and does nothing is this plugin's second
   # characteristic failure, and push_vertex on laves 3.3.4.3.4 is a
   # real instance of it rather than a staged one.
-  quiet, said = topology_edits.apply(
+  quiet, said, _ = topology_edits.apply(
     topology, [{"classes": groups["vertex"], "how": "push_vertex",
                 "args": {"push_d": 0.1}}])
   standing = _ground_between(topology.tileable, quiet)
@@ -3157,7 +3157,7 @@ def test_a_topology_edit_reaches_the_map():
   three_topology, _ = topology_edits.build(three)
   assert three_topology is not None, "PREMISE: hex-slice 3 has no topology"
   was = three.tiles.geometry.iloc[0].wkt
-  zigzagged, refusals = topology_edits.apply(
+  zigzagged, refusals, _ = topology_edits.apply(
     three_topology,
     [{"classes": topology_edits.classes(three_topology)["edge"],
       "how": "zigzag_edge", "args": {"n": 2, "h": 0.25, "smoothness": 3}}])
@@ -3177,7 +3177,7 @@ def test_a_topology_edit_reaches_the_map():
   # removed only exact repeats, and with it in front all four designs
   # measured draw. So the old expectation pinned a limitation that no
   # longer exists.
-  tileable, refusals = topology_edits.apply(
+  tileable, refusals, _ = topology_edits.apply(
     topology, [{"classes": groups["edge"], "how": "zigzag_edge",
                 "args": {"n": 2, "h": 0.25, "smoothness": 3}}])
   assert not refusals, \
@@ -3203,7 +3203,7 @@ def test_a_topology_edit_reaches_the_map():
     "could reach the refusal at all"
   hard_groups = topology_edits.classes(hard_topology)
   hard_before = hard.tiles.geometry.iloc[0].wkt
-  tileable, refusals = topology_edits.apply(
+  tileable, refusals, _ = topology_edits.apply(
     hard_topology, [{"classes": hard_groups["edge"], "how": "zigzag_edge",
                      "args": {"n": 8, "h": 1.0, "smoothness": 0}}])
   assert refusals, (
@@ -3227,7 +3227,7 @@ def test_a_topology_edit_reaches_the_map():
           "args": {"dx": 0.03, "dy": 0.0}},
          {"classes": groups["edge"], "how": "rotate_edge",
           "args": {"angle": 10.0}}]
-  tileable, refusals = topology_edits.apply(topology, two)
+  tileable, refusals, _ = topology_edits.apply(topology, two)
   assert not refusals, f"a two-edit list was refused: {refusals}"
   composed = _ground_between(topology.tileable, tileable)
   assert composed > 1e-7, \
@@ -3235,7 +3235,7 @@ def test_a_topology_edit_reaches_the_map():
   # ...AND THE SECOND ONE HAPPENED, which is the claim this leg is
   # really about: a list that quietly applied only its first edit
   # would satisfy everything above.
-  first_only, _ = topology_edits.apply(topology, two[:1])
+  first_only, _, _ = topology_edits.apply(topology, two[:1])
   alone = _ground_between(topology.tileable, first_only)
   assert composed > alone, (
     f"two edits moved {composed:.3e} of the unit's ground where the "
@@ -5230,7 +5230,7 @@ def test_the_saved_dual_belongs_to_the_saved_unit():
     assert topology is not None, "PREMISE: the design lost its topology"
     unedited = round(
       float(topology_edits.dual_frame(topology).geometry.area.sum()), 2)
-    edited_unit, refusals = topology_edits.apply(
+    edited_unit, refusals, _ = topology_edits.apply(
       topology, [{"classes": topology_edits.classes(topology)["vertex"][0],
                   "how": "nudge_vertex", "args": {"dx": 0.05, "dy": 0.05}}])
     assert not refusals, f"PREMISE: the edit was refused: {refusals}"
@@ -5535,7 +5535,7 @@ def test_an_edit_for_a_class_that_has_gone_is_reported():
     assert gone not in labels, \
       f"PREMISE: {gone!r} is a real {kind} class here, so it has not gone"
 
-  edited, refusals = topology_edits.apply(
+  edited, refusals, _ = topology_edits.apply(
     topology, [{"classes": gone, "how": "rotate_edge",
                 "args": {"angle": 30.0}}])
   assert refusals, (

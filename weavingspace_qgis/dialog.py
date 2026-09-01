@@ -21792,21 +21792,45 @@ class WeavingSpaceDialog(QDialog):
       # the main thread would put a 0.75-4.4s build plus a rebuild per
       # edit in front of every preview.
       if topology is not None and wanted_edits:
-        edited, refusals = topology_edits.apply(topology, wanted_edits)
+        edited, refusals, after = topology_edits.apply(
+          topology, wanted_edits)
         built["edited"] = edited
         built["refusals"] = refusals
-        # AND THE DUAL OF THE UNIT WE WILL ACTUALLY WRITE, computed
-        # HERE because this is the thread that can afford it.
+        # ONE MARK PER EDIT, so the change list can say which of them
+        # left a design that still carried a topology -- which is how
+        # somebody sees how far back to roll.
+        built["marks"] = after.get("marks") or []
+        # THE TOPOLOGY THE LAST EDIT LEFT, which is what the tab draws
+        # and what the next edit is aimed with. `apply` chains rather
+        # than rebuilding (2026-08-31), so this is the library's own
+        # object carrying the labels the person has been aiming with,
+        # and it costs nothing to keep -- where it used to be a second
+        # `build` of the edited unit, 0.8-2.8s depending on the design.
+        built["edited_topology"] = after.get("topology")
+        # AND, FOR THE FILE ONLY, a topology rebuilt from the edited
+        # motif. It is what the saved DUAL is taken from, because a
+        # rebuild re-derives the incidence the edited geometry actually
+        # has while the chain carries the one it started with. None
+        # where the edits opened gaps, which is a design a rebuild
+        # refuses; the write copes, and the tab never needs this.
+        # ON THE WORKER, deliberately: this is the thread that can
+        # afford 0.8-2.8s, and the save is the one that cannot.
+        built["rebuilt_topology"], _why_rebuilt = topology_edits.build(
+          edited)
+        # THE DUAL OF THE UNIT WE WILL ACTUALLY WRITE comes from that
+        # same object, and `apply` refreshes it before handing it back.
         # (2026-08-30, found by a hunt and confirmed by measurement:
         # the file carried the dual of the motif BEFORE the edit --
         # 191,476 against the edited motif's 154,550, 24% wrong -- so
         # a colleague opening it got a motif beside somebody else's
         # dual, which is exactly what ruling 3's two tables exist to
-        # prevent.) The cause was that `apply` REBINDS rather than
-        # mutates, so `panel._topology` is never the edited one, and
-        # the save paired the edited unit with the original topology.
-        built["edited_topology"], _why_again = topology_edits.build(
-          edited)
+        # prevent.)
+        # WHAT STOOD HERE WAS A SECOND `build` OF THE EDITED UNIT, and
+        # it could not survive chaining: a design whose edit opened
+        # gaps has no rebuildable topology at all, so this returned
+        # None precisely when an edit had been made. Refreshing the
+        # chained object's dual costs 4 ms and works on designs a
+        # rebuild refuses.
       return None
 
     def done(_result, error, dialog=self):
@@ -21875,8 +21899,29 @@ class WeavingSpaceDialog(QDialog):
         # it.
         _dump("TOPOLOGY", "edits-moved")
       else:
-        panel.set_unit(built.get("unit"), built.get("topology"),
-                       built.get("why", ""))
+        # THE TAB DRAWS THE DESIGN AS EDITED, and ghosts the one the
+        # edits were made from. (Maintainer's ruling, 2026-08-31, on
+        # meeting the tab in rc9: "if you can't see what you're doing
+        # and manipulate it iteratively on the results of previous
+        # changes, it just doesn't make sense", and "basically the left
+        # doesn't reflect the changes ... and thus it's impossible to
+        # use".)
+        # WHAT STOOD HERE HANDED OVER `unit` AND `topology`, which are
+        # the motif BEFORE the edits are replayed -- so the drag showed
+        # a transient, the map and the preview moved, and the picture a
+        # person judges an edit by went back to the design they had
+        # edited away from. One fact, two stores, disagreeing on
+        # screen.
+        # THE EDITED TOPOLOGY IS THE CHAINED OBJECT, so its classes are
+        # the ones the person has been aiming with, and it exists even
+        # where the design's gaps would refuse a rebuild.
+        panel.set_unit(built.get("edited") or built.get("unit"),
+                       built.get("edited_topology")
+                       or built.get("topology"),
+                       built.get("why", ""),
+                       ghost=built.get("topology")
+                       if built.get("edited") is not None else None)
+        panel.set_marks(built.get("marks") or [])
         panel.report(built.get("refusals") or [])
         # THE DUAL OF WHAT WE WILL WRITE, kept beside the unit it
         # belongs to. Computed on the worker (see `work` above) because
@@ -21884,7 +21929,23 @@ class WeavingSpaceDialog(QDialog):
         # the main thread and must not build anything. Where there were
         # no edits the plain topology's dual is the right one, which is
         # what the fallback says.
-        for_dual = built.get("edited_topology") or built.get("topology")
+        # AND THE FILE'S DUAL IS THE REBUILT ONE WHERE A REBUILD IS
+        # POSSIBLE, which the chained object cannot supply. (Measured
+        # 2026-08-31, by the guard written for this exact pair.) The
+        # chained topology keeps the ORIGINAL incidence and moves its
+        # points, so refreshing its dual gives 190,119 where a topology
+        # rebuilt from the edited motif gives 153,456 -- a quarter out,
+        # and the file is the one artefact a colleague opens without
+        # the plugin to explain it.
+        # THE TWO ANSWERS ARE FOR TWO DIFFERENT JOBS, which is why both
+        # are kept: the chain is what the next EDIT is aimed with, and
+        # the rebuild is what the FILE should describe. Where the edit
+        # opened gaps there is no rebuild to be had, and the chained
+        # dual is the best available -- the write's both-or-neither
+        # check and its stamp are what stop a mismatched pair going
+        # out.
+        for_dual = built.get("rebuilt_topology") \
+            or built.get("edited_topology") or built.get("topology")
         # KEPT WITH THE DESIGN IT IS OF, which the first version of
         # this did not do. (2026-08-31, found by a hunt and measured
         # end to end.) The unit half of the pair is rebuilt

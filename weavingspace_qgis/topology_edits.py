@@ -97,6 +97,72 @@ MANIPULATIONS = {
 # reach a library expecting a count.
 _WHOLE = {"n", "smoothness"}
 
+# WHICH ARGUMENTS ARE DISTANCES, AND THEREFORE FRACTIONS OF THE UNIT.
+# (2026-08-31, measured after the maintainer reported that clicking and
+# dragging nodes moved nothing at all.)
+#
+# The library's `dx`, `dy` and `push_d` are ABSOLUTE displacements in
+# the unit's own coordinates, and these controls offer them over -1 to
+# 1 as though they were proportions. On a design spanning 707 map
+# units that made the whole domain of both vertex manipulations
+# invisible:
+#
+#     nudge_vertex  dx=dy=1.0  ->  moves 1.414 units  =  0.20% of it
+#     nudge_vertex  dx=0.5     ->  moves 0.500 units  =  0.07%
+#     push_vertex   push_d=1.0 ->  moves 0.414 units  =  0.06%
+#
+# Under a pixel on a 400-pixel drawing, at the largest value either
+# control can express -- which is this project's own rule that A
+# CONTROL MUST BE ABLE TO REPRESENT ITS DOMAIN, arriving in a new tab.
+# The edge manipulations were never affected: an angle, a factor and a
+# zigzag count are dimensionless, and at one step they move 1-6%.
+#
+# SO THE RECORD KEEPS FRACTIONS and the library is handed map units.
+# The record is what a person set and what travels to the file; the
+# multiplication happens at the one place the unit is known. A drag
+# already reports itself as a fraction of the unit, so the two now
+# agree by construction rather than by a factor nobody could see.
+_SPAN_RELATIVE = {"dx", "dy", "push_d"}
+
+
+def unit_span(unit) -> float:
+  """How wide the unit is, in its own coordinates.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    The larger of its tiles' width and height, or 1.0 where that
+    cannot be read -- a fallback of one leaves a fraction meaning what
+    it meant before this scaling existed, which is a small edit rather
+    than a wrong one.
+  """
+  try:
+    x0, y0, x1, y1 = unit.tiles.total_bounds
+    span = max(float(x1) - float(x0), float(y1) - float(y0))
+    return span if span > 0 else 1.0
+  except Exception:                                   # noqa: BLE001
+    return 1.0
+
+
+def in_map_units(args: dict, unit) -> dict:
+  """A record's fractions as the distances the library expects.
+
+  Args:
+    args: the edit's arguments as recorded, where every distance is a
+      fraction of the unit's span.
+    unit: the Tileable the edit is about to be applied to.
+
+  Returns:
+    A new dict with the distance arguments multiplied by that span and
+    everything else untouched. Never mutates its input: the record is
+    what travels to the file, and scaling it in place would write map
+    units into a file that promises fractions.
+  """
+  span = unit_span(unit)
+  return {key: (value * span if key in _SPAN_RELATIVE else value)
+          for key, value in args.items()}
+
 # How much of the unit's own area has to change before a manipulation
 # counts as having done something. The measurement it rests on is at
 # `_same_shape`, which is the only reader.
@@ -243,36 +309,89 @@ def apply(topology, edits):
     edits: the record, oldest first.
 
   Returns:
-    (tileable, refusals) -- the unit to tile, and a list of sentences
-    about edits that could not be drawn. The tileable is the ORIGINAL
-    where every edit was refused, so a design never silently becomes
-    something nobody asked for.
+    (tileable, refusals, state) -- the unit to tile, a list of
+    sentences about edits that could not be drawn, and a dict carrying
+    what the caller needs afterwards:
 
-  EACH EDIT IS APPLIED FROM THE TOPOLOGY THE LAST ONE PRODUCED, which
-  is what makes a list of edits mean what it reads like. Upstream's own
-  caution is that a transformed Topology is not reliably labelled, so
-  the topology is rebuilt between edits -- 1.08s apiece on the fastest
-  design measured, which is the cost of a list rather than of a drag.
+      "topology"  the object the NEXT edit is aimed with
+      "marks"     one entry per edit, in order, saying whether it was
+                  applied and whether the design still carried a
+                  topology once it had been
+
+    The tileable is the ORIGINAL where every edit was refused, so a
+    design never silently becomes something nobody asked for. The marks
+    are one-to-one with `edits`, including the ones that were refused,
+    because a change list whose annotations slip by one is worse than
+    a change list with none.
+
+  EACH EDIT IS APPLIED TO THE OBJECT THE LAST ONE RETURNED, and is NOT
+  rebuilt in between. (Maintainer's question, 2026-08-31: "if the
+  topology breaks, can't we still apply some of the operations using
+  the last topology labels regardless even if we currently are dealing
+  with an invalid topology?" -- and the answer measured that day is
+  yes, with two other gains besides.)
+
+  WHAT REBUILDING COST, measured on the two designs a topology can be
+  had for. It made an edit after a topology-BREAKING one impossible:
+  `rotate_edge` routinely leaves a design with gaps, `Topology` refuses
+  a design with gaps, so `build` returned None and every later edit was
+  refused for want of anything to aim at. Chained, the same pair
+  applies -- laves 3.3.4.3.4 goes to area 246,110 where rebuilding
+  could not go at all. And it moved the LABELS under the person: a
+  fresh build re-derives the classes, so "A" afterwards is not
+  necessarily the A they clicked, which is why the two arms disagree by
+  a rounding on hex-slice 3 and agree exactly on laves.
+
+  UPSTREAM'S CAUTION IS ABOUT SOMETHING ELSE. `transform_geometry`
+  prints that a new Topology "will probably not be correctly labelled",
+  which is a warning that its labels may not match A FRESH BUILD. We do
+  not want a fresh build: the labels a person aims with are the ones
+  they were shown, and keeping them is the point rather than a
+  compromise. Measured over five chained edits on two designs: the
+  class list never moved (`a,b` and `A,B` throughout) and every
+  intermediate tileable stayed valid.
+
+  AND THE REPAIR IS NOT FED BACK. `_make_drawable` mends what a
+  manipulation can emit -- coincident vertices, mostly zigzag's, and
+  upstream fixed that at source in the commit vendored the same day --
+  and the mended copy is what is DRAWN and tiled. The chain carries the
+  library's own object, because handing a repaired tileable back into
+  a topology would be building the thing this rebuild-free path exists
+  to avoid. The repair is measured to leave every area unchanged to a
+  part in 1e9, so the two do not drift in any way a map can show.
   """
   current = topology
   tileable = topology.tileable
   refusals = []
+  # ONE MARK PER EDIT, in the order they were made: whether the edit
+  # was applied at all, and whether the design STILL CARRIED A TOPOLOGY
+  # once it had been. (Maintainer's ask, 2026-08-31: "maybe we can
+  # visually indicate in the editor and even the change list what the
+  # topologically valid transformations were such that there's some
+  # indication of how far back you'd need to roll".) It costs 0.3 ms an
+  # edit, which is what makes it affordable to ask every time rather
+  # than only when somebody wonders.
+  marks = []
   for edit in edits or ():
     how = edit.get("how")
     if how not in MANIPULATIONS:
       refusals.append(f"'{how}' is not a manipulation this version "
                       f"offers, so it was left out.")
+      marks.append({"applied": False, "gap": None,
+                    "sound": None})
       continue
     selector = edit.get("classes") or ""
-    # A REBUILT TOPOLOGY IS WHAT THE NEXT EDIT IS AIMED WITH, so an
-    # edit after one that left no workable topology has nothing to
-    # aim at. That is a different sentence from "this change could not
-    # be drawn", and it names the change that actually cost it.
+    # NOTHING HERE ASKS WHETHER THE DESIGN STILL HAS A REBUILDABLE
+    # TOPOLOGY, and that is the point of chaining: the object carries
+    # its own classes forward, so an edit after one that opened gaps is
+    # aimed with the labels it was always aimed with. The guard that
+    # stood here refused exactly that case.
     if current is None:
       refusals.append(
         f"{MANIPULATIONS[how]['label']} on {selector} could not be "
-        f"applied, because an earlier change left a design whose "
-        f"topology cannot be worked out.")
+        f"applied, because there is no topology to aim it with.")
+      marks.append({"applied": False, "gap": None,
+                    "sound": None})
       continue
     # AN EDIT AIMED AT A CLASS THIS DESIGN DOES NOT HAVE IS ANSWERED
     # HERE, EXACTLY, BEFORE ANY GEOMETRY IS INVOLVED. The library takes
@@ -298,6 +417,8 @@ def apply(topology, edits):
           f"was not applied: this design has no {target} class {names}. "
           f"Its {target} classes are "
           f"{available or 'none, so it cannot carry this change'}.")
+        marks.append({"applied": False, "gap": None,
+                      "sound": None})
         continue
       # SOME of the classes are here, so the change is made to those
       # and the rest are named. Saying nothing about them would leave
@@ -306,15 +427,23 @@ def apply(topology, edits):
         f"{MANIPULATIONS[how]['label']} on {selector!r} was applied to "
         f"{kept!r} only: this design has no {target} class {names}.")
       selector = kept
-    args = whole_where_needed(edit.get("args") or {})
+    # FRACTIONS IN THE RECORD, MAP UNITS AT THE LIBRARY, and the unit
+    # asked is the CURRENT one so a chain of edits keeps meaning the
+    # same thing as the design moves under it.
+    args = in_map_units(whole_where_needed(edit.get("args") or {}),
+                        current.tileable)
     try:
       moved = current.transform_geometry(True, True, selector, how, **args)
     except Exception:                                 # noqa: BLE001
       refusals.append(_refusal(how, selector))
+      marks.append({"applied": False, "gap": None,
+                    "sound": None})
       continue
     drawable, _repaired = _make_drawable(moved.tileable)
     if drawable is None:
       refusals.append(_refusal(how, selector))
+      marks.append({"applied": False, "gap": None,
+                    "sound": None})
       continue
     # THE MAP FOLLOWS THE EDIT EVEN WHERE THE TOPOLOGY CANNOT BE
     # REBUILT, which is the distinction this got wrong first time.
@@ -339,8 +468,123 @@ def apply(topology, edits):
         f"changed nothing about it, so the design is as it was. A "
         f"different class, or a larger value, usually does something.")
     tileable = drawable
-    current, _why = build(drawable)
-  return tileable, refusals
+    ratio, _where = gaps(drawable)
+    marks.append({"applied": True, "gap": ratio,
+                  "sound": ratio < GAP_TOLERANCE})
+    # CHAINED, NOT REBUILT. `moved` is the library's own object and
+    # carries the labels this edit was aimed with; `drawable` is the
+    # repaired copy that gets drawn and tiled. See the docstring for
+    # what rebuilding here used to cost.
+    current = moved
+  # AND THE DUAL IS REFRESHED, because `transform_geometry` makes its
+  # new object with `copy.deepcopy` -- so `dual_tiles` comes across
+  # UNCHANGED and describes the design before the edit. Measured
+  # 2026-08-31 on laves 3.3.4.3.4 after a 15-degree rotate: the copied
+  # dual has area 249,423 and the honest one 248,842, and a rebuild of
+  # that edited unit is impossible because the rotation opens gaps --
+  # so recomputing here is the ONLY way to have a dual that belongs to
+  # the design. It costs 4 ms.
+  # THIS IS LEDGER ROW 2026-08-30's DEFECT ARRIVING BY A NEW ROAD: a
+  # motif written beside somebody else's dual, which is what ruling 3's
+  # two tables exist to prevent.
+  if current is not None and current is not topology:
+    try:
+      current.generate_dual()
+    except Exception:                                 # noqa: BLE001
+      # A dual that cannot be recomputed is left as it was rather than
+      # dropped: the toggle draws something slightly stale instead of
+      # nothing, and the write refuses a pair whose stamps disagree.
+      pass
+  return tileable, refusals, {"topology": current, "marks": marks}
+
+
+def gaps(unit):
+  """Where a unit's tiles fail to fill the prototile they sit in.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    (ratio, geometry) -- how much of the prototile is NOT covered, as a
+    fraction of its area, and the uncovered ground itself so it can be
+    drawn. (0.0, None) where the question cannot be asked.
+
+  WHY THIS RATHER THAN A BUILD. `Topology` requires a gap-free tiling,
+  so "does this design still carry a topology" and "do its tiles still
+  meet" are the same question -- and one of them costs seconds while
+  the other costs a union. Measured on laves 3.3.4.3.4, 2026-08-31,
+  against what a real build answers for the same design:
+
+      untouched      0.0        4.0 ms    a build succeeds
+      after a nudge  5.2e-10    4.9 ms    a build succeeds
+      after a rotate 1.2e-2     5.1 ms    a build REFUSES
+
+  Seven orders of clear air between the two answers and about two
+  hundred times cheaper than the build, which is what makes it
+  affordable once per edit -- so the change list can say where a design
+  stopped carrying a topology, and somebody can see how far back they
+  would have to roll.
+
+  AND THE SAME SUBTRACTION IS THE PICTURE. The uncovered ground is
+  exactly what a person needs shown rather than described, which is
+  this project's own rule that a control's promise is visual and has to
+  be driven to the pixels.
+  """
+  # IMPORTED AT THE POINT OF USE, as everything geometric in this
+  # module is: it is reached only when somebody has opened the tab, and
+  # the plugin's start-up should not pay for that.
+  import shapely
+  try:
+    # THE GAPS ARE HOLES IN A PATCH, which is what "the tiles no longer
+    # meet" means: lay one ring of repeats down, union them, and any
+    # interior ring is ground the tiling has stopped covering.
+    #
+    # THE FIRST VERSION SUBTRACTED THE UNION FROM THE PROTOTILE and was
+    # wrong in a way that read perfectly: a unit's tiles need not lie
+    # INSIDE the particular polygon its prototile is, so an untouched
+    # laves 3.3.4.3.4 -- whose tiles and prototile have the same area
+    # to the last bit -- reported 10.6% of it missing. It was caught by
+    # the tab marking an unedited design as broken, which is a claim
+    # this project has learnt to distrust: everything reported the same
+    # number, including the fixture the standalone measurement had
+    # called sound.
+    patch = unit.get_local_patch(r=1, include_0=True)
+    covered = shapely.union_all(list(patch.geometry))
+    holes = []
+    for part in getattr(covered, "geoms", [covered]):
+      for ring in getattr(part, "interiors", []):
+        holes.append(shapely.Polygon(ring))
+    if not holes:
+      return 0.0, None
+    missing = shapely.union_all(holes)
+    whole = shapely.union_all([covered, missing])
+    if whole.area <= 0:
+      return 0.0, None
+    return float(missing.area) / float(whole.area), missing
+  except Exception:                                   # noqa: BLE001
+    return 0.0, None
+
+
+# Below this the tiles are meeting as well as floating point allows,
+# and above it a topology cannot be built. Measured nine orders apart,
+# so the threshold is not a tuning parameter -- anything between 1e-9
+# and 1e-3 draws the same line on every design tried.
+GAP_TOLERANCE = 1e-6
+
+
+def still_has_a_topology(unit) -> bool:
+  """Whether this design's tiles still meet, and so can carry one.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    True where the gap ratio is under GAP_TOLERANCE. This is the cheap
+    twin of `can_build`, and it answers the same question: `Topology`
+    refuses a design with gaps.
+  """
+  ratio, _where = gaps(unit)
+  return ratio < GAP_TOLERANCE
 
 
 def _same_shape(before, after) -> bool:

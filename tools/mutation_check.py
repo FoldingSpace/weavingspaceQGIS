@@ -2460,8 +2460,18 @@ MUTATIONS = [
        # motif with the original's dual -- measured 191,476 against
        # 154,550 by area -- which defeats the entire argument for
        # writing the pair at all.
-       old="""        for_dual = built.get("edited_topology") or built.get("topology")""",
-       new="""        for_dual = built.get("topology")""",
+       # RE-ANCHORED 2026-08-31, when `apply` stopped rebuilding
+       # between edits. The fallback chain gained a third limb, and the
+       # FIRST is now what decides: the file's dual comes from a
+       # topology REBUILT from the edited motif, because the chained
+       # object keeps the incidence it started with and its refreshed
+       # dual measured 190,119 against the rebuild's 153,456. Dropping
+       # that limb falls through to the chained one, which is the same
+       # harm the entry was written for, a quarter out instead of a
+       # fifth.
+       old="""        for_dual = built.get("rebuilt_topology") \\
+            or built.get("edited_topology") or built.get("topology")""",
+       new="""        for_dual = built.get("edited_topology") or built.get("topology")""",
        test="test_the_saved_dual_belongs_to_the_saved_unit",
        why="a colleague opening the file getting the dual OF the motif "
            "beside it, rather than of a design nobody saved"),

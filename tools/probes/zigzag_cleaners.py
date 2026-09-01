@@ -83,7 +83,7 @@ def zigzag_result(spec, use_upstream):
     classes = topology_edits.classes(topology).get("edge") or ""
     if not classes:
       return "no edge classes"
-    edited, refusals = topology_edits.apply(
+    edited, refusals, _ = topology_edits.apply(
       topology, [{"classes": "".join(classes), "how": "zigzag_edge",
                   "args": {"n": 2, "h": 0.25, "smoothness": 3}}])
     tiles = getattr(edited, "tiles", None)
