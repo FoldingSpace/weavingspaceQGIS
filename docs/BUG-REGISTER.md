@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-473 defect(s) with a regression test.
+474 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -392,6 +392,8 @@ there is no separate list to remember.
   guarded by `test_a_donor_reaches_its_follower_in_the_same_run`
 - **dragging a vertex previewed a movement 707 times smaller than the one it committed, so the drawing did not move until the pointer was released and then jumped.**  
   guarded by `test_a_drag_previews_the_move_it_will_commit`
+- **a vertex drag past the box's range recorded a value the box would not show, and the record is what the file keeps.**  
+  guarded by `test_a_dragged_vertex_records_what_its_box_shows`
 - **a dataset switch reset an element's mode and left its ramp, Reverse and class count standing, then restored a scheme filed under a corrected mode nobody chose.**  
   guarded by `test_a_dropped_column_takes_its_whole_scheme_and_the_shelf_returns_it`
 - **a ramp chosen on a row whose style was left derived rode a deleted column onto its replacement, then reverted at the next rebuild.**  
@@ -1000,7 +1002,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 153
+- the mutation campaign: 154
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 33

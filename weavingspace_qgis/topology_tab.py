@@ -1673,9 +1673,21 @@ class TopologyPanel(QWidget):
           return
         # The rail is in WIDGET coordinates, where y grows downward,
         # and the drag arrives in unit terms where y grows up.
-        args["push_d"] = float(dx * way[0] - dy * way[1])
+        # HELD INSIDE THE BOX, as the edge branch already was. Both
+        # vertex branches assigned the drag straight into `args` while
+        # the edge branch passed through `_within_the_box`, so a drag
+        # past the control's own range recorded a number the box would
+        # not show: measured 2026-09-01 on archimedean 4.8.8, a drag
+        # of 2.0 left the record holding 2.0 beside a box reading 1.0,
+        # and the RECORD is what travels to the file and replays. It
+        # does not reproduce on laves 3.3.4.3.4, where the library
+        # refuses a nudge that large before anything is recorded --
+        # which is why the guard for this names its design.
+        args["push_d"] = self._within_the_box(
+          "push_d", float(dx * way[0] - dy * way[1]))
       elif key == "nudge_vertex":
-        args["dx"], args["dy"] = float(dx), float(dy)
+        args["dx"] = self._within_the_box("dx", float(dx))
+        args["dy"] = self._within_the_box("dy", float(dy))
       else:
         return
     else:

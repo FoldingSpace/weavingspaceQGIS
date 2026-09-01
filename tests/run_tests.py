@@ -6041,6 +6041,103 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_dragged_vertex_records_what_its_box_shows():
+  """A drag past the control's range records the number on screen.
+
+  The three EDGE manipulations passed a dragged value through
+  `_within_the_box`, which holds it inside the range its own spin box
+  accepts; both VERTEX branches assigned it straight into the record.
+  So a drag beyond the range left `_drag_from` holding one number and
+  the box showing another, and the record is what the drop keeps, what
+  travels to the file and what replays.
+
+  THE DESIGN IS NAMED FOR A REASON. On `laves 3.3.4.3.4` this cannot
+  be reached: a nudge of more than the unit leaves a design the
+  library refuses, the preview raises, and the handler clears the
+  record -- correctly. On `archimedean 4.8.8` the same drag draws, so
+  the disagreement survives to be recorded. Measured 2026-09-01: a
+  drag of 2.0 left the record at 2.0 beside a box reading 1.0.
+
+  IT DRIVES THE VIEW'S OWN SIGNAL rather than calling the handler,
+  since a control must act through its own signal or the connection
+  could be deleted with every test still passing.
+
+  Regression: a vertex drag past the box's range recorded a value the box would not show, and the record is what the file keeps. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(2)
+    _tick(200)
+    dlg.family_combo.setCurrentText("archimedean 4.8.8")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: archimedean 4.8.8 built no topology to drag on"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.resize(600, 600)
+    _tick(100)
+    # PAINT IT, OR IT HAS NO TRANSFORM.
+    view.grab()
+    _tick(50)
+
+    topology = view._drawn()
+    middle = (view.width() / 2, view.height() / 2)
+    seat = None
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      if seat is None or away < seat[0]:
+        seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
+    assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, seat[1])
+    _tick(150)
+    index = panel.how_combo.findData("nudge_vertex")
+    assert index >= 0, "PREMISE: the nudge is not on offer for this selection"
+    panel.how_combo.setCurrentIndex(index)
+    _tick(150)
+
+    boxes = {box.property("argument"): box
+             for _label, box in panel._argument_rows}
+    assert "dx" in boxes, f"PREMISE: the nudge offers {sorted(boxes)}"
+    ceiling = boxes["dx"].maximum()
+
+    view.dragging.emit(ceiling * 2, 0.0)
+    _tick(200)
+    recorded = panel._drag_from
+    assert recorded is not None, (
+      "PREMISE: the preview refused a drag of twice the range, so this "
+      "design cannot show a record surviving past the box and the test "
+      "is measuring nothing")
+    shown = round(boxes["dx"].value(), 6)
+    assert recorded.get("dx") == shown, (
+      f"a drag of {ceiling * 2} recorded dx={recorded.get('dx')} while "
+      f"its own box shows {shown}: the record and the control disagree, "
+      f"and the record is what the drop keeps and the file carries")
+    assert abs(recorded["dx"]) <= ceiling + 1e-9, (
+      f"the record holds {recorded['dx']}, outside the range "
+      f"{boxes['dx'].minimum()} to {ceiling} its control accepts")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_topology_edits_come_back_from_the_file():
   """A saved design opens as the design that was saved.
 
@@ -79222,6 +79319,8 @@ def main():
         test_a_save_never_removes_a_layer_this_map_did_not_write)
   check("a later save replaces a motif rather than dropping it",
         test_a_later_save_replaces_a_motif_rather_than_dropping_it)
+  check("a dragged vertex records what its box shows",
+        test_a_dragged_vertex_records_what_its_box_shows)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

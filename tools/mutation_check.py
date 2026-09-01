@@ -2550,6 +2550,19 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="a-vertex-drag-is-held-inside-its-own-box",
+       file=TOPOLOGY_TAB,
+       # The edge branch clamped a dragged value to the range its
+       # control accepts and both vertex branches did not, so a drag
+       # past the range recorded a number the box would not show --
+       # and the record is what the drop keeps. Assigning the raw
+       # value back is the defect as it shipped.
+       old="""        args["dx"] = self._within_the_box("dx", float(dx))
+        args["dy"] = self._within_the_box("dy", float(dy))""",
+       new="""        args["dx"], args["dy"] = float(dx), float(dy)""",
+       test="test_a_dragged_vertex_records_what_its_box_shows",
+       why="the number a drag records being the number its own "
+           "control shows, since the record is what the file carries"),
   dict(name="a-drag-previews-in-the-units-it-commits",
        file=TOPOLOGY_TAB,
        # The library takes ABSOLUTE displacements and a drag reports a
