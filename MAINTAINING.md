@@ -935,6 +935,32 @@ behind the chooser alone; it has a rail now, drawn along the one
 direction a push can take -- and no handle at all where that direction
 cancels, which on laves 3.3.4.3.4 it exactly does.
 
+AND THE TWO PANES HAVE FLOORS, WHICH IS WHAT MAKES ANY OF THE ABOVE
+REACHABLE. (2026-09-01, on the last of the maintainer's editing asks:
+"everything needs to be clickable at realistic sizes of course".) The
+drawing's floor was 180px and the column of controls beside it claims
+its own preferred width first, so that floor WAS the whole allowance --
+180px of an 825px window for the thing the tab exists to edit. Raising
+it alone moved the complaint rather than answering it, measured at 71px
+of viewport for controls wanting 271; the horizontal scrollbar there is
+deliberately off, so a column narrower than its content does not
+scroll, it CLIPS. Both have floors now, 420 and 271, taken from the
+content itself in `showEvent` once a layout pass has made the answer
+meaningful. The window grows to 1025 when the tab is chosen and the
+Design tab still opens at 825, the size policy of 2026-08-30 keeping
+the stack off it.
+
+AND TWO HANDLES CLOSER THAN TWICE THE HIT TEST'S REACH MAKE ONE OF THEM
+UNREACHABLE EVERYWHERE, since `_handle_at` returns the first within
+reach and the order is fixed. Turn and zigzag are pushed along the same
+normal from an edge's end and its middle, so at equal offsets their
+separation is HALF THE EDGE'S SCREEN LENGTH: 20.4px inside a 26px
+reach on two designs of three, costing 23 edges apiece their zigzag
+handle. They stand at 30 and 60 now. Putting the zigzag on the OTHER
+side was tried first and is worse -- it lands where the vertices are,
+and handles are tested before vertices, so the vertex beneath became
+unclickable while the edge was held.
+
 WHAT IS STILL NOT BUILT is the audit's other design, merging scale and
 rotate into one end handle. It is refused rather than pending: one
 handle would have to say two things, which is what the glyphs exist not

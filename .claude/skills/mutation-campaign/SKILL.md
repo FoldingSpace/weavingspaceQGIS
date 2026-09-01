@@ -5,7 +5,7 @@ derived_from:
   - path: docs/MUTATION-LOOP.md
     sha256: d72ddd2f0b89310a01f54c24f90b6ce33c692a4c8c10e07b9e1cba9389d6d990
   - path: docs/MUTATION-TESTING.md
-    sha256: 83d8b707c2bf10a73100555e98c6b5e1e48e4ea1cbfe1e6782bcd6f5bee8f55c
+    sha256: 21b1f93e23de390a3ae32fd99cd1ab24299ad6e69a4db3731135585f15e8cf4f
 ---
 
 # Running a mutation campaign
@@ -144,6 +144,22 @@ two DISTANT sites at all. Adjacent sites can be covered by widening
 the anchor; distant ones cannot, and the honest outcome is a
 retirement carrying the measurement rather than an entry that can only
 ever be red.
+
+**QUANTIFY THE REDUNDANCY BEFORE YOU RETIRE, and name the thin
+margin.** Where the test asserts a MEASURED quantity rather than a
+bare outcome, the four verdicts are available cheaply: undo each
+repair alone, then both together, and record what the number does. One
+such round read 41.5 as it stood, 28.7 with one repair undone, 32.7
+with the other, and 12.9 with both — against a requirement of 26.0.
+That is redundancy stated in evidence rather than asserted, and it
+does something a pass/fail verdict cannot: it names 28.7 as the THIN
+one, so a later reader knows which of the two repairs a change would
+eat first. Put every figure at the test, since the retirement is the
+only record that will survive.
+
+The failure mode this avoids is writing a fifth entry aimed at a fifth
+place, which is how a catalogue fills with survivors nobody can
+interpret.
 
 **AND SUSPECT YOUR OWN NEWEST GUARD HARDEST.** The catalogue's most
 valuable catch is not an old test that has drifted; it is a guard

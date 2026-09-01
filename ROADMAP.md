@@ -852,21 +852,36 @@ WHAT THE VERSION GAINED, all merged at `3f3f1a7`:
   drawn, and every manipulation is reachable on the drawing with a
   handle that looks like what it does.
 
-WHAT IS OWED IN CODE, which is why the declaration is withdrawn:
+WHAT WAS OWED IN CODE IS DONE, all five, on 2026-08-31 and
+2026-09-01. Kept as a list rather than deleted because each carries a
+measurement the next person should not have to take again:
 
-- the tab's Change controls sit BELOW THE FOLD, under seven checkboxes
-  about what to draw -- the first thing in the maintainer's own
-  screenshot and untouched;
-- the DUAL is drawn once while the tiles are drawn as a patch, 6
-  against 36 on laves 3.3.4.3.4, though the tiling is periodic and the
-  dual repeats on the same lattice;
-- NO REGISTERED TEST covers the interaction modalities. The harness is
-  committed as a probe and is the thing that would stop any of this
-  regressing quietly;
-- edits surviving a QGIS and GeoPackage ROUNDTRIP is reasoned and not
-  driven;
-- and everything must be reachable at realistic sizes, window default
-  included.
+- the Change controls come FIRST and the seven Show checkboxes last,
+  in two columns;
+- the DUAL tiles, because the tiling does. It was drawn once against a
+  patch of repeats -- 6 dual tiles against 36 tiles on laves 3.3.4.3.4
+  -- so with the toggle on it sat in the middle of a field it did not
+  cover. It repeats on the design's own lattice now;
+- TWO REGISTERED TESTS cover the interaction. The matrix drives every
+  modality through the widget's own mouse events and reads four stores
+  separately; the roundtrip saves a design with edits, opens it in a
+  fresh dialog on a fresh project, and requires the same ground. Both
+  carry catalogue entries proved `caught`, and the second took three
+  measurements to make bite -- a differential cannot see a fault its
+  expected side shares, the ORDER of the edits decides whether the
+  case arises at all, and the premise was asked one tick before the
+  edited unit was adopted;
+- the ROUNDTRIP is driven rather than reasoned, by that second test;
+- and REACHABILITY at realistic sizes is measured and guarded. The
+  drawing had 180px of an 825px window; both it and the control column
+  beside it have floors now (420 and 271), the window grows to 1025
+  when the tab is chosen, and the Design tab still opens at 825. Two
+  edge handles sat 20.4px apart inside a 26px reach, which made one of
+  them unclickable ANYWHERE on 23 edges of each of two designs; they
+  stand at different offsets. Only ONE catalogue entry stands here,
+  and the reason is measured rather than assumed: the two fixes each
+  suffice alone, ninety lines apart, so no single anchor can make the
+  assertion fail -- the numbers are written at the test.
 
 AND FOUR THINGS ARE APPROVED AND NOT STARTED, from reading upstream's
 notebooks against what the tab offers: multi-class selectors (their own
@@ -967,21 +982,28 @@ a switch and come back. The likely answer is at the READER -- a Load
 assigning only the first `design.n` elements and leaving the rest as
 memory -- but that is a decision about what the record MEANS.
 
-THE TOPOLOGY TAB DRAWS THE UN-EDITED MOTIF. `set_unit` is handed
-`built["unit"]` and `built["topology"]`, never `edited`, so the
-picture somebody judges an edit by is the design before it. Drawing
-the edited motif is easy; the labels an edit is AIMED with must go on
-coming from the un-edited topology, so which one the hit test follows
-is the ruling.
+THE TOPOLOGY TAB DRAWING THE UN-EDITED MOTIF IS SETTLED AND BUILT,
+2026-08-31, by the maintainer's own ruling: "can you make it possible
+on the same image? sure, ghost the original or whatever. if classes
+change or whatever else along the way, so what?" The landing hands the
+panel the EDITED unit and its topology, with the un-edited one drawn
+behind as a ghost. The worry recorded here -- that the labels an edit
+is aimed with must keep coming from somewhere stable -- is answered by
+`apply` CHAINING rather than replaying: each edit is aimed with the
+labels the object carried when it was made, so the hit test follows
+what is on screen and nothing has to choose between two topologies.
+The file's dual is still built from a rebuild, because a chained one
+is stale; that is `built["rebuilt_topology"]`, and the test that
+caught it is `test_the_saved_dual_belongs_to_the_saved_unit`.
 
 WHAT REMAINS BESIDES IS THE MAINTAINER'S OWN, and neither is work on
 the software: the CHANGELOG LINE for everything above, which is a
-sentence a person writes and approves, and the SENTENCES in
-the text-review queue -- the slider's box, the two renamed transform
-labels, the experimental box, the Messages tab and the prose about
-them, and the three download sentences that now describe a versioned
-artefact. CI will fail until those are approved, which is the gate
-working: approving prose is nobody else's act.
+sentence a person writes and approves, and the ONE SENTENCE left in
+the text-review queue -- README.md's vendored-library line, changed
+only by the re-vendor moving the recorded commit. The rest of the
+queue was approved on 2026-08-29 and 2026-08-31. CI is red on that one
+paragraph and the other five jobs are SKIPPED behind it, which is the
+gate working: approving prose is nobody else's act.
 
 AND ONE THING IS FLAGGED RATHER THAN DECIDED. The element slider's
 track spans the whole catalogue, 2 to 256, where this section's own

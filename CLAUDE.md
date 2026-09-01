@@ -5904,3 +5904,57 @@ here, and the decision to add one is the maintainer's. Recorded
   -- and re-ask it whenever the thing being watched reaches a resting
   state, because a headline that was right while something was in
   flight becomes furniture the moment it settles.
+
+- **A WIDGET INSIDE A LAYOUT DOES NOT KEEP A SIZE YOU HAND IT, SO THE
+  WINDOW IS THE LEVER.** (2026-08-31, and THREE of four failed attempts
+  at one guard turned on this alone.) A test that resizes a child to
+  its own floor measures nothing: the layout hands that child whatever
+  is left over on the next pass, and the resize is gone before
+  anything can read it. What actually pins a pane is the WINDOW'S
+  minimum, which is composed from every pane's floor plus what sits
+  beside them -- measured here at 1025x450, below which the dialog
+  will not go, holding the drawing at 420x346 however small a size it
+  is asked for. So a mutation lowering a child's own floor can change
+  nothing observable, and its entry survives while the code is
+  genuinely wrong-headed. Drive the window, then READ the child's size
+  rather than assuming it took.
+- **A FLOOR ON ONE PANE IS TAKEN OUT OF THE PANE BESIDE IT.** (Same
+  day.) The Topology tab's drawing had a 180px floor and got exactly
+  180px of an 825px window, because the column of controls beside it
+  claims its own preferred width first -- so the floor was not a floor
+  but the whole allowance. Raising it to 420 without giving that
+  column a floor of its own MOVED THE COMPLAINT rather than answering
+  it: 71px of viewport for content wanting 271. And the horizontal
+  scrollbar there is deliberately off, so a column narrower than its
+  content does not scroll, it CLIPS -- the controls are simply gone,
+  with nothing on screen to say so.
+  ASK OF ANY SIZE FLOOR WHERE THE ROOM COMES FROM, and measure the
+  neighbour in the same breath. A scroll area is only a safety net in
+  the direction its scrollbar is enabled.
+- **TWO SUFFICIENT FIXES TO ONE OUTCOME MAKE EVERY SINGLE-SITE ENTRY
+  SURVIVE, AND THAT IS INFORMATION.** (Same day, four attempts before
+  the question was put the right way round.) Two independent repairs
+  kept a pair of handles outside the hit test's reach, and the test
+  asserts the OUTCOME, so mutating either one left the assertion
+  true. Each attempt read as a weak test and none of them was. The
+  discriminator is to undo BOTH by hand and watch the number move:
+  worst gap 41.5px as it stands, 28.7 with one undone, 32.7 with the
+  other, 12.9 with both. The sites were ninety lines apart, so no
+  anchor could span them, and the honest record is the retirement with
+  every figure written at the test -- plus the thin one named, since
+  28.7 against a 26.0 requirement is a 2.7px margin and is what a
+  later change would eat first. This project already has the rule; what
+  is new is the METHOD for telling redundancy from weakness, which is
+  to break every route at once rather than to write a fifth entry.
+- **A SETTLE RETURNS BEFORE THE RESULT IS ADOPTED, SO A PREMISE ASKED
+  IN THE SAME BREATH READS THE OLD STATE.** (Same day.) A guard
+  asserted, immediately after waiting for the topology build to go
+  quiet, that the design no longer carried a topology -- and the
+  assertion failed while a direct measurement of the very same dialog
+  said it should pass. The waiter returns when no build is IN FLIGHT;
+  the edited unit is adopted a beat later. So the premise was asking
+  about the un-edited design and answering, quite correctly, that it
+  still had one. ORDER A PREMISE BEHIND THE EVIDENCE THAT THE ACT
+  LANDED: assert first that the thing moved, then assert what follows
+  from its having moved. Two contradictory measurements of one object
+  are usually two moments, not two answers.

@@ -585,3 +585,30 @@ its own survivors, and none of them could affect its rate. The 60% is
 therefore a floor under a suite that has since improved, which is the
 honest direction for a bound to be wrong in — and the reason the
 campaign certifies out of sample rather than mid-flight.
+
+## Telling redundancy from weakness, when an entry keeps surviving
+
+(2026-08-31, four attempts at one entry.) Two independent repairs kept
+a pair of controls outside a hit test's reach, and the test asserts the
+OUTCOME -- so mutating either one on its own left the assertion true.
+Each attempt read as a test too weak to notice, and none of them was.
+
+THE DISCRIMINATOR IS TO UNDO EVERY ROUTE AT ONCE, by hand, and watch
+the measured quantity move. Here, as the worst separation against the
+26px the hit test needed: 41.5px as it stands, 28.7 with one repair
+undone, 32.7 with the other, and 12.9 with both. That is redundancy
+stated in numbers, and it is a different finding from a weak
+assertion, which needs a different repair.
+
+WHAT TO DO WITH IT depends on how far apart the sites are. Adjacent,
+widen the anchor so one replacement takes both. Distant -- ninety
+lines, in this case -- and no anchor can span them, because
+`mutation_check` applies exactly one replacement by design. Then the
+honest record is a RETIREMENT with every figure written at the test,
+including the THIN one: 28.7 against a requirement of 26.0 is a margin
+of 2.7px, and naming it is what tells a later reader which of the two
+repairs a change would eat first.
+
+The failure mode this avoids is writing a fifth entry aimed at a fifth
+place, which is how a catalogue fills with survivors nobody can
+interpret.

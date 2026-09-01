@@ -4084,3 +4084,48 @@ README.md.
 ASK OF ANY HARNESS THAT COPIES A TREE what the tests it runs actually
 open, and prefer to derive that list rather than keep it by hand.
 
+## A PREMISE ASKED IN THE SAME BREATH AS A SETTLE READS THE OLD STATE
+
+(2026-08-31.) A guard waited for the topology build to go quiet and
+then asserted, on the next line, that the design no longer carried a
+topology. It failed -- while a direct measurement of the very same
+dialog said it should pass, which sent the diagnosis after a
+contradiction that did not exist.
+
+The waiter returns when no build is IN FLIGHT. The edited unit is
+adopted a beat after that. So the premise was asking about the
+UN-EDITED design and answering, quite correctly, that it still had a
+topology.
+
+ORDER A PREMISE BEHIND THE EVIDENCE THAT THE ACT LANDED. Assert first
+that the thing moved, then assert what follows from its having moved:
+
+    _settle_topology(dlg, seconds=40)
+    _settle(dlg)
+    _tick(250)
+    after_one = ground(dlg._unit)
+    assert after_one != plain, \
+      "PREMISE: the rotation has not reached the dialog's unit yet"
+    assert not still_has_a_topology(dlg._unit), "PREMISE: ..."
+
+Two contradictory measurements of one object are usually two moments
+rather than two answers, and the cheapest way to tell is to make the
+test say which moment it is standing in.
+
+## A TEST THAT RESIZES A CHILD WIDGET HAS MEASURED NOTHING
+
+(Same day, and three of four failed attempts at one guard turned on
+this alone.) A widget inside a layout does not keep a size handed to
+it: the layout gives it whatever is left over on the next pass, so a
+resize to its own floor is gone before anything can read it.
+
+Drive the WINDOW, which is what a person drags, and then READ the
+child's size rather than assuming it took. The window's own minimum is
+what pins a pane in practice, and it is composed from every pane's
+floor plus whatever sits beside them -- so a mutation lowering one
+child's floor can change nothing observable at all, and its entry
+survives while the code is genuinely wrong-headed.
+
+The same caution reaches any test that asserts about a size, a
+position or a hit target: those are all downstream of a layout pass
+that has its own opinion.
