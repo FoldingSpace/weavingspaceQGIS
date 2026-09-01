@@ -7693,7 +7693,7 @@ def test_a_design_is_shown_by_name_and_stored_by_key():
 
     # ---- WHAT A PERSON READS
     shown = dlg.family_combo.currentText()
-    assert shown == "laves 3.3.4.3.4 (cairo)", (
+    assert shown == "laves 3.3.4.3.4 (cairo pentagonal)", (
       f"the chooser shows {shown!r}, so somebody hunting for the "
       f"Cairo tiling still cannot find the design that draws it")
     # AND THE LABEL COMES FROM ONE PLACE, so a name corrected in the

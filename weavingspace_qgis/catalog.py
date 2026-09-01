@@ -522,9 +522,34 @@ def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
 # ids a to d, identical areas and bounds, symmetric difference 0.000.
 #
 # So the chooser shows a LABEL and stores the KEY. The names below are
-# the standard ones (Grünbaum and Shephard, *Tilings and Patterns*,
-# 1987), one per entry rather than every synonym: a label is a way in,
-# not a glossary.
+# the standard ones, one per entry rather than every synonym: a label
+# is a way in, not a glossary.
+#
+# WHERE THEY COME FROM, since a label is a claim about mathematics
+# made in this software's own voice and a reader asked. They are the
+# names in the table of uniform tilings and their duals at
+# https://en.wikipedia.org/wiki/List_of_Euclidean_uniform_tilings,
+# which cites Grünbaum and Shephard, *Tilings and Patterns* (1987) and
+# Conway, Burgiel and Goodman-Strauss, *The Symmetries of Things*
+# (2008). Upstream confirms one of them at its own source:
+# `tile_unit.py` says "cairo" is the Cairo tiling, "more formally
+# known as the Laves [3.3.4.3.4]".
+#
+# AND THEY WERE CHECKED AGAINST THE GEOMETRY THIS LIBRARY BUILDS, by
+# `tools/probes/do_the_names_match_the_shapes.py`, because a name is
+# only right about the design it is attached to. Each name predicts
+# the tiles: an Archimedean configuration says which regular polygons
+# meet at a vertex, and a Laves tiling is that one's dual, so its
+# tiles are all of one kind. Measured 2026-09-01 -- 4.8.8 builds
+# regular squares and octagons, 3.12.12 triangles and 12-gons, and
+# the four Laves entries build irregular triangles once and pentagons
+# three times, which is what triakis triangular, floret pentagonal,
+# prismatic pentagonal and Cairo pentagonal each say.
+#
+# ONE NAME WAS WRONG BEFORE THE SOURCE WAS OPENED: 3.3.3.3.6 was
+# written here as "snub hexagonal", which is a name in use, where the
+# cited table calls it the snub TRIhexagonal tiling. Corrected rather
+# than defended.
 #
 # THE KEY IS WHAT EVERYTHING ELSE USES. Adding a label must never move
 # what a saved GeoPackage or project holds, which is why the record
@@ -534,7 +559,7 @@ def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
 COMMON_NAMES = {
   # The eight Archimedean (uniform) tilings this catalogue carries.
   "archimedean 3.12.12": "truncated hexagonal",
-  "archimedean 3.3.3.3.6": "snub hexagonal",
+  "archimedean 3.3.3.3.6": "snub trihexagonal",
   "archimedean 3.3.3.4.4": "elongated triangular",
   "archimedean 3.3.4.3.4": "snub square",
   "archimedean 3.4.6.4": "rhombitrihexagonal",
@@ -545,7 +570,7 @@ COMMON_NAMES = {
   "laves 3.12.12": "triakis triangular",
   "laves 3.3.3.3.6": "floret pentagonal",
   "laves 3.3.3.4.4": "prismatic pentagonal",
-  "laves 3.3.4.3.4": "cairo",
+  "laves 3.3.4.3.4": "cairo pentagonal",
 }
 
 
