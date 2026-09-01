@@ -3791,8 +3791,15 @@ class WeavingSpaceDialog(QDialog):
     2026-08-30 at 1296px to 1618px in one run, which is the third of
     this layout's four failed repairs wearing new clothes. A MARGIN
     DOES NOT FEED A LABEL'S WIDTH, so moving one settles instead of
-    running away, and the flag below means even a wrong reading could
-    only be taken once.
+    running away -- which is also what makes the retry below safe,
+    since asking again cannot accumulate.
+
+    WHAT MAKES IT IDEMPOTENT is the margins being remembered once and
+    RESTORED at the head of every pass, not a flag. This paragraph
+    used to say a flag meant a wrong reading could only be taken once;
+    that flag was written and read nowhere, and saying so here was
+    worse than not saying it, because the next reader believes it
+    rather than checking. (Corrected 2026-09-01.)
     """
     forms = getattr(self, "_design_forms", ())
     if len(forms) < 2:
@@ -3815,13 +3822,41 @@ class WeavingSpaceDialog(QDialog):
       item = form.itemAt(0, QFormLayout.ItemRole.LabelRole)
       widget = item.widget() if item is not None else None
       if widget is None or widget.width() <= 0:
-        return                      # no layout pass yet; try again later
+        # NO LAYOUT PASS YET, SO ASK AGAIN -- AND THE ASKING IS THE
+        # POINT. This branch used to `return` under a comment reading
+        # "try again later" while nothing whatever scheduled a later,
+        # which is this project's own recorded fault: a dropped
+        # single-shot is LOST rather than late, and a comment claiming
+        # a thing recovers by itself must name the mechanism that
+        # recovers it. On a fast machine the layout has happened by
+        # the time the timer fires and this never runs; on a slower
+        # one the only pass can be the early one, after which the two
+        # columns stay ragged for the life of the dialog. Suspected
+        # cause of the macOS runner's 51px split, 2026-08-31.
+        self._label_columns_owed = True
+        # BOUNDED, because a dialog nobody ever shows would otherwise
+        # re-arm for ever: twenty tries at 50ms is one second of
+        # asking, after which the answer is that there is no layout to
+        # measure and never will be.
+        tries = getattr(self, "_label_column_tries", 0)
+        if tries < 20:
+          self._label_column_tries = tries + 1
+          QTimer.singleShot(50, self._settle_the_label_columns)
+        return
       edges.append((form, widget.mapTo(self, widget.rect().topLeft()).x()))
     rightmost = max(x for _form, x in edges)
     for form, x in edges:
       if x < rightmost:
         left, top, right, bottom = form.getContentsMargins()
         form.setContentsMargins(left + (rightmost - x), top, right, bottom)
+    # A READING WAS TAKEN, so nothing is owed and the counter goes
+    # back. `_label_columns_settled` was written here and read NOWHERE
+    # until 2026-09-01 -- write-only state, and its docstring's claim
+    # that a flag stopped a wrong reading being taken twice was simply
+    # false. What is true is that the pass is idempotent, and what is
+    # useful is knowing whether it has managed to run at all.
+    self._label_columns_owed = False
+    self._label_column_tries = 0
     self._label_columns_settled = True
 
   def _set_option_row_visible(self, lab: QWidget, widget: QWidget,

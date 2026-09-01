@@ -74853,7 +74853,11 @@ def test_every_restyle_door_repaints_the_preview():
       f"after a manual Generate answered by a restyle the preview " \
       f"rests on {resting(dlg, tid)} while the table holds {new}"
   finally:
+    # DESTROYED HERE, IN A KNOWN ORDER, rather than left to the
+    # harness's shared teardown. See door two for what that cost.
     dlg.close()
+    dlg.deleteLater()
+    _tick(100)
     project.clear()
     _tick(300)
   # door two: live ON, the region file moved away, ramp picked
@@ -74904,9 +74908,32 @@ def test_every_restyle_door_repaints_the_preview():
         f"after the source-gone restyle the preview rests on " \
         f"{resting(dlg, tid)} while the table holds {new}"
     finally:
+      # THIS DOOR MOVES A GEOPACKAGE OUT FROM UNDER A LIVE LAYER, so
+      # what it leaves behind is a provider whose file has gone. On
+      # Linux QGIS 4.0.0 the suite ABORTED at exit 134 -- `corrupted
+      # double-linked list`, no Python traceback, inside `check`'s own
+      # `project.clear()` on the line after this test PASSED, with a
+      # thousand `sqlite3_open(.../region.gpkg) failed` lines above it
+      # from this very folder. Closing a window neither destroys its
+      # C++ object nor drops what it holds, so that destruction
+      # happened in a teardown shared with every other test. It
+      # happens HERE now, in an order this test chooses, and the
+      # layers go before the file does.
+      #
+      # ELEVEN OTHER TESTS CLOSE A DIALOG AND THEN CLEAR THE PROJECT
+      # without destroying it, which is the same shape; they are left
+      # alone deliberately, because this is the one whose file is
+      # removed underneath a layer and the only one measured to abort.
+      # (2026-09-01. The abort is 4.0.0's alone -- 4.0.3 and stable
+      # were green on the same tree -- so if it returns, the honest
+      # next step is `_skip_loudly` naming the version rather than
+      # another guess at the order.)
       dlg.close()
+      dlg.deleteLater()
+      _tick(100)
   finally:
     project.clear()
+    _tick(200)
     shutil.rmtree(folder, ignore_errors=True)
 
   # door three: a dock edit the plugin cannot NAME, so the element
@@ -74959,7 +74986,10 @@ def test_every_restyle_door_repaints_the_preview():
       f"has never meant the preview may show a colour the map does "
       f"not contain")
   finally:
+    # As door one: destroyed here rather than in the shared teardown.
     dlg.close()
+    dlg.deleteLater()
+    _tick(100)
     project.clear()
     _tick(300)
 
