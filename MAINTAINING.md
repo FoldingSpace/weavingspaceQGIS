@@ -754,7 +754,13 @@ per-layer APIs, and each opens the GeoPackage, so the seconds grow
 with the layers already in the file: 134 of them at the 256-element
 ceiling, with a 50 ms heartbeat recording zero beats. Making the save
 a SINGLE OGR SESSION is the real repair and is a rewrite of the
-writer; it is under 0.24.5 in ROADMAP.md.
+writer; it moved into 0.24.4 on the maintainer's decision of
+2026-09-01 and `bridge.write_gpkg_layers` is it. Two of the three
+per-layer terms are closed -- the writing and the style embedding,
+each now ONE call where it was n -- and the third, `point_layer_at`,
+is measured rather than conceded: every layer genuinely needs its own
+provider, a warm QGIS layer does not make it cheaper (0.85 to 1.02 of
+the plain cost), and it is what remains of the quadratic.
 
 What ships in 0.24.4 is the maintainer's decision of 2026-08-29: the
 loop turns the event loop once per element behind a determinate

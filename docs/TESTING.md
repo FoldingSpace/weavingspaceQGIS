@@ -4247,3 +4247,81 @@ before, whose product code is byte-identical; the difference was the
 runner. That is not a reason to shrug -- an intermittent failure is
 still a case somebody can meet -- but it does say the instrument comes
 before the theory.
+
+## FOUR INSTRUMENT FAULTS IN ONE ROUND, AND WHAT EACH LOOKED LIKE
+
+2026-09-01, rewriting the save and the load. Counted because a day
+whose findings are mostly its own instruments is a day nobody should
+act on, and because every one of these read as a finding about the
+PRODUCT first.
+
+**A `QgsApplication` LEFT UNBOUND IS COLLECTED ON THE NEXT LINE.** The
+probe died of a segmentation fault with two nullptr warnings and
+nothing else -- which is indistinguishable from the thing being
+measured crashing. Bind it to a name.
+
+**A MUTATION PROVER'S CHILD NEEDS THE QGIS ENVIRONMENT PASSED
+EXPLICITLY, and without it the CONTROL fails too.** An edit script must
+run under `env -u PYTHONHOME -u PYTHONPATH python3`, which is exactly
+the environment a QGIS child cannot start in -- so a prover that let
+the child inherit its own reported DISAGREEMENT on every arm, including
+the unmutated control. Three "the mutation was caught" verdicts were
+worthless. A treatment whose control also fails has measured nothing,
+and the tell was the uniform verdict.
+
+**A FIXTURE WITH NO MISSING VALUES CANNOT SEE A NULL BEING LOST.** The
+differential between two writers was green, and proving it could go red
+found that one of three mutations -- the one removing null handling --
+was invisible: the fixture had no NULLs, so no `_no_data` twin was
+written and the branch that stores a null was never reached. The
+fixture now goes through a FILE, because a value never set on a memory
+feature reads back as 0.0 rather than as QGIS's NULL, and it asserts
+the premise both ways: the gappy arm must produce twins and the
+complete arm must not.
+
+**A CONTROL ARM THAT REBUILDS ITS SUBJECT MEASURES THE REBUILD.**
+Comparing two ways of writing a style, the first version saved the map
+twice and reconstructed the layers for the second arm -- copying the
+renderer, the opacity and the custom properties onto fresh objects --
+and reported about fifty characters of difference in every document.
+That was the rebuilt layer differing from the original. Asked properly
+-- ONE layer, its own name, two copies of the file, so the only thing
+that differs is the code under test -- the two routes agree on every
+column.
+
+**AND THE SECOND VERSION OF THAT COMPARISON WAS WRONG A DIFFERENT
+WAY**, which is worth knowing because it looked like a finding. Running
+both routes into ONE file under two style names reported two
+differences, and both were the probe's: an SLD embeds the LAYER'S NAME,
+which the renaming had changed, and `useAsDefault` flipped because our
+own writer correctly demotes the other rows on a table. Ask of any
+difference whether your fixture could have produced it.
+
+## AN INERT MUTATION AND A WEAK TEST, TOLD APART BY ASKING THE FORMAT
+
+Same day. A mutation removing `SetFieldNull` from a writer survived a
+differential that compares every attribute of every feature. The
+prescribed discriminator is to ask whether the mutation removed the
+behaviour at all -- and asked of GDAL, a feature written with
+`SetFieldNull` and one whose field is never set BOTH read back as set,
+null and None. The two produce the identical row in a GeoPackage, so no
+comparison of what the file HOLDS can tell them apart.
+
+The line is kept, because it is the explicit spelling of the intent and
+costs nothing, and the measurement is written at the site -- so an
+entry standing there and reporting SURVIVED is read as the inert
+mutation it is rather than as a test too weak to notice. Those two look
+identical and need opposite repairs.
+
+## RE-INDENTING A LONG BLOCK: PROVE THE BODY DID NOT MOVE
+
+Wrapping a ninety-line loop in a try/finally means re-indenting every
+line of it, and a wholesale span rewrite is how this project has twice
+taken a neighbour with it. Doing it by hand is the risk; doing it
+mechanically is not enough on its own.
+
+The cheap proof is to strip the indentation back off afterwards and
+require the result to equal the original text, character for
+character, before anything is written. That catches a line eaten, a
+line duplicated and a blank line mangled, none of which a parse check
+would notice -- a file that parses can still be missing a statement.

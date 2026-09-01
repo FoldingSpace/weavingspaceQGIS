@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-480 defect(s) with a regression test.
+484 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -961,10 +961,18 @@ there is no separate list to remember.
   guarded by `test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
+- **opening a saved map called loadDefaultStyle once per layer, and each call opens the file, so a 256-element map took minutes behind a window with no progress bar at all.**  
+  guarded by `test_a_resumed_map_reads_every_style_in_one_pass`
 - **values retyped in QGIS left the map drawing the classification computed from the old values, with classes running past everything the layer now held.**  
   guarded by `test_a_retyped_column_reclassifies_the_map`
+- **a load showed no progress at all, so opening a large map was indistinguishable from a hang; and a save showed a percentage that said nothing about which of its three stretches was running.**  
+  guarded by `test_a_save_and_a_load_count_their_layers_on_the_bar`
+- **a save opened the GeoPackage once per element, and opening one costs time proportional to the layers already in it, so saving a 256-element map took 134 seconds behind a window that showed nothing.**  
+  guarded by `test_a_save_opens_the_file_a_bounded_number_of_times`
 - **a Save pressed while a live re-tile was queued wrote the map that was about to be replaced and reported success. Found by the sentences hunt of 2026-08-28. [hunt] Regression: the repair for that refused the press instead of keeping it, so a save nobody read the refusal for simply did not happen. The maintainer's ruling of 2026-08-29.**  
   guarded by `test_a_save_waits_for_a_run_that_is_about_to_start`
+- **the save was rewritten to write every table in one OGR session, and a writer that put anything different in the file would be a map a colleague opens wrongly.**  
+  guarded by `test_a_session_written_file_holds_what_a_per_layer_one_does`
 - **2026-08-19. A style pasted between element layers in QGIS carried the boundaries but not the pins, so the receiving element could neither show them nor keep them.**  
   guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
@@ -1017,7 +1025,7 @@ there is no separate list to remember.
 - the mutation campaign: 157
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 36
+- reported by a user: 40
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 8

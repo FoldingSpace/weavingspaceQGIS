@@ -5073,7 +5073,9 @@ here, and the decision to add one is the maintainer's. Recorded
   per-layer APIs, and each opens the GeoPackage, so the seconds grow
   with the layers already in the file: 134 of them at the 256-element
   ceiling, with a 50 ms heartbeat recording ZERO beats. Making the
-  save a single OGR session is a rewrite of the writer and is 0.24.5's;
+  save a single OGR session is a rewrite of the writer, moved into
+  0.24.4 on the maintainer's decision of 2026-09-01 that quadratic
+  time in saving and loading is unacceptable to ship;
   what a person meets in the meantime is a window that says what it is
   doing rather than one that looks like a hang.
   THE PUMP IS AT THE TOP OF THE BODY, where none of that loop's four
@@ -6205,3 +6207,50 @@ here, and the decision to add one is the maintainer's. Recorded
   was the instrument -- a TiledMap holds its geometry in `map`, not
   `tiles` -- which is this file's own rule that a uniform verdict is
   almost always the instrument, met for the third time this week.
+
+- **OPENING A GEOPACKAGE COSTS TIME PROPORTIONAL TO ITS LAYERS, AND A
+  HELD HANDLE DOES NOT ANSWER IT.** (2026-09-01, measured against GDAL
+  directly for the first time.) That sentence had stood in four
+  documents since 2026-08-29, INFERRED from the shape of the save's own
+  growth rather than asked of the dependency -- a cause named by
+  reading, which reads exactly like one somebody proved. Asked
+  directly, on files of 8 to 256 tiny tables: an OGR update open runs
+  1.99ms to 38.12ms and a QgsVectorLayer on one table 13.7ms to
+  184.3ms, both doubling as the table count doubles. So a loop that
+  opens the file once per element is quadratic in the element count,
+  which is what made a 256-element save take 134 seconds.
+  AND THE CHEAP REPAIR WAS RULED OUT BEFORE THE EXPENSIVE ONE WAS
+  BUILT. Keeping a python-side handle alive across the act saves
+  nothing at all -- 0.91 to 1.02 of the plain cost -- so GDAL's shared
+  dataset cache is not the lever and the repair had to be a genuine
+  single session. Ten minutes of measurement against a rewrite of a
+  writer is the trade this project should make every time.
+  WHAT IS AND IS NOT CLOSED: the writing and the style embedding are
+  one session each now; the REPOINTING is not, because every layer
+  genuinely needs its own provider, and it is about 33 seconds at the
+  ceiling. That residue is measured and written at its own loop rather
+  than left for somebody to rediscover.
+
+- **A COMPARISON ACROSS TWO RUNS ON A BUSY MACHINE IS NOT A
+  MEASUREMENT.** (Same day, and it nearly put a wrong number in a
+  commit message.) A 32-element save read 1.1s in one run and 2.9s in
+  the next ON IDENTICAL CODE, with the machine's load average between
+  18 and 37 all session. This project's rule is already to reproduce a
+  number with BOTH ARMS IN ONE RUN; what today adds is that the rule
+  binds even when the change is structural and obviously right, because
+  the figure you quote is the one somebody else will check.
+  PREFER A CALL COUNT WHERE ONE CARRIES THE SAME CLAIM. "The style
+  writer went from 256 calls to one" is immune to what else the machine
+  was doing; "32.97s to 0.56s" is not.
+
+- **OGR HANDS BACK A DATETIME IN ITS OWN FORMAT, SO A VALUE COPIED OUT
+  OF A ROW IS A DISPLAY RATHER THAN WHAT WAS STORED.** (Same day.)
+  Writing this project's own `layer_styles` rows meant reproducing what
+  QGIS puts there, so the columns were read off a file QGIS had written
+  -- and the update_time copied from that reading was OGR's rendering,
+  not the stored text. GDAL then warned "Non-conformant content for
+  record N in column update_time ... successfully parsed" on every
+  later read of every file the plugin writes. The column's own default
+  is ISO and conformant, so the honest answer was to say nothing and
+  let it fire. This is the project's own rule about comparing what a
+  file HOLDS rather than how it renders, met from the WRITING side.

@@ -4445,6 +4445,320 @@ def write_gpkg_layer(layer: QgsVectorLayer, path: str, layer_name: str,
   return out
 
 
+# WHAT AN OGR SESSION HAS TO REPRODUCE, and why the mapping is written
+# out rather than inferred. `QgsVectorFileWriter` decides a field's OGR
+# type from its QGIS one, and QGIS 4 reports that as a `QMetaType.Type`
+# rather than the old QVariant enum. Only the types this plugin can
+# actually put in a file are listed: an element layer's attributes are
+# whatever the region layer carried, so text, whole numbers, real
+# numbers, booleans and dates are the whole of it. Anything not here
+# falls back to a string, which is what OGR itself does with a type a
+# format cannot hold, and the differential below is what says whether
+# that fallback is ever reached on real data.
+_OGR_FIELD_TYPES = {}
+
+
+def _ogr_field_types():
+  """The QGIS-field-type to OGR-field-type mapping, built once.
+
+  Returns:
+    A dict from `QMetaType.Type` value to a pair of OGR constants
+    ``(type, subtype)``. Built lazily rather than at import because it
+    needs both Qt and GDAL, and `bridge` is imported by tooling that
+    has neither.
+
+  A subtype is how OGR says "an integer that means true or false"
+  without inventing a boolean type, and GeoPackage stores it as the
+  BOOLEAN column a colleague's reader expects. Getting it wrong is
+  invisible in the geometry and visible in every table view.
+  """
+  if _OGR_FIELD_TYPES:
+    return _OGR_FIELD_TYPES
+  from osgeo import ogr
+  from qgis.PyQt.QtCore import QMetaType
+  kinds = QMetaType.Type
+  _OGR_FIELD_TYPES.update({
+    int(kinds.Bool): (ogr.OFTInteger, ogr.OFSTBoolean),
+    int(kinds.Int): (ogr.OFTInteger, ogr.OFSTNone),
+    int(kinds.UInt): (ogr.OFTInteger, ogr.OFSTNone),
+    int(kinds.LongLong): (ogr.OFTInteger64, ogr.OFSTNone),
+    int(kinds.ULongLong): (ogr.OFTInteger64, ogr.OFSTNone),
+    int(kinds.Double): (ogr.OFTReal, ogr.OFSTNone),
+    int(kinds.Float): (ogr.OFTReal, ogr.OFSTFloat32),
+    int(kinds.QString): (ogr.OFTString, ogr.OFSTNone),
+    int(kinds.QDate): (ogr.OFTDate, ogr.OFSTNone),
+    int(kinds.QTime): (ogr.OFTTime, ogr.OFSTNone),
+    int(kinds.QDateTime): (ogr.OFTDateTime, ogr.OFSTNone),
+    int(kinds.QByteArray): (ogr.OFTBinary, ogr.OFSTNone),
+  })
+  return _OGR_FIELD_TYPES
+
+
+def _ogr_geometry_type(layer):
+  """The OGR geometry type for a QGIS layer's declared one.
+
+  Args:
+    layer: the layer about to be written.
+
+  Returns:
+    An OGR wkb constant. Derived from the layer's own WKB type through
+    QGIS's `QgsWkbTypes`, because OGR and QGIS both number the OGC
+    types the same way -- so the integer IS the answer for every type
+    a tiling produces, and `wkbUnknown` is the honest fallback for
+    anything else rather than a guess that would declare the wrong
+    thing in `gpkg_geometry_columns`.
+
+  A GeoPackage records this per table, and a colleague's reader
+  believes it: declaring Polygon on a table holding MultiPolygon is a
+  file that contradicts itself, which is the one thing a rewrite of
+  this writer must not introduce.
+  """
+  from osgeo import ogr
+  try:
+    from qgis.core import QgsWkbTypes
+    declared = int(QgsWkbTypes.flatType(layer.wkbType()))
+  except Exception:                                     # noqa: BLE001
+    return ogr.wkbUnknown
+  # 1..7 are Point, LineString, Polygon, MultiPoint, MultiLineString,
+  # MultiPolygon and GeometryCollection in both libraries' numbering.
+  return declared if 1 <= declared <= 7 else ogr.wkbUnknown
+
+
+def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None):
+  """Write several layers into a GeoPackage in ONE OGR session.
+
+  Args:
+    jobs: a sequence of ``(layer, table_name)`` pairs, in the order
+      they should appear in the file. Each layer is read through its
+      own provider exactly as the per-layer form reads it.
+    path: the .gpkg to write into.
+    recreate: True to build the file from nothing, which is what the
+      first write of a run into a fresh file does; False to add to and
+      replace inside an existing one. Getting this backwards would
+      silently discard whatever the file already held, which is the
+      same hazard `write_gpkg_layer`'s `first` carries.
+    on_table: called with ``(done, total)`` after each table, or None.
+      IT EXISTS SO THE WINDOW GOES ON PAINTING. The maintainer's
+      decision of 2026-08-29 is that a save says what it is doing
+      rather than looking like a hang, and the per-layer loop this
+      replaces beat its progress bar once per element. Collapsing the
+      writing into one call would otherwise trade a long freeze for a
+      shorter freeze with no bar at all, which answers the cost and
+      undoes the responsiveness -- two different questions, and this
+      one must not be paid for out of the other.
+
+  Returns:
+    A pair ``(written, trouble)``: the set of table names that reached
+    the file, and a list of ``"table: reason"`` strings for those that
+    did not. It does NOT raise on one bad layer, because a map is
+    worth writing even where one element of it cannot be -- which is
+    the behaviour the per-layer loop already had through its own
+    try/except, kept deliberately so this is a change of COST and not
+    of contract.
+
+  WHY IT EXISTS, measured rather than assumed. Opening a GeoPackage
+  costs time proportional to the layers already in it: measured
+  2026-09-01 on files of 8 to 256 tables, a bare OGR update open runs
+  1.99ms to 38.12ms and a QgsVectorLayer on one table 13.7ms to
+  184.3ms, both doubling as the table count doubles
+  (`tools/probes/what_opening_a_geopackage_costs.py`). So a loop that
+  opens the file once per element is quadratic in the element count --
+  0.6s at 8 elements and 4.5s at 64, against a call count that is
+  exactly linear, and 134s at the 256 ceiling.
+  A HELD HANDLE DOES NOT ANSWER IT. Keeping a python-side `ogr.Open`
+  alive across the act saves nothing at all (0.91 to 1.02 of the plain
+  cost), so GDAL's shared cache is not the lever and the repair has to
+  be a genuine single session rather than a cheaper open.
+
+  WHAT IT DELIBERATELY DOES NOT CHANGE is what the file CONTAINS. The
+  risk of rewriting a writer lands on the one thing that must not
+  break -- what a colleague receives -- so this reproduces
+  `QgsVectorFileWriter`'s output rather than improving on it: the same
+  FID column, the same spatial index, the same field types and
+  geometry declaration. `tools/probes/two_writers_one_file.py` is the
+  differential that says so, comparing the two files table by table,
+  field by field and feature by feature.
+
+  AND IT IS ONE TRANSACTION, which is the other half of the saving:
+  without it sqlite commits per feature and the writing itself, rather
+  than the opening, becomes the cost.
+  """
+  from osgeo import ogr, osr
+  written = set()
+  trouble = []
+  jobs = [(layer, name) for layer, name in jobs if layer is not None]
+  if not jobs:
+    return written, trouble
+
+  data = None
+  try:
+    if recreate or not os.path.exists(path) or os.path.getsize(path) == 0:
+      if os.path.exists(path):
+        os.remove(path)
+      data = ogr.GetDriverByName("GPKG").CreateDataSource(path)
+    else:
+      data = ogr.Open(path, 1)
+    if data is None:
+      return written, [f"{name}: could not open {path}" for _l, name in jobs]
+
+    # ONE TRANSACTION ROUND THE WHOLE MAP. A GeoPackage is sqlite, and
+    # without this every feature is its own commit -- which turns the
+    # cost this function exists to remove into a different one of the
+    # same size.
+    started_transaction = False
+    try:
+      started_transaction = (data.StartTransaction() == ogr.OGRERR_NONE)
+    except Exception:                                   # noqa: BLE001
+      started_transaction = False
+
+    try:
+      for done, (layer, name) in enumerate(jobs, 1):
+        try:
+          _write_one_layer(data, layer, name, ogr, osr)
+          written.add(name)
+        except Exception as e:                          # noqa: BLE001
+          trouble.append(f"{name}: {e}")
+        # AFTER THE TABLE, AND OUTSIDE ITS `try`, so a table that
+        # failed still beats: a bar that stops moving on the ones that
+        # go wrong says the save has hung, which is the fault the
+        # per-layer loop's own pump was placed at the top of its body
+        # to avoid.
+        if on_table is not None:
+          on_table(done, len(jobs))
+    finally:
+      if started_transaction:
+        try:
+          data.CommitTransaction()
+        except Exception:                               # noqa: BLE001
+          # A commit that will not go through leaves the file as it
+          # was, which is the right way for this to fail: a half
+          # written map is worse than an unwritten one.
+          trouble.append("the file's transaction could not be committed")
+  except Exception as e:                                # noqa: BLE001
+    trouble.append(f"{path}: {e}")
+  finally:
+    # RELEASED BEFORE ANYTHING READS THE FILE. A handle held open
+    # changes what the next reader sees -- this project has already
+    # measured a probe's own open making the next run report zero
+    # tables -- and the callers here repoint layers at these tables on
+    # the very next line.
+    data = None
+  return written, trouble
+
+
+def _write_one_layer(data, layer, name: str, ogr, osr) -> None:
+  """Create one table inside an open GeoPackage and fill it.
+
+  Args:
+    data: the open OGR datasource, shared by every table in the map.
+    layer: the QGIS layer to write.
+    name: the table name inside the file.
+    ogr: the `osgeo.ogr` module, passed rather than re-imported so the
+      caller's import failure is the only one anybody has to handle.
+    osr: the `osgeo.osr` module, likewise.
+
+  Returns:
+    None. Raises on anything that stops the table being written, which
+    the caller turns into one entry in its trouble list rather than
+    losing the rest of the map.
+
+  A TABLE OF THE SAME NAME IS REPLACED, which is what
+  `CreateOrOverwriteLayer` means in the per-layer form and is the
+  second press on any map. Deleting by INDEX rather than by name is
+  OGR's only spelling for it.
+  """
+  existing = data.GetLayerByName(name)
+  if existing is not None:
+    for index in range(data.GetLayerCount()):
+      if data.GetLayer(index).GetName() == name:
+        data.DeleteLayer(index)
+        break
+
+  # A LAYER WITH NO CRS IS WRITTEN WITH NO CRS, deliberately. QGIS
+  # permits one and users have reasons for it -- a floor plan, a
+  # scanned map -- and inventing a system on the way out would place
+  # the map off the edge of the world, which is the hazard this
+  # project already records about a memory layer handed EPSG:4326.
+  crs = layer.crs()
+  reference = None
+  if crs is not None and crs.isValid():
+    reference = osr.SpatialReference()
+    if reference.ImportFromWkt(crs.toWkt()) != 0:
+      reference = None
+    else:
+      # GDAL 3 orders axes by the authority's own definition unless
+      # told otherwise; GeoPackage stores x then y, and so does every
+      # geometry we hand it.
+      try:
+        reference.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+      except Exception:                                 # noqa: BLE001
+        pass
+
+  out = data.CreateLayer(
+    name, reference, _ogr_geometry_type(layer),
+    # The same two options the per-layer writer passes, and for the
+    # same reasons: tiles inherit a region's attributes, so many share
+    # one `fid` value and the write fails on the first duplicate
+    # unless the key column is named something else; and the R-tree
+    # the interactive map depends on must not vanish behind a changed
+    # GDAL default.
+    [f"FID={GPKG_FID_COLUMN}", "SPATIAL_INDEX=YES", "GEOMETRY_NAME=geom"])
+  if out is None:
+    raise RuntimeError(f"could not create the table {name}")
+
+  types = _ogr_field_types()
+  fields = layer.fields()
+  for field in fields:
+    kind, subtype = types.get(int(field.type()),
+                              (ogr.OFTString, ogr.OFSTNone))
+    definition = ogr.FieldDefn(field.name(), kind)
+    if subtype != ogr.OFSTNone:
+      definition.SetSubType(subtype)
+    if kind == ogr.OFTString and field.length() > 0:
+      definition.SetWidth(field.length())
+    if kind == ogr.OFTReal and field.precision() > 0:
+      definition.SetPrecision(field.precision())
+    if out.CreateField(definition) != 0:
+      raise RuntimeError(f"could not create the column {field.name()}")
+
+  definition = out.GetLayerDefn()
+  names = [field.name() for field in fields]
+  for feature in layer.getFeatures():
+    record = ogr.Feature(definition)
+    for index, column in enumerate(names):
+      value = feature.attribute(column)
+      # A NULL IS SET AS A NULL rather than skipped, and this plugin's
+      # whole no-data machinery turns on a value being absent rather
+      # than being zero.
+      # AND REMOVING THIS LINE IS AN INERT MUTATION FOR A GEOPACKAGE,
+      # measured 2026-09-01 rather than assumed: a feature written with
+      # `SetFieldNull` and one whose field is never set at all both
+      # read back `IsFieldSet=True, IsFieldNull=True, value=None`, so
+      # the two produce the identical row and no differential over what
+      # the FILE holds can tell them apart. It is kept because it is
+      # the explicit spelling of the intent and costs nothing, and the
+      # measurement is written here so that a catalogue entry standing
+      # on it, reporting SURVIVED, is read as the inert mutation it is
+      # rather than as a test too weak to notice -- the two look
+      # identical and need opposite repairs.
+      if value is None or (hasattr(value, "isNull") and value.isNull()):
+        record.SetFieldNull(index)
+      elif isinstance(value, bool):
+        record.SetField(index, int(value))
+      elif isinstance(value, (int, float, str)):
+        record.SetField(index, value)
+      else:
+        record.SetField(index, str(value))
+    geometry = feature.geometry()
+    if geometry is not None and not geometry.isEmpty():
+      shape = ogr.CreateGeometryFromWkb(bytes(geometry.asWkb()))
+      if shape is not None:
+        record.SetGeometry(shape)
+    if out.CreateFeature(record) != 0:
+      raise RuntimeError(f"could not write a feature into {name}")
+    record = None
+
+
 def split_out_the_no_data(frame, field, column_has_values=None,
                           floor=None, ceiling=None):
   """Separate the rows a graduated renderer cannot draw.
@@ -4915,6 +5229,238 @@ def embed_style(layer: QgsVectorLayer, drop_others: bool = True) -> None:
   # the rows this plugin is responsible for.
   if drop_others:
     _drop_our_other_styles(layer, name)
+
+
+def embed_styles(path: str, jobs, on_style=None):
+  """Embed several layers' styles into a GeoPackage in ONE session.
+
+  Args:
+    path: the .gpkg the layers now read from.
+    jobs: a sequence of ``(layer, table_name)`` pairs.
+    on_style: called with ``(done, total)`` after each style, or None,
+      so the caller can advance a progress bar and let the window
+      paint. Same reason as `write_gpkg_layers`: answering the cost
+      must not be paid for out of the responsiveness.
+
+  Returns:
+    A dict of table name to the style name written, which is what
+    `drop_our_other_styles` needs in order to say which row to keep.
+    Best-effort throughout, exactly as the per-layer form is: a style
+    that will not save must never fail the save that produced the map.
+
+  WHY IT EXISTS, measured. `compat.save_style_to_database` opens the
+  GeoPackage once per layer, and an open costs time proportional to
+  what the file already holds -- 32.97s of a 79.9s save at the
+  256-element ceiling, growing 3.5x per doubling.
+
+  THE TABLE IS CREATED BY QGIS AND FILLED BY US, which is the whole
+  of how this stays safe. `layer_styles` has thirteen columns and a
+  schema this project does not own, so the first style on a file with
+  no such table goes through QGIS's own call and the rest are written
+  into the table it just made. Reproducing that DDL here would be a
+  second definition of somebody else's format, which is the shape this
+  project has paid for in generated documents and in `shipped_files`.
+  """
+  from . import compat
+  written = {}
+  jobs = [(layer, table) for layer, table in jobs if layer is not None]
+  if not jobs:
+    return written
+  try:
+    from osgeo import ogr
+  except ImportError:
+    ogr = None
+
+  # THE FIRST ONE GOES THROUGH QGIS wherever the table may be missing,
+  # so the schema is always QGIS's own.
+  start_at = 0
+  if ogr is None or "layer_styles" not in gpkg_tables(path):
+    layer, table = jobs[0]
+    name = layer.name()[:30]
+    try:
+      compat.save_style_to_database(layer, name, SEEDED_BY_US)
+      written[table] = name
+    except Exception:                                   # noqa: BLE001
+      pass
+    start_at = 1
+    if on_style is not None:
+      on_style(1, len(jobs))
+  if ogr is None:
+    for done, (layer, table) in enumerate(jobs[start_at:], start_at + 1):
+      name = layer.name()[:30]
+      try:
+        compat.save_style_to_database(layer, name, SEEDED_BY_US)
+        written[table] = name
+      except Exception:                                 # noqa: BLE001
+        pass
+      if on_style is not None:
+        on_style(done, len(jobs))
+    return written
+
+  data = None
+  try:
+    data = ogr.Open(path, 1)
+    if data is None:
+      return written
+    for done, (layer, table) in enumerate(jobs[start_at:], start_at + 1):
+      name = layer.name()[:30]
+      try:
+        qml, sld = _style_documents(layer)
+        quoted = [_sql_text(value) for value in
+                  (table, name, qml, sld, SEEDED_BY_US)]
+        # A SECOND SAVE REPLACES ITS OWN ROW rather than adding one
+        # beside it, which is what QGIS's own call does and what the
+        # second press on any map needs.
+        data.ExecuteSQL(
+          "DELETE FROM layer_styles WHERE f_table_name = %s "
+          "AND styleName = %s" % (quoted[0], quoted[1]))
+        # ...AND THIS ONE IS THE DEFAULT, so no other row on the table
+        # may go on claiming to be. QGIS does the same, and a file with
+        # two defaults opens differently for different readers.
+        data.ExecuteSQL(
+          "UPDATE layer_styles SET useAsDefault = 0 "
+          "WHERE f_table_name = %s" % quoted[0])
+        # `update_time` IS LEFT TO THE COLUMN'S OWN DEFAULT, and that
+        # is a correction rather than a shortcut. The first version
+        # wrote `strftime('%Y/%m/%d %H:%M:%S+00','now')`, copied from
+        # what a row READ BACK through OGR displays -- and GDAL then
+        # warned "Non-conformant content for record N in column
+        # update_time ... successfully parsed" on every later read of
+        # every file we write. OGR renders a DATETIME in its own
+        # format when it hands one back, so what was copied was the
+        # DISPLAY and not what QGIS had stored: this project's own
+        # rule about comparing what a file HOLDS rather than how it
+        # renders, met from the writing side. The schema's default is
+        # ISO and conformant, so the honest answer is to say nothing
+        # and let it fire.
+        data.ExecuteSQL(
+          "INSERT INTO layer_styles (f_table_catalog, f_table_schema, "
+          "f_table_name, f_geometry_column, styleName, styleQML, "
+          "styleSLD, useAsDefault, description, owner, ui) "
+          "VALUES ('', '', %s, 'geom', %s, %s, %s, 1, %s, '', NULL)"
+          % (quoted[0], quoted[1], quoted[2], quoted[3], quoted[4]))
+        written[table] = name
+      except Exception:                                 # noqa: BLE001
+        # One style that will not save is not the map, exactly as the
+        # per-layer form has always had it.
+        pass
+      if on_style is not None:
+        on_style(done, len(jobs))
+  except Exception:                                     # noqa: BLE001
+    pass
+  finally:
+    data = None
+  return written
+
+
+def read_embedded_styles(path: str) -> dict:
+  """Every default style a GeoPackage holds, read in ONE session.
+
+  Args:
+    path: the .gpkg to read. A path that does not exist, holds no
+      `layer_styles` table, or arrives while GDAL is unavailable
+      answers empty rather than raising -- every caller is opening
+      somebody's file, and a reader that explodes is worse than one
+      that declines.
+
+  Returns:
+    A dict from table name to the stored QML text. Only the rows
+    marked `useAsDefault` are returned, which is the one QGIS itself
+    would load; where a table carries several, the last row wins,
+    exactly as a `loadDefaultStyle` would settle it.
+
+  WHY IT EXISTS, measured. `QgsMapLayer.loadDefaultStyle` opens the
+  GeoPackage once per layer, and the resume calls it once per table:
+  profiled 2026-09-01 at 0.37s, 1.32s and 6.94s for 32, 64 and 128
+  elements, growing 5.3x per doubling and holding 30% of the load's
+  wall at 128. Reading every style in one pass and applying each from
+  memory turns that into one open.
+
+  AND IT TOUCHES NO QGIS OBJECT, which is what makes it the one part
+  of a load that could later be prepared off the main thread: it is a
+  file read and a dictionary, with no layer, no provider and no
+  renderer in it.
+  """
+  out = {}
+  if not path or not os.path.exists(path):
+    return out
+  try:
+    from osgeo import ogr
+  except ImportError:
+    return out
+  data = None
+  try:
+    data = ogr.Open(path, 0)
+    if data is None:
+      return out
+    if "layer_styles" not in {data.GetLayer(i).GetName()
+                              for i in range(data.GetLayerCount())}:
+      return out
+    result = data.ExecuteSQL(
+      "SELECT f_table_name, styleQML FROM layer_styles "
+      "WHERE useAsDefault = 1")
+    if result is None:
+      return out
+    try:
+      for row in result:
+        table = row.GetField("f_table_name")
+        qml = row.GetField("styleQML")
+        if table and qml:
+          out[table] = qml
+    finally:
+      data.ReleaseResultSet(result)
+  except Exception:                                     # noqa: BLE001
+    return out
+  finally:
+    data = None
+  return out
+
+
+def _style_documents(layer):
+  """A layer's style as the QML and SLD text QGIS would store.
+
+  Args:
+    layer: the layer to export.
+
+  Returns:
+    A pair ``(qml, sld)`` of strings. Both are asked of QGIS itself
+    rather than composed here: what goes in the file has to be what
+    QGIS's own call would have put there, or a colleague opens a
+    different map.
+  """
+  from qgis.PyQt.QtXml import QDomDocument
+  document = QDomDocument()
+  layer.exportNamedStyle(document)
+  qml = document.toString()
+  sld = ""
+  try:
+    second = QDomDocument()
+    # The signature has drifted across versions; both spellings are
+    # tried because a missing SLD is a smaller loss than no style.
+    try:
+      layer.exportSldStyle(second)
+    except TypeError:
+      layer.exportSldStyle(second, "")
+    sld = second.toString()
+  except Exception:                                     # noqa: BLE001
+    sld = ""
+  return qml, sld
+
+
+def _sql_text(value: str) -> str:
+  """One string as a quoted SQL literal.
+
+  Args:
+    value: the text to quote.
+
+  Returns:
+    The literal, single quotes doubled. `ExecuteSQL` takes no bound
+    parameters here, which is why the doubling is done by hand --
+    exactly as `drop_our_other_styles` already does it, and the reason
+    it is one function rather than four spellings is that a QML
+    document is full of apostrophes.
+  """
+  return "'" + str(value).replace("'", "''") + "'"
 
 
 def style_name_for(layer: QgsVectorLayer) -> str:

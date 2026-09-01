@@ -444,23 +444,36 @@ was equally open, and a repair at one would have left the other.
 WHAT IS STILL OWED FROM THAT LIST -- one claim, in the ledger with its
 measurements:
 
-- **Save and Load are quadratic in the element count and freeze the
-  interface** -- 134s and 122s at the 256 ceiling, no progress bar,
-  a 50 ms heartbeat recording zero beats. Every store was clean; the
-  defect is in the act.
-  MEASURED TO ITS EQUATION on 2026-08-29 and PARTLY REPAIRED, with the
-  numbers in the ledger. Every call count is exactly linear: what
-  grows is the cost of each call, because each opens the GeoPackage
-  and opening one costs time proportional to the layers already in it.
-  The one term that is ours -- removing superseded styles -- now opens
-  the file once for the whole map instead of once per element, and its
-  call count went from n to 1. The other three are QGIS's and OGR's
-  own per-layer APIs and have no batch form, so closing the rest means
-  making the save a single OGR session, which is a rewrite of the
-  writer rather than a repair. THAT AND THE FREEZE ARE DECISIONS
-  RATHER THAN WORK OWED: the loop pumps nothing, so a large save is an
-  unresponsive window whatever it costs, and whether Save should report
-  progress is a question about the interface.
+- **SAVE AND LOAD ARE QUADRATIC IN THE ELEMENT COUNT, AND THE REWRITE
+  THAT CLOSES IT IS OWED BY THIS VERSION.** (Maintainer's decision,
+  2026-09-01, moving it here from 0.24.5: "we are doing that all asap
+  to avoid quadratic time in saving/loading -- unacceptable".) 134s and
+  122s at the 256 ceiling. Every store was measured clean, so the
+  defect is in the ACT rather than in what it writes.
+  MEASURED TO ITS EQUATION on 2026-08-29, and the equation is what
+  makes this a rewrite rather than a repair. Every call count is
+  exactly LINEAR; what grows is the cost of each call, because each
+  opens the GeoPackage and opening one costs time proportional to the
+  layers already in it. One of the four terms was ours and is closed --
+  removing superseded styles opens the file once for the whole map, its
+  call count from n to 1. The other three are `write_gpkg_layer`,
+  `save_style_to_database` and `point_layer_at`: QGIS's and OGR's own
+  per-layer APIs, with no batch form, and 2.2s of the 2.6s wall at 64
+  elements. Closing them means writing every layer in ONE OGR SESSION.
+  WHAT THAT CHANGES IS WHAT A COLLEAGUE RECEIVES, which is where the
+  risk lands and why it wants its own round: the whole suite has to
+  re-answer what the file contains, and the save matrix, the roundtrip
+  and the shared-file guards are the tests that say whether it still
+  does. The instrument is committed at
+  `tools/probes/measure_save_load_scale.py` -- call counts at four
+  element counts rather than seconds at two, which is what turns "the
+  save is slow" into an equation naming its own caller.
+  THE FREEZE HALF IS ALREADY ANSWERED and is not part of this: the
+  write loop turns the event loop once per element behind a determinate
+  progress bar with both buttons down (decision 3 of 2026-08-29), which
+  is responsiveness rather than cost. The two are separate questions
+  and answering the cheap one first is what stopped the rewrite being
+  done in a hurry.
 
 **AND A SIXTH RULING OF THE ROUND, THE MAINTAINER'S, ON 2026-08-29: A
 SAVE PRESSED WHILE A RE-TILE IS COMING IS KEPT RATHER THAN REFUSED.**
@@ -2112,31 +2125,15 @@ failure proves the SET is live, which is exactly the weaker claim the
 one-replacement rule exists to refuse. Worth an hour of thought and a
 grilling before any code.
 
-**SAVE AS A SINGLE OGR SESSION.** (Maintainer's decision, 2026-08-29,
-splitting this off rather than folding it into 0.24.4's candidate.)
-Save is super-linear in the element count and the reason is measured:
-every call count is exactly LINEAR, and what grows is the cost of each
-call, because each opens the GeoPackage and opening one costs time
-proportional to the layers already in it. One of the four terms was
-ours and is fixed -- removing superseded styles opens the file once
-for the whole map now, its call count went from n to 1. The other
-three are `write_gpkg_layer`, `save_style_to_database` and
-`point_layer_at`: QGIS's and OGR's own per-layer APIs, with no batch
-form, and 2.2s of the 2.6s wall at 64 elements.
-
-Closing the rest means writing every layer in ONE OGR session rather
-than one per layer. That is a rewrite of the writer, not a repair: it
-changes what the file contains in ways the whole suite would have to
-re-answer, and the risk lands on the one thing that must not break --
-what a colleague receives. It wants its own round, its own hunts and
-its own full suite, which is exactly why it is here rather than in the
-version whose candidate is being cut.
-
-WHAT IS ALREADY DONE FOR IT, so the round starts from a measurement
-rather than a suspicion: the equation, the four terms, and the method
-that produced them -- compare call COUNTS at four element counts
-rather than seconds at two -- are in `docs/process/defects-2026-08-28.md`
-under the quadratic, with the instrument in the session scratch.
+**SAVE AS A SINGLE OGR SESSION WENT INTO 0.24.4 INSTEAD**, on
+2026-09-01, on the maintainer's decision that quadratic time in saving
+and loading is unacceptable to ship. It stood here from 2026-08-29,
+when it was split off rather than folded into 0.24.4's candidate; the
+entry, its equation and what the rewrite has to preserve are under
+0.24.4, where it now lands. The instrument that produced the equation
+is committed at `tools/probes/measure_save_load_scale.py`, and the
+measurements are in `docs/process/defects-2026-08-28.md` under the
+quadratic.
 
 **Two mutation measurements, neither of them defect-finding.** The
 expensive stratum, which nothing has ever measured -- 1,172 of the

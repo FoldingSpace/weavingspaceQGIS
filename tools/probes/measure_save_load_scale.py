@@ -78,10 +78,12 @@ def install(bridge, compat, dialog_module):
     exits, and a wrapper left in a long-lived one would quietly
     measure the next thing too.
   """
-  for name in ("write_gpkg_layer", "embed_style", "_drop_our_other_styles",
+  for name in ("write_gpkg_layer", "write_gpkg_layers", "embed_style",
+               "_drop_our_other_styles",
                "gpkg_tables", "gpkg_tables_we_would_replace",
                "drop_gpkg_layer", "write_working_state", "drop_our_other_styles",
-               "read_working_state", "element_table_name"):
+               "read_working_state", "element_table_name",
+               "read_embedded_styles"):
     counted(bridge, name)
   for name in ("save_style_to_database", "point_layer_at"):
     counted(compat, name)
@@ -215,8 +217,14 @@ def main():
   from weavingspace_qgis import dialog as dialog_module
   install(bridge, compat, dialog_module)
 
+  # THE COUNTS ARE SETTABLE, because the shape of the growth is the
+  # whole question and the interesting sizes moved once the writing was
+  # collapsed into one session: 8 to 64 was enough to SEE a quadratic
+  # and is not enough to say what is left of it.
+  counts = [int(n) for n in
+            os.environ.get("WS_SCALE_COUNTS", "8,16,32,64").split(",")]
   rows = []
-  for elements in (8, 16, 32, 64):
+  for elements in counts:
     print(f"---- {elements} elements", flush=True)
     row = counts_for(probe, elements, 900.0)
     if row is None:

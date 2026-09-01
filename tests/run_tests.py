@@ -36100,6 +36100,585 @@ def test_a_restyle_never_recuts_a_map_from_somebody_elses_region():
       dlg.close()
 
 
+def _counting(module, name, tally):
+  """Wrap one module attribute so every call is counted.
+
+  Args:
+    module: the module holding it.
+    name: the attribute to wrap.
+    tally: a dict to count into, keyed by `name`.
+
+  Returns:
+    The real attribute, so the caller can put it back. The real body
+    still RUNS -- this counts the product rather than standing in for
+    it, which is the difference between instrumenting a function and
+    measuring a spy's idea of it.
+  """
+  real = getattr(module, name)
+  tally.setdefault(name, 0)
+
+  def wrapper(*args, **kwargs):
+    tally[name] += 1
+    return real(*args, **kwargs)
+
+  wrapper.__name__ = getattr(real, "__name__", name)
+  setattr(module, name, wrapper)
+  return real
+
+
+def test_a_save_opens_the_file_a_bounded_number_of_times():
+  """Saving twice as many elements does not open the file twice as often.
+
+  OPENING A GEOPACKAGE COSTS TIME PROPORTIONAL TO ITS LAYERS, measured
+  against GDAL directly on 2026-09-01 (`tools/probes/what_opening_a_
+  geopackage_costs.py`): an update open runs 1.99ms on a file of 8
+  tables and 38.12ms on one of 256, doubling as the count doubles. So
+  a save that opened the file once per element was quadratic -- 0.6s
+  at 8 elements and 4.5s at 64 against a call count that was exactly
+  LINEAR, and 134s at the 256-element ceiling.
+
+  THE PROMISE IS ABOUT COUNTS, NOT SECONDS, and that is deliberate.
+  A wall-clock assertion would measure whatever else the machine was
+  doing -- this project has read a 32-element save at 1.1s and at 2.9s
+  on identical code, minutes apart -- while the number of times the
+  writing and the styling open the file is a fact about the software.
+  So the test drives TWO element counts and requires the counts not to
+  move between them.
+
+  AND IT ASKS FOR ZERO OF THE OLD ONE. `write_gpkg_layer` is still
+  there and still correct, and nothing in the save may call it: a
+  repair that left one per-layer write in the loop would pass a
+  "did it work" test and keep the quadratic.
+
+  Regression: a save opened the GeoPackage once per element, and opening one costs time proportional to the layers already in it, so saving a 256-element map took 134 seconds behind a window that showed nothing. [user]
+  """
+  from weavingspace_qgis import bridge, compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def counts_for(elements):
+    """Save a map of this many elements and return the call counts."""
+    tally = {}
+    keep = [(bridge, "write_gpkg_layers",
+             _counting(bridge, "write_gpkg_layers", tally)),
+            (bridge, "write_gpkg_layer",
+             _counting(bridge, "write_gpkg_layer", tally)),
+            (bridge, "embed_styles",
+             _counting(bridge, "embed_styles", tally)),
+            (compat, "save_style_to_database",
+             _counting(compat, "save_style_to_database", tally))]
+    try:
+      layer = make_region_layer()
+      QgsProject.instance().addMapLayer(layer)
+      dlg = WeavingSpaceDialog(iface=_Iface())
+      try:
+        dlg.live_check.setChecked(False)
+        dlg.layer_combo.setLayer(layer)
+        _tick(200)
+        dlg.n_spin.setValue(elements)
+        _tick(400)
+        _generate_and_wait(dlg)
+        assert len(dlg._element_layer_ids) == elements, (
+          f"PREMISE: asked for {elements} elements and drew "
+          f"{len(dlg._element_layer_ids)}, so this reading is not "
+          f"about the count it claims")
+        with _temp_dir(prefix="weavingspace_opens_") as folder:
+          dlg.gpkg_widget.setFilePath(os.path.join(folder, "map.gpkg"))
+          assert press_save(dlg), "PREMISE: the save wrote nothing"
+      finally:
+        dlg.close()
+        dlg.deleteLater()
+        _tick(50)
+        QgsProject.instance().removeAllMapLayers()
+    finally:
+      for module, name, real in keep:
+        setattr(module, name, real)
+    return tally
+
+  small, large = counts_for(3), counts_for(9)
+  assert small and large, "PREMISE: nothing was counted at either size"
+
+  # THE WRITING AND THE STYLING ARE ONE SESSION EACH, at both sizes.
+  for label, tally in (("3 elements", small), ("9 elements", large)):
+    assert tally["write_gpkg_layers"] == 1, (
+      f"at {label} the session writer was called "
+      f"{tally['write_gpkg_layers']} times, where a save writes every "
+      f"table in ONE session")
+    assert tally["write_gpkg_layer"] == 0, (
+      f"at {label} the save made {tally['write_gpkg_layer']} per-layer "
+      f"write(s); one left in the loop keeps the quadratic while every "
+      f"'did it work' test goes on passing")
+    assert tally["embed_styles"] == 1, (
+      f"at {label} the style writer was called "
+      f"{tally['embed_styles']} times, where it writes every row in "
+      f"ONE session")
+
+  # ...AND NONE OF THEM GROWS WITH THE ELEMENT COUNT, which is the
+  # whole promise. Three times the elements, the same number of opens.
+  for name in ("write_gpkg_layers", "write_gpkg_layer", "embed_styles",
+               "save_style_to_database"):
+    assert small[name] == large[name], (
+      f"{name} was called {small[name]} time(s) for 3 elements and "
+      f"{large[name]} for 9, so it still grows with the map and the "
+      f"save is still quadratic in the element count")
+
+
+def test_a_session_written_file_holds_what_a_per_layer_one_does():
+  """The rewritten writer puts the same thing in the file as the old one.
+
+  REWRITING A WRITER PUTS THE RISK ON WHAT A COLLEAGUE RECEIVES, so
+  the rewrite is only as good as the differential under it. This is
+  that differential, registered: one map, written BOTH ways, compared
+  by what the two files CONTAIN rather than by what they weigh.
+
+  BYTES ARE DELIBERATELY NOT THE COMPARISON. Two GeoPackages holding
+  identical data differ in bytes routinely -- sqlite reorganises
+  pages, and a value just written lives in the write-ahead log beside
+  the file rather than in it. This project has already measured a file
+  growing from 184,320 to 356,352 bytes across a run that wrote
+  nothing.
+
+  AND THE FIXTURE CARRIES MISSING VALUES, which is not decoration.
+  Without them the plugin writes no `_no_data` twin and the writer
+  never reaches the branch that stores a null, so a mutation removing
+  either was invisible -- measured on the first run of the probe this
+  test comes from.
+
+  Regression: the save was rewritten to write every table in one OGR session, and a writer that put anything different in the file would be a map a colleague opens wrongly. [user]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = _a_region_with_missing_values()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(400)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, "PREMISE: the run drew nothing"
+
+    project = QgsProject.instance()
+    tables = dict(getattr(dlg, "_element_tables", {}) or {})
+    jobs = []
+    for tid in sorted(dlg._element_layer_ids, key=bridge.element_order):
+      name = tables.get(tid) or bridge.element_table_name(
+        tid, (dlg._assignment_for(tid) or {}).get("var"))
+      for layer_id, table in (
+          (dlg._element_layer_ids.get(tid), name),
+          (dlg._no_data_layer_ids.get(tid), f"{name}_no_data")):
+        found = project.mapLayer(layer_id) if layer_id else None
+        if found is not None:
+          jobs.append((found, table))
+    assert jobs, "PREMISE: the map produced no layers to write"
+    twins = [name for _l, name in jobs if name.endswith("_no_data")]
+    assert twins, (
+      "PREMISE: the fixture produced no no-data twin, so this "
+      "comparison covers neither the twin tables nor the null branch")
+
+    with _temp_dir(prefix="weavingspace_writers_") as folder:
+      old_path = os.path.join(folder, "per_layer.gpkg")
+      first = True
+      for found, table in jobs:
+        bridge.write_gpkg_layer(found, old_path, table, first=first,
+                                open_after=False)
+        first = False
+      new_path = os.path.join(folder, "session.gpkg")
+      written, trouble = bridge.write_gpkg_layers(jobs, new_path,
+                                                  recreate=True)
+      assert not trouble, f"the session writer reported {trouble}"
+      assert written == {name for _l, name in jobs}, (
+        f"the session writer wrote {sorted(written)} where the map "
+        f"has {sorted(name for _l, name in jobs)}")
+      faults = _how_two_geopackages_differ(old_path, new_path)
+      assert not faults, (
+        f"{len(faults)} difference(s) between the per-layer file and "
+        f"the session one:\n      " + "\n      ".join(faults[:6]))
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_resumed_map_reads_every_style_in_one_pass():
+  """Opening a saved map reads its styles once, not once per layer.
+
+  `QgsMapLayer.loadDefaultStyle` opens the GeoPackage and reads a
+  `layer_styles` table whose row count grows with the map, and the
+  resume called it per table -- profiled 2026-09-01 at 0.37s, 1.32s
+  and 6.94s for 32, 64 and 128 elements, growing 5.3x per doubling and
+  holding 30% of the load's whole wall at 128.
+
+  THE STAMPS ARE THE HALF THAT COULD GO WRONG QUIETLY. The element id,
+  the no-data marker and the region a map was drawn from ride INSIDE
+  the embedded style, so a batched read that lost them would give back
+  a map that draws correctly and is no longer recognisably this
+  plugin's -- and every rule keyed on those properties would then be
+  reading a map it does not recognise.
+
+  Regression: opening a saved map called loadDefaultStyle once per layer, and each call opens the file, so a 256-element map took minutes behind a window with no progress bar at all. [user]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  with _temp_dir(prefix="weavingspace_onepass_") as folder:
+    path = os.path.join(folder, "map.gpkg")
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(400)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: the run drew nothing"
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg), "PREMISE: the save wrote nothing"
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+    stored = bridge.read_embedded_styles(path)
+    assert stored, (
+      "PREMISE: the file carries no embedded styles, so a comparison "
+      "of the two ways of reading them would compare nothing")
+
+    tally = {}
+    real = _counting(bridge, "read_embedded_styles", tally)
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      back = len(opener._element_layer_ids)
+      assert back, "PREMISE: nothing came back from the file"
+      assert tally["read_embedded_styles"] == 1, (
+        f"the resume read the file's styles "
+        f"{tally['read_embedded_styles']} times for {back} elements, "
+        f"where it reads them ONCE for the whole file")
+
+      # ...AND EVERY LAYER CAME BACK WEARING ITS STAMPS, which is what
+      # the batched read could have dropped in silence.
+      project = QgsProject.instance()
+      stamped = 0
+      for layer_id in opener._element_layer_ids.values():
+        found = project.mapLayer(layer_id or "")
+        if found is None:
+          continue
+        stamped += 1
+        assert (found.customProperty("weavingspace_tile_id") or ""), (
+          f"{found.name()} came back with no element stamp, so the "
+          f"style was applied and its custom properties were not")
+        assert found.renderer() is not None, (
+          f"{found.name()} came back with no renderer at all")
+      assert stamped, "PREMISE: no resumed layer was examined"
+    finally:
+      setattr(bridge, "read_embedded_styles", real)
+      opener.close()
+      opener.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_save_and_a_load_count_their_layers_on_the_bar():
+  """Both acts say which layer they are on, not merely that they are busy.
+
+  A save of 256 elements is tens of seconds and a load of one was over
+  a hundred, and until 2026-09-01 the save showed a bare percentage of
+  an act of three unequal stretches while the LOAD showed nothing at
+  all. The maintainer's ask that day was layer progress out of a total.
+
+  THE BAR IS READ WHILE THE ACT IS RUNNING, which is the only moment
+  the claim is about: both acts put the bar away when they finish, so
+  a test that looked afterwards would find the resting state and pass
+  whatever the bar had said. The reading is taken from inside the act,
+  through the same event loop the act turns to paint.
+
+  AND BOTH CONTROLS GO DOWN AND COME BACK AS THEY WERE FOUND, on the
+  load as on the save: turning the event loop is what lets the window
+  paint and what would otherwise let somebody press into a half-opened
+  map.
+
+  Regression: a load showed no progress at all, so opening a large map was indistinguishable from a hang; and a save showed a percentage that said nothing about which of its three stretches was running. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  seen = {"save": [], "load": []}
+
+  def watch(which):
+    """Record the bar's text and range while an act is running."""
+    def look():
+      bar = dlg.progress if which == "save" else opener.progress
+      if bar.isVisible() or not bar.isHidden():
+        seen[which].append((bar.format(), bar.maximum(), bar.value()))
+    return look
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  with _temp_dir(prefix="weavingspace_bar_") as folder:
+    path = os.path.join(folder, "map.gpkg")
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(400)
+      _generate_and_wait(dlg)
+      assert dlg._element_layer_ids, "PREMISE: the run drew nothing"
+      before = (dlg.save_button.isEnabled(), dlg.generate_btn.isEnabled())
+      ticker = QTimer()
+      ticker.setInterval(0)
+      ticker.timeout.connect(watch("save"))
+      ticker.start()
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg), "PREMISE: the save wrote nothing"
+      ticker.stop()
+      assert (dlg.save_button.isEnabled(),
+              dlg.generate_btn.isEnabled()) == before, (
+        "the save left its buttons somewhere other than where it "
+        "found them")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+    opener = WeavingSpaceDialog(iface=_Iface())
+    try:
+      opener.live_check.setChecked(False)
+      before = (opener.save_button.isEnabled(),
+                opener.generate_btn.isEnabled())
+      ticker = QTimer()
+      ticker.setInterval(0)
+      ticker.timeout.connect(watch("load"))
+      ticker.start()
+      opener.resume_widget.setFilePath(path)
+      opener._load_pressed()
+      _settle(opener, seconds=60)
+      ticker.stop()
+      assert opener._element_layer_ids, "PREMISE: nothing came back"
+      assert (opener.save_button.isEnabled(),
+              opener.generate_btn.isEnabled()) == before, (
+        "the load left its buttons somewhere other than where it "
+        "found them")
+    finally:
+      opener.close()
+      opener.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  for which in ("save", "load"):
+    assert seen[which], (
+      f"the bar was never seen during the {which}, so this test "
+      f"looked at nothing -- which reads exactly like a bar that "
+      f"says the right thing")
+    texts = {text for text, _maximum, _value in seen[which]}
+    counting = [text for text in texts if "%v" in text and "%m" in text]
+    assert counting, (
+      f"during the {which} the bar said {sorted(texts)!r}, none of "
+      f"which counts layers: `%v of %m` is what turns 'busy' into "
+      f"'layer 12 of 48'")
+    # EVERY STRETCH NAMES ITSELF, not merely one of them. A save is
+    # three unequal pieces of work -- writing the tables, linking the
+    # layers to them, embedding the styles -- and a bar that counted
+    # layers through one of the three would sit still through the
+    # other two while this assertion went on passing, because a
+    # sibling was still doing the work.
+    wanted = 3 if which == "save" else 1
+    assert len(counting) >= wanted, (
+      f"the {which} showed {len(counting)} counting format(s) "
+      f"({sorted(counting)!r}) where it has {wanted} stretch(es) of "
+      f"work to name, so at least one of them says nothing about how "
+      f"far through it is")
+    # EVERY STRETCH NAMES ITSELF, not merely one of them. A save is
+    # three unequal pieces of work -- writing the tables, linking the
+    # layers to them, embedding the styles -- and a bar that counted
+    # layers through one of the three would sit still through the
+    # other two while this assertion went on passing, because a
+    # sibling was still doing the work.
+    wanted = 3 if which == "save" else 1
+    assert len(counting) >= wanted, (
+      f"the {which} showed {len(counting)} counting format(s) "
+      f"({sorted(counting)!r}) where it has {wanted} stretch(es) of "
+      f"work to name, so at least one of them says nothing about how "
+      f"far through it is")
+    assert any("layer" in text or "element" in text for text in texts), (
+      f"during the {which} the bar said {sorted(texts)!r}, which "
+      f"never names what it is counting")
+    ranged = [maximum for _text, maximum, _value in seen[which]
+              if maximum > 0]
+    assert ranged, f"the {which} bar was never given a range to count to"
+
+
+def _a_region_with_missing_values():
+  """A file-backed region layer whose `v1` really is NULL in places.
+
+  Returns:
+    A valid QgsVectorLayer reading from a GeoPackage in a directory
+    this process holds for its lifetime.
+
+  IT GOES THROUGH A FILE deliberately. A value never set on a MEMORY
+  feature reads back as 0.0 rather than as QGIS's NULL -- the suite
+  records that at its own awkward-data fixture -- so a memory layer
+  cannot stage the one thing this fixture exists for, which is a map
+  that carries no-data twins and null attributes.
+  """
+  from osgeo import ogr, osr
+  from qgis.core import QgsVectorLayer
+  folder = tempfile.mkdtemp(prefix="weavingspace_gappy_")
+  _HELD_FIXTURE_DIRS.append(folder)
+  path = os.path.join(folder, "gappy.gpkg")
+  data = ogr.GetDriverByName("GPKG").CreateDataSource(path)
+  crs = osr.SpatialReference()
+  crs.ImportFromEPSG(3857)
+  crs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+  out = data.CreateLayer("region", crs, ogr.wkbMultiPolygon)
+  for name, kind in (("v1", ogr.OFTReal), ("v2", ogr.OFTReal),
+                     ("v3", ogr.OFTInteger), ("landcover", ogr.OFTString)):
+    out.CreateField(ogr.FieldDefn(name, kind))
+  kinds = ["forest", "water", "urban", "crops"]
+  definition = out.GetLayerDefn()
+  for i in range(4):
+    for j in range(4):
+      feature = ogr.Feature(definition)
+      # EVERY THIRD AREA HAS NO VALUE. Not all of them: an element
+      # whose column is empty everywhere takes a different path
+      # entirely, and that is a different case from this one.
+      if (i + j) % 3 == 0:
+        feature.SetFieldNull(0)
+      else:
+        feature.SetField("v1", float(i + j))
+      feature.SetField("v2", float(j))
+      feature.SetField("v3", i * j)
+      feature.SetField("landcover", kinds[(i + j) % len(kinds)])
+      ring = ogr.Geometry(ogr.wkbLinearRing)
+      for x, y in ((i * 1000, j * 1000), ((i + 1) * 1000, j * 1000),
+                   ((i + 1) * 1000, (j + 1) * 1000),
+                   (i * 1000, (j + 1) * 1000), (i * 1000, j * 1000)):
+        ring.AddPoint(float(x), float(y))
+      polygon = ogr.Geometry(ogr.wkbPolygon)
+      polygon.AddGeometry(ring)
+      multi = ogr.Geometry(ogr.wkbMultiPolygon)
+      multi.AddGeometry(polygon)
+      feature.SetGeometry(multi)
+      out.CreateFeature(feature)
+      feature = None
+  out = None
+  data = None
+  layer = QgsVectorLayer(f"{path}|layername=region", "gappy region", "ogr")
+  assert layer.isValid(), "PREMISE: the gappy region would not open"
+  return layer
+
+
+def _how_two_geopackages_differ(one: str, other: str):
+  """Name every way two GeoPackages' contents differ.
+
+  Args:
+    one: the first file.
+    other: the second.
+
+  Returns:
+    A list of sentences, empty where the two hold the same thing. Each
+    file is opened READ ONLY and released before returning, because an
+    instrument that holds a file open changes what the next reader
+    sees -- this project has measured a probe's own handle making the
+    next run report zero tables.
+
+  What is compared is what a colleague would receive: the tables, each
+  one's declared geometry type and CRS, every column's name, type,
+  subtype, width and precision, the feature counts, and every
+  feature's attributes and geometry keyed by the plugin's own FID
+  column.
+  """
+  def describe(path):
+    from osgeo import ogr
+    from weavingspace_qgis.bridge import GPKG_FID_COLUMN
+    out = {}
+    data = ogr.Open(path, 0)
+    assert data is not None, f"PREMISE: {path} would not open"
+    try:
+      for index in range(data.GetLayerCount()):
+        layer = data.GetLayer(index)
+        definition = layer.GetLayerDefn()
+        reference = layer.GetSpatialRef()
+        columns = []
+        for i in range(definition.GetFieldCount()):
+          field = definition.GetFieldDefn(i)
+          columns.append((field.GetName(), field.GetType(),
+                          field.GetSubType(), field.GetWidth(),
+                          field.GetPrecision()))
+        names = [column[0] for column in columns]
+        rows = {}
+        layer.ResetReading()
+        for feature in layer:
+          key = (feature.GetField(GPKG_FID_COLUMN)
+                 if GPKG_FID_COLUMN in names else feature.GetFID())
+          values = tuple(
+            feature.GetField(i)
+            if feature.IsFieldSet(i) and not feature.IsFieldNull(i)
+            else None for i in range(definition.GetFieldCount()))
+          shape = feature.GetGeometryRef()
+          rows[key] = (values,
+                       None if shape is None else shape.ExportToWkb())
+        out[layer.GetName()] = {
+          "geometry": definition.GetGeomType(),
+          "crs": None if reference is None
+                 else reference.GetAuthorityCode(None),
+          "columns": columns, "count": layer.GetFeatureCount(),
+          "rows": rows}
+    finally:
+      data = None
+    return out
+
+  a, b = describe(one), describe(other)
+  faults = []
+  if set(a) != set(b):
+    faults.append(f"different tables: only in the first "
+                  f"{sorted(set(a) - set(b))}, only in the second "
+                  f"{sorted(set(b) - set(a))}")
+  for table in sorted(set(a) & set(b)):
+    if a[table]["geometry"] != b[table]["geometry"]:
+      faults.append(f"{table}: geometry type {a[table]['geometry']} "
+                    f"against {b[table]['geometry']}")
+    if a[table]["crs"] != b[table]["crs"]:
+      faults.append(f"{table}: CRS {a[table]['crs']} against "
+                    f"{b[table]['crs']}")
+    if a[table]["columns"] != b[table]["columns"]:
+      faults.append(f"{table}: columns differ, {a[table]['columns']} "
+                    f"against {b[table]['columns']}")
+    if a[table]["count"] != b[table]["count"]:
+      faults.append(f"{table}: {a[table]['count']} features against "
+                    f"{b[table]['count']}")
+      continue
+    if set(a[table]["rows"]) != set(b[table]["rows"]):
+      faults.append(f"{table}: the feature keys differ")
+      continue
+    wrong = [key for key in a[table]["rows"]
+             if a[table]["rows"][key] != b[table]["rows"][key]]
+    if wrong:
+      key = wrong[0]
+      faults.append(
+        f"{table}: {len(wrong)} of {len(a[table]['rows'])} features "
+        f"differ, e.g. key {key}: {a[table]['rows'][key][0]} against "
+        f"{b[table]['rows'][key][0]}")
+  return faults
+
+
+#: Directories holding fixtures that must outlive the function that
+#: made them. A `mkdtemp` cleaned up while a GeoPackage-backed layer
+#: still reads from it is this project's own measured trap: the layer
+#: answers valid and yields nothing.
+_HELD_FIXTURE_DIRS = []
+
+
 def test_a_save_lets_the_window_paint_while_it_writes():
   """A save says what it is doing rather than looking like a hang.
 
@@ -80590,6 +81169,14 @@ def main():
         test_a_save_leaves_a_shared_file_somebody_else_has_changed)
   check("a save lets the window paint while it writes",
         test_a_save_lets_the_window_paint_while_it_writes)
+  check("a save opens the file a bounded number of times",
+        test_a_save_opens_the_file_a_bounded_number_of_times)
+  check("a session written file holds what a per layer one does",
+        test_a_session_written_file_holds_what_a_per_layer_one_does)
+  check("a resumed map reads every style in one pass",
+        test_a_resumed_map_reads_every_style_in_one_pass)
+  check("a save and a load count their layers on the bar",
+        test_a_save_and_a_load_count_their_layers_on_the_bar)
   check("a follower goes on following a map you opened",
         test_a_follower_goes_on_following_a_map_you_opened)
   check("a restyle never recuts a map from somebody else's region",

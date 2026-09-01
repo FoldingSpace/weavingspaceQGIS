@@ -2343,6 +2343,14 @@ class WeavingSpaceDialog(QDialog):
     # loop. It is what stops a live tick firing inside a half-written
     # file; see the gate in `_maybe_live_generate`.
     self._saving_now = False
+    # True only while `_resume_from_gpkg`'s table loop is turning the
+    # event loop to keep its progress bar moving. Same job as the flag
+    # above and gated in the same place: a live tick landing mid-load
+    # would re-tile the map while the remaining tables were still
+    # being opened. Two flags rather than one because a save and a
+    # load are different acts, and this project has already paid for
+    # one flag gating two different things.
+    self._resuming_now = False
     # {field: how many distinct values it had last run}, so a
     # categorical field that gains or loses a class can be
     # reported: its existing colours will have moved.
@@ -6217,6 +6225,16 @@ class WeavingSpaceDialog(QDialog):
     if getattr(self, "_saving_now", False):
       self._live_timer.start()
       _dump("LIVE-GATE", "a-save-is-writing")
+      return
+    # ...AND A LOAD IS THE SAME QUESTION FROM THE OTHER SIDE. The
+    # resume's table loop pumps the event loop to keep its bar moving,
+    # so without this a live tick would re-tile the map while the
+    # remaining tables were still being opened. The timer is restarted
+    # for the same reason as above: a single-shot timer that has just
+    # fired and is not re-armed is LOST rather than late.
+    if getattr(self, "_resuming_now", False):
+      self._live_timer.start()
+      _dump("LIVE-GATE", "a-load-is-opening")
       return
     self.live_note.setText("")
     if not self.live_check.isChecked():
@@ -19347,16 +19365,29 @@ class WeavingSpaceDialog(QDialog):
     # exactly doubled each time while the seconds ran 0.01, 0.03, 0.10
     # and 0.42. Same rows removed, one open.
     styles_to_keep = {}
+    # WHAT THE SESSION BELOW WILL WRITE, and what it need not. The loop
+    # that follows decides both without opening the file at all: which
+    # elements are skipped is a question about the project and about
+    # this dialog's own records, and settling it first is what lets the
+    # writing happen in one session rather than n.
+    to_write = []                 # (layer, table, subset string)
+    already = []                  # (layer, table) the file already has
     # THE WINDOW GOES ON PAINTING WHILE THIS RUNS, which is the
-    # maintainer's decision of 2026-08-29 and is not a repair of the
-    # cost. Every call this loop makes is one of QGIS's or OGR's own
-    # per-layer APIs, and each opens the GeoPackage, so the seconds
-    # grow with the layers already in the file -- 134 of them at the
-    # 256-element ceiling, with a 50 ms heartbeat recording ZERO
-    # beats. Making the save a single OGR session is a rewrite of the
-    # writer and belongs to 0.24.5; what a person meets in the
-    # meantime is a window that says what it is doing rather than one
-    # that looks like a hang.
+    # maintainer's decision of 2026-08-29 and is a separate question
+    # from the cost. Opening a GeoPackage costs time proportional to
+    # the layers already in it -- measured against GDAL directly on
+    # 2026-09-01, 1.99ms at 8 tables against 38.12ms at 256 -- so a
+    # loop that opened it once per element was quadratic, 134s at the
+    # 256-element ceiling with a 50 ms heartbeat recording ZERO beats.
+    # THE WRITING AND THE STYLING ARE ONE SESSION EACH NOW, on the
+    # maintainer's decision of 2026-09-01 that quadratic time here is
+    # unacceptable to ship. What remains per layer is the repointing,
+    # which cannot be batched because every layer needs its own
+    # provider; the measurement is at that loop.
+    # RESPONSIVENESS IS STILL ITS OWN ANSWER, and answering the cost
+    # did not retire it: a save of 256 elements is still seconds of
+    # work, and a window that says what it is doing beats one that
+    # looks like a hang whatever the total.
     # THE BUTTONS GO DOWN BECAUSE THE LOOP PUMPS. Turning the event
     # loop is what lets the window paint AND what would let somebody
     # press Save or Generate into a half-written file, so both
@@ -19387,7 +19418,13 @@ class WeavingSpaceDialog(QDialog):
     self.progress.setVisible(True)
     self.progress.setRange(0, len(order))
     self.progress.setValue(0)
-    self.progress.setFormat("saving the map... %p%")
+    # WHAT IS HAPPENING AND HOW FAR THROUGH, in the bar's own text.
+    # `%v` and `%m` are Qt's value and maximum, so the bar counts
+    # LAYERS rather than showing a percentage of an act nobody can
+    # see the size of -- the maintainer's ask of 2026-09-01. A save of
+    # 256 elements is four stretches of work and a bare percentage
+    # says nothing about which one is running.
+    self.progress.setFormat("preparing to save — element %v of %m")
     QApplication.processEvents()      # let that paint before the work
     try:
       for step, tid in enumerate(order, 1):
@@ -19470,34 +19507,125 @@ class WeavingSpaceDialog(QDialog):
           # everything AFTER the write -- the style, the name counted as
           # current so the stale-table drop spares it, and the record.
           if same_source(layer.source(), f"{path}|layername={table}"):
-            written_names.add(table)
-            bridge.embed_style(layer, drop_others=False)
-            styles_to_keep[table] = bridge.style_name_for(layer)
+            already.append((layer, table))
             continue
-          try:
-            # `open_after=False`: the next line repoints THIS layer at
-            # the table, so a layer opened here is discarded by
-            # construction. The reason is that rather than a measured
-            # saving -- an attempt to measure one here did not resolve a
-            # difference at 64 or 128 elements, and the parameter's own
-            # docstring says what was and was not established.
-            bridge.write_gpkg_layer(layer, path, table, first=fresh,
-                                    open_after=False)
-          except Exception as e:
-            trouble.append(f"{table}: {e}")
-            continue
-          fresh = False
-          written_names.add(table)
-          # ...and the project's own layer now reads from the file, so
-          # the map survives the project being closed and reopened
-          compat.point_layer_at(layer, path, table)
-          if subset:
-            layer.setSubsetString(subset)
-          # the style goes in AFTER the repointing, or it would be
-          # embedded against the memory layer's own source and the file
-          # would carry a style nothing in it wears
-          bridge.embed_style(layer, drop_others=False)
-          styles_to_keep[table] = bridge.style_name_for(layer)
+          # DECIDED HERE AND WRITTEN BELOW, IN ONE SESSION. The write
+          # used to happen on this line, once per layer -- and every
+          # one of those opened the GeoPackage, which is what made a
+          # save quadratic in the element count. Measured 2026-09-01
+          # against GDAL directly: an update open of a file holding 8
+          # tables costs 1.99ms and one holding 256 costs 38.12ms,
+          # doubling as the table count doubles, so n writes into a
+          # file that ends up holding n tables is n x O(n).
+          # WHAT IS COLLECTED IS EXACTLY WHAT THAT LOOP WOULD HAVE
+          # WRITTEN, in the same order, so the file's contents are a
+          # question of cost and not of contract --
+          # `tools/probes/two_writers_one_file.py` is the differential
+          # that says so, over complete and gappy regions alike.
+          to_write.append((layer, table, subset))
+
+      # ...AND THE WHOLE MAP GOES IN AT ONCE. One open, one
+      # transaction, every table inside it.
+      # THE BAR GOES ON MOVING, which is the half that must not be
+      # paid for out of the other: the loop above beat once per
+      # element, and collapsing the writing into a single call would
+      # otherwise trade a long freeze for a shorter one with no bar --
+      # answering the cost while undoing the maintainer's decision of
+      # 2026-08-29 that a save says what it is doing.
+      # EACH STRETCH COUNTS ITS OWN LAYERS, rather than one bar
+      # spanning three different kinds of work: writing, linking and
+      # styling take different times per layer, so a single range
+      # would crawl through one stretch and leap through another and
+      # tell somebody nothing about how long is left.
+      self.progress.setRange(0, max(1, len(to_write)))
+      self.progress.setValue(0)
+      self.progress.setFormat("saving — writing layer %v of %m")
+
+      def a_table_landed(done, total):
+        """Advance the bar and let the window paint, once per table.
+
+        Args:
+          done: how many tables have been written.
+          total: how many there are, which the bar was ranged on
+            before the session opened.
+
+        Returns:
+          None. It pumps the event loop, exactly as the per-layer loop
+          did -- and it is safe to do so inside the session for the
+          same reason it was safe outside one: both buttons are down
+          and `_saving_now` refuses the live path, so nothing can
+          press into a half-written file.
+        """
+        self.progress.setValue(done)
+        QApplication.processEvents()
+
+      written, write_trouble = bridge.write_gpkg_layers(
+        [(layer, table) for layer, table, _subset in to_write],
+        path, recreate=fresh, on_table=a_table_landed)
+      trouble.extend(write_trouble)
+
+      # THE REPOINTING STAYS PER LAYER, and that is measured rather
+      # than conceded: `compat.point_layer_at` costs 3.93ms into a file
+      # of 8 tables and 50.70ms into one of 256, and holding a QGIS
+      # layer open across it saves nothing at all (0.85 to 1.02 of the
+      # plain cost). Every layer genuinely needs its own provider, so
+      # this term is O(n) per call by construction -- 13.0s at the
+      # 256-element ceiling, which is the floor this repair can reach.
+      self.progress.setRange(0, max(1, len(to_write)))
+      self.progress.setValue(0)
+      self.progress.setFormat("saving — linking layer %v of %m")
+      for index, (layer, table, subset) in enumerate(to_write, 1):
+        self.progress.setValue(index)
+        QApplication.processEvents()
+        if table not in written:
+          continue
+        # WHAT COUNTS AS WRITTEN IS DECIDED IN ONE PLACE, below, where
+        # the styles are gathered: that list is these same tables plus
+        # the ones the file already held, so adding them here as well
+        # would be two writers of one fact -- and the stale-table drop
+        # reads exactly this set to decide what to remove.
+        # ...and the project's own layer now reads from the file, so
+        # the map survives the project being closed and reopened
+        compat.point_layer_at(layer, path, table)
+        if subset:
+          layer.setSubsetString(subset)
+
+      # THE STYLES LAST, AFTER EVERY REPOINTING, AND IN ONE SESSION. A
+      # style embedded before its layer has been moved onto the file
+      # would be written against the memory layer's own source, and
+      # the file would carry a style nothing in it wears. The layers
+      # that were already current are styled here too, since their
+      # data needed no writing and their symbology may still have
+      # moved.
+      # ONE SESSION BECAUSE THE OPEN IS THE COST, measured 2026-09-01:
+      # embedding one style at a time was 32.97s of a 79.9s save at
+      # the 256-element ceiling, growing 3.5x per doubling, for a call
+      # count that merely doubles.
+      styled = [(layer, table) for layer, table, _s in to_write
+                if table in written] + already
+      for _layer, table in styled:
+        written_names.add(table)
+
+      def a_style_landed(done, total):
+        """Advance the bar and let the window paint, once per style.
+
+        Args:
+          done: how many styles have been written.
+          total: how many there are.
+
+        Returns:
+          None. Counted in its own stretch, so the bar says how many
+          layers have been styled rather than how far through an act
+          of three unequal parts it happens to be.
+        """
+        self.progress.setValue(done)
+        QApplication.processEvents()
+
+      self.progress.setRange(0, max(1, len(styled)))
+      self.progress.setValue(0)
+      self.progress.setFormat("saving — styling layer %v of %m")
+      styles_to_keep.update(
+        bridge.embed_styles(path, styled, on_style=a_style_landed))
     finally:
       # THE BAR COMES DOWN WHATEVER HAPPENED, the write raising
       # included: a progress bar left up over a finished save is the
@@ -20180,81 +20308,150 @@ class WeavingSpaceDialog(QDialog):
     # (sort key, layer) for everything that opened, added to the group
     # together below so the panel reads in element order
     arriving = []
-    for table in sorted(wanted):
-      found = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
-      if not found.isValid():
-        # NAMED RATHER THAN PASSED OVER. The count below is honest --
-        # it says how many layers came back -- but a person who saved
-        # four elements and is handed three has lost one, and only the
-        # case where EVERY table fails said anything. A loss is
-        # reported, never silent, which is this project's own standing
-        # rule. (Found by the notices hunt, 2026-08-27, by dropping
-        # one element's table from a saved map and resuming it.)
-        refused.append(table)
-        continue
-      # the stamps ride inside the embedded style, so this is what
-      # makes the layer recognisably ours again
-      found.loadDefaultStyle()
-      # NAMED AS A FRESH RUN NAMES IT. The layers come back under
-      # their TABLE names -- `tiles_a_v1`, `tiles_a_v1_no_data` -- so
-      # a resumed map's panel and legend read in the plugin's internal
-      # spelling where a generated one reads `a – v1` and
-      # `a – no data`. Nobody outside this code knows what a tiles_
-      # table is, and ruling 5 exists precisely so somebody can open a
-      # finished result WITHOUT generating, which is the one journey
-      # where nothing else ever corrects the name. The stamps needed
-      # to compose it are on the layer the moment its embedded style
-      # is loaded, one line above. (Found by the paired-layer hunt,
-      # 2026-08-27.)
-      # A NAME IS A LABEL AND NEVER AN IDENTITY, so nothing is looked
-      # up by it and a name the user changes afterwards is theirs.
-      stamped = (found.customProperty("weavingspace_tile_id") or "").strip()
-      if stamped:
-        if found.customProperty("weavingspace_no_data"):
-          found.setName(f"{stamped} – no data")
-        else:
-          shown = next((element.get("var") for element
-                        in (record.get("elements") or [])
-                        if str(element.get("id")) == stamped), None)
-          # An element carrying no variable keeps the table name
-          # rather than being given a half-name: unassigned elements
-          # are drawn as flat fill and a bare id says less than the
-          # table does.
-          if shown:
-            found.setName(f"{stamped} – {shown}")
-      project.addMapLayer(found, False)
-      # ADDED IN ELEMENT ORDER, NOT TABLE ORDER, once every layer is
-      # known. The tables are walked in `sorted` order, and a table
-      # name carries its element -- so `tiles_aa_v1` falls before
-      # `tiles_b_v1`, and a resumed map of more than twenty-six
-      # elements would list its twenty-seventh SECOND while a freshly
-      # generated one lists it last. `element_order` is the one owner
-      # of that question (2026-08-27); the twin follows its element,
-      # which is what the table order gave for free and this must
-      # keep.
-      arriving.append(
-        ((bridge.element_order(stamped or table),
-          1 if found.customProperty("weavingspace_no_data") else 0),
-         found))
-      # COUNTED AS AN ELEMENT ONLY IF IT IS ONE. A paired no-data
-      # layer's table is `<table>_no_data`, which starts with `tiles_`
-      # like every other, so counting the tables told somebody that a
-      # four-element design had come back as six element layers. The
-      # twins ARE loaded and adopted, correctly -- they are half of
-      # how absence is drawn -- and they are simply not elements.
-      # ASKED OF THE STAMP, NOT OF THE NAME, and the line above this
-      # one has always asked the stamp for the same fact. A table is
-      # `tiles_<id>_<variable>`, so a column called "no data" -- which
-      # is what a great many datasets call one -- sanitises into
-      # exactly the ending a twin has, and a real element was counted
-      # as a twin. Measured 2026-08-28 with a control arm: four
-      # elements drawn and four brought back, announced as four under
-      # ordinary column names and as TWO under this one. Nobody need
-      # even choose the column: the default cycle picks it, which is
-      # how the control arm of the probe reproduced it first.
-      opened += 1
-      if not found.customProperty("weavingspace_no_data"):
-        loaded += 1
+    opened_so_far = 0
+    # EVERY EMBEDDED STYLE, IN ONE READ, before a single layer is
+    # built. It touches no QGIS object at all -- a file read and a
+    # dictionary -- which is what makes it the one part of a resume
+    # that could later be prepared off the main thread.
+    from qgis.PyQt.QtXml import QDomDocument
+    embedded = bridge.read_embedded_styles(path)
+    # THE WINDOW SAYS WHAT IT IS DOING, which until 2026-09-01 it did
+    # not: a resume of 256 elements opened every table, read every
+    # style and adopted every stamp behind a window that showed
+    # nothing at all -- measured at 106 to 183 seconds. The bar counts
+    # LAYERS rather than showing a percentage, on the maintainer's ask
+    # of that day.
+    # THE BUTTONS GO DOWN BECAUSE THE LOOP PUMPS, exactly as the save's
+    # does and for the same reason: turning the event loop is what lets
+    # the window paint AND what would otherwise let somebody press Save
+    # or Generate into a half-opened map. They are put back AS THEY
+    # WERE FOUND rather than enabled.
+    # AND THE LIVE PATH IS REFUSED FOR THE DURATION, or a tick landing
+    # mid-loop would re-tile the map while the remaining tables were
+    # still being opened -- the fault this project already measured on
+    # the save side, where sixty elements were drawn, thirty-six tables
+    # written and the record said eight.
+    was_enabled = (self.save_button.isEnabled(),
+                   self.generate_btn.isEnabled())
+    self.save_button.setEnabled(False)
+    self.generate_btn.setEnabled(False)
+    self._resuming_now = True
+    self.progress.setVisible(True)
+    self.progress.setRange(0, max(1, len(wanted)))
+    self.progress.setValue(0)
+    self.progress.setFormat("opening the map — layer %v of %m")
+    QApplication.processEvents()
+    try:
+      for table in sorted(wanted):
+        # ONE BEAT PER TABLE, AT THE TOP, where none of this body's
+        # `continue`s can skip it -- a bar that stops moving on the
+        # tables that are refused says the load has hung.
+        self.progress.setValue(opened_so_far)
+        opened_so_far += 1
+        QApplication.processEvents()
+        found = QgsVectorLayer(f"{path}|layername={table}", table, "ogr")
+        if not found.isValid():
+          # NAMED RATHER THAN PASSED OVER. The count below is honest --
+          # it says how many layers came back -- but a person who saved
+          # four elements and is handed three has lost one, and only the
+          # case where EVERY table fails said anything. A loss is
+          # reported, never silent, which is this project's own standing
+          # rule. (Found by the notices hunt, 2026-08-27, by dropping
+          # one element's table from a saved map and resuming it.)
+          refused.append(table)
+          continue
+        # the stamps ride inside the embedded style, so this is what
+        # makes the layer recognisably ours again
+        # READ ONCE FOR THE WHOLE FILE, APPLIED FROM MEMORY. This used
+        # to be `found.loadDefaultStyle()`, which opens the GeoPackage
+        # per layer -- and an open costs time proportional to what the
+        # file already holds, so a resume was quadratic in the element
+        # count. Profiled 2026-09-01: 0.37s, 1.32s and 6.94s at 32, 64
+        # and 128 elements, growing 5.3x per doubling and holding 30%
+        # of the load's whole wall at 128.
+        # THE FALL-THROUGH IS THE OTHER HALF. A file written before this
+        # existed, or one QGIS itself styled, may carry a row this
+        # reader does not find -- so where there is no stored QML the
+        # old call still runs, and the only cost of that is the open it
+        # was always paying.
+        qml = embedded.get(table)
+        applied = False
+        if qml:
+          document = QDomDocument()
+          if document.setContent(qml):
+            applied, _why = found.importNamedStyle(document)
+        if not applied:
+          found.loadDefaultStyle()
+        # NAMED AS A FRESH RUN NAMES IT. The layers come back under
+        # their TABLE names -- `tiles_a_v1`, `tiles_a_v1_no_data` -- so
+        # a resumed map's panel and legend read in the plugin's internal
+        # spelling where a generated one reads `a – v1` and
+        # `a – no data`. Nobody outside this code knows what a tiles_
+        # table is, and ruling 5 exists precisely so somebody can open a
+        # finished result WITHOUT generating, which is the one journey
+        # where nothing else ever corrects the name. The stamps needed
+        # to compose it are on the layer the moment its embedded style
+        # is loaded, one line above. (Found by the paired-layer hunt,
+        # 2026-08-27.)
+        # A NAME IS A LABEL AND NEVER AN IDENTITY, so nothing is looked
+        # up by it and a name the user changes afterwards is theirs.
+        stamped = (found.customProperty("weavingspace_tile_id") or "").strip()
+        if stamped:
+          if found.customProperty("weavingspace_no_data"):
+            found.setName(f"{stamped} – no data")
+          else:
+            shown = next((element.get("var") for element
+                          in (record.get("elements") or [])
+                          if str(element.get("id")) == stamped), None)
+            # An element carrying no variable keeps the table name
+            # rather than being given a half-name: unassigned elements
+            # are drawn as flat fill and a bare id says less than the
+            # table does.
+            if shown:
+              found.setName(f"{stamped} – {shown}")
+        project.addMapLayer(found, False)
+        # ADDED IN ELEMENT ORDER, NOT TABLE ORDER, once every layer is
+        # known. The tables are walked in `sorted` order, and a table
+        # name carries its element -- so `tiles_aa_v1` falls before
+        # `tiles_b_v1`, and a resumed map of more than twenty-six
+        # elements would list its twenty-seventh SECOND while a freshly
+        # generated one lists it last. `element_order` is the one owner
+        # of that question (2026-08-27); the twin follows its element,
+        # which is what the table order gave for free and this must
+        # keep.
+        arriving.append(
+          ((bridge.element_order(stamped or table),
+            1 if found.customProperty("weavingspace_no_data") else 0),
+           found))
+        # COUNTED AS AN ELEMENT ONLY IF IT IS ONE. A paired no-data
+        # layer's table is `<table>_no_data`, which starts with `tiles_`
+        # like every other, so counting the tables told somebody that a
+        # four-element design had come back as six element layers. The
+        # twins ARE loaded and adopted, correctly -- they are half of
+        # how absence is drawn -- and they are simply not elements.
+        # ASKED OF THE STAMP, NOT OF THE NAME, and the line above this
+        # one has always asked the stamp for the same fact. A table is
+        # `tiles_<id>_<variable>`, so a column called "no data" -- which
+        # is what a great many datasets call one -- sanitises into
+        # exactly the ending a twin has, and a real element was counted
+        # as a twin. Measured 2026-08-28 with a control arm: four
+        # elements drawn and four brought back, announced as four under
+        # ordinary column names and as TWO under this one. Nobody need
+        # even choose the column: the default cycle picks it, which is
+        # how the control arm of the probe reproduced it first.
+        opened += 1
+        if not found.customProperty("weavingspace_no_data"):
+          loaded += 1
+    finally:
+      # THE BAR COMES DOWN WHATEVER HAPPENED, the opening raising
+      # included: a progress bar left up over a finished load is the
+      # same hang met from the reading side.
+      self.progress.setVisible(False)
+      self.progress.setRange(0, 100)
+      self.progress.setFormat("%p%")
+      self.save_button.setEnabled(was_enabled[0])
+      self.generate_btn.setEnabled(was_enabled[1])
+      self._resuming_now = False
     for _key, layer in sorted(arriving, key=lambda pair: pair[0]):
       group.addLayer(layer)
     if not opened:

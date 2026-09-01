@@ -508,11 +508,16 @@ MUTATIONS = [
        # RE-ANCHORED 2026-08-29: the save stopped dropping styles as
        # it went, so the call carries `drop_others=False` now. Same
        # line, same claim.
-       old="""          # would carry a style nothing in it wears
-          bridge.embed_style(layer, drop_others=False)""",
-       new="""        # would carry a style nothing in it wears
-        layer.setOpacity(1.0)  # mutation: tell the FILE otherwise
-        bridge.embed_style(layer, drop_others=False)""",
+       # RE-ANCHORED 2026-09-01: the styles go in ONE session now,
+       # so there is no per-layer embed to stand on. The claim is
+       # unchanged -- the file gets the opacity the map has -- and
+       # the mutation still moves the opacity between the two.
+       old="""      styles_to_keep.update(
+        bridge.embed_styles(path, styled, on_style=a_style_landed))""",
+       new="""      for _mutated, _table in styled:
+        _mutated.setOpacity(1.0)  # mutation: tell the FILE otherwise
+      styles_to_keep.update(
+        bridge.embed_styles(path, styled, on_style=a_style_landed))""",
        test="test_a_geopackage_carries_the_no_data_opacity_it_was_given",
        why="embed_style writes what the layer wears at that moment, "
            "so an opacity set afterwards reaches the project and not "
@@ -1581,9 +1586,12 @@ MUTATIONS = [
        # data" made a real element look like a twin. The mutation is
        # unchanged in what it means: every opened table is counted,
        # twins included.
-       old="""      if not found.customProperty("weavingspace_no_data"):
-        loaded += 1""",
-       new="""      loaded += 1  # mutation: count the twins as elements too""",
+       # RE-ANCHORED 2026-09-01, when the resume's table loop gained
+       # a progress bar and moved two spaces right. Same line, same
+       # claim.
+       old="""        if not found.customProperty("weavingspace_no_data"):
+          loaded += 1""",
+       new="""        loaded += 1  # mutation: count the twins as elements too""",
        test="test_a_saved_map_can_be_opened_and_carried_on",
        why="a paired no-data layer's table is `<table>_no_data`, which "
            "starts with `tiles_` like every other, so a four-element "
@@ -3867,9 +3875,11 @@ MUTATIONS = [
        # holding anything is never recreated.
        # RE-AIMED 2026-08-27 at the save's write, which carries the
        # same argument for the same reason.
-       old="""            bridge.write_gpkg_layer(layer, path, table, first=fresh,
-                                    open_after=False)""",
-       new="""          bridge.write_gpkg_layer(layer, path, table, first=True)""",
+       # RE-ANCHORED 2026-09-01 onto the session writer's own
+       # `recreate`, which carries exactly what `first` did: a file
+       # holding anything is added to, never rebuilt.
+       old="""        path, recreate=fresh, on_table=a_table_landed)""",
+       new="""        path, recreate=True, on_table=a_table_landed)""",
        test="test_a_generate_spares_the_rest_of_the_users_geopackage",
        why="the plugin never destroying data it did not create. "
            "Recreating an existing GeoPackage wipes every other "
@@ -4163,16 +4173,15 @@ MUTATIONS = [
        # style to keep on each table so the removals could be done in
        # one open. The decision under test is the `if` itself and is
        # untouched.
+       # RE-ANCHORED 2026-09-01: the skip records the layer for the
+       # style pass instead of embedding on the spot, but the
+       # DECISION under test is the `if` itself and is untouched.
        old="""          if same_source(layer.source(), f"{path}|layername={table}"):
-            written_names.add(table)
-            bridge.embed_style(layer, drop_others=False)
-            styles_to_keep[table] = bridge.style_name_for(layer)
+            already.append((layer, table))
             continue""",
-       new="""        if False:  # mutation: write every layer back over itself
-          written_names.add(table)
-          bridge.embed_style(layer, drop_others=False)
-          styles_to_keep[table] = bridge.style_name_for(layer)
-          continue""",
+       new="""          if False:  # mutation: write every layer back over itself
+            already.append((layer, table))
+            continue""",
        test="test_saving_holds_on_every_route",
        why="a map could be SAVED ONCE AND NEVER AGAIN. The first "
            "press repoints every element layer at the file it wrote, "
@@ -4335,8 +4344,10 @@ MUTATIONS = [
        # in-place skip embeds a style too, so the bare call matches
        # twice.
        # RE-ANCHORED 2026-08-29 for the same reason as its neighbour.
-       old='          # would carry a style nothing in it wears\n          bridge.embed_style(layer, drop_others=False)',
-       new='          # would carry a style nothing in it wears\n          pass  # mutation: styles not written into the file',
+       # RE-ANCHORED 2026-09-01 onto the single-session write.
+       old="""      styles_to_keep.update(
+        bridge.embed_styles(path, styled, on_style=a_style_landed))""",
+       new="""      pass  # mutation: styles not written into the file""",
        test='test_integration_gpkg_style_round_trip',
        why='a GeoPackage carrying its own cartography'),
   # --- second wave, aimed at the integration and UI-vs-library
@@ -4410,10 +4421,10 @@ MUTATIONS = [
   # and giving them all one name is still how it fails.
   dict(name='gpkg-layer-naming', file=DIALOG,
        # RE-AIMED 2026-08-27 at the save's write.
-       old='            bridge.write_gpkg_layer(layer, path, table, first=fresh,'
-           '\n                                    open_after=False)',
-       new='            bridge.write_gpkg_layer(layer, path, "tiles_x", first=fresh,'
-           '\n                                    open_after=False)',
+       # RE-ANCHORED 2026-09-01 onto the list the session writer is
+       # handed, which is where each element's table is named now.
+       old="""        [(layer, table) for layer, table, _subset in to_write],""",
+       new="""        [(layer, "tiles_x") for layer, table, _subset in to_write],""",
        test='test_ui_library_categorical_to_gpkg',
        why='each element getting its own layer inside the GeoPackage'),
   dict(name='categorical-template-ignored', file=DIALOG,
@@ -5260,8 +5271,13 @@ MUTATIONS = [
            "can arrive spelled the way another machine's QGIS spells "
            "it"),
   dict(name="style-name-overruns-its-column", file=BRIDGE,
-       old="  name = layer.name()[:30]",
-       new="  name = layer.name()  # mutation: let GDAL truncate it",
+       # NARROWED 2026-09-01: the single-session style writer trims
+       # the same way, so the bare line matches four times now. The
+       # import above it belongs to `embed_style` alone.
+       old="""  from . import compat
+  name = layer.name()[:30]""",
+       new="""  from . import compat
+  name = layer.name()  # mutation: let GDAL truncate it""",
        test="test_an_embedded_style_name_fits_the_column_it_is_written_to",
        why="GDAL gives layer_styles.styleName thirty characters, and "
            "output layers are named after the element and its "
@@ -7829,9 +7845,13 @@ MUTATIONS = [
        # which names it has just written.
        # ANCHORED WITH THE LINE ABOVE IT: the in-place skip counts a
        # table as written too, so the bare line matches twice.
-       old="""          fresh = False
-          written_names.add(table)""",
-       new="""        fresh = False
+       # RE-ANCHORED 2026-09-01 onto the ONE place that decides what
+       # counts as written. The repoint loop had a second copy of
+       # this and it was removed the same day, being two writers of
+       # one fact -- which is also why a single anchor can hold it.
+       old="""      for _layer, table in styled:
+        written_names.add(table)""",
+       new="""      for _layer, table in styled:
         pass  # mutation: nothing counts as written, so all is stale""",
        test="test_an_element_table_carries_only_what_it_displays",
        why="rebuilding the names from element ids alone says tiles_a "
@@ -8789,10 +8809,12 @@ MUTATIONS = [
        # else about the resume is unchanged -- the layers open, the
        # twins are adopted, the map is right -- and the SENTENCE tells
        # somebody a part of their map did not come back.
-       old="""      if not found.customProperty("weavingspace_no_data"):
-        loaded += 1""",
-       new="""      if not table.endswith("_no_data"):
-        loaded += 1""",
+       # RE-ANCHORED 2026-09-01 for the indentation the resume's new
+       # progress bar gave this loop. The claim is unchanged.
+       old="""        if not found.customProperty("weavingspace_no_data"):
+          loaded += 1""",
+       new="""        if not table.endswith("_no_data"):
+          loaded += 1""",
        test="test_a_column_called_no_data_does_not_miscount_the_map",
        why="the count a recipient is given being about their map "
            "rather than about how a column happens to be spelt: "
@@ -8974,9 +8996,14 @@ MUTATIONS = [
        # The other half of the same decision, and the reason the first
        # half is safe. Turning the event loop is what lets somebody
        # press Save or Generate into a half-written file.
+       # NARROWED 2026-09-01, when the RESUME was given the same pair
+       # for the same reason -- so the bare two lines match twice and
+       # the tool would mutate whichever came first. The line below
+       # them differs between a save and a load.
        old="""    self.save_button.setEnabled(False)
-    self.generate_btn.setEnabled(False)""",
-       new="""    pass  # mutation: pump the loop with the controls live""",
+    self.generate_btn.setEnabled(False)
+    self.progress.setVisible(True)""",
+       new="""    self.progress.setVisible(True)""",
        test="test_a_save_lets_the_window_paint_while_it_writes",
        why="a save that turns the event loop not letting somebody "
            "press INTO it: the pump and the disabling are one "
@@ -8985,12 +9012,87 @@ MUTATIONS = [
        # Left standing. The save finishes, the map is written, and the
        # window still shows a bar that says it is working -- the hang
        # this was written to end, wearing its other face.
-       old="""      self.progress.setVisible(False)
+       # NARROWED 2026-09-01, when the resume gained the same
+       # `finally`. The comment above differs between the two, and
+       # is what tells a save's bar from a load's.
+       old="""      # hang this was written to end, wearing the other face.
+      self.progress.setVisible(False)
       self.progress.setRange(0, 100)""",
-       new="""      self.progress.setRange(0, 100)""",
+       new="""      # hang this was written to end, wearing the other face.
+      self.progress.setRange(0, 100)""",
        test="test_a_save_lets_the_window_paint_while_it_writes",
        why="the progress bar coming down whatever happened, the write "
            "raising included"),
+  dict(name="a-save-writes-every-table-in-one-session", file=DIALOG,
+       # THE WRONG IMPLEMENTATION RATHER THAN A MUTATION OF THE RIGHT
+       # ONE, which is what this project's own rule asks for: this IS
+       # the loop that stood here until 2026-09-01, and it is what
+       # somebody would plausibly write again.
+       old="""      written, write_trouble = bridge.write_gpkg_layers(
+        [(layer, table) for layer, table, _subset in to_write],
+        path, recreate=fresh, on_table=a_table_landed)""",
+       new="""      written, write_trouble = set(), []
+      _mutated_fresh = fresh
+      for _m_layer, _m_table, _m_subset in to_write:
+        bridge.write_gpkg_layer(_m_layer, path, _m_table,
+                                first=_mutated_fresh, open_after=False)
+        _mutated_fresh = False
+        written.add(_m_table)""",
+       test="test_a_save_opens_the_file_a_bounded_number_of_times",
+       why="a save opening the GeoPackage once per element rather than "
+           "once for the map. Opening one costs time proportional to "
+           "the layers already in it -- 1.99ms at 8 tables against "
+           "38.12ms at 256, measured against GDAL directly -- so a "
+           "per-layer loop is quadratic in the element count and took "
+           "134 seconds at the 256 ceiling"),
+  dict(name="every-style-goes-in-in-one-session", file=DIALOG,
+       # Again the implementation this replaced, rather than a
+       # mutation of the one that stands.
+       old="""      styles_to_keep.update(
+        bridge.embed_styles(path, styled, on_style=a_style_landed))""",
+       new="""      for _m_layer, _m_table in styled:
+        bridge.embed_style(_m_layer, drop_others=False)
+        styles_to_keep[_m_table] = bridge.style_name_for(_m_layer)""",
+       test="test_a_save_opens_the_file_a_bounded_number_of_times",
+       why="the styles going into the file in one session. Embedding "
+           "them one at a time opens the GeoPackage per element and "
+           "was 32.97s of a 79.9s save at the 256-element ceiling, "
+           "growing 3.5x per doubling for a call count that merely "
+           "doubles"),
+  dict(name="a-resumed-style-is-applied-not-merely-claimed", file=DIALOG,
+       old="""          if document.setContent(qml):
+            applied, _why = found.importNamedStyle(document)""",
+       new="""          applied = True  # mutation: claimed, never applied""",
+       test="test_a_resumed_map_reads_every_style_in_one_pass",
+       why="a resumed layer actually WEARING the style the file holds. "
+           "The stamps this plugin's whole identity machinery is keyed "
+           "on -- the element id, the no-data marker, the region a map "
+           "was drawn from -- ride inside the embedded style, so a "
+           "resume that skipped the applying and skipped the "
+           "fall-through with it would give back a map that draws and "
+           "is no longer recognisably ours"),
+  dict(name="a-load-says-which-layer-it-is-opening", file=DIALOG,
+       old="""    self.progress.setFormat("opening the map — layer %v of %m")""",
+       new="""    self.progress.setFormat("%p%")""",
+       test="test_a_save_and_a_load_count_their_layers_on_the_bar",
+       why="a load saying how far through it is. Opening a saved map "
+           "of 256 elements is over a hundred seconds and showed no "
+           "progress at all until 2026-09-01, which is indistinguishable "
+           "from a hang -- and a bare percentage of an act nobody can "
+           "see the size of is barely better"),
+  dict(name="a-save-counts-layers-through-every-stretch", file=DIALOG,
+       # AIMED AT ONE OF THREE DELIBERATELY, and the test was
+       # sharpened the same day so that it can see this: a save names
+       # its writing, its linking and its styling separately, and
+       # weakening one used to leave two siblings doing the work while
+       # an "any format counts layers" assertion went on passing.
+       old="""      self.progress.setFormat("saving — writing layer %v of %m")""",
+       new="""      self.progress.setFormat("%p%")""",
+       test="test_a_save_and_a_load_count_their_layers_on_the_bar",
+       why="each stretch of a save saying how far through IT is. The "
+           "three take different times per layer, so one bar spanning "
+           "them crawls through one and leaps through another and says "
+           "nothing about how long is left"),
   dict(name="the-already-saved-skip-asks-the-file", file=DIALOG,
        # Back to asking the SOURCE STRING alone, which nobody else
        # rewriting the file can change. The element is skipped as
