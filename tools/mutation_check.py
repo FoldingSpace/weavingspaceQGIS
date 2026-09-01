@@ -2550,6 +2550,36 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="a-design-is-stored-by-key-not-by-label", file=DIALOG,
+       # MUTATED BACK to the record storing the combo's TEXT, which is
+       # what it stored until 2026-09-01. Every map saved before a
+       # design gained a common name holds the bare key, so a record
+       # written by this build would carry `laves 3.3.4.3.4 (cairo)`
+       # -- a string the catalogue does not hold -- and a resume would
+       # land on whatever the chooser happened to show.
+       old="""  ("family", "family_combo", "data"),""",
+       new="""  ("family", "family_combo", "text"),""",
+       test="test_a_design_is_shown_by_name_and_stored_by_key",
+       why="a map saved before its design gained a common name still "
+           "opening on that design"),
+  dict(name="a-design-answers-with-its-catalogue-key", file=DIALOG,
+       # MUTATED to answer with the LABEL. Thirteen sites ask this one
+       # method -- the shelf, the topology stamp, both signatures, the
+       # working state and `catalog.make_unit` -- so a label reaching
+       # any of them is a lookup that misses in silence.
+       # ANCHORED ON THE DECISION, not on the fallback line: the
+       # fallback reads the combo's text and the mutation makes that
+       # the ONLY answer, so an anchor spanning both would be a
+       # mutation of one line into itself.
+       old="""    data = self.family_combo.currentData()
+    if isinstance(data, str) and data:
+      return data""",
+       new="""    data = None
+    if False:
+      return data""",
+       test="test_a_design_is_shown_by_name_and_stored_by_key",
+       why="the shelf, the stamp, the signatures and the library all "
+           "being handed a name the catalogue actually holds"),
   dict(name="a-landing-waits-for-the-pointer-to-come-up", file=TOPOLOGY_TAB,
        # MUTATED AWAY, a topology build finishing under the pointer is
        # adopted at once -- which clears the drag's preview and the

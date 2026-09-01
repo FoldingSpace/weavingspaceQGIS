@@ -235,7 +235,12 @@ WORKING_STATE_DESIGN = (
   # that holds an exact number a person typed.
   ("n", "n_spin", "number"),
   ("kind", "kind_combo", "text"),
-  ("family", "family_combo", "text"),
+  # THE KEY, NOT THE LABEL (2026-09-01). "data" is what makes a
+  # record survive a design gaining a common name: it stores the
+  # combo's item data, which is the catalogue key, and every record
+  # written before labels existed holds that same string -- so
+  # `findData` lands on it and nothing already saved moves.
+  ("family", "family_combo", "data"),
   ("spacing", "spacing_spin", "number"),
   ("offset", "opt_offset", "number"),
   ("offset_angle", "opt_offset_angle", "number"),
@@ -3974,7 +3979,7 @@ class WeavingSpaceDialog(QDialog):
     """The catalogue entry (TileUnit/WeaveUnit constructor kwargs) for
     the currently selected element count and family, or None while the
     combos are being repopulated."""
-    name = self.family_combo.currentText()
+    name = self._family_key()
     return catalog.TILINGS_BY_N.get(self._element_count(), {}).get(name)
 
   def _element_count(self) -> int:
@@ -4069,9 +4074,70 @@ class WeavingSpaceDialog(QDialog):
                if spec["type"] == ("tiling" if kind == "tiling" else "weave")]
     self.family_combo.blockSignals(True)
     self.family_combo.clear()
-    self.family_combo.addItems(names)
+    # A LABEL TO READ AND A KEY TO LOOK UP BY. The item's TEXT carries
+    # the common name where the design has one -- `laves 3.3.4.3.4
+    # (cairo)` -- and its DATA carries the catalogue key, which is
+    # what the record stores, what `catalog.make_unit` is asked for,
+    # and what every document here calls the design. Until 2026-09-01
+    # the text was doing both jobs, so the entry could not gain a name
+    # without orphaning `family` in every file already saved.
+    for name in names:
+      self.family_combo.addItem(catalog.label_for(name), name)
     self.family_combo.blockSignals(False)
     self._on_family_changed()
+
+  def _family_key(self) -> str:
+    """Which catalogue entry the design chooser is on.
+
+    Returns:
+      The catalogue key, e.g. "laves 3.3.4.3.4" -- never the label the
+      chooser shows, which may carry a common name in brackets. Falls
+      back to the visible text where an item has no data, which is
+      what a combo populated by an older build looks like and what a
+      test that sets the text by hand produces.
+
+    THE ONE OWNER OF THE QUESTION. Thirteen sites asked
+    `family_combo.currentText()` and every one of them wanted the key:
+    the shelf, the topology stamp, both signatures, the working state
+    and `catalog.make_unit`. A label added to any entry would have
+    broken all thirteen at once, silently, since a lookup by a name
+    the catalogue does not hold simply misses.
+    """
+    data = self.family_combo.currentData()
+    if isinstance(data, str) and data:
+      return data
+    # THE COMBO'S OWN TEXT, and never this method again: the sweep
+    # that pointed thirteen readers here hit this line too, leaving
+    # the fallback calling itself. It cannot recurse today because
+    # every item is added with its key, which is exactly what would
+    # make the recursion a surprise the day an item is not.
+    return self.family_combo.currentText()
+
+  def _select_family(self, key: str) -> bool:
+    """Put the design chooser on a catalogue entry, by key.
+
+    Args:
+      key: the catalogue key to select.
+
+    Returns:
+      True where the chooser moved to it, False where this list does
+      not offer it -- a family from another element count, or a record
+      written by a build whose catalogue differed. A miss is LEFT
+      ALONE rather than forced, exactly as the restore of any other
+      "data" control does: moving the chooser somewhere arbitrary
+      would draw a design nobody asked for.
+
+    It looks by DATA first and by TEXT second, so a record holding the
+    key (which is every record, before and after labels existed) and a
+    caller holding the label both land.
+    """
+    index = self.family_combo.findData(key)
+    if index < 0:
+      index = self.family_combo.findText(key)
+    if index < 0:
+      return False
+    self.family_combo.setCurrentIndex(index)
+    return True
 
   def _on_kind_changed(self):
     """Tiling/weave toggle reuses the family-repopulation logic."""
@@ -6458,7 +6524,7 @@ class WeavingSpaceDialog(QDialog):
     """
     edits = design.get("topology_edits")
     from . import topology_edits
-    family = design.get("family") or self.family_combo.currentText()
+    family = design.get("family") or self._family_key()
     count = design.get("n") or self._element_count()
     try:
       key = topology_edits.shelf_key(str(family), int(count))
@@ -6520,7 +6586,7 @@ class WeavingSpaceDialog(QDialog):
     if panel is None:
       return
     from . import topology_edits
-    key = topology_edits.shelf_key(self.family_combo.currentText(),
+    key = topology_edits.shelf_key(self._family_key(),
                                    self._element_count())
     panel.set_edits(self._topology_shelf.get(key, []))
 
@@ -14584,7 +14650,7 @@ class WeavingSpaceDialog(QDialog):
     kwargs.pop("spec", None)
     return (
       layer.id() if layer is not None else None,
-      self.family_combo.currentText(), self._element_count(),
+      self._family_key(), self._element_count(),
       tuple(sorted(kwargs.items())),
       # A TOPOLOGY EDIT CHANGES THE TILES, so it belongs with
       # everything else that does. (2026-08-30, found by a hunt and
@@ -15939,7 +16005,7 @@ class WeavingSpaceDialog(QDialog):
     kwargs.pop("spec", None)
     return (
       layer.id() if layer is not None else None,
-      self.family_combo.currentText(), self._element_count(),
+      self._family_key(), self._element_count(),
       tuple(sorted(kwargs.items())),
       # A TOPOLOGY EDIT CHANGES THE TILES, so it belongs with
       # everything else that does. (2026-08-30, found by a hunt and
@@ -16574,7 +16640,7 @@ class WeavingSpaceDialog(QDialog):
     self.progress.setVisible(True)
     self.progress.setRange(0, 100)
 
-    family = self.family_combo.currentText()
+    family = self._family_key()
     path = path_now
     # Snapshot the signatures NOW, alongside the assignments, because
     # they describe what THIS run is about to draw. Recording them on
@@ -21942,7 +22008,7 @@ class WeavingSpaceDialog(QDialog):
 
     from . import topology_edits
     wanted_edits = self._topology_shelf.get(
-      topology_edits.shelf_key(self.family_combo.currentText(),
+      topology_edits.shelf_key(self._family_key(),
                                self._element_count()), [])
     result_crs = getattr(self._unit, "crs", None)
 
@@ -22040,7 +22106,7 @@ class WeavingSpaceDialog(QDialog):
         # tiling -- an answer is about the design it was launched for.
         _dump("TOPOLOGY", "superseded")
       elif wanted_edits != self._topology_shelf.get(
-          topology_edits.shelf_key(self.family_combo.currentText(),
+          topology_edits.shelf_key(self._family_key(),
                                    self._element_count()), []):
         # THE EDIT LIST MOVED WHILE THIS WAS BEING WORKED OUT, and the
         # stamp cannot see that: it is about the topology BUILD, whose
@@ -22348,7 +22414,7 @@ class WeavingSpaceDialog(QDialog):
     """
     try:
       from . import topology_edits
-      key = topology_edits.shelf_key(self.family_combo.currentText(),
+      key = topology_edits.shelf_key(self._family_key(),
                                      self._element_count())
       edits = (getattr(self, "_topology_shelf", None) or {}).get(key) or []
       return tuple(
@@ -22384,7 +22450,7 @@ class WeavingSpaceDialog(QDialog):
     """
     kwargs = self._unit_kwargs()
     kwargs.pop("spec", None)
-    return (self.family_combo.currentText(), self._element_count(),
+    return (self._family_key(), self._element_count(),
             tuple(sorted(kwargs.items())),
             (self.mod_rotate.value(),
              self.mod_scale_x.value(), self.mod_scale_y.value(),
@@ -22449,7 +22515,7 @@ class WeavingSpaceDialog(QDialog):
     options = json.dumps(str(without_crs), sort_keys=True)
     made = json.dumps(edits, sort_keys=True, default=str)
     return "|".join((
-      topology_edits.shelf_key(self.family_combo.currentText(),
+      topology_edits.shelf_key(self._family_key(),
                                self._element_count()),
       hashlib.sha256(options.encode()).hexdigest()[:8],
       hashlib.sha256(made.encode()).hexdigest()[:8]))
@@ -22462,7 +22528,7 @@ class WeavingSpaceDialog(QDialog):
       asks for a redraw, which is what makes an edit reach the map.
     """
     from . import topology_edits
-    key = topology_edits.shelf_key(self.family_combo.currentText(),
+    key = topology_edits.shelf_key(self._family_key(),
                                    self._element_count())
     self._topology_shelf[key] = self.topology_panel.edits()
     # AND THE EXPERIMENTAL GATE IS ASKED AGAIN, because the answer it

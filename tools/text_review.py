@@ -82,7 +82,12 @@ DOCUMENTS = ["README.md", os.path.join("docs", "index.html"),
 # tests/, whose messages are read by us.
 SOURCES = ["dialog.py", "bridge.py", "perception.py", "compat.py",
            "help_content.py", "deps.py", "plugin.py",
-           "category_editor.py", "absence.py"]
+           "category_editor.py", "absence.py",
+           # catalog.py joined on 2026-09-01 with the design labels:
+           # its COMMON_NAMES are the shortest user-facing text here
+           # and are collected by name in `collect`, since the prose
+           # filter's twenty-five character floor cannot see them.
+           "catalog.py"]
 
 
 def looks_like_prose(text):
@@ -300,6 +305,37 @@ def collect():
                     "where": f"weavingspace_qgis/{name}",
                     "line": line, "text": text, "context": context,
                     "span": span, "hash": digest(text)})
+  # THE CATALOGUE'S COMMON NAMES, collected by NAME rather than by the
+  # prose filter. (2026-09-01, with the labels themselves.) They are
+  # the shortest user-facing text this plugin has -- "trihexagonal" is
+  # thirteen characters against `looks_like_prose`'s floor of
+  # twenty-five -- so the ordinary sweep cannot see them, and they are
+  # read by anybody choosing a design. A label that is WRONG is a
+  # claim about mathematics made in the software's own voice, which is
+  # exactly the kind of sentence this queue exists to put in front of
+  # a person.
+  catalogue = os.path.join(PACKAGE, "catalog.py")
+  if os.path.exists(catalogue):
+    names = {}
+    source = open(catalogue, encoding="utf-8").read()
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+      if not isinstance(node, ast.Assign):
+        continue
+      target = node.targets[0] if node.targets else None
+      if getattr(target, "id", None) != "COMMON_NAMES":
+        continue
+      if isinstance(node.value, ast.Dict):
+        for key, value in zip(node.value.keys, node.value.values):
+          if isinstance(key, ast.Constant) and isinstance(value, ast.Constant):
+            names[str(key.value)] = (str(value.value), value.lineno)
+    for key, (label, line) in sorted(names.items()):
+      shown = f"{key} ({label})"
+      items.append({"kind": "string",
+                    "where": "weavingspace_qgis/catalog.py",
+                    "line": line, "text": shown,
+                    "context": "the design chooser's own label",
+                    "span": None, "hash": digest(shown)})
   for name in DOCUMENTS:
     path = os.path.join(ROOT, name)
     if not os.path.exists(path):

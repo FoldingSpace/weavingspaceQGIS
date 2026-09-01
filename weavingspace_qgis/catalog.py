@@ -508,3 +508,67 @@ def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
                        else str(spec.get("n", "2")))
   return WeaveUnit(weave_type=spec["weave_type"], spacing=spacing,
                    strands=spec["strands"], n=n, aspect=aspect, crs=crs)
+
+# ---------------------------------------------------------------------
+# WHAT THESE DESIGNS ARE CALLED WHEN THEY ARE NOT CALLED THIS
+#
+# A catalogue name here is a VERTEX CONFIGURATION -- `4.8.8` says the
+# faces meeting at every vertex are a square and two octagons -- which
+# is exact, is what the library uses, and is not what most people call
+# these tilings. Somebody hunting for the Cairo tiling searched for
+# "cairo" and found nothing, though the design has been in this
+# catalogue since the beginning: measured 2026-09-01, `tiling_type=
+# "cairo"` and `laves 3.3.4.3.4` build the SAME GROUND -- four tiles,
+# ids a to d, identical areas and bounds, symmetric difference 0.000.
+#
+# So the chooser shows a LABEL and stores the KEY. The names below are
+# the standard ones (Grünbaum and Shephard, *Tilings and Patterns*,
+# 1987), one per entry rather than every synonym: a label is a way in,
+# not a glossary.
+#
+# THE KEY IS WHAT EVERYTHING ELSE USES. Adding a label must never move
+# what a saved GeoPackage or project holds, which is why the record
+# stores the catalogue key and the combo carries it as item data --
+# see `dialog._family_key`. A label may be corrected freely; a key
+# may not.
+COMMON_NAMES = {
+  # The eight Archimedean (uniform) tilings this catalogue carries.
+  "archimedean 3.12.12": "truncated hexagonal",
+  "archimedean 3.3.3.3.6": "snub hexagonal",
+  "archimedean 3.3.3.4.4": "elongated triangular",
+  "archimedean 3.3.4.3.4": "snub square",
+  "archimedean 3.4.6.4": "rhombitrihexagonal",
+  "archimedean 3.6.3.6": "trihexagonal",
+  "archimedean 4.6.12": "truncated trihexagonal",
+  "archimedean 4.8.8": "truncated square",
+  # ...and the four Laves tilings, which are their duals.
+  "laves 3.12.12": "triakis triangular",
+  "laves 3.3.3.3.6": "floret pentagonal",
+  "laves 3.3.3.4.4": "prismatic pentagonal",
+  "laves 3.3.4.3.4": "cairo",
+}
+
+
+def label_for(name: str) -> str:
+  """How a catalogue entry is shown to somebody choosing a design.
+
+  Args:
+    name: the catalogue key, e.g. "laves 3.3.4.3.4".
+
+  Returns:
+    The key, with its common name in brackets where it has one:
+    "laves 3.3.4.3.4 (cairo)". The key is kept and shown FIRST rather
+    than replaced, because it is what the library, the saved records
+    and every document here call the design, and a person who has
+    learned the vertex-configuration names should not have to
+    translate back.
+
+  A NAME YOU SHOW IS NOT A NAME YOU LOOK UP BY, which this project
+  says about layers, groups and fields and had never applied to the
+  catalogue: the family travelled into every saved file as the
+  chooser's own TEXT, so the entry could not be renamed without
+  orphaning that field in files already written. The label lives here
+  and the key lives in the combo's item data.
+  """
+  common = COMMON_NAMES.get(name)
+  return f"{name} ({common})" if common else name

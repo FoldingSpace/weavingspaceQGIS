@@ -1478,7 +1478,7 @@ def test_the_table_copes_with_the_largest_element_count():
     # sampled pixel would be an edge blend, visual_gamut would find
     # nothing to measure, and the check would report a sentinel rather
     # than a colour. Grid gives 52 blocks big enough to see.
-    dlg.family_combo.setCurrentText(f"grid {top}")
+    _choose_family(dlg, f"grid {top}")
     dlg.spacing_spin.setValue(2000)
     _settle(dlg)
     _generate_and_wait(dlg)
@@ -1567,7 +1567,7 @@ def test_real_world_data():
   # the library call below can describe the same map
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.opt_join_prototiles.setChecked(False)
   dlg.opt_retain.setChecked(False)
   dlg.opt_clip.setChecked(False)
@@ -4462,7 +4462,7 @@ def test_a_save_with_an_edit_outstanding_leaves_the_motif_alone():
       _tick(200)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), \
         "PREMISE: this design carries no topology, so nothing is written"
@@ -4560,7 +4560,7 @@ def test_a_save_with_an_edit_outstanding_leaves_the_motif_alone():
       _tick(200)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), "PREMISE: no topology"
       _generate_and_wait(dlg)
@@ -4647,7 +4647,7 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
       _tick(200)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), \
         "PREMISE: this design carries no topology to edit"
@@ -4759,7 +4759,7 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
     _tick(200)
     live_dlg.n_spin.setValue(4)
     _tick(200)
-    live_dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(live_dlg, "laves 3.3.4.3.4")
     _tick(300)
     assert _wait_for_the_topology(live_dlg), \
       "PREMISE: this design carries no topology to edit"
@@ -4878,7 +4878,7 @@ def test_the_experimental_exemption_closes_again():
     _tick(200)
     dlg.n_spin.setValue(4)
     _tick(200)
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(300)
     assert _wait_for_the_topology(dlg), "PREMISE: no topology to edit"
     _generate_and_wait(dlg)
@@ -5028,7 +5028,7 @@ def test_a_topology_landing_does_not_strand_a_live_tick():
       _tick(200)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), "PREMISE: no topology"
       _generate_and_wait(dlg)
@@ -5424,7 +5424,7 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       _tick(200)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), \
         "PREMISE: no topology was built, so there is nothing to edit"
@@ -5640,7 +5640,7 @@ def test_a_drag_previews_the_move_it_will_commit():
     _tick(200)
     dlg.n_spin.setValue(4)
     _tick(200)
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(300)
     assert _wait_for_the_topology(dlg), \
       "PREMISE: no topology was built, so there is nothing to drag"
@@ -5866,7 +5866,7 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     _tick(200)
     dlg.n_spin.setValue(4)
     _tick(200)
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(300)
     assert _wait_for_the_topology(dlg), \
       "PREMISE: no topology was built, so there is nothing to drag"
@@ -6174,7 +6174,7 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       dlg.opt_experimental.setChecked(True)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), \
         "PREMISE: laves 3.3.4.3.4 built no topology to edit"
@@ -6216,7 +6216,7 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       else:
         dlg.n_spin.setValue(3)
         _tick(200)
-        dlg.family_combo.setCurrentText("hex-slice")
+        _choose_family(dlg, "hex-slice")
       _tick(400)
       # THE STATE IS STAGED RATHER THAN WAITED FOR. With the box off
       # `_queue_topology` returns early and the panel keeps the
@@ -6305,7 +6305,7 @@ def test_a_dragged_vertex_records_what_its_box_shows():
     _tick(200)
     dlg.n_spin.setValue(2)
     _tick(200)
-    dlg.family_combo.setCurrentText("archimedean 4.8.8")
+    _choose_family(dlg, "archimedean 4.8.8")
     _tick(300)
     assert _wait_for_the_topology(dlg), \
       "PREMISE: archimedean 4.8.8 built no topology to drag on"
@@ -6407,7 +6407,7 @@ def test_a_drag_is_measured_in_the_frame_it_began_in():
     _tick(200)
     dlg.n_spin.setValue(4)
     _tick(200)
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(300)
     assert _wait_for_the_topology(dlg), \
       "PREMISE: no topology was built, so there is nothing to drag"
@@ -6527,7 +6527,7 @@ def test_topology_edits_come_back_from_the_file():
       _tick(200)
       dlg.n_spin.setValue(4)
       _tick(200)
-      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
       assert _wait_for_the_topology(dlg), "PREMISE: no topology built"
       panel = dlg.topology_panel
@@ -6758,7 +6758,7 @@ def test_every_handle_can_be_hit_at_the_size_the_window_opens_at():
     for family, n in (("laves 3.3.4.3.4", 4), ("hex-slice", 6)):
       dlg.n_spin.setValue(n)
       _tick(200)
-      dlg.family_combo.setCurrentText(family)
+      _choose_family(dlg, family)
       _tick(300)
       assert _wait_for_the_topology(dlg), \
         f"PREMISE: {family} {n} built no topology to place handles on"
@@ -6967,7 +6967,7 @@ def test_the_topology_matrix():
         if dlg.family_combo.findText(family) < 0:
           skipped[route] = skipped.get(route, 0) + 1
           continue
-        dlg.family_combo.setCurrentText(family)
+        _choose_family(dlg, family)
         _tick(300)
         _settle_topology(dlg)
         verdict, detail = _topology_matrix_cell(dlg, route, aftermath, td)
@@ -7471,6 +7471,110 @@ def _settle_topology(dlg, seconds: int = 30):
       return
 
 
+def test_a_design_is_shown_by_name_and_stored_by_key():
+  """The chooser says `cairo`; the record and the file say the key.
+
+  A catalogue name is a VERTEX CONFIGURATION -- `4.8.8` means a square
+  and two octagons meet at every vertex -- which is exact and is not
+  what people call these tilings. Measured 2026-09-01, upstream's
+  `tiling_type="cairo"` and this catalogue's `laves 3.3.4.3.4` build
+  the SAME GROUND (four tiles, ids a to d, identical areas and bounds,
+  symmetric difference 0.000), so the Cairo tiling was in the
+  catalogue all along under a name nobody would search for.
+
+  THE LABEL IS WHAT MOVES AND THE KEY IS WHAT DOES NOT. `family` rides
+  into every saved GeoPackage and project, and until this change it
+  was the chooser's own TEXT -- so renaming an entry would have
+  orphaned that field in files already written. The combo carries the
+  key as item data now and the record stores the data, which is the
+  same string those files already hold.
+
+  THREE ANSWERS ARE ASSERTED, because any one alone would pass while
+  the feature was broken in a way somebody would meet: what a person
+  READS, what the dialog ANSWERS when asked which design it is on, and
+  what a record written BEFORE labels existed restores to.
+
+  Regression: showing a common name beside a catalogue entry would have changed the `family` string stored in every saved file, so a map saved before the rename would resume onto whatever design the chooser happened to hold. [mutation]
+  """
+  from weavingspace_qgis import catalog
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(200)
+
+    # ---- WHAT A PERSON READS
+    shown = dlg.family_combo.currentText()
+    assert shown == "laves 3.3.4.3.4 (cairo)", (
+      f"the chooser shows {shown!r}, so somebody hunting for the "
+      f"Cairo tiling still cannot find the design that draws it")
+    # AND THE LABEL COMES FROM ONE PLACE, so a name corrected in the
+    # catalogue reaches the chooser without a second edit.
+    assert shown == catalog.label_for("laves 3.3.4.3.4"), (
+      f"the chooser composed {shown!r} where `catalog.label_for` says "
+      f"{catalog.label_for('laves 3.3.4.3.4')!r}: two places are "
+      f"deciding one name")
+
+    # ---- WHAT THE DIALOG ANSWERS
+    assert dlg._family_key() == "laves 3.3.4.3.4", (
+      f"the dialog says it is on {dlg._family_key()!r}, which is the "
+      f"label rather than the catalogue key -- so the shelf, the "
+      f"topology stamp, both signatures and `catalog.make_unit` are "
+      f"all being handed a name the catalogue does not hold")
+
+    # ---- AND WHAT AN OLDER RECORD RESTORES TO. A file written before
+    # labels existed holds the bare key, which is what this stages.
+    #
+    # THE TARGET IS A LABELLED FAMILY THAT IS NOT THE DEFAULT, and
+    # both halves of that are load-bearing. `_apply_working_state`
+    # calls `_on_n_changed`, which REBUILDS the family list and leaves
+    # the chooser on the first entry -- and at n=4 the first entry IS
+    # `laves 3.3.4.3.4`, so this arm was originally staged where the
+    # rebuild alone produced the answer and the catalogue entry over
+    # it duly SURVIVED. At n=3 the labelled families sit at positions
+    # 4, 5 and 7, so landing on one is a restore rather than a
+    # default. And the family must be LABELLED, since a record naming
+    # an unlabelled family restores by text just as well.
+    dlg.n_spin.setValue(3)
+    _tick(200)
+    _choose_family(dlg, "hex-slice 3")
+    _tick(200)
+    assert dlg._family_key() == "hex-slice 3", \
+      "PREMISE: the chooser did not move away, so the restore below " \
+      "would pass without restoring anything"
+    dlg._apply_working_state({"design": {"n": 3,
+                                         "kind": "tiling",
+                                         "family": "archimedean 3.12.12"},
+                              "elements": []})
+    _tick(300)
+    assert dlg._family_key() == "archimedean 3.12.12", (
+      f"a record holding the bare key restored the chooser to "
+      f"{dlg._family_key()!r}: every map saved before this change "
+      f"names its design that way, and they must all still open")
+    assert dlg.family_combo.currentText() == \
+      "archimedean 3.12.12 (truncated hexagonal)", (
+      f"the restored entry reads {dlg.family_combo.currentText()!r}, "
+      f"so the label and the key have come apart")
+
+    # ---- AND THE DESIGN IS THE ONE NAMED, not merely the row.
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                             spacing=500, crs=3857)
+    assert len(unit.tiles) == 4, (
+      f"PREMISE: the catalogue key builds {len(unit.tiles)} tiles, so "
+      f"this test is not about the design it names")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_the_experimental_box_gates_its_tabs():
   """An experimental tab is greyed and unusable until the box is ticked.
 
@@ -7901,11 +8005,22 @@ def test_the_element_count_is_one_control_in_two_widgets():
 
   # and the cascade the count has always driven still runs: the
   # family list is rebuilt for the new count
-  offered = {dlg.family_combo.itemText(i)
+  # ASKED OF THE KEYS, NOT THE LABELS. Since 2026-09-01 an item's TEXT
+  # may carry a common name -- `archimedean 3.12.12 (truncated
+  # hexagonal)` -- while its DATA is the catalogue key, so comparing
+  # the visible text against the catalogue is comparing two different
+  # vocabularies. Both are checked here: the keys must be this count's
+  # designs, and the labels must be what the catalogue says they read.
+  offered = {dlg.family_combo.itemData(i)
              for i in range(dlg.family_combo.count())}
   assert offered <= set(catalog.TILINGS_BY_N[3]), \
     f"the family list offers {offered - set(catalog.TILINGS_BY_N[3])}, " \
     f"which are not three-element designs"
+  shown = {dlg.family_combo.itemText(i)
+           for i in range(dlg.family_combo.count())}
+  assert shown == {catalog.label_for(key) for key in offered}, \
+    f"the list reads {sorted(shown)[:3]} where the catalogue would " \
+    f"label those keys {sorted(catalog.label_for(k) for k in offered)[:3]}"
   dlg.close()
 
 
@@ -8455,7 +8570,7 @@ def _measure_the_design_tabs_widths():
   # measured with the rest
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("weave")
-  dlg.family_combo.setCurrentText("twill weave ab|cd")
+  _choose_family(dlg, "twill weave ab|cd")
   dlg.show()
   _tick(300)
 
@@ -8537,21 +8652,21 @@ def test_design_cascade():
   dlg.n_spin.setValue(13)
   assert dlg.kind_combo.currentText() == "tiling", \
     "n=13 offers only chavey tilings; kind must flip"
-  assert dlg.family_combo.currentText().startswith("chavey")
+  assert dlg._family_key().startswith("chavey")
 
   # family-specific option rows appear for exactly the right families
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   assert not dlg.opt_offset_row[1].isVisibleTo(dlg)
-  dlg.family_combo.setCurrentText("hex-slice 4")
+  _choose_family(dlg, "hex-slice 4")
   assert dlg.opt_offset_row[1].isVisibleTo(dlg)
   dlg.n_spin.setValue(3)
-  dlg.family_combo.setCurrentText("star1 33")
+  _choose_family(dlg, "star1 33")
   assert dlg.opt_point_angle_row[1].isVisibleTo(dlg)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("weave")
-  dlg.family_combo.setCurrentText("twill weave ab|cd")
+  _choose_family(dlg, "twill weave ab|cd")
   assert dlg.opt_aspect_row[1].isVisibleTo(dlg)
   assert dlg.opt_over_under_row[1].isVisibleTo(dlg)
 
@@ -8564,7 +8679,7 @@ def test_design_cascade():
 
   # the offset control changes slice geometry
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("hex-slice 4")
+  _choose_family(dlg, "hex-slice 4")
   dlg.opt_offset.setValue(0.0)
   dlg._rebuild_unit()
   corners = dlg._unit.tiles.geometry.iloc[0].wkt
@@ -8576,7 +8691,7 @@ def test_design_cascade():
   # grid family: spinner row appears, defaults to the tightest fit,
   # and the spinners reach the unit (1x4 vs 2x2 changes geometry)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("grid 4")
+  _choose_family(dlg, "grid 4")
   assert dlg.opt_grid_row[1].isVisibleTo(dlg)
   assert (dlg.opt_grid_rows.value(), dlg.opt_grid_cols.value()) == (2, 2)
   dlg._rebuild_unit()
@@ -8587,19 +8702,19 @@ def test_design_cascade():
   assert set(dlg._unit.tiles.tile_id) == {"a", "b", "c", "d"}
   assert dlg._unit.tiles.geometry.iloc[0].wkt != square_wkt, \
     "rows/cols must reach the grid geometry"
-  dlg.family_combo.setCurrentText("stripes 4")
+  _choose_family(dlg, "stripes 4")
   assert not dlg.opt_grid_row[1].isVisibleTo(dlg)
   dlg._rebuild_unit()
   assert set(dlg._unit.tiles.tile_id) == {"a", "b", "c", "d"}
 
   # option rows growing the form grows the dialog (fit re-runs)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   loop = QEventLoop()
   QTimer.singleShot(150, loop.quit)
   loop.exec()
   h_plain = dlg.height()
   dlg.kind_combo.setCurrentText("weave")
-  dlg.family_combo.setCurrentText("twill weave ab|cd")
+  _choose_family(dlg, "twill weave ab|cd")
   loop = QEventLoop()
   QTimer.singleShot(150, loop.quit)
   loop.exec()
@@ -14274,7 +14389,7 @@ def test_hand_picked_colours_do_not_bleed_across_families():
                                   # family; nothing to compare against
   dlg.n_spin.setValue(7)
   _tick(200)
-  dlg.family_combo.setCurrentText(bigger[0])
+  _choose_family(dlg, bigger[0])
   dlg._rebuild_unit()
   _tick(300)
   assert dlg.table.rowCount() == 7, \
@@ -14332,7 +14447,7 @@ def test_element_state_survives_a_family_change_and_back():
     return
   dlg.n_spin.setValue(4)
   _tick(150)
-  dlg.family_combo.setCurrentText(start_families[0])
+  _choose_family(dlg, start_families[0])
   dlg._rebuild_unit()
   _tick(250)
 
@@ -14362,14 +14477,14 @@ def test_element_state_survives_a_family_change_and_back():
 
   dlg.n_spin.setValue(7)
   _tick(150)
-  dlg.family_combo.setCurrentText(other_families[0])
+  _choose_family(dlg, other_families[0])
   dlg._rebuild_unit()
   _tick(300)
   assert dlg.table.rowCount() == 7, "the excursion did not take"
 
   dlg.n_spin.setValue(4)
   _tick(150)
-  dlg.family_combo.setCurrentText(start_families[0])
+  _choose_family(dlg, start_families[0])
   dlg._rebuild_unit()
   _tick(300)
   after = {a["id"]: (a["ramp"], a.get("opacity"))
@@ -14412,7 +14527,7 @@ def test_element_state_follows_the_element_count():
   for count, families in ((7, large), (4, small)):
     dlg.n_spin.setValue(count)
     _tick(150)
-    dlg.family_combo.setCurrentText(families[0])
+    _choose_family(dlg, families[0])
     dlg._rebuild_unit()
     _tick(300)
     assignments = dlg._assignments()
@@ -14771,7 +14886,7 @@ def test_one_variable_gets_one_legend_wherever_it_appears():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   # 1200, and the number is load-bearing. At 500 every element
   # receives exactly the same 595 tiles, so classifying each on its
   # own tiles gives the same answer as classifying the whole map and
@@ -15637,7 +15752,7 @@ def test_a_copied_classification_carries_the_whole_row():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(1200)
   dlg.table.cellWidget(0, 1).setCurrentText("v3")    # 0 to 121
   dlg.table.cellWidget(1, 1).setCurrentText("v1")    # 0 to 11
@@ -18025,7 +18140,7 @@ def test_copying_between_two_elements_and_back_is_stable():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(1200)
   # BOTH on the same column, so the end rules do not change anything
   # and any drift is the copy's own arithmetic
@@ -18284,7 +18399,7 @@ def test_a_pinned_element_draws_what_the_library_draws():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(1200)
   for row in range(dlg.table.rowCount()):
     combo = dlg.table.cellWidget(row, 1)
@@ -18347,7 +18462,7 @@ def test_a_session_of_pinning_and_copying_holds_together():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(1200)
   dlg.table.cellWidget(0, 1).setCurrentText("v3")
   dlg.table.cellWidget(1, 1).setCurrentText("v3")
@@ -23672,12 +23787,12 @@ def test_every_family_shows_its_own_options():
       _tick(60)
       dlg.n_spin.setValue(n)
       _tick(60)
-      dlg.family_combo.setCurrentText(name)
+      _choose_family(dlg, name)
       _tick(60)
-      if dlg.family_combo.currentText() != name:
+      if dlg._family_key() != name:
         trouble.append(f"{name}: could not be selected at all "
                        f"(the chooser stayed on "
-                       f"{dlg.family_combo.currentText()!r})")
+                       f"{dlg._family_key()!r})")
         continue
       checked += 1
       tiling_type = entry.get("tiling_type", "")
@@ -26862,7 +26977,7 @@ def test_repopulating_the_family_list_fires_no_handlers():
   original = dlg._rebuild_unit
 
   def counted(*a, **k):
-    rebuilds.append(dlg.family_combo.currentText())
+    rebuilds.append(dlg._family_key())
     return original(*a, **k)
 
   dlg._rebuild_unit = counted
@@ -29121,7 +29236,7 @@ def test_integration_weave_and_icons():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("weave")
-  dlg.family_combo.setCurrentText("twill weave ab|cd")
+  _choose_family(dlg, "twill weave ab|cd")
   dlg.opt_over_under.setText("1,2")
   dlg.opt_aspect.setValue(0.5)
   dlg.spacing_spin.setValue(700)
@@ -29192,7 +29307,7 @@ def test_integration_interleaved_session():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(600)
 
   def renderer(tid):
@@ -29420,7 +29535,7 @@ def test_integration_interleaved_session():
 
   # 9. design: a different family with the same element count; the
   # whole styling arrangement must survive the swap
-  dlg.family_combo.setCurrentText("hex-slice 4")
+  _choose_family(dlg, "hex-slice 4")
   _generate_and_wait(dlg)
   assert set(dlg._element_layer_ids) == set("abcd")
   assert top_colour("a") == bridge.get_ramp("YlGn").color(1.0).name()
@@ -29477,7 +29592,7 @@ def test_integration_categorical_session():
   dlg.layer_combo.setLayer(layer)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(900)
 
   def renderer(tid):
@@ -30261,7 +30376,7 @@ def test_ui_library_slice_modifiers():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("hex-slice 4")
+    _choose_family(dlg, "hex-slice 4")
     dlg.opt_offset.setValue(1.0)
     dlg.spacing_spin.setValue(700)
     dlg.mod_rotate.setValue(15)
@@ -30300,7 +30415,7 @@ def test_ui_library_weave_parameters():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("weave")
-    dlg.family_combo.setCurrentText("twill weave ab|cd")
+    _choose_family(dlg, "twill weave ab|cd")
     dlg.opt_over_under.setText("1,2")
     dlg.opt_aspect.setValue(0.6)
     dlg.spacing_spin.setValue(600)
@@ -30330,7 +30445,7 @@ def test_ui_library_modifier_chain():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     dlg.spacing_spin.setValue(650)
     dlg.mod_rotate.setValue(25)
     dlg.mod_scale_x.setValue(1.2)
@@ -30370,7 +30485,7 @@ def test_ui_library_icons_and_join():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     dlg.spacing_spin.setValue(500)
     dlg.opt_icons.setChecked(True)
     dlg.opt_join_prototiles.setChecked(True)
@@ -30393,7 +30508,7 @@ def test_ui_library_clipped_edges():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     dlg.spacing_spin.setValue(700)
     dlg.opt_clip.setChecked(True)
 
@@ -30415,7 +30530,7 @@ def test_ui_library_grid_rows_cols():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("grid 4")
+    _choose_family(dlg, "grid 4")
     dlg.opt_grid_rows.setValue(1)
     dlg.opt_grid_cols.setValue(4)
     dlg.spacing_spin.setValue(600)
@@ -30442,7 +30557,7 @@ def test_ui_library_dissection_angles():
   def setup(dlg):
     dlg.n_spin.setValue(7)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("hex-dissection 7")
+    _choose_family(dlg, "hex-dissection 7")
     dlg.opt_offset.setValue(0.35)
     dlg.opt_offset_angle.setValue(20)
     dlg.spacing_spin.setValue(900)
@@ -30466,7 +30581,7 @@ def test_ui_library_star_point_angle():
   def setup(dlg):
     dlg.n_spin.setValue(3)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("star1 33")
+    _choose_family(dlg, "star1 33")
     dlg.opt_point_angle.setValue(55)
     dlg.spacing_spin.setValue(800)
 
@@ -30494,7 +30609,7 @@ def test_ui_library_glyph_scaling():
   def setup(dlg):
     dlg.n_spin.setValue(4)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     dlg.spacing_spin.setValue(600)
     dlg.mod_scale_x.setValue(1.4)
     dlg.mod_scale_y.setValue(1.4)
@@ -30536,7 +30651,7 @@ def test_ui_library_categorical_template():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(900)
   dlg.opt_join_prototiles.setChecked(False)
   dlg.opt_retain.setChecked(False)
@@ -30640,7 +30755,7 @@ def test_ui_library_categorical_weave_icons():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("weave")
-  dlg.family_combo.setCurrentText("plain weave ab|cd")
+  _choose_family(dlg, "plain weave ab|cd")
   dlg.opt_aspect.setValue(0.8)
   dlg.spacing_spin.setValue(800)
   dlg.opt_icons.setChecked(True)
@@ -30724,7 +30839,7 @@ def test_ui_library_categorical_to_gpkg():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(3)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("hex-slice 3")
+  _choose_family(dlg, "hex-slice 3")
   dlg.spacing_spin.setValue(1000)
   dlg.opt_join_prototiles.setChecked(False)
   dlg.opt_retain.setChecked(False)
@@ -30836,7 +30951,7 @@ def test_stress_fast_interaction():
     tick()
   for family in ("laves 3.3.4.3.4", "hex-slice 4", "grid 4",
                  "square-slice 4", "laves 3.3.4.3.4"):
-    dlg.family_combo.setCurrentText(family)
+    _choose_family(dlg, family)
     tick()
   # ... and a burst of data-tab changes, the chooser-race territory
   for row in range(dlg.table.rowCount()):
@@ -30880,7 +30995,7 @@ def test_stress_fast_interaction():
   assert dlg._task is None, "a task was left in flight"
   assert dlg.generate_btn.isEnabled(), "Generate stayed disabled"
   assert dlg._unit is not None
-  assert dlg.family_combo.currentText() == "laves 3.3.4.3.4"
+  assert dlg._family_key() == "laves 3.3.4.3.4"
   assert set(dlg._tile_ids()) == set("abcd")
   # the table still matches the unit, and its widgets are alive
   assert dlg.table.rowCount() == len(dlg._tile_ids())
@@ -30929,7 +31044,7 @@ def test_stress_complex_data_bumbling():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
 
   def renderer(tid):
     return project.mapLayer(dlg._element_layer_ids[tid]).renderer()
@@ -31027,7 +31142,7 @@ def test_preview_fits_and_labels():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.show()
   preview = dlg.preview
   preview.resize(300, 300)
@@ -31146,7 +31261,7 @@ def test_restyle_without_retiling():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(500)
   _generate_and_wait(dlg)
   before_ids = dict(dlg._element_layer_ids)
@@ -31228,7 +31343,7 @@ def test_reverse_ramp_column():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(500)
   for row, var in enumerate(("v1", "v2", "landcover", "v3")):
     dlg.table.cellWidget(row, 1).setCurrentText(var)
@@ -33022,7 +33137,7 @@ def test_the_icon_notice_names_the_elements_the_map_is_missing():
     _tick(300)
     for name in ("plain weave ab|cd", "twill weave ab|cd"):
       if dlg.family_combo.findText(name) >= 0:
-        dlg.family_combo.setCurrentText(name)
+        _choose_family(dlg, name)
         break
     _tick(400)
     dlg.opt_icons.setChecked(True)
@@ -37579,7 +37694,7 @@ def test_a_dataset_that_cannot_fill_the_design_asks_first():
     MODAL_ANSWERS["question"] = reply
     try:
       before_n = dlg._element_count()
-      before_family = dlg.family_combo.currentText()
+      before_family = dlg._family_key()
       assert dlg.table.rowCount() == 4, \
         "the fixture no longer builds a four-element design, so a " \
         "two-column dataset cannot be short for it"
@@ -37611,7 +37726,7 @@ def test_a_dataset_that_cannot_fill_the_design_asks_first():
           f"not {sorted(shown)}"
       else:
         assert dlg._element_count() == before_n \
-            and dlg.family_combo.currentText() == before_family \
+            and dlg._family_key() == before_family \
             and dlg.table.rowCount() == 4, \
           "the user declined and the design changed anyway; a " \
           "question that recomposes whatever you answer is consent " \
@@ -39391,7 +39506,7 @@ def test_a_negative_scale_factor_mirrors_the_design():
              for i in range(dlg.family_combo.count())]
     wanted = next((n for n in names if "hex" in n and "slice" in n), None)
     assert wanted, f"no hex-slice design is on offer: {names[:8]}"
-    dlg.family_combo.setCurrentText(wanted)
+    _choose_family(dlg, wanted)
     _tick(250)
 
     def elements():
@@ -41947,7 +42062,7 @@ def test_element_opacity():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(500)
   for row, var in enumerate(("v1", "v2", "landcover", "v3")):
     dlg.table.cellWidget(row, 1).setCurrentText(var)
@@ -42061,7 +42176,7 @@ def test_opacity_in_preview():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg._update_dynamic_columns()
 
   assert QColor(dlg._table_id_colours()["a"]).alpha() == 255, \
@@ -43379,7 +43494,7 @@ def test_the_editor_column_appears_for_quant_rows():
   dlg = WeavingSpaceDialog(iface=None)
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.layer_combo.setLayer(layer)
   _tick(200)
   for row, var in enumerate(("v1", "v2", "v3", "---")):
@@ -45571,7 +45686,7 @@ def test_a_long_session_accumulates_no_stale_state():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.layer_combo.setLayer(layer)
   _tick(200)
 
@@ -45636,7 +45751,7 @@ def test_a_long_session_accumulates_no_stale_state():
   # stage 4: the element count up, and another generate
   dlg.n_spin.setValue(6)
   _tick(200)
-  dlg.family_combo.setCurrentText("hex-slice 6")
+  _choose_family(dlg, "hex-slice 6")
   _tick(500)                      # outlast the 350 ms rebuild debounce
   assert dlg.table.rowCount() == 6, \
     "the six-element family never rebuilt the table"
@@ -45653,7 +45768,7 @@ def test_a_long_session_accumulates_no_stale_state():
   # stage 5: and back down to four
   dlg.n_spin.setValue(4)
   _tick(200)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   _tick(500)                      # outlast the 350 ms rebuild debounce
   assert dlg.table.rowCount() == 4, \
     "the four-element family never rebuilt the table"
@@ -45741,7 +45856,7 @@ def test_element_count_round_trip_restores_customization():
   # guessed (TILINGS_BY_N[6]). The 500 ms tick outlasts the 350 ms
   # rebuild debounce, which a shorter wait did not (measured: the
   # table still had its old four rows at 200 ms)
-  dlg.family_combo.setCurrentText("hex-slice 6")
+  _choose_family(dlg, "hex-slice 6")
   _tick(500)
   assert dlg.table.rowCount() == 6, \
     f"hex-slice 6 should seat six elements, not {dlg.table.rowCount()}"
@@ -45770,7 +45885,7 @@ def test_element_count_round_trip_restores_customization():
   # down to four: the rows for e and f leave the table...
   dlg.n_spin.setValue(4)
   _tick(200)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   _tick(500)
   assert dlg.table.rowCount() == 4, \
     f"four elements were asked for, {dlg.table.rowCount()} are seated"
@@ -45791,7 +45906,7 @@ def test_element_count_round_trip_restores_customization():
   # is simply there again
   dlg.n_spin.setValue(6)
   _tick(200)
-  dlg.family_combo.setCurrentText("hex-slice 6")
+  _choose_family(dlg, "hex-slice 6")
   _tick(500)
   assert dlg.table.rowCount() == 6, \
     "the return to six never rebuilt the table"
@@ -47225,7 +47340,7 @@ def _determinism_dialog(spacing=500):
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   _tick(500)                      # let the design rebuild land first
   dlg.layer_combo.setLayer(layer)
   _tick(300)                      # and auto-spacing after it
@@ -47904,7 +48019,7 @@ def test_classification_survives_inf_nan_and_huge():
     dlg = WeavingSpaceDialog(iface=None)
     dlg.live_check.setChecked(False)
     dlg.n_spin.setValue(4)
-    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(500)
     dlg.layer_combo.setLayer(layer)
     _tick(300)
@@ -50722,7 +50837,7 @@ def test_the_tile_estimate_is_honest_where_shapes_are_awkward():
   # typed: a name that does not exist in the catalogue would leave
   # everything below silently untested
   spec = catalog.TILINGS_BY_N[dlg._element_count()][
-    dlg.family_combo.currentText()]
+    dlg._family_key()]
   region = bridge.layer_to_gdf(region_layer, ["v1"])
   fine = 1.0
   refused = catalog.make_unit(spec, spacing=fine, crs=3857)
@@ -55671,7 +55786,7 @@ def test_a_run_started_before_a_change_lands_after_it():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(True)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(500)
   assert _settle(dlg, 60), "the dialog never reached a resting state"
   launched = sorted(dlg._element_layer_ids)
@@ -56256,6 +56371,37 @@ def _notes_during_a_run(dlg, seconds=2):
   return seen
 
 
+def _choose_family(dlg, key):
+  """Put the design chooser on a catalogue entry, by its KEY.
+
+  Args:
+    dlg: the dialog to drive.
+    key: the catalogue key, e.g. "laves 3.3.4.3.4" -- never the label,
+      which since 2026-09-01 may carry a common name in brackets.
+
+  Returns:
+    None. Asserts rather than returning a verdict, because a family
+    the chooser does not offer means the test is about to drive a
+    design it did not choose.
+
+  WHY NOT `setCurrentText`. On a non-editable combo that call selects
+  an item only when the text matches EXACTLY, and does nothing at all
+  otherwise -- silently. So the 121 sites that named a family by its
+  catalogue key would have gone on testing whatever design happened
+  to be selected the moment `laves 3.3.4.3.4` started displaying as
+  `laves 3.3.4.3.4 (cairo)`. Driving the chooser through the same
+  key/label separation the product uses is what keeps a test's
+  subject the design it names.
+  """
+  index = dlg.family_combo.findData(key)
+  if index < 0:
+    index = dlg.family_combo.findText(key)
+  assert index >= 0, (
+    f"the chooser offers no family {key!r}; it has "
+    f"{[dlg.family_combo.itemText(i) for i in range(dlg.family_combo.count())][:8]}")
+  dlg.family_combo.setCurrentIndex(index)
+
+
 def _settle(dlg, seconds=30):
   """Run the event loop until the dialog is quiet.
 
@@ -56329,7 +56475,7 @@ def test_race_settings_change_during_run():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(True)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(500)
   dlg.table.cellWidget(0, 4).setCurrentText("Reds")
   assert _settle(dlg), "the dialog should reach a resting state first"
@@ -56649,7 +56795,7 @@ def test_race_control_sweep():
   dlg.live_check.setChecked(True)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(520)
   assert _settle(dlg), "settle before sweeping"
 
@@ -56736,7 +56882,7 @@ def test_fuzz_random_interaction():
     return [
       ("spacing", lambda r: dlg.spacing_spin.setValue(
         r.choice([420, 480, 520, 600]))),
-      ("family", lambda r: dlg.family_combo.setCurrentText(
+      ("family", lambda r: _choose_family(dlg, 
         r.choice(["laves 3.3.4.3.4", "hex-slice 4", "grid 4",
                   "square-slice 4"]))),
       ("ramp", lambda r: dlg.table.cellWidget(
@@ -56882,7 +57028,7 @@ def test_generate_uses_the_design_on_screen():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(700)
   dlg._rebuild_unit()
   _generate_and_wait(dlg)
@@ -56932,7 +57078,7 @@ def test_typing_updates_the_design():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("weave")
-  dlg.family_combo.setCurrentText("twill weave ab|cd")
+  _choose_family(dlg, "twill weave ab|cd")
   dlg._rebuild_unit()
   before = tuple(dlg._unit.n)
 
@@ -57500,7 +57646,7 @@ def test_metamorphic_full_rotation_and_scaling():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(600)
   dlg._rebuild_unit()
   at_rest = [g.wkt for g in dlg._unit.tiles.geometry]
@@ -57554,7 +57700,7 @@ def test_metamorphic_variable_permutation():
   dlg = WeavingSpaceDialog(iface=_Iface())
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(500)
   # v1 and v2 are the row and column indices of the same square grid,
   # so their distributions are identical and swapping them would prove
@@ -57853,7 +57999,7 @@ def test_controls_respond_without_being_prompted():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("grid 4")
+  _choose_family(dlg, "grid 4")
   _tick(700)
 
   # 1. the grid spinners must still respond AFTER a family change,
@@ -57878,7 +58024,7 @@ def test_controls_respond_without_being_prompted():
   assert star is not None, "the catalogue should offer a star family"
   dlg.n_spin.setValue(star[0])
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText(star[1])
+  _choose_family(dlg, star[1])
   _tick(700)
   assert dlg.opt_point_angle.isVisibleTo(dlg), \
     f"{star[1]} should show its point-angle control"
@@ -57891,7 +58037,7 @@ def test_controls_respond_without_being_prompted():
 
   # 2. a colour picked on a Single colour row must reach the element's
   # memory on its own, so it survives a later rebuild
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   _tick(700)
   dlg.table.cellWidget(0, 2).setCurrentText("Single colour")
   dlg._update_dynamic_columns()
@@ -58254,7 +58400,7 @@ def test_preview_colours_follow_the_variable():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   _tick(700)
 
   # what the preview actually paints, sampled across its face
@@ -58520,7 +58666,7 @@ def test_an_output_group_carries_the_whole_working_state():
     # ---- the map this group is going to be about
     dlg.n_spin.setValue(3)
     _tick(150)
-    dlg.family_combo.setCurrentText(kept_family)
+    _choose_family(dlg, kept_family)
     _tick(200)
     dlg.spacing_spin.setValue(520)
     dlg.mod_rotate.setValue(17)
@@ -58602,7 +58748,7 @@ def test_an_output_group_carries_the_whole_working_state():
     # ---- now move everything away from it
     dlg.n_spin.setValue(4)
     _tick(200)
-    dlg.family_combo.setCurrentText(other_family)
+    _choose_family(dlg, other_family)
     _tick(250)
     dlg.spacing_spin.setValue(1234)
     dlg.mod_rotate.setValue(0)
@@ -58678,7 +58824,7 @@ def test_an_output_group_carries_the_whole_working_state():
     design = stamped.get("design", {})
     cell("the element count", 3, 4, dlg._element_count())
     cell("the family", kept_family, other_family,
-         dlg.family_combo.currentText())
+         dlg._family_key())
     cell("the spacing", 520.0, 1234.0, dlg.spacing_spin.value())
     cell("the rotation", 17.0, 0.0, dlg.mod_rotate.value())
     cell("icon mode", True, False, dlg.opt_icons.isChecked())
@@ -59304,7 +59450,7 @@ def test_a_saved_map_can_be_opened_and_carried_on():
                               fromlist=["catalog"]).TILINGS_BY_N[3].items()
                 if spec["type"] == "tiling"]
     wanted_family = families[1]
-    dlg.family_combo.setCurrentText(wanted_family)
+    _choose_family(dlg, wanted_family)
     _tick(200)
     dlg.spacing_spin.setValue(540)
     dlg.table.cellWidget(0, 1).setCurrentText("v3")
@@ -59386,9 +59532,9 @@ def test_a_saved_map_can_be_opened_and_carried_on():
          f"{sorted(dlg._element_layer_ids)}")
     cell("its design comes back",
          abs(dlg.spacing_spin.value() - 540.0) < 1e-9
-         and dlg.family_combo.currentText() == wanted_family,
+         and dlg._family_key() == wanted_family,
          f"spacing {dlg.spacing_spin.value()}, family "
-         f"{dlg.family_combo.currentText()!r}")
+         f"{dlg._family_key()!r}")
     here = dlg.layer_combo.currentLayer()
     cell("the source is found by reference",
          here is not None and here.source() == region_source,
@@ -61287,7 +61433,7 @@ def test_preview_draws_the_middle_of_the_patch():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.shells_spin.setValue(1)
   _tick(900)
 
@@ -61603,7 +61749,7 @@ def test_no_control_is_dead():
     dlg.live_check.setChecked(False)
     dlg.n_spin.setValue(int(n))
     dlg.kind_combo.setCurrentText(kind)
-    dlg.family_combo.setCurrentText(family)
+    _choose_family(dlg, family)
     _tick(800)
 
     # every named control this family actually shows
@@ -61636,9 +61782,9 @@ def test_no_control_is_dead():
       # healthy.
       dlg.n_spin.setValue(int(n))
       dlg.kind_combo.setCurrentText(kind)
-      dlg.family_combo.setCurrentText(family)
+      _choose_family(dlg, family)
       _tick(600)
-      assert dlg.family_combo.currentText() == family, \
+      assert dlg._family_key() == family, \
         f"could not restore {family} after moving {name}; the rest "\
         f"of this walk would test the wrong design"
     dlg.close()
@@ -63011,7 +63157,7 @@ def test_the_element_count_changes_under_an_open_colour_editor():
         return
       dlg.n_spin.setValue(7)
       _tick(150)
-      dlg.family_combo.setCurrentText(large[0])
+      _choose_family(dlg, large[0])
       _tick(500)                      # past the 350 ms preview debounce
       dlg.spacing_spin.setValue(500)
 
@@ -63082,7 +63228,7 @@ def test_the_element_count_changes_under_an_open_colour_editor():
       # the connection could be deleted and the test would still pass.
       dlg.n_spin.setValue(4)
       _tick(150)
-      dlg.family_combo.setCurrentText(small[0])
+      _choose_family(dlg, small[0])
       _tick(delay)                    # the stage this case is about
 
       picked(order[0], "#ff0099")     # the user, still in the editor
@@ -63562,7 +63708,7 @@ def test_two_generates_with_different_families_keep_their_elements_apart():
 
       dlg.n_spin.setValue(7)
       _tick(150)
-      dlg.family_combo.setCurrentText(large[0])
+      _choose_family(dlg, large[0])
       _tick(500)
       dlg.spacing_spin.setValue(500)
       dlg._generate()
@@ -63593,7 +63739,7 @@ def test_two_generates_with_different_families_keep_their_elements_apart():
       racing = dlg._task is not None
       dlg.n_spin.setValue(4)
       _tick(150)
-      dlg.family_combo.setCurrentText(small[0])
+      _choose_family(dlg, small[0])
       dlg._generate()
       if racing:
         raced_somewhere.append(delay)
@@ -63716,7 +63862,7 @@ def test_a_generate_pressed_during_a_run_is_not_swallowed():
 
       dlg.n_spin.setValue(7)
       _tick(150)
-      dlg.family_combo.setCurrentText(large[0])
+      _choose_family(dlg, large[0])
       _tick(500)
       dlg.spacing_spin.setValue(500)
       dlg._generate()
@@ -63744,7 +63890,7 @@ def test_a_generate_pressed_during_a_run_is_not_swallowed():
       # changed and the button pressed while the run is demonstrably
       # still going, which is what a person does when a run is slow.
       dlg.n_spin.setValue(4)
-      dlg.family_combo.setCurrentText(small[0])
+      _choose_family(dlg, small[0])
       if dlg._task is None:
         trouble.append(
           f"{arm}: the run finished before the press, so this case "
@@ -64450,7 +64596,7 @@ def test_the_size_guard_at_its_refusal_boundary():
     f"the twelve-element families are {families}; this test needs " \
     f"hex-slice 12 and would otherwise measure whichever family the " \
     f"combo happened to be showing"
-  dlg.family_combo.setCurrentText("hex-slice 12")
+  _choose_family(dlg, "hex-slice 12")
   _tick(300)
   # THE SPACING A USER MEETS, captured before the bisection below
   # walks it anywhere. Auto-fitting sizes it from the layer's own
@@ -64732,7 +64878,7 @@ def test_an_unassigned_element_beside_elements_sharing_one_field():
   assert "laves 3.3.4.3.4" in families, \
     f"the four-element families are {families}; this test needs " \
     f"laves 3.3.4.3.4"
-  dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+  _choose_family(dlg, "laves 3.3.4.3.4")
   dlg.spacing_spin.setValue(600)
   # every map switch stated, so the library side below can be built
   # from the settings rather than from what the dialog happened to
@@ -64914,7 +65060,7 @@ def test_an_inset_that_swallows_tiles_leaves_no_half_map():
     f"the sixteen-element families are {families}; this test needs " \
     f"stripes 16, whose tiles are thin enough for the inset control " \
     f"to reach"
-  dlg.family_combo.setCurrentText("stripes 16")
+  _choose_family(dlg, "stripes 16")
   # The inset is a PERCENTAGE of the spacing and a stripe's width is
   # the spacing divided by sixteen, so which insets swallow which
   # tiles does not depend on this number at all. It is chosen for the
@@ -65924,7 +66070,7 @@ def test_random_designs_keep_their_views_in_agreement():
     _tick(250)
     dlg.n_spin.setValue(n)
     _tick(150)
-    dlg.family_combo.setCurrentText(family)
+    _choose_family(dlg, family)
     _tick(250)
     dlg.spacing_spin.setValue(rng.choice([450, 500, 600]))
     # Vary the design's SHAPE as well as its data, because this
@@ -66668,7 +66814,7 @@ def test_family_option_ranges_track_the_family():
   for hexagonal, (n, name) in seen.items():
     dlg.n_spin.setValue(n)
     dlg.kind_combo.setCurrentText("tiling")
-    dlg.family_combo.setCurrentText(name)
+    _choose_family(dlg, name)
     _tick(700)
     ranges[hexagonal] = (dlg.opt_offset_angle.minimum(),
                          dlg.opt_offset_angle.maximum())
@@ -67230,7 +67376,7 @@ def test_an_over_large_inset_empties_the_design_visibly():
   dlg.live_check.setChecked(False)
   dlg.n_spin.setValue(20)
   dlg.kind_combo.setCurrentText("tiling")
-  dlg.family_combo.setCurrentText("stripes 20")
+  _choose_family(dlg, "stripes 20")
   dlg.spacing_spin.setValue(800)
   dlg._rebuild_unit()
   assert dlg.table.rowCount() == 20, "twenty stripes to begin with"
@@ -67504,7 +67650,7 @@ def test_random_designs_match_the_library():
       dlg.n_spin.setValue(n)
       dlg.kind_combo.setCurrentText(
         "tiling" if entry["type"] == "tiling" else "weave")
-      dlg.family_combo.setCurrentText(name)
+      _choose_family(dlg, name)
       # Strand width applies to EVERY weave; only the passing pattern
       # is twill/basket-only. Setting the two together meant a plain
       # weave kept the dialog's default aspect while the oracle used
@@ -67639,7 +67785,7 @@ dlg.live_check.setChecked(False)
 dlg.spacing_spin.setValue(1234.5)
 dlg.n_spin.setValue(2)
 dlg.kind_combo.setCurrentText("tiling")
-dlg.family_combo.setCurrentText("hex-slice 2")
+_choose_family(dlg, "hex-slice 2")
 dlg.opt_offset.setValue(0.05)
 dlg._rebuild_unit()
 print("SPACING %r" % dlg.spacing_spin.value())
@@ -68005,7 +68151,7 @@ def test_adversarial_sequences():
     return [
       ("second generate", lambda: dlg._generate()),
       ("spacing", lambda: dlg.spacing_spin.setValue(640)),
-      ("family", lambda: dlg.family_combo.setCurrentText("hex-slice 4")),
+      ("family", lambda: _choose_family(dlg, "hex-slice 4")),
       ("element count", lambda: dlg.n_spin.setValue(2)),
       ("variable", lambda: dlg.table.cellWidget(0, 1).setCurrentText("v2")
        if dlg.table.cellWidget(0, 1) else None),
@@ -69784,7 +69930,7 @@ def test_a_family_excursion_brings_the_map_back_and_not_the_excursion():
     f"seven-element families, so this excursion cannot be made"
   dlg.n_spin.setValue(4)
   _tick(150)
-  dlg.family_combo.setCurrentText(home[0])
+  _choose_family(dlg, home[0])
   _tick(300)
   dlg.spacing_spin.setValue(560)
 
@@ -69861,7 +70007,7 @@ def test_a_family_excursion_brings_the_map_back_and_not_the_excursion():
   # ---- the excursion
   dlg.n_spin.setValue(7)
   _tick(200)
-  dlg.family_combo.setCurrentText(away[0])
+  _choose_family(dlg, away[0])
   _tick(350)
   _generate_and_wait(dlg)
   _tick(250)
@@ -69875,7 +70021,7 @@ def test_a_family_excursion_brings_the_map_back_and_not_the_excursion():
   # ---- and home again
   dlg.n_spin.setValue(4)
   _tick(200)
-  dlg.family_combo.setCurrentText(home[0])
+  _choose_family(dlg, home[0])
   _tick(350)
   _generate_and_wait(dlg)
   _tick(250)
@@ -79732,6 +79878,8 @@ def main():
         test_a_drag_is_measured_in_the_frame_it_began_in)
   check("a build that lands mid drag does not wipe the gesture",
         test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture)
+  check("a design is shown by name and stored by key",
+        test_a_design_is_shown_by_name_and_stored_by_key)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

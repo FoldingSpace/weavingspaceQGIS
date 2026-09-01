@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-476 defect(s) with a regression test.
+477 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -378,6 +378,8 @@ there is no separate list to remember.
   guarded by `test_a_dataset_switch_says_what_it_re_points`
 - **removing the region layer and choosing another skipped every change-of-dataset protection, so Generate overwrote the previous dataset's GeoPackage without a word.**  
   guarded by `test_a_dataset_that_leaves_the_project_is_still_a_dataset_left`
+- **showing a common name beside a catalogue entry would have changed the `family` string stored in every saved file, so a map saved before the rename would resume onto whatever design the chooser happened to hold.**  
+  guarded by `test_a_design_is_shown_by_name_and_stored_by_key`
 - **a topology edit plus a tile inset deferred every Generate for ever, four builds a second, and the map never drew.**  
   guarded by `test_a_design_that_cannot_carry_its_edits_still_draws`
 - **a design that stopped carrying a topology left the previous one's unit in the file.**  
@@ -1006,7 +1008,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 156
+- the mutation campaign: 157
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 33

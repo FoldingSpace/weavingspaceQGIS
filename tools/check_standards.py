@@ -55,6 +55,11 @@ USER_FACING = [
   # absence.py holds the legend labels for the three kinds of
   # unplaceable value, which are read straight off a map's legend.
   os.path.join(PLUGIN, "absence.py"),
+  # catalog.py carries the design chooser's own labels, which are the
+  # names somebody picks a tiling by. Only its prose STRINGS are read,
+  # as for every module here, so the maintainer-facing comments about
+  # where the catalogue comes from are untouched.
+  os.path.join(PLUGIN, "catalog.py"),
   os.path.join(PLUGIN, "compat.py"),
   os.path.join(PLUGIN, "deps.py"),
   os.path.join(PLUGIN, "plugin.py"),
