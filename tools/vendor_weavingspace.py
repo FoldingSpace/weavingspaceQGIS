@@ -17,10 +17,12 @@ re-applies every plugin patch, so upgrading the core library is:
 The plugin targets QGIS 4+ (Python 3.12+), so upstream's modern
 Python (match statements, dataclass slots, and so on) is vendored
 untouched. WHY PATCHES EXIST (each is a numbered PATCH below):
-  1. Optional plotting dependencies. QGIS installs often lack
-     matplotlib (and occasionally scipy); the plugin never plots with
-     them, so their imports are wrapped to fall back to a proxy
-     (_optional.MissingModule) that only errors if actually *called*.
+  1. Optional plotting dependencies. QGIS installs lack matplotlib and
+     the plugin never plots with it, so its imports are wrapped to fall
+     back to a proxy (_optional.MissingModule) that only errors if
+     actually *called*. Scipy was in this family until 2026-08-31, when
+     upstream dropped its one use; patches 1e and 1f are retired below
+     with the measurement that closed them.
   2. Performance (RETIRED -- see below; upstream adopted the same
    optimisation and the patch went with it): _TileGrid buffers the
    region to find its tiling
@@ -114,11 +116,18 @@ def targeted(path, name, old, new):
 
 OPTIONAL_PY = '''"""Placeholders for optional plotting dependencies.
 
-The QGIS plugin build of weavingspace does not require matplotlib or
-scipy: they are only used by the notebook-oriented plotting helpers.
-When absent we substitute a proxy that supports attribute access (so
-type annotations such as ``plt.Axes`` still evaluate) but raises
-ImportError as soon as anything is actually called.
+The QGIS plugin build of weavingspace does not require matplotlib: it
+is used only by the notebook-oriented plotting helpers. When absent we
+substitute a proxy that supports attribute access (so type annotations
+such as ``plt.Axes`` still evaluate) but raises ImportError as soon as
+anything is actually called.
+
+Scipy was named here too until 2026-08-31. Upstream's only use of it
+was one interpolating spline in ``Topology.zigzag_between_points``,
+which their commit 2dbea80 replaced by sampling ``np.sin`` directly, so
+the vendored library no longer imports scipy anywhere. The proxy stays
+general rather than being renamed for matplotlib, since the next
+optional dependency will want the same treatment.
 """
 
 from __future__ import annotations
@@ -139,8 +148,7 @@ class MissingModule:
     raise ImportError(
       f"'{self._missing_name}' requires an optional dependency that is "
       "not installed in this Python environment. Plotting helpers need "
-      "matplotlib (and topology splines need scipy); the QGIS plugin "
-      "does not use them.")
+      "matplotlib; the QGIS plugin does not use them.")
 '''
 
 # an optional import wrapped in a fallback to the proxy above
@@ -290,55 +298,31 @@ def main():
   wrap_optional(VENDOR_DIR / "topology.py", "1d topology matplotlib",
                 ["import matplotlib.pyplot as plt"],
                 ['plt = MissingModule("matplotlib.pyplot")'])
-  wrap_optional(VENDOR_DIR / "topology.py", "1e topology scipy",
-                ["from scipy import interpolate"],
-                ['interpolate = MissingModule("scipy.interpolate")'])
-
-  # ---- PATCH 1f: the ONE call that actually needed scipy -----------
-  # Wrapping the import above makes scipy optional at IMPORT time and
-  # leaves `zigzag_edge` raising at CALL time, which is the whole of
-  # what a topology tab would want to offer. The maintainer asked on
-  # 2026-08-29 whether an alternative could be found or written rather
-  # than adding scipy -- a large download for one interpolating
-  # spline, and one more distribution to name in the dependency
-  # consent dialogue, whose enumeration is a hard rule.
+  # PATCHES 1e (wrap `from scipy import interpolate`) and 1f (replace
+  # the ONE call that needed it) were RETIRED on 2026-08-31, at the
+  # re-vendor to upstream 6190917, BECAUSE UPSTREAM MERGED THE CHANGE
+  # ITSELF -- commit 2dbea80, "dropping scipy spline dependency from
+  # Topology.zigzag_between_points", which had been on their
+  # `experimental` branch and is now on `main`.
   #
-  # UPSTREAM ANSWERED IT FIRST AND BETTER, in commit 2dbea80 of
-  # 2026-08-30 on their `experimental` branch. The spline was fitting
-  # a quadratic through samples of `sin` and then evaluating it at a
-  # finer resolution -- so sampling `sin` at the finer resolution
-  # directly is not an approximation of the old curve, it is the
-  # function the old curve was approximating. No numerical argument to
-  # defend and no second implementation of ours to maintain.
+  # 1f's own comment said this was the moment to delete it: it was a
+  # patch rather than a wait precisely because that branch's first
+  # commit says it holds "code changes that QGIS plugin can ignore
+  # until they are merged". The tool did what it is built to do -- both
+  # anchors stopped matching and it NAMED them rather than writing a
+  # broken vendor.
   #
-  # IT IS A PATCH RATHER THAN A RE-VENDOR because that branch's own
-  # first commit says it holds "code changes that QGIS plugin can
-  # ignore until they are merged", and upstream's `main` has not moved
-  # from bf1bbbf. When they merge it, this anchor stops matching and
-  # the tool NAMES this patch instead of writing a broken vendor,
-  # which is the moment to delete it.
-  targeted(VENDOR_DIR / "topology.py", "1f topology spline without scipy",
-           """    r = p0.distance(p1)
-    # make a sinusoidal template
-    x = np.linspace(0, n * np.pi, n * 2 + 1, endpoint = True)
-    y = [np.sin(x) for x in x]
-    spline = interpolate.InterpolatedUnivariateSpline(x, y, k = 2)
-
-    spline_steps = (n + smoothness) * 2 + 1
-    xs = np.linspace(0, n * np.pi, spline_steps, endpoint = True)
-    ys = spline(xs)
-
-    sfx = 1 / max(x) * r""",
-           """    r = p0.distance(p1)
-    # SAMPLE THE SINE DIRECTLY (upstream 2dbea80). What stood here
-    # fitted a quadratic spline through n*2+1 samples of sin and then
-    # evaluated it at (n+smoothness)*2+1 points; sampling sin at those
-    # points is the function that spline was approximating, so this
-    # needs no scipy and is if anything the more faithful curve.
-    xs = np.linspace(0, n * np.pi, (n + smoothness) * 2 + 1, endpoint = True)
-    ys = [np.sin(x) for x in xs]
-
-    sfx = 1 / max(xs) * r""")
+  # MEASURED AT THE RE-VENDOR rather than assumed: the vendored tree
+  # now contains no reference to scipy at all (the only `interpolate`
+  # names left are shapely's `line_interpolate_point` and
+  # `LineString.interpolate`), and `zigzag_between_points` samples
+  # `np.sin` at (n + smoothness) * 2 + 1 points, which is character for
+  # character what patch 1f used to write. So there is nothing left to
+  # wrap and nothing left to replace.
+  #
+  # WHAT REMAINS OF PATCH 1 IS MATPLOTLIB ALONE, which is why 1a-1d
+  # stand above and _optional.py stays: QGIS ships no matplotlib and
+  # upstream's plotting helpers import it at module level.
 
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself

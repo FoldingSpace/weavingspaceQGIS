@@ -1531,9 +1531,22 @@ Every targeted patch asserts on an exact anchor from upstream, so if a
 new version changed that code the script names the patch that needs a
 human decision instead of writing a silently broken vendor; the intent
 of each patch is documented in the script where you would fix it. The
-current vendor is upstream v0.0.7.89 at commit bf1bbbf — note that
+current vendor is upstream v0.0.7.89 at commit 6190917 — note that
 upstream does not always bump the version string when code changes,
 so record the commit as well when re-vendoring.
+
+THAT RULE PAID FOR ITSELF ON 2026-08-31, which is why it is worth more
+than a caution. The re-vendor from bf1bbbf to 6190917 carried TWELVE
+commits, with `topology.py` at +179/-207 and `_tiling_geometries.py` at
++44/-67 — and the version string is `0.0.7.89` at both ends. A version
+comparison alone reports us current; only the commit says otherwise.
+
+AND TWO PATCHES RETIRED THEMSELVES IN THAT ROUND, which is the failure
+mode working rather than a problem. Upstream merged the change patch 1f
+carried, dropping the scipy spline, so both its anchor
+and 1e's stopped matching, the tool NAMED them instead of writing a
+broken vendor, and the vendored tree now imports no scipy anywhere.
+Only the matplotlib family remains.
 
 ## Releases
 

@@ -1943,42 +1943,67 @@ AND A PARITY CHECK IS THE CHEAPER HALF, worth doing either way: a
 document whose backtick count is odd is one the gate reads wrongly from
 somewhere onward, and the count is one command.
 
-## 0.24.5 — and the re-vendor comes first
+## 0.24.5 — and the re-vendor came first
 
-**RE-VENDOR UPSTREAM BEFORE ANYTHING ELSE IN THIS VERSION.**
-(Maintainer's decision, 2026-08-31, taken while rc7's gates were
-running rather than folded into them.)
+**THE RE-VENDOR IS DONE**, on 2026-08-31, on the maintainer's decision
+of the same day that it should come before anything else in this
+version. `0.0.7.89 (bf1bbbf)` to `0.0.7.89 (6190917)`, twelve upstream
+commits, with `topology.py` at +179/-207 and `_tiling_geometries.py` at
++44/-67; the third changed file is a notebook that does not ship.
 
-WHAT MOVED, measured that day: the vendored stamp reads
-`0.0.7.89 (bf1bbbf)` and upstream's head is `6190917`, TWELVE COMMITS
-ahead, with `weavingspace/topology.py` at +179/-207 and
-`weavingspace/_tiling_geometries.py` at +44/-67. The third changed file
-is `examples/topology-working.ipynb`, which does not ship.
+**THE VERSION STRING DID NOT MOVE**, which is the whole reason the
+stamp records a commit. A version comparison alone reports us current,
+and did.
 
-**THE VERSION STRING DID NOT MOVE.** It is `0.0.7.89` at both ends.
-That is precisely the case the stamp records a commit for, and why the
-standing rule says to compare the COMMIT as well as the version before
-running the suite -- a version comparison alone reports us current.
+WHAT IT COST AND WHAT IT FOUND, kept because the shape recurs at every
+re-vendor.
 
-WHY IT IS ITS OWN ROUND rather than a line in this one. Twelve commits
-touching `topology.py` heavily is not a licence-header bump, and that
-module is what the Topology tab, the five manipulations, the edit
-shelf, the shelf's replay and the topology matrix all stand on. It
-wants `tools/vendor_weavingspace.py`, the patch family re-applied and
-each patch's anchor checked, and then the topology work driven against
-the result -- with its own hunts and its own full suite, exactly as the
-save rewrite below is scoped.
+TWO PATCHES RETIRED THEMSELVES, and that is the tool's failure mode
+working rather than a problem. Upstream merged the change patch 1f
+carried -- dropping the scipy spline from `zigzag_between_points` --
+so 1f's anchor and 1e's both stopped matching and the tool NAMED them
+instead of writing a broken vendor, which is exactly what 1f's own
+comment said would be the moment to delete it. Measured rather than
+assumed: the vendored tree now contains no reference to scipy at all,
+and upstream's replacement samples `np.sin` at the same points patch
+1f did. `_optional.py` and the module docstring stopped naming scipy
+with them. ONLY THE MATPLOTLIB FAMILY REMAINS.
 
-WHAT IT SHOULD BRING BACK, so the round starts from a measurement:
-`b3650e0` fixes the doubled zigzag vertices at the source, which is
-what our own dedupe and then upstream's `get_clean_polygon` have been
-compensating for. Expect `topology_edits`'s repair stages to become
-redundant in the common case -- and KEEP OURS AS THE FALLBACK anyway,
-since a later re-vendor could rename the cleaner.
+THE ELEMENT CEILINGS STAND. `TILE_IDS` is unchanged at 702 -- `a`..`z`
+then `aa`..`zz` -- so the doubled-letter range and
+`bridge.element_order` needed nothing, which was the first thing this
+entry said to re-measure.
 
-WHAT TO WATCH FOR: `_tiling_geometries.py` supplies `TILE_IDS`, which
-is what the two element ceilings stand on, so the doubled-letter range
-and `bridge.element_order` are the first things to re-measure.
+AND THE SUITE IS GREEN: 724 tests, three shards, and the only two
+failures were one stale sentence -- three documents still naming the
+old commit, which is the published-content audit doing its job.
+
+**AND A DIFFERENTIAL WAS BUILT FOR IT, because no gate here can answer
+the question a re-vendor actually raises.** The colourspace comparison
+scores the plugin against `TiledMap.render` from the SAME vendored
+library, so a change upstream moves both sides together and they go on
+agreeing; the suite asks whether the plugin's rules hold, not whether
+the library's output moved.
+`tools/probes/the_re_vendor_moved_no_map.py` compares two CHECKOUTS,
+design by design, through `catalog.make_unit`.
+MEASURED: of 590 designs, 588 draw identical ground. The two that moved
+are `square-colouring 6` and `square-colouring 8`, whose unit ORIGIN
+shifts by about 34 map units at spacing 500 -- same tile count, same
+ids, same total area, a different corner to start from. Upstream
+rebuilt those cases from an offset list centred on their own mean; the
+four they delegated to the grid constructor (n = 4, 9, 16, 25) did not
+move at all, and neither did n = 3, which their commit message said was
+translated for backward compatibility.
+NO PUBLISHED IMAGE MOVES: the gallery draws no square colourings, so no
+gate's baseline shifts and nothing needs re-photographing.
+
+WHAT IS STILL WORTH DOING with the new vendor, and it is smaller than
+this entry expected: upstream's own fix for the doubled zigzag vertices
+is now in the tree, so `topology_edits`'s repair stages should be
+redundant in the common case. OURS STAYS AS THE FALLBACK regardless --
+a later re-vendor could rename `get_clean_polygon` and take the repair
+away in silence. Whether to retire our dedupe is a measurement (drive
+the four designs both ways) rather than a decision.
 
 ## Waiting on the upstream project
 

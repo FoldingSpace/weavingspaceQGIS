@@ -3834,9 +3834,10 @@ pins this same library version and draws through this same
 TiledMap.render call inside pyodide — a browser screenshot would
 re-photograph the identical code path with UI chrome added, so no
 separate column exists. CONDITION TO WATCH, AND THE GAP HAS WIDENED:
-the vendor is 0.0.7.89 at upstream commit bf1bbbf since 2026-08-25,
+the vendor is 0.0.7.89 at upstream commit 6190917 since 2026-08-31,
 while the app still pins 0.0.7.59 — thirty versions rather than the
-two this paragraph used to describe. The earlier reading, kept
+two this paragraph used to describe, and now twelve further commits
+on top of them. The earlier reading, kept
 because it is what the claim rested on: relative to .59 the vendor
 at 0.0.7.61 differed by MIT licence headers, comment blocks, the
 STRtree tileable filter (the optimisation this project offered
@@ -5677,6 +5678,49 @@ here, and the decision to add one is the maintainer's. Recorded
   and the tab, the manipulations, the edit shelf and the topology
   matrix all stand on that module.
 
+
+- **THE VENDOR-CLAIM GATE READS "commit <sha>" ANYWHERE IN THREE
+  FILES, SO WRITING ABOUT SOMEBODY ELSE'S COMMIT TRIPS IT.**
+  (2026-08-31, met while mending the claims the re-vendor had made
+  stale.) `check_vendor_claims` compares every `commit <hex>` in
+  README.md, MAINTAINING.md and CLAUDE.md against the stamp -- which is
+  what makes it catch a document naming the vendor's old commit, and
+  what makes it complain about a sentence that merely MENTIONS another
+  one. Recording in MAINTAINING.md which upstream commit had merged our
+  patch turned a correct sentence into a failing gate, in the same edit
+  that fixed the real claim.
+  IT IS THE ROADMAP GATE'S OWN SHAPE, from the other side: there a
+  sentence QUOTING the phrase could satisfy a gate, here a sentence
+  mentioning a sha can break one. The cheap rule is to name a commit
+  WITHOUT the word before it in those three files, and the general one
+  is this file's own -- when a gate reads prose for a decision, decide
+  what counts as prose, and expect to be its next false positive.
+
+- **A RE-VENDOR'S REAL QUESTION IS ONE NO GATE HERE ASKS.**
+  (2026-08-31, upstream bf1bbbf to 6190917.) The colourspace comparison
+  scores the plugin against `TiledMap.render` from THE SAME vendored
+  library, so a change upstream moves both sides together and they go
+  on agreeing -- "a differential cannot see a fault its expected side
+  shares", arriving at the dependency. The suite asks whether the
+  plugin's own rules hold. Neither asks whether the library's OUTPUT
+  moved, which is the one thing a re-vendor can change under a user.
+  SO COMPARE TWO CHECKOUTS, design by design, through
+  `catalog.make_unit` -- the door the dialog uses, since the product is
+  where the arguments are parsed and the defaults chosen.
+  `tools/probes/the_re_vendor_moved_no_map.py` is that instrument, and
+  it is committed for the reason every probe here is: the instrument
+  that names one defect names the next.
+  MEASURED: 588 of 590 designs identical; `square-colouring 6` and `8`
+  shifted origin by about 34 map units at spacing 500, same tiles, same
+  ids, same area. The gallery draws no square colourings, so nothing
+  published moved.
+  AND ITS FIRST DRAFT WAS AIMED WRONGLY, which is the transferable
+  half: it put an older `weavingspace` on `sys.path` and imported the
+  CURRENT `weavingspace_qgis` beside it, so both arms would have
+  measured whichever vendor won the path. Two checkouts remove the
+  question, and the premise asserts the arms loaded different library
+  FILES -- two arms reading one library agree perfectly and mean
+  nothing.
 
 - **THE TWENTIETH AND TWENTY-FIRST WATCHER FAULTS ARE ONE RULE: KEY ON
   THE THING, NOT A SNAPSHOT OF IT.** (2026-08-31, both mine, both

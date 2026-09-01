@@ -975,12 +975,27 @@ def _setup_grid(unit:TileUnit) -> str|None:
         for row in range(unit.nrows)
         for col in range(unit.ncols)]
   squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-  unit.setup_vectors((0, h), (w, 0))
+  if "xy_offset" in unit.__dict__:
+    unit.setup_vectors((unit.xy_offset[0] * s, h), (w, unit.xy_offset[1] * s))
+  else:
+    unit.setup_vectors((0, h), (w, 0))
   unit.tiles = gpd.GeoDataFrame(
     data = {"tile_id": sorted(list(TILE_IDS)[:unit.n])},
     crs = unit.crs,
     geometry = gpd.GeoSeries(squares))
   return None
+
+
+def _get_square_colouring_squares(
+      offsets:list[tuple[float]], sf:float) -> list[geom.Polygon]:
+  vx0 = np.mean([x for x,y in offsets])
+  vy0 = np.mean([y for x,y in offsets])
+  sq = tiling_utils.get_regular_polygon(sf, 4)
+  return [affine.translate(sq, sf * (v[0] - vx0), sf * (v[1] - vy0))
+          for v in offsets]
+
+def _setup_vectors(unit:TileUnit, sf:float, *args) -> None:
+  unit.setup_vectors(*[[sf * x for x in v] for v in args])
 
 
 def _setup_square_colouring(unit:TileUnit) -> str|None:
@@ -994,78 +1009,40 @@ def _setup_square_colouring(unit:TileUnit) -> str|None:
   """
   if any(k not in unit.__dict__ for k in ["n"]):
     return "Square colouring tiling requires n to be supplied."
-  sq = tiling_utils.get_regular_polygon(unit.spacing / np.sqrt(unit.n), 4)
-  s = sq.bounds[2] - sq.bounds[0]
+  s = unit.spacing / np.sqrt(unit.n)
   match unit.n:
     case 2:
-      # Copy and translate square
-      tr = [(-s/2, 0), (s/2, 0)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((0, s), (2*s, 0))
-    case 3:
-      # Copy and translate square
-      tr = [(-s/2,  s/2),
-            (-s/2, -s/2), (s/2, -s/2)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((s, s), (-s, 2*s), (2*s, -s))
-    case 4:
-      # Copy and translate square
-      tr = [(-s/2,  s/2), ( s/2,  s/2), 
-            (-s/2, -s/2), ( s/2, -s/2)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((0, unit.spacing), (unit.spacing, 0))
+      squares = _get_square_colouring_squares([(0,0), (1,0)], s)
+      _setup_vectors(unit, s, (2,0), (0,1))
+    case 3: # translation of squares for backward compatibility at present
+      squares = [affine.translate(sq, -s/6, -s/6) for sq in
+                 _get_square_colouring_squares([(0,1),
+                                                (0,0), (1,0)], s)]
+      _setup_vectors(unit, s, (1,1), (-1,2), (2,-1))
     case 5:
-      # Copy and translate square
-      tr = [         (0,  s), 
-            (-s, 0), (0,  0), ( s, 0),
-                     (0, -s)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((s, 2*s), (2*s, -s))
+      squares = _get_square_colouring_squares([       (1,2),
+                                               (0,1), (1,1), (2,1),
+                                                      (1,0)], s)
+      _setup_vectors(unit, s, (1,2), (2,-1))
     case 6:
-      # Copy and translate square
-      tr = [(-s, s), (0,  s),
-            (-s, 0), (0,  0), ( s,  0),
-                     (0, -s)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((0, 3*s), (2*s, s), (2*s, -2*s))
+      squares = _get_square_colouring_squares([(0,2), (1,2),
+                                               (0,1), (1,1), (2,1),
+                                                      (1,0)], s)
+      _setup_vectors(unit, s, (0,3), (2,1), (2,-2))
     case 7:
-      # Copy and translate square
-      tr = [(-s, s), (0,  s),
-            (-s, 0), (0,  0), ( s,  0),
-                     (0, -s), ( s, -s)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((2*s, s), (3*s, -2*s), (s, -3*s))
+      squares = _get_square_colouring_squares([(0,2), (1,2),
+                                               (0,1), (1,1), (2,1),
+                                                      (1,0), (2,0)], s)
+      _setup_vectors(unit, s, (2,1), (3,-2), (1,-3))
     case 8:
-      # Copy and translate square
-      tr = [(-s,  s), (0,  s), ( s, s),
-            (-s,  0), (0,  0), ( s, 0),
-            (-s, -s), (0, -s)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((s, 3*s), (3*s, s), (2*s, -2*s))
-    case 9:
-      # Copy and translate square
-      tr = [(-s,  s), (0,  s), ( s,  s),
-            (-s,  0), (0,  0), ( s,  0),
-            (-s, -s), (0, -s), ( s, -s)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((0, unit.spacing), (unit.spacing, 0))
-    case 16:
-      # Copy and translate square
-      tr = [(-3*s/2,  3*s/2), (-s/2,  3*s/2), ( s/2,  3*s/2), ( 3*s/2,  3*s/2),
-            (-3*s/2,    s/2), (-s/2,    s/2), ( s/2,    s/2), ( 3*s/2,    s/2),
-            (-3*s/2,   -s/2), (-s/2,   -s/2), ( s/2,   -s/2), ( 3*s/2,   -s/2),
-            (-3*s/2, -3*s/2), (-s/2, -3*s/2), ( s/2, -3*s/2), ( 3*s/2, -3*s/2)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((0, unit.spacing), (unit.spacing, 0))
-    case 25:
-      # Copy and translate square
-      tr = [(-2*s,  2*s), (-s,  2*s), (0,  2*s), ( s,  2*s), ( 2*s,  2*s),
-            (-2*s,    s), (-s,    s), (0,    s), ( s,    s), ( 2*s,    s),
-            (-2*s,    0), (-s,    0), (0,    0), ( s,    0), ( 2*s,    0),
-            (-2*s,   -s), (-s,   -s), (0,   -s), ( s,   -s), ( 2*s,   -s),
-            (-2*s, -2*s), (-s, -2*s), (0, -2*s), ( s, -2*s), ( 2*s, -2*s)]
-      squares = [affine.translate(sq, v[0], v[1]) for v in tr]
-      unit.setup_vectors((0, unit.spacing), (unit.spacing, 0))
+      squares = _get_square_colouring_squares([(0,2), (1,2), (2,2),
+                                               (0,1), (1,1), (2,1),
+                                               (0,0), (1,0)], s)
+      _setup_vectors(unit, s, (1,3), (3,1), (2,-2))
+    case 4 | 9 | 16 | 25: # delegate to grid constructor
+      unit.nrows, unit.ncols = int(np.sqrt(unit.n)), int(np.sqrt(unit.n))
+      _setup_grid(unit)
+      return None
     case _:
       return (f"""{unit.n}-colouring of squares is not supported.
               Try a number between 2 and 9, 16, or 25.""")
