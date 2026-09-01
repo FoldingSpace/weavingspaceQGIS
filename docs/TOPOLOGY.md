@@ -180,6 +180,36 @@ tiles it does not cover. The tiling is periodic and the dual repeats on
 the same lattice vectors, so this is a drawing gap rather than a fact
 about duals.
 
+## The instruments, and what each answers
+
+All committed under `tools/probes/`, because the one that names a
+defect is the one that names the next. Run each with the checkout on
+the path:
+
+    PYTHONUNBUFFERED=1 QT_QPA_PLATFORM=offscreen "$QGIS_PY" <probe>
+
+    does_every_topology_interaction_work   every modality driven
+      through the widget's own mouse events, reporting which of four
+      stores moved -- the selection, the drawing, the design, the
+      record. A row that moves the design and not the drawing is the
+      fault of 2026-08-31; a row that moves nothing is a dead control.
+    can_edits_chain_without_rebuilding     rebuild-between against
+      chained, on the sequences that tell them apart.
+    can_a_vertex_edit_be_seen_at_all       what the vertex controls can
+      express at their maximum, against the design's own span.
+    how_far_would_the_highlight_sit_from_the_ink   what each
+      manipulation moves, at one control step and at four.
+    do_edited_labels_still_mean_the_same_thing     what a rebuild from
+      an edited unit does to the class labels.
+    does_the_tab_show_what_it_knows        the ghost, the gap geometry
+      and the change list's marks, read off the widget.
+    draw_the_handles                       renders the drawing with an
+      edge and then a vertex held, and writes the pixels out, because
+      "perceivable" is a visual claim.
+    the_re_vendor_moved_no_map             two checkouts compared
+      design by design, which is the only thing that asks whether a
+      re-vendor moved what the library DRAWS.
+
 ## Three instrument faults, in one afternoon, all mine
 
 Recorded because each read exactly like a finding about the product,
