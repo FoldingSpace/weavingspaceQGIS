@@ -30,6 +30,7 @@ import math
 from qgis.PyQt.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from qgis.PyQt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 from qgis.PyQt.QtWidgets import (
+  QAbstractItemView,
   QCheckBox,
   QComboBox,
   QGridLayout,
@@ -37,6 +38,7 @@ from qgis.PyQt.QtWidgets import (
   QHBoxLayout,
   QLabel,
   QListWidget,
+  QListWidgetItem,
   QPushButton,
   QScrollArea,
   QVBoxLayout,
@@ -197,7 +199,11 @@ class TopologyView(QWidget):
   frame and the second once, on release.
   """
 
-  chose = pyqtSignal(str, str)
+  # (target, label, adding) since 2026-09-01: `adding` is True where
+  # the click was modified, meaning add this class to the selection
+  # rather than replace it. The panel owns the selection; the view
+  # reports what was clicked and how.
+  chose = pyqtSignal(str, str, bool)
   # Which manipulation a grabbed handle means. The panel sets its own
   # chooser from this, so the handle and the chooser cannot disagree.
   grabbed = pyqtSignal(str)
@@ -523,8 +529,12 @@ class TopologyView(QWidget):
         # colour for held and kin said only "these all change", so
         # half the drawing lit at once and a click never looked aimed.
         held = (target == "edge" and edge is self._chosen_thing)
-        kin = (not held and target == "edge" and edge.label == chosen
-               and chosen)
+        # MEMBERSHIP, NOT EQUALITY, because a selection may name
+        # several classes -- and "every edge" always could: its datum
+        # is the whole group, so a string like "ab" was compared for
+        # equality against single labels and lit nothing at all.
+        kin = (not held and target == "edge" and chosen
+               and edge.label in chosen)
         near = (not held and not kin and over == "edge"
                 and edge.label == warm and warm)
         painter.setPen(QPen(QColor(
@@ -542,8 +552,8 @@ class TopologyView(QWidget):
 
     for vertex in topology.points.values():
       held = (target == "vertex" and vertex is self._chosen_thing)
-      kin = (not held and target == "vertex" and vertex.label == chosen
-             and chosen)
+      kin = (not held and target == "vertex" and chosen
+             and vertex.label in chosen)
       near = (not held and not kin and over == "vertex"
               and vertex.label == warm and warm)
       point = self._to_screen(vertex.point.x, vertex.point.y)
@@ -1157,8 +1167,15 @@ class TopologyView(QWidget):
     # highlighting the edge: one fact, two stores, disagreeing on
     # screen.
     self._chosen_thing = thing
-    self.set_chosen(target, label)
-    self.chose.emit(target, label)
+    # SHIFT OR COMMAND ADDS TO THE SELECTION rather than replacing it,
+    # which is how every drawing tool anybody has used builds a
+    # multiple selection. A plain click still replaces, so nothing
+    # somebody already knows about this tab changes.
+    adding = bool(event.modifiers() & (
+      Qt.KeyboardModifier.ShiftModifier
+      | Qt.KeyboardModifier.ControlModifier
+      | Qt.KeyboardModifier.MetaModifier))
+    self.chose.emit(target, label, adding)
 
   def gesture_in_progress(self) -> bool:
     """Is a drag under way, with the button still down?
@@ -1252,6 +1269,11 @@ class TopologyPanel(QWidget):
     # rather than guessing while it is.
     self._marks = []
     self._drag_from = None
+    # WHAT IS SELECTED, as (target, labels) -- the one owner, which
+    # the combo, the tick list and the drawing all follow.
+    self._selection = ("", "")
+    # The combo's temporary row for a subset nobody listed, or None.
+    self._subset_row = None
     # A BUILD THAT LANDS WHILE THE POINTER IS DOWN, held until the drop.
     # See `set_unit`, which is where the reasoning lives.
     self._landing_held = None
@@ -1314,13 +1336,35 @@ class TopologyPanel(QWidget):
     grid.addWidget(QLabel("Class"), 0, 0)
     grid.addWidget(self.class_combo, 0, 1)
 
+    # THE LIST THAT CONFIRMS WHAT IS SELECTED. (Maintainer's decision,
+    # 2026-09-01: click to select, a list to confirm, each following
+    # the other.) The drawing is where an edit is aimed -- shift or
+    # command adds a class -- and this says which classes are in hand
+    # without anybody having to read the highlight and count. Ticking
+    # a row does the same job for somebody who never discovers the
+    # modifier, which is the discoverability half of the same ruling.
+    #
+    # IT IS SHORT ON PURPOSE. Measured across a 48-design spread, most
+    # designs carry one or two classes of each kind and the richest in
+    # the sample has seven, so a list of rows costs a few lines rather
+    # than a scrolling panel.
+    self.class_list = QListWidget()
+    self.class_list.setToolTip(
+      "Every class in this design. Tick more than one to move them "
+      "together.")
+    self.class_list.setSelectionMode(
+      QAbstractItemView.SelectionMode.NoSelection)
+    self.class_list.setMaximumHeight(110)
+    self.class_list.itemChanged.connect(self._on_class_ticked)
+    grid.addWidget(self.class_list, 1, 0, 1, 2)
+
     self.how_combo = QComboBox()
     for key, spec in MANIPULATION_ORDER():
       self.how_combo.addItem(spec["label"], key)
     self.how_combo.setToolTip("What to do to the chosen class.")
     self.how_combo.currentIndexChanged.connect(self._rebuild_arguments)
-    grid.addWidget(QLabel("Do"), 1, 0)
-    grid.addWidget(self.how_combo, 1, 1)
+    grid.addWidget(QLabel("Do"), 2, 0)
+    grid.addWidget(self.how_combo, 2, 1)
 
     self._argument_rows = []
     self._argument_grid = grid
@@ -1512,6 +1556,11 @@ class TopologyPanel(QWidget):
     """
     self.class_combo.blockSignals(True)
     self.class_combo.clear()
+    # DEFINED BEFORE THE GUARD, because the tick list below reads it
+    # too and a design with no topology must leave both controls empty
+    # rather than raising inside a Qt slot, where the exception is
+    # swallowed along with the rest of the handler.
+    groups = {}
     if self._topology is not None:
       groups = edits_module.classes(self._topology)
       for target in ("vertex", "edge"):
@@ -1521,8 +1570,30 @@ class TopologyPanel(QWidget):
           self.class_combo.addItem(f"every {target}",
                                    (target, groups[target]))
     self.class_combo.blockSignals(False)
-    self._refresh_manipulations()
-    self._on_class_chosen()
+    # AND THE TICK LIST, from the same walk, so the two cannot come to
+    # describe different designs. It carries one row per class and no
+    # group row: "every" is what ticking them all means.
+    self._subset_row = None
+    self.class_list.blockSignals(True)
+    self.class_list.clear()
+    for target in ("vertex", "edge"):
+      for label in groups.get(target, ""):
+        item = QListWidgetItem(f"{target} {label}")
+        item.setData(Qt.ItemDataRole.UserRole, (target, label))
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setCheckState(Qt.CheckState.Unchecked)
+        self.class_list.addItem(item)
+    self.class_list.blockSignals(False)
+    # THE SELECTION IS RE-ESTABLISHED FROM THE COMBO, which the walk
+    # above has just left on this design's first class -- so a rebuild
+    # leaves the three controls agreeing rather than leaving the tick
+    # list empty beside a combo naming something.
+    data = self.class_combo.currentData()
+    if data:
+      self._select_classes(*data)
+    else:
+      self._selection = ("", "")
+      self._refresh_manipulations()
 
   def _refresh_manipulations(self):
     """Offer only the manipulations that suit what is selected.
@@ -1532,8 +1603,10 @@ class TopologyPanel(QWidget):
       valid, so narrowing the list does not silently retarget an edit
       somebody was in the middle of describing.
     """
-    data = self.class_combo.currentData()
-    kind = data[0] if data else ""
+    # THE OWNER SAYS WHICH KIND IS IN HAND, and it is the same answer
+    # for one class or several -- a manipulation takes edges or
+    # vertices, so a selection is only ever of one kind.
+    kind = self._selection[0]
     wanted = self.how_combo.currentData()
     self.how_combo.blockSignals(True)
     self.how_combo.clear()
@@ -1558,7 +1631,7 @@ class TopologyPanel(QWidget):
     if key is None:
       return
     for row, (name, label, low, high, default, step) in enumerate(
-        edits_module.MANIPULATIONS[key]["args"], start=2):
+        edits_module.MANIPULATIONS[key]["args"], start=3):
       caption = QLabel(label)
       box = TrimmedSpinBox()
       box.setRange(low, high)
@@ -1586,17 +1659,22 @@ class TopologyPanel(QWidget):
     the manipulations that suit it."""
     data = self.class_combo.currentData()
     if data:
-      self.view.set_chosen(*data)
-    # The verb follows the noun. Safe to call from here: it touches
-    # the how chooser and the argument boxes and never the class list.
-    self._refresh_manipulations()
+      # THROUGH THE OWNER, so picking a row in the combo moves the
+      # tick list and the drawing with it -- the "each following the
+      # other" half of the ruling.
+      self._select_classes(*data)
 
-  def _on_chose(self, target, label):
-    """Follow a click in the view back into the chooser.
+  def _on_chose(self, target, label, adding=False):
+    """Follow a click in the view back into the selection.
 
     Args:
       target: "edge" or "vertex", as the view reports it.
       label: the class label that was clicked.
+      adding: True where the click carried shift, control or command,
+        meaning add this class to the selection rather than replace
+        it. A click on a class already in hand REMOVES it, so the same
+        gesture undoes itself -- and the last one cannot be removed,
+        since a selection of nothing is not a state this tab has.
 
     Returns:
       None. The list holds every class of both kinds since
@@ -1604,12 +1682,137 @@ class TopologyPanel(QWidget):
       whole of select-then-act. Before that the list was filtered by
       the current manipulation and a click on the other kind moved
       nothing here while the drawing highlighted it anyway.
+
+    ADDING ACROSS KINDS IS A REPLACEMENT, deliberately: a manipulation
+    takes edges or vertices and never both, so a selection holding
+    some of each could not be applied and the chooser would have
+    nothing honest to say.
     """
-    for index in range(self.class_combo.count()):
-      data = self.class_combo.itemData(index)
-      if data and data == (target, label):
-        self.class_combo.setCurrentIndex(index)
+    held_target, held = self._selection
+    if adding and target == held_target:
+      labels = [x for x in held if x != label] if label in held \
+          else list(held) + [label]
+      self._select_classes(target, "".join(sorted(labels)) or label)
+      return
+    self._select_classes(target, label)
+
+  def _select_classes(self, target: str, labels: str) -> None:
+    """Put the selection on one or more classes, and move everything.
+
+    Args:
+      target: "edge" or "vertex".
+      labels: one or more class labels, as a string -- which is the
+        shape the library's own selector takes, so nothing is
+        translated on the way to `transform_geometry`.
+
+    Returns:
+      None. The combo, the tick list and the drawing all follow this,
+      with their signals blocked: setting a control right would
+      otherwise fire the handler that set it right, which is the same
+      discipline `_sync_pin_controls` carries.
+    """
+    self._selection = (target, labels)
+    self._sync_the_selection()
+    self.view.set_chosen(target, labels)
+    self._refresh_manipulations()
+
+  def _sync_the_selection(self) -> None:
+    """Make the combo and the tick list say what is selected.
+
+    Returns:
+      None. The combo names the class where exactly one is in hand,
+      the group entry where every class of that kind is, and a COUNT
+      -- "2 of 3 vertex classes" -- for anything between, which is a
+      row it grows and removes as needed rather than a lie about which
+      single class an edit will move.
+    """
+    target, labels = self._selection
+    self.class_combo.blockSignals(True)
+    self.class_list.blockSignals(True)
+    try:
+      wanted = None
+      for index in range(self.class_combo.count()):
+        data = self.class_combo.itemData(index)
+        if data and data[0] == target and data[1] == labels:
+          wanted = index
+          break
+      if wanted is None:
+        # A SUBSET NOBODY LISTED, so the combo grows a row for it and
+        # that row is replaced rather than accumulated: one temporary
+        # entry at a time, removed as soon as the selection is
+        # something the list already names.
+        text = (f"{len(labels)} of "
+                f"{len(self._labels_of(target))} {target} classes")
+        if self._subset_row is not None:
+          self.class_combo.removeItem(self._subset_row)
+        self.class_combo.addItem(text, (target, labels))
+        self._subset_row = self.class_combo.count() - 1
+        wanted = self._subset_row
+      elif self._subset_row is not None:
+        self.class_combo.removeItem(self._subset_row)
+        self._subset_row = None
+        wanted = None
+        for index in range(self.class_combo.count()):
+          data = self.class_combo.itemData(index)
+          if data and data[0] == target and data[1] == labels:
+            wanted = index
+            break
+      if wanted is not None:
+        self.class_combo.setCurrentIndex(wanted)
+      for index in range(self.class_list.count()):
+        item = self.class_list.item(index)
+        data = item.data(Qt.ItemDataRole.UserRole)
+        if not data:
+          continue
+        ticked = (data[0] == target and data[1] in labels)
+        item.setCheckState(Qt.CheckState.Checked if ticked
+                           else Qt.CheckState.Unchecked)
+    finally:
+      self.class_combo.blockSignals(False)
+      self.class_list.blockSignals(False)
+
+  def _labels_of(self, target: str) -> str:
+    """Every class label of one kind, as one string.
+
+    Args:
+      target: "edge" or "vertex".
+
+    Returns:
+      The labels in the order the topology lists them, or "" where
+      this design has none of that kind.
+    """
+    if self._topology is None:
+      return ""
+    groups = edits_module.classes(self._topology)
+    return groups.get(target, "")
+
+  def _on_class_ticked(self, item) -> None:
+    """Follow a tick in the list into the selection.
+
+    Args:
+      item: the row whose check state changed.
+
+    Returns:
+      None. Unticking the last class of a kind is refused by putting
+      the tick back, because an edit aimed at nothing is not something
+      this tab can carry -- and a control that silently accepts an
+      impossible state is worse than one that will not move.
+    """
+    data = item.data(Qt.ItemDataRole.UserRole)
+    if not data:
+      return
+    target, label = data
+    held_target, held = self._selection
+    if item.checkState() == Qt.CheckState.Checked:
+      labels = (list(held) + [label]) if target == held_target else [label]
+    else:
+      if target != held_target:
         return
+      labels = [x for x in held if x != label]
+      if not labels:
+        self._sync_the_selection()      # put the last tick back
+        return
+    self._select_classes(target, "".join(sorted(set(labels))))
 
   def _on_grabbed(self, key: str):
     """Take the manipulation from the handle somebody took hold of.
@@ -1711,9 +1914,11 @@ class TopologyPanel(QWidget):
     `nudge_vertex` outright, so a vertex drag meant a nudge even with
     `push_vertex` chosen, and an edge drag meant nothing at all.
     """
-    data = self.class_combo.currentData()
+    # THE OWNER AGAIN: a drag moves whatever is selected, which since
+    # 2026-09-01 may be several classes.
+    data = self._selection
     key = self.how_combo.currentData()
-    if self._topology is None or not data or not key:
+    if self._topology is None or not data[1] or not key:
       return
     spec = edits_module.MANIPULATIONS.get(key, {})
     # A drag can only mean the manipulation in force, and only where
@@ -1881,9 +2086,11 @@ class TopologyPanel(QWidget):
       return
     args = self._drag_from
     self._drag_from = None
-    data = self.class_combo.currentData()
+    # THE OWNER, as at the preview and at Apply -- one question, one
+    # answer, whichever control the person used to ask it.
+    data = self._selection
     key = self.how_combo.currentData()
-    if not data or not key:
+    if not data[1] or not key:
       return
     # A PRESS THAT WENT NOWHERE IS A CLICK, and a click chooses a class
     # rather than editing anything. The test is on what the drag
@@ -1926,10 +2133,13 @@ class TopologyPanel(QWidget):
 
   def _apply(self):
     """Add the change the controls describe."""
-    data = self.class_combo.currentData()
-    if self._topology is None or not data:
+    # THE OWNER, NOT THE COMBO. The two agree by construction, and
+    # asking the owner is what stops a later reader having to know
+    # which of three controls is authoritative.
+    target, labels = self._selection
+    if self._topology is None or not labels:
       return
-    self._record({"classes": data[1],
+    self._record({"classes": labels,
                   "how": self.how_combo.currentData(),
                   "args": self._arguments()})
 

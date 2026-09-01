@@ -7471,6 +7471,188 @@ def _settle_topology(dlg, seconds: int = 30):
       return
 
 
+def test_several_classes_can_be_moved_together():
+  """A modified click adds a class, and the edit moves both.
+
+  Upstream's own notebooks aim one call at thirteen classes; the tab
+  aimed at one, or at every class of a kind, and had nothing between.
+  The maintainer's decision of 2026-09-01 is click to select and a
+  list to confirm, each following the other.
+
+  THE CASE IS RARER THAN IT SOUNDS, which is why the fixture names its
+  design: measured across a 48-design spread, most designs carry ONE
+  OR TWO transitivity classes of each kind, so on most of the
+  catalogue the per-class entries and the "every" entry already cover
+  every subset there is. `laves 3.3.4.3.4` has two vertex classes,
+  which is the smallest design on which "some but not all" is a state
+  at all -- and the test asserts that count rather than assuming it.
+
+  FOUR ANSWERS, because the ruling has four halves and any one alone
+  would pass while the feature was broken: the modified click ADDS,
+  the tick list SAYS SO, the edit RECORDS both classes, and the last
+  tick cannot be taken out -- an edit aimed at nothing is not a state
+  this tab carries, and a control that accepts it silently is worse
+  than one that will not move.
+
+  Regression: an edit could be aimed at one class or at every class of a kind and at nothing between, though the library's selector and the saved record have always taken several. [user]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def seat_of(view, target, label):
+    """A widget point on one class's own vertex or edge, or None.
+
+    Args:
+      view: the drawing widget.
+      target: "vertex" or "edge".
+      label: the class label to find something of.
+
+    Returns:
+      A QPoint inside the widget, or None where nothing of that class
+      is drawn there. An EDGE point is taken along a segment and kept
+      clear of every vertex, since a vertex wins ties inside the hit
+      test's own reach.
+    """
+    topology = view._drawn()
+    if topology is None:
+      return None
+    if target == "vertex":
+      for vertex in topology.points.values():
+        if getattr(vertex, "label", None) != label:
+          continue
+        point = view._to_screen(vertex.point.x, vertex.point.y)
+        if (0 <= point.x() <= view.width()
+            and 0 <= point.y() <= view.height()):
+          return QPoint(int(round(point.x())), int(round(point.y())))
+      return None
+    seats = [view._to_screen(v.point.x, v.point.y)
+             for v in topology.points.values()]
+    for edge in topology.edges.values():
+      if getattr(edge, "label", None) != label:
+        continue
+      try:
+        coords = list(edge.get_geometry().coords)
+      except Exception:                                 # noqa: BLE001
+        continue
+      for (ax, ay), (bx, by) in zip(coords, coords[1:]):
+        for step in range(3, 8):
+          x = ax + (bx - ax) * step / 10.0
+          y = ay + (by - ay) * step / 10.0
+          point = view._to_screen(x, y)
+          if not (0 <= point.x() <= view.width()
+                  and 0 <= point.y() <= view.height()):
+            continue
+          clear = min(((point.x() - seat.x()) ** 2
+                       + (point.y() - seat.y()) ** 2) ** 0.5
+                      for seat in seats) if seats else 99.0
+          if clear > 12.0:
+            return QPoint(int(round(point.x())), int(round(point.y())))
+    return None
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: no topology was built, so there are no classes to aim at"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.grab()
+    _tick(50)
+
+    groups = topology_edits.classes(panel._topology)
+    vertices = groups.get("vertex", "")
+    assert len(vertices) >= 2, (
+      f"PREMISE: this design has {len(vertices)} vertex class(es), so "
+      f"'some but not all' is not a state it can be in and this test "
+      f"would measure nothing")
+    first, second = vertices[0], vertices[1]
+
+    # ---- A PLAIN CLICK SELECTS ONE
+    at = seat_of(view, "vertex", first)
+    assert at is not None, \
+      f"PREMISE: no vertex of class {first!r} is drawn inside the widget"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, at)
+    _tick(150)
+    assert panel._selection == ("vertex", first), (
+      f"a plain click left the selection at {panel._selection}, where "
+      f"the class clicked was {first!r}")
+
+    # ---- AND A MODIFIED CLICK ADDS THE SECOND
+    at = seat_of(view, "vertex", second)
+    assert at is not None, \
+      f"PREMISE: no vertex of class {second!r} is drawn inside the widget"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.ShiftModifier, at)
+    _tick(150)
+    held = panel._selection
+    assert held[0] == "vertex" and set(held[1]) == {first, second}, (
+      f"a shift-click left the selection at {held}: adding a class to "
+      f"what is already in hand is the whole of this control")
+
+    # ---- THE LIST SAYS SO, which is the confirming half
+    ticked = set()
+    for index in range(panel.class_list.count()):
+      item = panel.class_list.item(index)
+      if item.checkState() == QtNamespace.CheckState.Checked:
+        ticked.add(item.data(QtNamespace.ItemDataRole.UserRole))
+    assert ticked == {("vertex", first), ("vertex", second)}, (
+      f"the list shows {sorted(ticked)} ticked where the selection is "
+      f"{held}: the drawing and the list disagree about what an edit "
+      f"would move")
+
+    # ---- AND THE EDIT RECORDS BOTH
+    index = panel.how_combo.findData("nudge_vertex")
+    assert index >= 0, "PREMISE: the nudge is not offered for a vertex"
+    panel.how_combo.setCurrentIndex(index)
+    _tick(100)
+    for _caption, box in panel._argument_rows:
+      if box.property("argument") == "dx":
+        box.setValue(0.05)
+    before = len(panel.edits())
+    panel.apply_button.click()
+    _tick(200)
+    assert len(panel.edits()) == before + 1, \
+      "PREMISE: Apply recorded no edit at all"
+    recorded = panel.edits()[-1].get("classes")
+    assert set(recorded) == {first, second}, (
+      f"the edit was recorded against {recorded!r} where both "
+      f"{first!r} and {second!r} were selected, so an edit aimed at "
+      f"several classes moves one of them")
+
+    # ---- AND THE LAST TICK CANNOT BE TAKEN OUT
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(200)
+    assert _wait_for_the_topology(dlg), "PREMISE: the rebuild lost the topology"
+    panel._select_classes("vertex", first)
+    _tick(100)
+    for index in range(panel.class_list.count()):
+      item = panel.class_list.item(index)
+      if item.data(QtNamespace.ItemDataRole.UserRole) == ("vertex", first):
+        item.setCheckState(QtNamespace.CheckState.Unchecked)
+    _tick(150)
+    assert panel._selection == ("vertex", first), (
+      f"unticking the only selected class left {panel._selection}: an "
+      f"edit aimed at nothing is not a state this tab can carry, so "
+      f"the tick belongs back where it was")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_a_design_is_shown_by_name_and_stored_by_key():
   """The chooser says `cairo`; the record and the file say the key.
 
@@ -79880,6 +80062,8 @@ def main():
         test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture)
   check("a design is shown by name and stored by key",
         test_a_design_is_shown_by_name_and_stored_by_key)
+  check("several classes can be moved together",
+        test_several_classes_can_be_moved_together)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

@@ -2550,6 +2550,34 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="a-modified-click-adds-a-class", file=TOPOLOGY_TAB,
+       # MUTATED to report every click as a plain one, which is the
+       # tab as it stood: an edit could be aimed at one class or at
+       # every class of a kind and at nothing between, though the
+       # library's selector and the saved record have always taken
+       # several.
+       old="""    adding = bool(event.modifiers() & (
+      Qt.KeyboardModifier.ShiftModifier
+      | Qt.KeyboardModifier.ControlModifier
+      | Qt.KeyboardModifier.MetaModifier))""",
+       new="""    adding = False""",
+       test="test_several_classes_can_be_moved_together",
+       why="aiming one edit at some of a design's classes rather than "
+           "at one or at all of them"),
+  dict(name="a-tick-list-that-cannot-empty-the-selection",
+       file=TOPOLOGY_TAB,
+       # MUTATED to let the last tick go, leaving the selection empty
+       # -- a state Apply declines in silence, so the button does
+       # nothing and says nothing.
+       old="""      if not labels:
+        self._sync_the_selection()      # put the last tick back
+        return""",
+       new="""      if False:
+        self._sync_the_selection()      # put the last tick back
+        return""",
+       test="test_several_classes_can_be_moved_together",
+       why="a control refusing a state the tab cannot carry, rather "
+           "than accepting it and going quiet"),
   dict(name="a-design-is-stored-by-key-not-by-label", file=DIALOG,
        # MUTATED BACK to the record storing the combo's TEXT, which is
        # what it stored until 2026-09-01. Every map saved before a

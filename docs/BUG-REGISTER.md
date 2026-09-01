@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-477 defect(s) with a regression test.
+478 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -987,6 +987,8 @@ there is no separate list to remember.
   guarded by `test_every_way_of_editing_the_topology_moves_the_drawing`
 - **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
   guarded by `test_icon_mode_is_not_counted_as_a_tiling`
+- **an edit could be aimed at one class or at every class of a kind and at nothing between, though the library's selector and the saved record have always taken several.**  
+  guarded by `test_several_classes_can_be_moved_together`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
@@ -1011,7 +1013,7 @@ there is no separate list to remember.
 - the mutation campaign: 157
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 33
+- reported by a user: 34
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 8
