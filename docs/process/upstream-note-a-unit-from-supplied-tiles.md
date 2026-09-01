@@ -1,8 +1,15 @@
 # A constructor for a Tileable from tiles you already have
 
 *A note for the weavingspace project, written 2026-09-01 from the QGIS
-plugin that vendors it. Everything below was measured against the
-vendored tree at `0.0.7.89 (6190917)`.*
+plugin that vendors it, and SENT the same day by the maintainer.
+Everything below was measured against the vendored tree at
+`0.0.7.89 (6190917)`.*
+
+*What happens next is not ours to decide, and we are not waiting on it
+to know: `test_the_library_still_cannot_build_a_unit_from_tiles` asks
+the library directly whether the gap is still there, so the day a
+constructor arrives -- in either of the shapes below, or a third we
+did not think of -- the suite says so and the workaround comes out.*
 
 ## What we wanted to do
 

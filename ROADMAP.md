@@ -372,8 +372,21 @@ WHAT IT COST BESIDES: two existing tests read the moved record as
 their premise and were repaired without changing their subjects, which
 CI found and the targeted runs could not.
 
-**A CHANGELOG LINE IS OWED BEFORE PROMOTION, AND IT IS THE
-MAINTAINER'S** -- but not for the fix above, whose entry it was
+**THE CHANGELOG LINE IS WRITTEN AND APPROVED, 2026-09-01**, and what
+follows is why it took a second pass rather than what it owes. It was
+approved once on 2026-08-29 and went stale in the way this project's
+own rule warns is most expensive: the version then took on the
+re-vendor, the rebuilt Topology tab, nine defects and four features,
+all of which a user meets. Nine categories were added and the
+maintainer approved the wording; the entry now names the experimental
+box, the tab's editing, aiming at several classes, the symmetries, the
+dual, the design names, the speed, and what a colleague's file no
+longer loses. THE FORM MATTERED AS WELL AS THE WORDS: a category label
+over 29 characters is absorbed into the bullet above it by
+`release_notes.entry_for`, so one paragraph read perfectly in the
+plugin manager and had vanished from the release page -- checked by
+rendering the entry rather than by reading the file.
+WHAT THAT PARAGRAPH USED TO SAY** -- but not for the fix above, whose entry it was
 originally written for and which a user never met. What 0.24.4's
 `changelog=` entry should name is the round of 2026-08-28 recorded in
 `docs/process/defects-2026-08-28.md`: a saved map recording the design
@@ -933,11 +946,14 @@ THREE THINGS ARE OWED FROM IT, none of them large:
 catalogue entries proved `caught`: the label/key separation and the
 twelve common names, multi-class selection, the symmetries drawn and
 gating, and the dual as a design. The element slider's flip speaks.
-WHAT IS LEFT OF THEM IS TWO ACTS THAT ARE NOT MINE: the twelve labels
-are in the text-review queue, and `docs/process/upstream-note-a-unit-
-from-supplied-tiles.md` is written and not sent -- asking the
-weavingspace project for the constructor the dual promotion works
-around. The decisions and their measurements follow, because they are
+BOTH OF THE ACTS THAT WERE NOT MINE ARE DONE: the twelve labels and
+the version's changelog were approved on 2026-09-01, and
+`docs/process/upstream-note-a-unit-from-supplied-tiles.md` -- asking
+the weavingspace project for the constructor the dual promotion works
+around -- was SENT the same day. Nothing here waits on their answer:
+`test_the_library_still_cannot_build_a_unit_from_tiles` asks the
+library itself, so a constructor arriving in any shape fails that test
+and the workaround comes out then. The decisions and their measurements follow, because they are
 what a later session will not have. The maintainer's decisions, with what each was measured
 against, because the measurement is what a later session will not have.
 
