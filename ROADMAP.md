@@ -928,14 +928,98 @@ THREE THINGS ARE OWED FROM IT, none of them large:
   is what a colleague's save leaves; `a-changed-file-is-never-swept`
   catches again.
 
-AND FOUR THINGS ARE APPROVED AND NOT STARTED, from reading upstream's
-notebooks against what the tab offers: multi-class selectors (their own
-notebook zigzags thirteen classes in one call and the tab can aim at
-one), the `cairo` family, which the library supports and the catalogue
-lacks entirely, the SYMMETRIES half of the library
-(`plot_tiling_symmetries`, `Symmetries`, `ShapeMatcher`), and promoting
-the dual to a tiling of its own. Whether they belong in this version or
-the next is a scope decision rather than work anybody has forgotten.
+**THE FOUR APPROVED FEATURES ARE IN 0.24.4, AND WERE GRILLED ON
+2026-09-01.** The maintainer's decisions, with what each was measured
+against, because the measurement is what a later session will not have.
+
+1. MULTI-CLASS SELECTORS: CLICK TO SELECT, A LIST TO CONFIRM. Both
+   controls, each following the other, with the blocked-signal
+   discipline the pin controls already carry. Measured first, because
+   it decides how much there is to select: across a 48-design spread
+   most designs have ONE OR TWO transitivity classes of each kind, and
+   with two the chooser's per-class entries plus "every vertex" and
+   "every edge" already cover all three subsets. Only eight of the 48
+   have three or more of one kind -- `hex-slice 5` at 5 vertex and 7
+   edge classes is the richest, then `square-slice 5` at 4 and 6. The
+   record needs nothing: an edit's `classes` is already a STRING
+   selector and the library matches `label in selector`.
+
+2. CAIRO IS A RENAME, NOT A NEW FAMILY, and the catalogue carries both
+   names. Measured through `catalog.make_unit`: `tiling_type="cairo"`
+   and the catalogue's own `laves 3.3.4.3.4` draw the SAME GROUND --
+   four tiles, ids a-d, identical areas and bounds, symmetric
+   difference 0.000. So the entry reads `laves 3.3.4.3.4 (cairo)`.
+   THE MECHANISM IS THE LABEL/KEY SEPARATION this project already
+   argues for elsewhere: `family_combo` is built with `addItems(names)`
+   today, so the catalogue name is doing duty as label AND identity,
+   and `WORKING_STATE_DESIGN` stores `family` as the combo's TEXT.
+   Items carry the catalogue KEY as item data and show a LABEL; the
+   record goes on storing the key, so every saved GeoPackage and
+   project restores unchanged and the next rename costs nothing.
+   AND THE WELL-KNOWN HANDFUL COME WITH IT: the Archimedean tilings by
+   their common names, the Laves duals, a dozen or so labels with a
+   source cited. Every one is a sentence a user reads, so they go
+   through `tools/text_review.py` like any other.
+
+3. THE DUAL IS BUILT HERE AND OFFERED UPSTREAM. `Topology.get_dual_
+   tiles()` gives a frame with tile ids and its ground covers the same
+   lattice, but `Tileable.__init__` delegates to `_setup_tiles()`,
+   which dispatches on `tiling_type` and has NO path for supplied
+   geometry -- an unrecognised type falls back to the default
+   tileable. So promoting the dual means assembling `tiles`,
+   `vectors`, `prototile` and the regularised prototile ourselves,
+   which is the vendoring boundary. It is written plugin-side behind
+   one function, with the measurement and the removal criteria at the
+   site and a canary that fails the day the library grows a real
+   constructor, AND offered upstream as a patch -- the route the
+   STRtree optimisation took, which came back merged.
+
+4. THE SYMMETRIES: DRAW THEM, GATE THE EDITS, REPORT THE GROUP.
+   `Topology` already holds `tile_matching_transforms` and
+   `Symmetries(polygon)` gives a tile's own group code. Upstream's
+   `plot_tiling_symmetries` draws through matplotlib, which cannot run
+   inside the signed QGIS process on macOS, so the drawing is OURS in
+   the view's painter from upstream's data. The gating is the symmetry
+   note's own finding: a vertex whose stabiliser contains a rotation
+   has only the zero displacement available, which is why
+   `push_vertex` moves nothing on laves 3.3.4.3.4 or hex-slice 3 and a
+   tenth of the unit on archimedean 4.8.8 -- so a control that cannot
+   move the selection is greyed WITH ITS REASON rather than offering a
+   rail of zero length. It is necessary and not sufficient: laves
+   class B has a one-dimensional fixed space and still yields nothing,
+   so the gate must say what it measured.
+
+**THE ELEMENT SLIDER KEEPS ITS RANGE AND THE FLIP SPEAKS.** (Same
+grilling.) Weave families run n=2 to 12 and tilings to 256, so from 13
+up only tilings exist and `test_design_cascade` requires the kind
+toggle to flip -- silently, today. Capping the track would have to cap
+the spin box with it, since the count is one control in two widgets,
+and it would retire that contract along with the route by which
+somebody on weaves meets the tilings above. The track stays; crossing
+12 on a weave SAYS what it did, in the sentence family the switch door
+was given on 2026-08-26.
+
+**AND THE `publish_candidate` QUESTION IS MOOT, MEASURED RATHER THAN
+DECIDED.** The worry recorded here was that a genuine sampling
+survivor would one day block a candidate and start the `--despite-ci`
+habit. It cannot: every measuring step in `mutation.yml` is
+`continue-on-error` -- the catalogue sweep, `mutate_auto` on changed
+lines, the census and the gallery render -- so a survivor cannot
+redden that workflow at all. What CAN is provisioning, the baseline
+check, an artefact upload, or the coverage leg, which checks each
+shard's exit and refuses a partial record; the two reds of 2026-08-31
+were both that leg. So requiring every workflow already means what the
+2026-08-11 decision says -- instruments report, and only a broken run
+or a real suite failure gates.
+
+WHAT THOSE FOUR WERE, BEFORE THEY WERE DECIDED: multi-class selectors,
+read out of upstream's own notebooks, which zigzag thirteen classes in
+one call where the tab aims at one; the `cairo` family, which the
+library supports; the SYMMETRIES half of the library
+(`plot_tiling_symmetries`, `Symmetries`, `ShapeMatcher`); and promoting
+the dual to a tiling of its own. All four are in this version by the
+maintainer's decision of 2026-09-01, and what each means is settled
+above rather than left to whoever picks it up.
 
 NOTE ALSO THAT `for-**` BRANCHES GET NO CI. `ci.yml` triggers on
 `[main, "pre-**"]`, so the whole of the above was tested on one macOS
@@ -1050,16 +1134,11 @@ queue was approved on 2026-08-29 and 2026-08-31. CI is red on that one
 paragraph and the other five jobs are SKIPPED behind it, which is the
 gate working: approving prose is nobody else's act.
 
-AND ONE THING IS FLAGGED RATHER THAN DECIDED. The element slider's
-track spans the whole catalogue, 2 to 256, where this section's own
-design note asked for a ceiling that moves with the kind. The note's
-number was wrong -- 26 is the ID ceiling for a weave's strand letters
-and the catalogue holds weave families only to n=12 -- so a
-weave-capped track would offer thirteen counts with no weave family
-behind them AND retire the contract `test_design_cascade` states
-outright, that a count offering only one kind flips the toggle
-silently. If the track should stop where the weaves do, that is a
-ruling and it retires that contract; it is one line either way.
+AND THE SLIDER WAS FLAGGED HERE AND IS NOW DECIDED, above: the
+track keeps its range and crossing the weave ceiling says what it
+did. The note that prompted it asked for a ceiling moving with the
+kind and named 26, which was the ID ceiling for a weave's strand
+letters rather than the catalogue's own weave ceiling of 12.
 
 IT WAS WITHDRAWN RATHER THAN LEFT STANDING BECAUSE THE GATE READS THE
 PHRASE. `check_roadmap` decides a section is clear by looking for
