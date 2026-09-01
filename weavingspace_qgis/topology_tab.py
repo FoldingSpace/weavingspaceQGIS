@@ -448,8 +448,17 @@ class TopologyView(QWidget):
       pen = QPen(QColor(_DUAL_INK), 2)
       pen.setStyle(Qt.PenStyle.DashLine)
       painter.setPen(pen)
-      for shape in getattr(topology, "dual_tiles", {}).values():
-        painter.drawPath(self._path(shape))
+      # THE DUAL TILES TOO, because the tiling does. (Maintainer,
+      # 2026-08-31: "the dual doesn't tile, just appear in one place?")
+      # `topology.tiles` is a PATCH of repeats and `dual_tiles` is one
+      # repeat's worth -- 36 against 6 on laves 3.3.4.3.4, 28 against 4
+      # on hex-slice 4 -- so with the toggle on, the dual sat in the
+      # middle of a field of tiles it did not cover. The tiling is
+      # periodic, so the dual repeats on the same lattice; nothing was
+      # replicating it.
+      for offset in self._lattice_offsets(topology):
+        for shape in getattr(topology, "dual_tiles", {}).values():
+          painter.drawPath(self._path(shape, offset))
 
     if self._shown["centres"]:
       painter.setBrush(QBrush(QColor(_CENTRE_INK)))
@@ -644,11 +653,59 @@ class TopologyView(QWidget):
                                  y * reach - (y * 3) - (x * 3)))
     painter.restore()
 
-  def _path(self, polygon):
+  def _lattice_offsets(self, topology):
+    """Every translation that carries the unit onto a patch copy.
+
+    Args:
+      topology: what is being drawn.
+
+    Returns:
+      A list of (dx, dy) in unit coordinates, starting with (0, 0).
+      Empty of duplicates, so a dual is drawn once per position.
+
+    TAKEN FROM THE TILEABLE'S OWN VECTORS, which are exact.
+
+    THE OBVIOUS ROUTE WAS TRIED FIRST AND IS WRONG. `Topology`'s
+    docstring promises the patch is laid out so that
+    `tiles[i % n_tiles]` is the base tile of `tiles[i]`, so the offset
+    of copy i looks like the difference between the two centres.
+    Measured on laves 3.3.4.3.4: that gives TWENTY-ONE distinct offsets
+    for nine positions, clustered around the true lattice but scattered
+    by about 1.4 units, because a tile's `centre` is an incentre
+    recomputed per tile and the correspondence is not exact. Drawing a
+    dual at each would have put twenty-one copies where nine belong.
+
+    The tileable states the lattice outright -- `vectors` maps (1,0)
+    and (0,1) to the two translations -- and the patch is one ring of
+    copies, which its own tile count confirms.
+    """
+    tiles = getattr(topology, "tiles", None)
+    base = getattr(topology, "n_tiles", 0)
+    tileable = getattr(topology, "tileable", None)
+    vectors = getattr(tileable, "vectors", None) if tileable else None
+    if not tiles or base <= 0 or not vectors:
+      return [(0.0, 0.0)]
+    first, second = vectors.get((1, 0)), vectors.get((0, 1))
+    if first is None or second is None:
+      return [(0.0, 0.0)]
+    # HOW FAR THE PATCH REACHES, asked of the patch rather than
+    # assumed: 36 tiles over a unit of 4 is nine positions, which is
+    # one ring. A design whose patch is bigger draws more copies
+    # without this having to know which.
+    copies = max(1, len(tiles) // base)
+    reach = max(1, int(round(copies ** 0.5)) // 2)
+    return [(first[0] * i + second[0] * j, first[1] * i + second[1] * j)
+            for i in range(-reach, reach + 1)
+            for j in range(-reach, reach + 1)]
+
+  def _path(self, polygon, offset=(0.0, 0.0)):
     """A shapely polygon as a QPainterPath in widget coordinates.
 
     Args:
       polygon: the shapely geometry.
+      offset: (dx, dy) in UNIT coordinates to draw it at instead of
+        where it sits, which is how one repeat's worth of dual tiles is
+        drawn across the whole patch. The default draws it in place.
 
     Returns:
       A QPainterPath, holes included -- even-odd filling makes them
@@ -657,7 +714,8 @@ class TopologyView(QWidget):
     path = QPainterPath()
     rings = [polygon.exterior] + list(polygon.interiors)
     for ring in rings:
-      points = [self._to_screen(x, y) for x, y in ring.coords]
+      points = [self._to_screen(x + offset[0], y + offset[1])
+                for x, y in ring.coords]
       if not points:
         continue
       path.moveTo(points[0])
