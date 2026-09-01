@@ -4072,13 +4072,30 @@ class WeavingSpaceDialog(QDialog):
     kind = self.kind_combo.currentText()
     names = [name for name, spec in families.items()
              if spec["type"] == ("tiling" if kind == "tiling" else "weave")]
-    if not names:  # this n only has the other kind: switch kind silently
+    if not names:  # this n only has the other kind
       names = list(families)
       other = families[names[0]]["type"]
+      was = self.kind_combo.currentText()
       self.kind_combo.blockSignals(True)
       self.kind_combo.setCurrentText(
         "tiling" if other == "tiling" else "weave")
       self.kind_combo.blockSignals(False)
+      # AND IT SAYS WHAT IT DID. (Maintainer's decision, 2026-09-01.)
+      # The track spans the whole catalogue, 2 to 256, while weave
+      # families stop at 12 -- so from 13 up only tilings exist and
+      # the toggle moved under the person in silence. Capping the
+      # track was the alternative and would have had to cap the spin
+      # box with it, since the count is one control in two widgets,
+      # and it would have retired `test_design_cascade`'s contract
+      # along with the route by which somebody on weaves meets the
+      # tilings above. Saying so is the same shape as the switch door
+      # of 2026-08-26: the plugin may change something the person did
+      # not ask about, and then it tells them.
+      now = self.kind_combo.currentText()
+      if now != was:
+        self._report_quietly(
+          f"No {was} in this catalogue has {self._element_count()} "
+          f"elements, so this design is a {now}.")
       kind = self.kind_combo.currentText()
       names = [name for name, spec in families.items()
                if spec["type"] == ("tiling" if kind == "tiling" else "weave")]

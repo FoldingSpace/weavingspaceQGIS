@@ -25,6 +25,15 @@ beside it in `hunt-logs-2026-08-13/`, kept for the ratio of ruled-out
 to confirmed rather than for the prose, and including the two hunts
 that recorded their own sloppiness about timestamps.
 
+**The second upstream note**, `upstream-note-a-unit-from-supplied-
+tiles.md`, asks the weavingspace project for a constructor that builds
+a Tileable from tiles you already have. The plugin needs one to tile a
+map with a design's DUAL, and works around its absence by replacing a
+copied unit's tiles from outside the library -- which works (181 tiles
+over a 3km region for laves 3.3.4.3.4, 84 for archimedean 4.8.8) and
+leans on four private lines. A canary in the suite asserts the gap is
+still there, so the day it closes we are told.
+
 **The upstream note** reports a rendering difference to the
 weavingspace project, and opens by retracting an earlier note that
 blamed one of their commits. It is kept in full, retraction first,

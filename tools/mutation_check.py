@@ -2550,6 +2550,22 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="a-kind-that-flips-says-so", file=DIALOG,
+       # MUTATED back to the silent flip. The element slider spans the
+       # whole catalogue, 2 to 256, and weave families stop at 12, so
+       # crossing that ceiling moves the toggle under somebody who was
+       # working in weaves. Capping the track was considered and
+       # refused: the count is one control in two widgets, so the box
+       # would have to cap too, and the contract `test_design_cascade`
+       # states -- that a count offering one kind flips the toggle --
+       # would go with it.
+       old="""      now = self.kind_combo.currentText()
+      if now != was:""",
+       new="""      now = self.kind_combo.currentText()
+      if False:""",
+       test="test_design_cascade",
+       why="a toggle that moves on its own saying so, rather than "
+           "leaving somebody to notice they are no longer in weaves"),
   dict(name="the-dual-is-what-the-map-is-tiled-with", file=DIALOG,
        # MUTATED to ignore the switch, so the box is ticked, the record
        # says the map is the dual, and the map is the design -- which

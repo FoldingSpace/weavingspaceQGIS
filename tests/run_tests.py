@@ -9132,6 +9132,16 @@ def test_design_cascade():
   dlg.n_spin.setValue(13)
   assert dlg.kind_combo.currentText() == "tiling", \
     "n=13 offers only chavey tilings; kind must flip"
+  # AND THE FLIP SAYS WHAT IT DID. (2026-09-01.) The track spans the
+  # catalogue and weave families stop at 12, so crossing that ceiling
+  # moves the toggle under somebody who was working in weaves -- which
+  # was silent until this. Asserted on what the sentence is ABOUT
+  # rather than on its wording, since the maintainer reviews these and
+  # a test keyed to a draft is a test the review turns red.
+  said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+  assert "tiling" in said and ("13" in said or "weave" in said), (
+    f"the kind flipped from weave to tiling and the plugin said "
+    f"{said[:160]!r}: a control that moves on its own has to say so")
   assert dlg._family_key().startswith("chavey")
 
   # family-specific option rows appear for exactly the right families

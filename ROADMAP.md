@@ -928,8 +928,17 @@ THREE THINGS ARE OWED FROM IT, none of them large:
   is what a colleague's save leaves; `a-changed-file-is-never-swept`
   catches again.
 
-**THE FOUR APPROVED FEATURES ARE IN 0.24.4, AND WERE GRILLED ON
-2026-09-01.** The maintainer's decisions, with what each was measured
+**THE FOUR APPROVED FEATURES ARE IN 0.24.4, GRILLED AND THEN BUILT ON
+2026-09-01.** All four are in, each with a registered test and
+catalogue entries proved `caught`: the label/key separation and the
+twelve common names, multi-class selection, the symmetries drawn and
+gating, and the dual as a design. The element slider's flip speaks.
+WHAT IS LEFT OF THEM IS TWO ACTS THAT ARE NOT MINE: the twelve labels
+are in the text-review queue, and `docs/process/upstream-note-a-unit-
+from-supplied-tiles.md` is written and not sent -- asking the
+weavingspace project for the constructor the dual promotion works
+around. The decisions and their measurements follow, because they are
+what a later session will not have. The maintainer's decisions, with what each was measured
 against, because the measurement is what a later session will not have.
 
 1. MULTI-CLASS SELECTORS: CLICK TO SELECT, A LIST TO CONFIRM. Both
