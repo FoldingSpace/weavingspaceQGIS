@@ -2550,6 +2550,19 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="a-drag-keeps-the-frame-it-began-in",
+       file=TOPOLOGY_TAB,
+       # `_fit` re-measures the drawn extent on every paint, and
+       # during a drag what is drawn is the preview -- so without this
+       # the transform is an output of the thing the gesture is
+       # changing, and the loop that follows takes a stationary
+       # pointer from 0.104 to 0.356 in six repaints.
+       old="""    if getattr(self, "_press", None) is not None and self._bounds:
+      return""",
+       new="""    pass  # mutation: the frame is re-fitted mid-gesture""",
+       test="test_a_drag_is_measured_in_the_frame_it_began_in",
+       why="a drag meaning where the pointer is rather than how many "
+           "times the widget happened to repaint"),
   dict(name="a-vertex-drag-is-held-inside-its-own-box",
        file=TOPOLOGY_TAB,
        # The edge branch clamped a dragged value to the range its

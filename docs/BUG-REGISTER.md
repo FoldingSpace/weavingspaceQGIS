@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-474 defect(s) with a regression test.
+475 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -390,6 +390,8 @@ there is no separate list to remember.
   guarded by `test_a_dock_refinement_survives_the_next_restyle`
 - **an element following another element's layer was seeded from the donor's OUTGOING layer, so a donor that moved was followed one run late and the two disagreed about a column they share until the next Generate. Ruled on 2026-08-27.**  
   guarded by `test_a_donor_reaches_its_follower_in_the_same_run`
+- **the drawing rescaled while a drag was in progress, so the value recorded depended on the number of repaints rather than on where the pointer was.**  
+  guarded by `test_a_drag_is_measured_in_the_frame_it_began_in`
 - **dragging a vertex previewed a movement 707 times smaller than the one it committed, so the drawing did not move until the pointer was released and then jumped.**  
   guarded by `test_a_drag_previews_the_move_it_will_commit`
 - **a vertex drag past the box's range recorded a value the box would not show, and the record is what the file keeps.**  
@@ -1002,7 +1004,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 154
+- the mutation campaign: 155
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 33

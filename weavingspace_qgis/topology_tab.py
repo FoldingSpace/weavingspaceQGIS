@@ -369,6 +369,26 @@ class TopologyView(QWidget):
     # exactly what somebody is NOT editing. `n_tiles` is the library's
     # own count of the unit's own tiles, and the patch is laid out so
     # that the first n are those.
+    # AND THE FRAME IS HELD STILL FOR THE LENGTH OF A GESTURE. A drag
+    # freezes its origin and the unit's span at the press, and every
+    # later position is read as a fraction of that frame -- so a fit
+    # taken mid-drag makes the transform an OUTPUT of the thing the
+    # drag is changing as well as the input it is measured against.
+    # The loop that follows is not subtle: the preview moves the
+    # geometry, the fit re-measures a larger extent, the scale falls,
+    # the same screen point now means a bigger displacement, and the
+    # geometry moves further. Measured 2026-09-01 with the pointer
+    # HELD STILL through six repaints on laves 3.3.4.3.4: the recorded
+    # nudge climbed 0.104, 0.207, 0.280, 0.318, 0.342, 0.356 while the
+    # scale fell 0.6138 to 0.5541 and the drawn bounds grew at every
+    # pass. What somebody is given is then decided by how many times
+    # the widget happened to repaint.
+    # THE PRE-DRAG FRAME IS THE RIGHT ONE TO KEEP, since it is the one
+    # the drag's own origin was taken in; the fit resumes at the drop,
+    # when `_press` is cleared and the next paint measures the design
+    # as it finally stands.
+    if getattr(self, "_press", None) is not None and self._bounds:
+      return
     core = topology.tiles[:getattr(topology, "n_tiles", len(topology.tiles))]
     xs, ys = [], []
     for tile in (core or topology.tiles):

@@ -6138,6 +6138,118 @@ def test_a_dragged_vertex_records_what_its_box_shows():
     QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_drag_is_measured_in_the_frame_it_began_in():
+  """The drawing does not rescale under a pointer that is not moving.
+
+  The view fits its transform to what it is DRAWING, and during a drag
+  what it is drawing is the preview -- so the transform became an
+  output of the thing the gesture was changing as well as the frame
+  the gesture was measured against. A drag freezes its origin and the
+  unit's span at the press and reads every later position as a
+  fraction of that frame, so a fit taken mid-gesture closes a loop:
+  the preview moves the geometry, the fit re-measures a larger extent,
+  the scale falls, the same screen point now means a larger
+  displacement, and the geometry moves further.
+
+  MEASURED WITH THE POINTER HELD STILL, which is what makes this a
+  test rather than a race. Six repaints at one position on laves
+  3.3.4.3.4 took the recorded nudge from 0.104 to 0.207, 0.280, 0.318,
+  0.342 and 0.356 while the scale fell from 0.6138 to 0.5541 -- so
+  what a person was given depended on how many times the widget
+  happened to repaint between their moving and their letting go.
+
+  THE VERTEX NUDGE IS THE MANIPULATION THAT SHOWS IT. A scale on one
+  edge leaves the unit's outer extent where it was, so the fit has
+  nothing to re-measure and the loop never starts; the first probe
+  written for this used one and came back clean. A nudge grows the
+  extent monotonically, which is why this drives one.
+
+  Regression: the drawing rescaled while a drag was in progress, so the value recorded depended on the number of repaints rather than on where the pointer was. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: no topology was built, so there is nothing to drag"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.resize(600, 600)
+    _tick(100)
+    view.grab()
+    _tick(50)
+
+    topology = view._drawn()
+    middle = (view.width() / 2, view.height() / 2)
+    seat = None
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      if seat is None or away < seat[0]:
+        seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
+    assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, seat[1])
+    _tick(150)
+    handles = view.handles()
+    assert handles, "PREMISE: the chosen vertex offers no handle to drag"
+    grab_at = QPoint(int(round(handles[0][1].x())),
+                     int(round(handles[0][1].y())))
+
+    scale_before = view._scale
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(50)
+    target = grab_at + QPoint(45, 0)
+    seen = []
+    scales = []
+    for _repaint in range(6):
+      QTest.mouseMove(view, target)       # the pointer does not move again
+      _tick(80)
+      view.grab()                         # a repaint, as a screen gives
+      _tick(40)
+      recorded = dict(panel._drag_from or {})
+      if "dx" in recorded:
+        seen.append(round(recorded["dx"], 9))
+      scales.append(round(view._scale, 6))
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, target)
+    _tick(200)
+
+    assert len(seen) == 6, (
+      f"PREMISE: the drag recorded a dx on {len(seen)} of six repaints, "
+      f"so there is not a series here to compare")
+    assert len(set(seen)) == 1, (
+      f"a pointer that never moved recorded {seen}: the drawing "
+      f"rescaled under the gesture, so what somebody is given depends "
+      f"on how many times the widget repainted rather than on where "
+      f"they put the pointer")
+    assert len(set(scales)) == 1 and scales[0] == round(scale_before, 6), (
+      f"the view's scale went {scales} from {scale_before}: the frame a "
+      f"drag is measured in moved while the drag was in progress")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_topology_edits_come_back_from_the_file():
   """A saved design opens as the design that was saved.
 
@@ -79321,6 +79433,8 @@ def main():
         test_a_later_save_replaces_a_motif_rather_than_dropping_it)
   check("a dragged vertex records what its box shows",
         test_a_dragged_vertex_records_what_its_box_shows)
+  check("a drag is measured in the frame it began in",
+        test_a_drag_is_measured_in_the_frame_it_began_in)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",
