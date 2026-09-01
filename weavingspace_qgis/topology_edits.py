@@ -32,6 +32,8 @@ pipeline already uses.
 
 from __future__ import annotations
 
+import math
+
 # Each entry is one manipulation the tab offers:
 #   label     what the control says
 #   target    "edge" or "vertex" -- which class list to choose from
@@ -970,3 +972,268 @@ def _in_unit_space(frame):
     # since the whole point of the table is that it carries none.
     return None
   return copy
+
+# ---------------------------------------------------------------------
+# THE SYMMETRIES A DESIGN ALREADY KNOWS ABOUT
+#
+# A built `Topology` carries `tile_matching_transforms`: every isometry
+# that maps the tiling onto itself, each one a `Transform` with a kind,
+# an angle and a centre. Measured 2026-09-01, that is 18 of them on
+# `archimedean 4.8.8`, 24 on `laves 3.3.4.3.4` and 96 on
+# `square-colouring 5`, so the drawing needs the DISTINCT ones rather
+# than the list.
+#
+# WHY THIS MATTERS FOR EDITING, and not only for looking. A class whose
+# every symmetry pins it in place cannot be moved by any displacement
+# at all: the tab drew a rail of zero length for `push_vertex` on
+# `laves 3.3.4.3.4` and on `hex-slice 3`, and a person pulling it saw
+# nothing happen and was told nothing. `directions_a_class_may_move`
+# answers that question from the group rather than from the arithmetic.
+
+def _stabiliser(topology, point, tolerance: float = 1e-6):
+  """The symmetries that leave one point where it is.
+
+  Args:
+    topology: a built Topology.
+    point: an (x, y) pair in the unit's own coordinates.
+    tolerance: how close counts as "the same place", in map units.
+
+  Returns:
+    A list of 2x2 linear parts, as ((a, b), (c, d)) tuples -- the
+    rotation or reflection each stabilising transform performs about
+    that point. The identity is always among them.
+
+  MODULO THE LATTICE, which is what makes the question answerable on a
+  repeating design at all: a symmetry that carries this vertex onto
+  the SAME vertex one cell over stabilises it as far as the pattern is
+  concerned, and refusing those would report every class as free.
+  """
+  basis = _lattice_of(topology)
+  reduce = _reducer(basis) if basis else (lambda xy: (round(xy[0], 6),
+                                                      round(xy[1], 6)))
+  here = reduce(point)
+  found = []
+  for transform in (getattr(topology, "tile_matching_transforms", {})
+                    or {}).values():
+    matrix = getattr(transform, "transform", None)
+    if not matrix or len(matrix) < 6:
+      continue
+    a, b, c, d, xoff, yoff = (float(v) for v in matrix[:6])
+    moved = (a * point[0] + b * point[1] + xoff,
+             c * point[0] + d * point[1] + yoff)
+    if reduce(moved) == here:
+      found.append(((a, b), (c, d)))
+  return found
+
+
+def _lattice_of(topology):
+  """The two shortest independent translations of a design, or None.
+
+  Args:
+    topology: a built Topology, whose `tileable` carries the vectors.
+
+  Returns:
+    A pair of (x, y) tuples, or None where fewer than two independent
+    translations are stated. Read from the VALUES rather than the
+    keys, since a hex tileable keys them by three-element coordinates
+    and a square one by pairs -- the same fault the dual's own repeat
+    was drawn wrongly by until 2026-09-01.
+  """
+  unit = getattr(topology, "tileable", None)
+  vectors = getattr(unit, "vectors", None) or {}
+  candidates = sorted((tuple(float(c) for c in v) for v in vectors.values()),
+                      key=lambda v: v[0] * v[0] + v[1] * v[1])
+  first = second = None
+  for candidate in candidates:
+    if abs(candidate[0]) < 1e-12 and abs(candidate[1]) < 1e-12:
+      continue
+    if first is None:
+      first = candidate
+      continue
+    cross = first[0] * candidate[1] - first[1] * candidate[0]
+    if abs(cross) > 1e-9:
+      second = candidate
+      break
+  return None if second is None else (first, second)
+
+
+def _reducer(basis):
+  """A function taking a point to its place within one cell.
+
+  Args:
+    basis: the two lattice vectors.
+
+  Returns:
+    A callable mapping (x, y) to a rounded pair of fractional cell
+    coordinates, so two points that differ by whole translations
+    answer the same.
+  """
+  ax, ay = basis[0]
+  bx, by = basis[1]
+  determinant = ax * by - ay * bx
+
+  def reduce(point):
+    if abs(determinant) < 1e-12:
+      return (round(point[0], 6), round(point[1], 6))
+    u = (by * point[0] - bx * point[1]) / determinant
+    v = (-ay * point[0] + ax * point[1]) / determinant
+    u, v = u - math.floor(u), v - math.floor(v)
+    # a coordinate a hair under one is a coordinate at zero
+    u = 0.0 if u > 1 - 1e-6 else u
+    v = 0.0 if v > 1 - 1e-6 else v
+    return (round(u, 6), round(v, 6))
+
+  return reduce
+
+
+def directions_a_class_may_move(topology, target: str, label: str) -> int:
+  """How many independent directions a class can be displaced in.
+
+  Args:
+    topology: a built Topology.
+    target: "vertex" -- the only kind this answers for, since an edge
+      manipulation moves a curve rather than a point and its freedom
+      is a different question.
+    label: the class label.
+
+  Returns:
+    2 where the class is free, 1 where it may only move along a line,
+    0 where every displacement breaks a symmetry that holds it -- and
+    2 where the question cannot be answered (no topology, no such
+    class, no symmetries recorded), because refusing to draw a control
+    on an unanswered question is worse than drawing one that does
+    nothing.
+
+  IT IS NECESSARY AND NOT SUFFICIENT, which the caller must say out
+  loud. A zero here means no displacement is available; a one or a two
+  does NOT promise a particular manipulation will move anything, since
+  a manipulation's own construction may still yield nothing --
+  measured on `laves 3.3.4.3.4` class B, which has a one-dimensional
+  fixed space and whose push still comes back empty.
+
+  THE ARITHMETIC: stack (L - I) for every stabilising transform and
+  take the rank. A displacement d survives the symmetry exactly when
+  L d = d for every L that holds the point, so the space of allowed
+  displacements is the null space of that stack, and its dimension is
+  2 minus the rank.
+  """
+  if topology is None or target != "vertex" or not label:
+    return 2
+  point = None
+  for vertex in getattr(topology, "points", {}).values():
+    if getattr(vertex, "label", None) == label:
+      point = (float(vertex.point.x), float(vertex.point.y))
+      break
+  if point is None:
+    return 2
+  holders = _stabiliser(topology, point)
+  if not holders:
+    return 2
+  rows = []
+  for (a, b), (c, d) in holders:
+    rows.append((a - 1.0, b))
+    rows.append((c, d - 1.0))
+  return 2 - _rank(rows)
+
+
+def _rank(rows, tolerance: float = 1e-9) -> int:
+  """The rank of a list of two-element rows, by elimination.
+
+  Args:
+    rows: pairs of floats.
+    tolerance: below this a value is zero, which on coordinates of a
+      few hundred map units is comfortably below anything real.
+
+  Returns:
+    0, 1 or 2. Written out rather than taken from numpy so this module
+    keeps working where the scientific stack is being provisioned --
+    two columns is not an occasion for a matrix library.
+  """
+  remaining = [list(row) for row in rows
+               if abs(row[0]) > tolerance or abs(row[1]) > tolerance]
+  if not remaining:
+    return 0
+  pivot = max(remaining, key=lambda row: abs(row[0]))
+  if abs(pivot[0]) <= tolerance:
+    return 1
+  rank = 1
+  for row in remaining:
+    if row is pivot:
+      continue
+    factor = row[0] / pivot[0]
+    left = row[1] - factor * pivot[1]
+    if abs(left) > tolerance:
+      rank = 2
+      break
+  return rank
+
+
+def symmetries_to_draw(topology, limit: int = 60):
+  """The distinct symmetries of a design, ready to be drawn.
+
+  Args:
+    topology: a built Topology, or None.
+    limit: how many of each kind to return at most. `square-colouring
+      5` records 96 transforms, and a drawing showing all of them says
+      less than one showing the distinct ones.
+
+  Returns:
+    A dict with "rotations" -- (x, y, order) triples, one per distinct
+    centre, carrying the HIGHEST order found there -- and "mirrors" --
+    (x, y, degrees) triples, one per distinct line. Translations are
+    left out: the lattice is already visible in the tiles themselves.
+    An empty pair of lists where there is nothing to draw.
+  """
+  rotations, mirrors = {}, {}
+  for transform in (getattr(topology, "tile_matching_transforms", {})
+                    or {}).values():
+    kind = getattr(transform, "transform_type", "")
+    centre = getattr(transform, "centre", None)
+    angle = float(getattr(transform, "angle", 0.0) or 0.0)
+    if centre is None:
+      continue
+    where = (round(float(centre.x), 4), round(float(centre.y), 4))
+    if kind == "rotation":
+      if abs(angle) < 1e-9:
+        continue
+      order = int(round(360.0 / abs(angle)))
+      if order < 2:
+        continue
+      rotations[where] = max(rotations.get(where, 0), order)
+    elif kind == "reflection":
+      # A MIRROR IS A LINE, so two transforms differing by half a turn
+      # in their stated angle are one line and are drawn once.
+      line = (where, round(angle % 180.0, 3))
+      mirrors[line] = True
+  return {
+    "rotations": [(x, y, order)
+                  for (x, y), order in list(rotations.items())[:limit]],
+    "mirrors": [(x, y, angle)
+                for ((x, y), angle) in list(mirrors)[:limit]],
+  }
+
+
+def tile_symmetry_codes(unit):
+  """Each distinct tile's own symmetry group, as codes.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    A list of codes like "D4" or "C2", one per tile of the unit, in
+    the unit's own order -- or an empty list where the library cannot
+    answer. `D` is dihedral (mirrors as well as rotations) and `C`
+    cyclic (rotations alone), which is the standard notation for a
+    shape's own symmetry group.
+  """
+  try:
+    from weavingspace.symmetry import Symmetries
+  except Exception:                                   # noqa: BLE001
+    return []
+  codes = []
+  for geometry in getattr(unit, "tiles", []).geometry:
+    try:
+      codes.append(Symmetries(geometry).get_symmetry_group_code())
+    except Exception:                                 # noqa: BLE001
+      codes.append("")
+  return codes

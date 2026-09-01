@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-478 defect(s) with a regression test.
+479 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1001,6 +1001,8 @@ there is no separate list to remember.
   guarded by `test_the_size_guard_measures_ground_not_the_bounding_box`
 - **2026-08-19. A ceiling somebody had set drew no mark on the ramp swatch, because the swatch enumerated two of the record's four ends.**  
   guarded by `test_the_swatch_marks_every_end_a_person_set`
+- **a design whose symmetry pins a vertex class offered a push along it anyway -- a rail of zero length, which moved nothing and said nothing.**  
+  guarded by `test_the_symmetries_are_drawn_and_gate_what_cannot_move`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
@@ -1013,7 +1015,7 @@ there is no separate list to remember.
 - the mutation campaign: 157
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 34
+- reported by a user: 35
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 8

@@ -2550,6 +2550,43 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="the-symmetry-greys-a-push-that-cannot-move",
+       file=TOPOLOGY_TAB,
+       # MUTATED to leave every manipulation offered, which is the tab
+       # as it stood: `push_vertex` on a class its own symmetry holds
+       # drew a rail of zero length, moved 0.0000 of the unit, and
+       # said nothing. Measured on laves 3.3.4.3.4 class A and both
+       # classes of hex-slice 3, against 0.1027 on archimedean 4.8.8.
+       old="""    if free > 0:
+      return""",
+       new="""    if True:
+      return""",
+       test="test_the_symmetries_are_drawn_and_gate_what_cannot_move",
+       why="a control that cannot do anything saying so, rather than "
+           "moving under the pointer and changing nothing"),
+  dict(name="the-symmetries-are-drawn-when-asked-for",
+       file=TOPOLOGY_TAB,
+       # MUTATED to draw nothing behind the toggle, so the eighth
+       # switch is a switch that does nothing at all.
+       old="""    if self._shown["symmetries"]:
+      self._draw_symmetries(painter, topology)""",
+       new="""    if False:
+      self._draw_symmetries(painter, topology)""",
+       test="test_the_symmetries_are_drawn_and_gate_what_cannot_move",
+       why="the rotation centres and mirrors appearing when somebody "
+           "turns them on"),
+  dict(name="the-tiles-own-symmetry-group-is-reported",
+       file=TOPOLOGY_TAB,
+       # MUTATED to report the counts alone, so the group codes -- the
+       # part that says what KIND of symmetry each tile has -- go
+       # missing while the line still looks informative.
+       old="""    if codes:
+      parts.append("Tiles: " + ", ".join(codes))""",
+       new="""    if False:
+      parts.append("Tiles: " + ", ".join(codes))""",
+       test="test_the_symmetries_are_drawn_and_gate_what_cannot_move",
+       why="each tile's own group being named, which is what tells "
+           "somebody why the design repeats as it does"),
   dict(name="a-modified-click-adds-a-class", file=TOPOLOGY_TAB,
        # MUTATED to report every click as a plain one, which is the
        # tab as it stood: an edit could be aimed at one class or at

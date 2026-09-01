@@ -7471,6 +7471,169 @@ def _settle_topology(dlg, seconds: int = 30):
       return
 
 
+def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
+  """The design's own symmetry is shown, and it greys a dead control.
+
+  A built `Topology` already holds `tile_matching_transforms` -- 24 on
+  `laves 3.3.4.3.4`, 18 on `archimedean 4.8.8`, 96 on
+  `square-colouring 5` -- and `Symmetries` gives each tile's own group
+  code. Upstream's `plot_tiling_symmetries` draws through matplotlib,
+  which cannot run inside the signed QGIS process on macOS, so the
+  drawing is ours from upstream's data.
+
+  THE GATE IS THE HALF WITH A HARM BEHIND IT. `push_vertex` moves a
+  vertex along the directions its symmetry leaves free, and where
+  there are none it moves nothing: measured 2026-09-01 at 0.0000 of
+  the unit on `laves 3.3.4.3.4` class A and on both classes of
+  `hex-slice 3`, against 0.1027 on `archimedean 4.8.8`. Before this
+  the tab drew a rail of zero length and said nothing.
+
+  AND IT IS NECESSARY, NOT SUFFICIENT, which is why the gate is asked
+  only of `push_vertex` and only where EVERY selected class is held:
+  a nudge is an arbitrary displacement and moves those same classes by
+  0.2 of the unit, so greying by symmetry alone would take away a
+  working control. `laves 3.3.4.3.4` class B is the case that proves
+  the other direction -- one free direction by the arithmetic, and a
+  push that still yields nothing.
+
+  THREE ANSWERS: the gate agrees with what the manipulation does, the
+  toggle changes the picture, and the readout names the tiles' groups.
+
+  Regression: a design whose symmetry pins a vertex class offered a push along it anyway -- a rail of zero length, which moved nothing and said nothing. [user]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  # ---- THE GATE AGREES WITH THE MANIPULATION, asked of the library
+  # rather than of the dialog, because this is a claim about the
+  # mathematics and not about a widget.
+  held = []
+  for family, n, in (("laves 3.3.4.3.4", 4), ("archimedean 4.8.8", 2)):
+    named = [k for k in catalog.TILINGS_BY_N.get(n, {})
+             if k.startswith(family)]
+    assert named, f"PREMISE: {family} is not in the catalogue at n={n}"
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[n][named[0]],
+                             spacing=500, crs=3857)
+    topology, why = topology_edits.build(unit)
+    assert topology is not None, f"PREMISE: {family} built no topology ({why})"
+    for label in topology_edits.classes(topology).get("vertex", ""):
+      free = topology_edits.directions_a_class_may_move(
+        topology, "vertex", label)
+      after, _refusals, _state = topology_edits.apply(topology, [
+        {"classes": label, "how": "push_vertex", "args": {"push_d": 0.1}}])
+      moved = _ground_moved(unit, after)
+      if free == 0:
+        assert moved < 1e-6, (
+          f"{family} class {label}: the gate says the symmetry holds "
+          f"it, and a push moved {moved:.4f} of the unit -- so greying "
+          f"the control would take away one that works")
+        held.append((family, label))
+      # THE OTHER DIRECTION IS NOT ASSERTED, deliberately: a free
+      # direction does not promise this construction will use it, and
+      # `laves 3.3.4.3.4` class B has one and still yields nothing.
+  assert held, (
+    "PREMISE: no class in either design is held by its symmetry, so "
+    "the gate below has no case to act on and this test would pass "
+    "whatever it did")
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), "PREMISE: no topology was built"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.grab()
+    _tick(50)
+
+    # ---- THE CONTROL IS GREYED FOR A HELD CLASS, AND OFFERED FOR THE
+    # REST. Both answers, since a gate that greys everything passes
+    # the first half as well as a gate that works.
+    verdicts = {}
+    for label in topology_edits.classes(panel._topology).get("vertex", ""):
+      panel._select_classes("vertex", label)
+      _tick(100)
+      index = panel.how_combo.findData("push_vertex")
+      assert index >= 0, \
+        f"PREMISE: the push is not offered at all for class {label}"
+      item = panel.how_combo.model().item(index)
+      verdicts[label] = item.isEnabled()
+    free_classes = {
+      label: topology_edits.directions_a_class_may_move(
+        panel._topology, "vertex", label)
+      for label in verdicts}
+    for label, enabled in verdicts.items():
+      assert enabled == (free_classes[label] > 0), (
+        f"class {label} has {free_classes[label]} free direction(s) "
+        f"and its push is {'offered' if enabled else 'greyed'}: the "
+        f"control and the symmetry disagree")
+    assert set(verdicts.values()) == {True, False}, (
+      f"every class on this design answered {verdicts}, so the gate "
+      f"is not being seen to discriminate -- it would pass while "
+      f"greying everything or nothing")
+
+    # ---- THE TOGGLE CHANGES THE PICTURE
+    view.set_shown("symmetries", False)
+    _tick(50)
+    without = view.grab().toImage()
+    view.set_shown("symmetries", True)
+    _tick(50)
+    with_them = view.grab().toImage()
+    assert without != with_them, (
+      "turning the symmetries on drew nothing: the design records "
+      f"{len(topology_edits.symmetries_to_draw(panel._topology)['rotations'])}"
+      f" rotation centre(s) and "
+      f"{len(topology_edits.symmetries_to_draw(panel._topology)['mirrors'])}"
+      f" mirror(s)")
+
+    # ---- AND THE READOUT NAMES THE TILES' OWN GROUPS
+    said = panel.symmetry_note.text()
+    codes = [c for c in topology_edits.tile_symmetry_codes(dlg._unit) if c]
+    assert codes, "PREMISE: the library named no group for any tile"
+    assert all(code in said for code in set(codes)), (
+      f"the panel says {said!r} where the tiles' groups are {codes}")
+    assert "rotation centre" in said and "mirror" in said, (
+      f"the panel says {said!r}, which does not report how many "
+      f"symmetries the design has")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
+def _ground_moved(before, after):
+  """How much of a unit's area an edit moved, as a fraction.
+
+  Args:
+    before: the Tileable as it was.
+    after: the Tileable the edit produced, or None.
+
+  Returns:
+    The symmetric difference of the two grounds over the first's area
+    -- the measure `topology_edits._same_shape` arrived at after two
+    wrong instruments, since a coordinate comparison answers about
+    how a shape is written down and an area comparison answers about
+    a statistic rather than a shape.
+  """
+  from shapely.ops import unary_union
+  if after is None or getattr(after, "tiles", None) is None:
+    return 0.0
+  first = unary_union(list(before.tiles.geometry))
+  second = unary_union(list(after.tiles.geometry))
+  if first.area <= 0:
+    return 0.0
+  return first.symmetric_difference(second).area / first.area
+
+
 def test_several_classes_can_be_moved_together():
   """A modified click adds a class, and the edit moves both.
 
@@ -80064,6 +80227,8 @@ def main():
         test_a_design_is_shown_by_name_and_stored_by_key)
   check("several classes can be moved together",
         test_several_classes_can_be_moved_together)
+  check("the symmetries are drawn and gate what cannot move",
+        test_the_symmetries_are_drawn_and_gate_what_cannot_move)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

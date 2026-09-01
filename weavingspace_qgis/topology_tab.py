@@ -28,7 +28,8 @@ from __future__ import annotations
 import math
 
 from qgis.PyQt.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from qgis.PyQt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
+from qgis.PyQt.QtGui import (
+  QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF)
 from qgis.PyQt.QtWidgets import (
   QAbstractItemView,
   QCheckBox,
@@ -61,6 +62,10 @@ TOGGLES = (
   ("vertex_labels", "Vertex labels", True),
   ("edge_labels", "Edge labels", True),
   ("dual", "Dual tiling", False),
+  # The eighth, added 2026-09-01: the symmetries the design already
+  # knows about. OFF by default like the dual, because it answers a
+  # question somebody has to have asked.
+  ("symmetries", "Symmetries", False),
 )
 
 # Ink. The tiles are pale so the structure drawn over them reads; the
@@ -76,6 +81,11 @@ _CHOSEN_INK = "#d84315"
 # state: with only two, the moment before a click looks like the
 # moment after it.
 _HOVER_INK = "#f9a825"
+# THE SYMMETRIES ARE STRUCTURE RATHER THAN CONTENT, so they are drawn
+# in one restrained colour: a rotation centre and a mirror line say
+# the same kind of thing about the design and should read as one
+# layer, not as two more things competing with the tiles.
+_SYMMETRY_INK = "#6a1b9a"
 # THE CLASS THE SELECTION BELONGS TO, in a light tint. An edit applies
 # to a whole transitivity class, so the drawing has to say both things
 # at once: THIS is the one you are holding, and THESE go with it. One
@@ -509,6 +519,16 @@ class TopologyView(QWidget):
         for shape in getattr(topology, "dual_tiles", {}).values():
           painter.drawPath(self._path(shape, offset))
 
+    # THE SYMMETRIES, under everything the person is aiming at and
+    # over the tiles, because they explain the design rather than
+    # being part of it. Drawn in the view's own painter from what the
+    # Topology already holds: upstream's `plot_tiling_symmetries` goes
+    # through matplotlib, which cannot run inside the signed QGIS
+    # process on macOS -- this project's side tooling keeps matplotlib
+    # in `.venv-reference` for exactly that reason.
+    if self._shown["symmetries"]:
+      self._draw_symmetries(painter, topology)
+
     if self._shown["centres"]:
       painter.setBrush(QBrush(QColor(_CENTRE_INK)))
       painter.setPen(Qt.PenStyle.NoPen)
@@ -580,6 +600,72 @@ class TopologyView(QWidget):
         lit = (key in (self._hover_handle, self._held_handle))
         self._draw_handle(painter, key, where, frame, lit)
     painter.end()
+
+  def _draw_symmetries(self, painter, topology):
+    """Draw the design's own symmetries: centres and mirror lines.
+
+    Args:
+      painter: the active QPainter.
+      topology: the topology being drawn.
+
+    Returns:
+      None.
+
+    A ROTATION CENTRE IS DRAWN AS ITS OWN ORDER: a two-fold centre is
+    a lens, a three-fold a triangle, a four-fold a square, a six-fold
+    a hexagon. That is the crystallographic convention and it is also
+    the rule this tab already follows for its handles -- a mark should
+    be a picture of what it means rather than a legend somebody has to
+    look up.
+
+    A MIRROR IS A LINE ACROSS THE WHOLE DRAWING, because that is what
+    it is: the reflection holds everywhere, not only where the tiles
+    happen to be. It is dashed so it cannot be read as an edge.
+
+    THE DISTINCT ONES ONLY. `square-colouring 5` records 96 matching
+    transforms and `laves 3.3.4.3.4` records 24; drawn as recorded
+    they pile several marks on one centre and say less than one mark
+    does. `topology_edits.symmetries_to_draw` keeps the highest order
+    per centre and one line per mirror.
+    """
+    found = edits_module.symmetries_to_draw(topology)
+    if not found["rotations"] and not found["mirrors"]:
+      return
+    pen = QPen(QColor(_SYMMETRY_INK), 1)
+    pen.setStyle(Qt.PenStyle.DashLine)
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    reach = max(self.width(), self.height()) * 2
+    for x, y, degrees in found["mirrors"]:
+      middle = self._to_screen(x, y)
+      angle = math.radians(degrees)
+      along = QPointF(math.cos(angle) * reach, -math.sin(angle) * reach)
+      painter.drawLine(QPointF(middle.x() - along.x(),
+                               middle.y() - along.y()),
+                       QPointF(middle.x() + along.x(),
+                               middle.y() + along.y()))
+    solid = QPen(QColor(_SYMMETRY_INK), 1)
+    painter.setPen(solid)
+    painter.setBrush(QBrush(QColor(_SYMMETRY_INK)))
+    for x, y, order in found["rotations"]:
+      middle = self._to_screen(x, y)
+      radius = 5.0
+      if order == 2:
+        # A LENS, which is the two-fold mark: two arcs meeting at the
+        # points, drawn here as a narrow diamond, since at five pixels
+        # the two read the same and one path is cheaper.
+        painter.drawPolygon(QPolygonF([
+          QPointF(middle.x(), middle.y() - radius),
+          QPointF(middle.x() + radius * 0.55, middle.y()),
+          QPointF(middle.x(), middle.y() + radius),
+          QPointF(middle.x() - radius * 0.55, middle.y())]))
+        continue
+      corners = []
+      for step in range(order):
+        turn = math.radians(90.0 + step * 360.0 / order)
+        corners.append(QPointF(middle.x() + math.cos(turn) * radius,
+                               middle.y() - math.sin(turn) * radius))
+      painter.drawPolygon(QPolygonF(corners))
 
   def _draw_handle(self, painter, key, where, frame, lit):
     """Draw one handle AS A PICTURE OF WHAT IT DOES.
@@ -1358,13 +1444,25 @@ class TopologyPanel(QWidget):
     self.class_list.itemChanged.connect(self._on_class_ticked)
     grid.addWidget(self.class_list, 1, 0, 1, 2)
 
+    # WHAT THE DESIGN'S SYMMETRY IS, in words, beside the classes it
+    # explains. `D4` is dihedral of order four -- four rotations and
+    # four mirrors -- and `C2` cyclic of order two, which is the
+    # standard notation for a shape's own symmetry group. The counts
+    # beside it are the tiling's, not a tile's.
+    self.symmetry_note = QLabel("")
+    self.symmetry_note.setWordWrap(True)
+    self.symmetry_note.setToolTip(
+      "The symmetry group of each tile, and how many symmetries the "
+      "whole design has.")
+    grid.addWidget(self.symmetry_note, 2, 0, 1, 2)
+
     self.how_combo = QComboBox()
     for key, spec in MANIPULATION_ORDER():
       self.how_combo.addItem(spec["label"], key)
     self.how_combo.setToolTip("What to do to the chosen class.")
     self.how_combo.currentIndexChanged.connect(self._rebuild_arguments)
-    grid.addWidget(QLabel("Do"), 2, 0)
-    grid.addWidget(self.how_combo, 2, 1)
+    grid.addWidget(QLabel("Do"), 3, 0)
+    grid.addWidget(self.how_combo, 3, 1)
 
     self._argument_rows = []
     self._argument_grid = grid
@@ -1531,12 +1629,46 @@ class TopologyPanel(QWidget):
       if ratio >= edits_module.GAP_TOLERANCE:
         where = missing
     self.view.show_topology(topology, message, ghost=ghost, gaps=where)
+    self._say_what_the_symmetry_is(unit, topology)
     self._refresh_classes()
     self.note.setText(message if topology is None else "")
     for widget in (self.class_combo, self.how_combo, self.apply_button):
       widget.setEnabled(topology is not None)
 
   # -------------------------------------------------------- controls
+
+  def _say_what_the_symmetry_is(self, unit, topology) -> None:
+    """Report each tile's own group and the design's symmetry count.
+
+    Args:
+      unit: the Tileable being shown, or None.
+      topology: its built Topology, or None.
+
+    Returns:
+      None; the line under the class list is rewritten, and emptied
+      where there is nothing to say rather than left describing the
+      design before this one.
+
+    IT IS A READING, NOT A CONTROL. Nothing here decides anything --
+    the gate that greys a manipulation asks
+    `directions_a_class_may_move` instead, which is about a CLASS and
+    its stabiliser rather than about a tile's own shape. Two different
+    questions that both get called symmetry, kept apart deliberately.
+    """
+    if unit is None or topology is None:
+      self.symmetry_note.setText("")
+      return
+    codes = [code for code in edits_module.tile_symmetry_codes(unit) if code]
+    found = edits_module.symmetries_to_draw(topology)
+    parts = []
+    if codes:
+      parts.append("Tiles: " + ", ".join(codes))
+    rotations, mirrors = len(found["rotations"]), len(found["mirrors"])
+    if rotations or mirrors:
+      parts.append(f"{rotations} rotation centre"
+                   f"{'' if rotations == 1 else 's'}, "
+                   f"{mirrors} mirror{'' if mirrors == 1 else 's'}")
+    self.symmetry_note.setText(" — ".join(parts))
 
   def _refresh_classes(self):
     """Fill the class chooser with everything the unit has.
@@ -1618,8 +1750,69 @@ class TopologyPanel(QWidget):
         if self.how_combo.itemData(index) == wanted:
           self.how_combo.setCurrentIndex(index)
           break
+    self._grey_what_the_symmetry_holds()
     self.how_combo.blockSignals(False)
     self._rebuild_arguments()
+
+  def _grey_what_the_symmetry_holds(self) -> None:
+    """Turn off a manipulation the design's own symmetry forbids.
+
+    Returns:
+      None; an item in the verb chooser may be disabled and the note
+      may gain a sentence.
+
+    WHAT IT IS FOR. `push_vertex` moves a vertex along the directions
+    its own symmetry leaves free, and where the symmetry leaves none
+    it moves nothing at all: measured on `laves 3.3.4.3.4` and
+    `hex-slice 3`, where the tab drew a rail of zero length and a
+    person pulling it was told nothing, against 0.10 and 0.13 of the
+    unit on `archimedean 4.8.8` and `archimedean 3.12.12`. The control
+    is greyed WITH ITS REASON now, which is the ruling of 2026-08-31
+    about shapes that say what they do, arriving at a control that
+    cannot do anything.
+
+    ONLY `push_vertex`. A nudge is an arbitrary displacement and moves
+    the design whatever the symmetry says -- measured at 0.20 of the
+    unit on the very classes the push cannot move -- so greying by
+    symmetry alone would take away a working control.
+
+    AND ONLY WHERE EVERY SELECTED CLASS IS HELD. With several classes
+    in hand the edit is offered while ANY of them can move, since the
+    manipulation is applied to each and the others simply contribute
+    nothing.
+
+    IT IS NECESSARY AND NOT SUFFICIENT, and the sentence says so: a
+    class with a direction available may still yield nothing, which
+    `laves 3.3.4.3.4` class B does. So the note reports what was
+    measured -- the symmetry holds this class -- rather than promising
+    that everything else will move.
+    """
+    target, labels = self._selection
+    if self._topology is None or target != "vertex" or not labels:
+      return
+    free = max(
+      (edits_module.directions_a_class_may_move(self._topology, target, label)
+       for label in labels), default=2)
+    if free > 0:
+      return
+    for index in range(self.how_combo.count()):
+      if self.how_combo.itemData(index) != "push_vertex":
+        continue
+      item = self.how_combo.model().item(index)
+      if item is not None:
+        item.setEnabled(False)
+      self.how_combo.setItemData(
+        index,
+        "The symmetry of this design holds this class in place, so a "
+        "push along it has nowhere to go.",
+        Qt.ItemDataRole.ToolTipRole)
+      if self.how_combo.currentIndex() == index:
+        for other in range(self.how_combo.count()):
+          if other != index and self.how_combo.model().item(
+              other).isEnabled():
+            self.how_combo.setCurrentIndex(other)
+            break
+      break
 
   def _rebuild_arguments(self):
     """Build the parameter boxes the chosen manipulation needs."""
@@ -1631,7 +1824,7 @@ class TopologyPanel(QWidget):
     if key is None:
       return
     for row, (name, label, low, high, default, step) in enumerate(
-        edits_module.MANIPULATIONS[key]["args"], start=3):
+        edits_module.MANIPULATIONS[key]["args"], start=4):
       caption = QLabel(label)
       box = TrimmedSpinBox()
       box.setRange(low, high)
