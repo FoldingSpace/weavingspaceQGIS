@@ -2039,6 +2039,11 @@
   "excerpt": "WeavingSpace \u2013 one-time setup",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "decdbae79a19e15c": {
+  "approved": "2026-09-01",
+  "excerpt": "How the tests are held to account, including a mutation-test",
+  "where": "README.md"
+ },
  "df2a7a25f1967e82": {
   "approved": "2026-08-08",
   "excerpt": "Mapping several attributes of the same areas at once is a lo",

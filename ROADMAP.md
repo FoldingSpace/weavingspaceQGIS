@@ -101,17 +101,7 @@ per-field memory ruling 6 of 2026-08-21 requires to survive a switch.
 The likely answer is at the READER, but that is a decision about what
 the record MEANS.
 
-**2. THE TOPOLOGY TAB DRAWS THE UN-EDITED MOTIF.** (Under 0.24.4.) One
-fact in two stores must not disagree on screen; and an edit is replayed
-by class LABEL against a topology built from the UN-EDITED unit, so the
-labels somebody aims with have to keep coming from that one. Draw the
-edited geometry and hit-test the un-edited topology and the highlight
-sits away from the ink; hit-test the edited one and the labels recorded
-mean something else on replay. IT IS READ AND NOT DRIVEN, so the
-grilling wants a probe first -- a harm named by reading is a
-hypothesis, which is this project's own standing rule.
-
-**3. THE MUTATION WORKFLOW GATES A CANDIDATE, THOUGH IT IS DOCUMENTED
+**2. THE MUTATION WORKFLOW GATES A CANDIDATE, THOUGH IT IS DOCUMENTED
 AS REPORTING.** (Under 0.24.4, added 2026-08-31.) The decision of
 2026-08-11 took the mutation instruments out of the gating path
 deliberately; `publish_candidate` refuses unless EVERY workflow on the
@@ -121,14 +111,14 @@ fault -- so the question is whether the split belongs per JOB rather
 than per workflow, the sampling jobs reporting and the whole-suite leg
 gating.
 
-**4. THE ELEMENT SLIDER'S TRACK AGAINST `test_design_cascade`.**
+**3. THE ELEMENT SLIDER'S TRACK AGAINST `test_design_cascade`.**
 (Under 0.24.4, flagged rather than decided.) The track spans the whole
 catalogue, 2 to 256, where a weave-capped track would offer thirteen
 counts with no weave family behind them AND retire a contract that
 test states outright -- that a count offering only one kind flips the
 toggle silently. One line either way, and the line retires a contract.
 
-**5. THE COLOURSPACE LIMIT WAS CALIBRATED ON A PROFILE NO USER HAS.**
+**4. THE COLOURSPACE LIMIT WAS CALIBRATED ON A PROFILE NO USER HAS.**
 (Under "Design decisions already settled", in CLAUDE.md.) A gate
 certifying colour fidelity must not pass because of one machine's
 seeded style library; and re-deriving a limit whose baseline was never
@@ -136,7 +126,7 @@ representative is close enough to loosening a threshold for a green
 run that nobody should do it quietly. Reproduced in thirty seconds
 under `QGIS_CUSTOM_CONFIG_PATH=$(mktemp -d)`.
 
-**6. WHETHER THE REFERENCE COLUMN STILL SPEAKS FOR THE WEB APP.** The
+**5. WHETHER THE REFERENCE COLUMN STILL SPEAKS FOR THE WEB APP.** The
 comparison PDF's reference column was both the library and the app,
 because the app pinned the same library version. The vendor is thirty
 versions ahead of the app's pin, six of twelve modules changed
@@ -144,7 +134,7 @@ behaviourally, so the claim now rests on a gate that measures the
 VENDOR. A live browser capture is the honest third column, and whether
 to add one is a decision about what the PDF promises.
 
-**7. THE WINDOW CEILING AGAINST THE THREE LAYOUT PRIORITIES.** At the
+**6. THE WINDOW CEILING AGAINST THE THREE LAYOUT PRIORITIES.** At the
 real macOS system font the assembled window measures 1334px against a
 1280 ceiling, and the three priorities settled on 2026-08-09 cannot
 all hold there. Which one gives is a decision, and no runner here can
