@@ -5536,6 +5536,190 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       _tick(50)
 
 
+def test_a_drag_previews_the_move_it_will_commit():
+  """What you see while dragging is what you get when you let go.
+
+  A drag reports itself as a FRACTION of the unit and the library
+  takes ABSOLUTE displacements in the unit's own coordinates, so
+  something has to multiply. `topology_edits.in_map_units` is that
+  something, and the ruling of 2026-08-31 says the multiplication
+  happens "at the one place the unit is known".
+
+  IT HAPPENED AT ONE PLACE AND THERE WERE TWO. `apply` converted and
+  the tab's drag PREVIEW did not, so the two halves of one gesture
+  disagreed by the whole span of the unit: measured 2026-09-01 on
+  laves 3.3.4.3.4 at a tenth of the unit, the commit moves the drawn
+  ground 70.71 map units and the preview moved 0.10 -- a factor of
+  707. What a person met is the complaint the maintainer's own rulings
+  1 and 2 were written to answer: nothing appears to happen while you
+  drag, and then the design jumps when you release.
+
+  AND THE TWO SPANS HAD TO AGREE AS WELL. The view divided a drag by
+  the unit's WIDTH while the model multiplied it back out by
+  `max(width, height)`, so on any unit that is not square the commit
+  overshot the pointer -- 1.268x on this design, whose unit is 557.68
+  by 707.11, and exactly 1.000x on the square ones, which is why the
+  designs anybody tried by hand hid it. The fixture asserts its unit
+  is NOT square, or this half of the test cannot fail.
+
+  THE TWO ARE COMPARED AS GROUND MOVED, in map units, rather than as
+  arguments handed to a library: an argument is what we believe and
+  the ground is what a person sees. That is the measure `_same_shape`
+  arrived at after two wrong instruments, for the same reason.
+
+  Regression: dragging a vertex previewed a movement 707 times smaller than the one it committed, so the drawing did not move until the pointer was released and then jumped. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def centre(unit):
+    """Where the drawn ground sits, as one point in map units."""
+    if unit is None or getattr(unit, "tiles", None) is None:
+      return None
+    from shapely.ops import unary_union
+    return unary_union(list(unit.tiles.geometry)).centroid
+
+  def travelled(before, after):
+    """How far the drawn ground moved between two units, in map units."""
+    a, b = centre(before), centre(after)
+    if a is None or b is None:
+      return None
+    return a.distance(b)
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: no topology was built, so there is nothing to drag"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.resize(600, 600)
+    _tick(100)
+    # PAINT IT, OR IT HAS NO TRANSFORM: `_fit` runs inside
+    # `paintEvent`, so a widget nothing has exposed reports raw unit
+    # coordinates as pixels.
+    view.grab()
+    _tick(50)
+
+    started = getattr(panel, "_unit", None) or getattr(dlg, "_unit", None)
+    assert started is not None, "PREMISE: nothing is drawn to compare against"
+    x0, y0, x1, y1 = started.tiles.total_bounds
+    width, height = float(x1 - x0), float(y1 - y0)
+    assert abs(width - height) / max(width, height) > 0.05, (
+      f"PREMISE: this unit is {width:.2f} by {height:.2f}, near enough "
+      f"square that a span read as the width and a span read as the "
+      f"larger side cannot disagree -- the second half of this test "
+      f"could not fail on it")
+
+    # A VERTEX, CHOSEN BY CLICKING IT, and its own handle to drag by.
+    topology = view._drawn()
+    middle = (view.width() / 2, view.height() / 2)
+    seat = None
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      if seat is None or away < seat[0]:
+        seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
+    assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, seat[1])
+    _tick(150)
+    handles = view.handles()
+    assert handles, "PREMISE: the chosen vertex offers no handle to drag"
+    grab_at = QPoint(int(round(handles[0][1].x())),
+                     int(round(handles[0][1].y())))
+
+    # WHAT THE POINTER ASKS FOR, in the unit's own coordinates, taken
+    # from the transform in force BEFORE the press -- which is the
+    # frame the drag's own origin is frozen in.
+    from_unit = view._to_unit(grab_at)
+    to_unit = view._to_unit(grab_at + QPoint(60, 0))
+    asked = abs(to_unit[0] - from_unit[0])
+
+    # A DRAG OF A TENTH OF THE VIEW, pressed, moved, and read BEFORE
+    # it is released, which is the moment the defect was about.
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(50)
+    QTest.mouseMove(view, grab_at + QPoint(60, 0))
+    _tick(200)
+    previewed = getattr(view, "_preview", None)
+    assert previewed is not None, \
+      "PREMISE: the drag drew no preview at all, so there is nothing " \
+      "to compare with what it commits"
+    preview_moved = travelled(
+      started, getattr(previewed, "tileable", previewed))
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier,
+                       grab_at + QPoint(60, 0))
+    _tick(400)
+    _settle_topology(dlg, seconds=40)
+    _settle(dlg)
+    _tick(250)
+    committed = getattr(panel, "_unit", None) or getattr(dlg, "_unit", None)
+    commit_moved = travelled(started, committed)
+
+    assert preview_moved and preview_moved > 0.5, (
+      f"PREMISE: the preview moved the ground {preview_moved} map "
+      f"units, which is nothing a person could see, so the comparison "
+      f"below would be about an absent picture")
+    assert commit_moved and commit_moved > 0.5, \
+      f"PREMISE: the drop moved the ground {commit_moved} map units"
+    ratio = commit_moved / preview_moved
+    # THE BAND IS SIZED FROM THE TWO FAULTS IT IS ABOUT. Reading the
+    # span as the width rather than the larger side is 1.268x on this
+    # design, so a band ending at 1.25 would pass it by a hair; the
+    # drift a paint-time refit puts into a drag is 6-7%. 0.85 to 1.15
+    # clears the second and refuses the first.
+    assert 0.85 <= ratio <= 1.15, (
+      f"a drag previewed a move of {preview_moved:.2f} map units and "
+      f"committed {commit_moved:.2f} on release, a factor of "
+      f"{ratio:.1f}: what somebody watches while dragging is not what "
+      f"they are given when they let go")
+
+    # AND THE SECOND AXIS, which the first cannot see. The two above
+    # are both stores of OUR making; this one asks whether either of
+    # them answers to the POINTER. The record keeps a fraction and the
+    # library is handed that fraction times the model's span, so the
+    # view has to divide by the same span the model multiplies by --
+    # and it read the unit's WIDTH while the model reads the larger
+    # side, which is 1.268x on this design and exactly 1.000x on a
+    # square one. A comparison of the preview against the commit is
+    # blind to it, because both are wrong together.
+    recorded = (panel.edits() or [])[-1].get("args", {})
+    dx = float(recorded.get("dx", 0.0))
+    assert dx, f"PREMISE: the drop recorded no dx at all ({recorded})"
+    delivered = dx * topology_edits.unit_span(started)
+    assert asked > 1.0, (
+      f"PREMISE: the pointer asked for {asked:.3f} unit coordinates")
+    assert 0.9 <= delivered / asked <= 1.1, (
+      f"the pointer asked for {asked:.2f} unit coordinates and the "
+      f"edit records {dx:.4f}, which the library is handed as "
+      f"{delivered:.2f}: the view divides a drag by one span and the "
+      f"model multiplies it back out by another, so the handle does "
+      f"not land where it was put")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_topology_edits_come_back_from_the_file():
   """A saved design opens as the design that was saved.
 
@@ -78709,6 +78893,8 @@ def main():
         test_the_topology_matrix)
   check("every way of editing the topology moves the drawing",
         test_every_way_of_editing_the_topology_moves_the_drawing)
+  check("a drag previews the move it will commit",
+        test_a_drag_previews_the_move_it_will_commit)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

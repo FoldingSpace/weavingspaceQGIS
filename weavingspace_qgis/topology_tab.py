@@ -1057,14 +1057,24 @@ class TopologyView(QWidget):
     return self._press_edge
 
   def unit_span(self) -> float:
-    """How wide the unit is, in its own coordinates.
+    """How big the unit is, in its own coordinates.
 
     Returns:
-      The width the view fitted to. A drag arrives as a fraction of
-      this, so anything comparing a drag with an edge's LENGTH needs
-      it to get back into the same terms.
+      The LARGER of the width and the height the view fitted to. A
+      drag arrives as a fraction of this, so anything comparing a drag
+      with an edge's LENGTH needs it to get back into the same terms.
+
+    IT MUST AGREE WITH `topology_edits.unit_span`, WHICH OWNS THE
+    DEFINITION, because a drag's fraction is multiplied back out by
+    that one when the edit is committed. It read the WIDTH alone until
+    2026-09-01 while the model read `max(width, height)`, so on any
+    unit that is not square the committed move overshot where the
+    pointer had been -- measured at 1.268x on laves 3.3.4.3.4, whose
+    unit is 557.68 by 707.11, and 1.000x on the square designs, which
+    is why every example anybody tried hid it.
     """
-    return self._bounds[2] - self._bounds[0]
+    return max(self._bounds[2] - self._bounds[0],
+               self._bounds[3] - self._bounds[1])
 
   def mousePressEvent(self, event):  # noqa: N802 (Qt API)
     """Choose the class under the pointer, and begin a drag.
@@ -1081,7 +1091,9 @@ class TopologyView(QWidget):
     handle = self._handle_at(point)
     if handle:
       self._held_handle = handle
-      self._press = (self._to_unit(point), self._bounds[2] - self._bounds[0])
+      # THE SAME EXPRESSION THE COMMIT USES, asked of the one method
+      # that owns it rather than written out a second time here.
+      self._press = (self._to_unit(point), self.unit_span())
       self._press_edge = (self._edge_frame(self._chosen_thing)
                           if self._chosen[0] == "edge" else None)
       self.grabbed.emit(handle)
@@ -1659,8 +1671,26 @@ class TopologyPanel(QWidget):
       # `_WHOLE` and this path did not. Measured 2026-08-30: rotate and
       # scale previewed while zigzag drew nothing, silently, because
       # the raise is swallowed here.
+      # FRACTIONS IN THE RECORD, MAP UNITS AT THE LIBRARY -- and this
+      # is the SECOND place that conversion has to happen, which the
+      # ruling of 2026-08-31 said happened at "the one place the unit
+      # is known". It did not: `in_map_units` had exactly one caller,
+      # in `apply`, so the drag PREVIEW handed the library a fraction
+      # where the commit hands it a distance. Measured 2026-09-01 on
+      # laves 3.3.4.3.4, one tenth of the unit: the commit moves the
+      # ground 70.71 map units and the preview moved 0.10 -- the span,
+      # 707.1x -- so a person dragging a vertex saw nothing happen at
+      # all and then watched the design jump when they let go, which
+      # is the complaint rulings 1 and 2 were written to answer.
+      #
+      # `_drag_from` above keeps the FRACTIONS, deliberately: the
+      # record is what a person set and what travels to the file, and
+      # only the library call is in map units.
       moved = self._topology.transform_geometry(
-        True, True, data[1], key, **edits_module.whole_where_needed(args))
+        True, True, data[1], key,
+        **edits_module.in_map_units(
+          edits_module.whole_where_needed(args),
+          getattr(self._topology, "tileable", None)))
     except Exception:                                 # noqa: BLE001
       # AND A PREVIEW THAT FAILED COMMITS NOTHING. `_drag_from` is what
       # the drop records, so leaving it set would let a gesture that

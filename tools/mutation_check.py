@@ -2475,6 +2475,36 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="a-drag-previews-in-the-units-it-commits",
+       file=TOPOLOGY_TAB,
+       # The library takes ABSOLUTE displacements and a drag reports a
+       # FRACTION, so something has to multiply. `in_map_units` had
+       # exactly one caller -- in `apply` -- so the commit converted
+       # and the preview did not: measured on laves 3.3.4.3.4 at a
+       # tenth of the unit, 70.71 map units committed against 0.10
+       # previewed, which is the span. Putting the old call back is
+       # the defect exactly as it shipped.
+       old="""        **edits_module.in_map_units(
+          edits_module.whole_where_needed(args),
+          getattr(self._topology, "tileable", None)))""",
+       new="""        **edits_module.whole_where_needed(args))""",
+       test="test_a_drag_previews_the_move_it_will_commit",
+       why="seeing the move you are making while you make it, rather "
+           "than a still picture and then a jump when you let go"),
+  dict(name="the-drag-and-the-commit-share-one-span",
+       file=TOPOLOGY_TAB,
+       # The view divided a drag by the unit's WIDTH while the model
+       # multiplies it back out by max(width, height), so on any unit
+       # that is not square the commit overshot the pointer -- 1.268x
+       # on laves 3.3.4.3.4, whose unit is 557.68 by 707.11, and
+       # exactly 1.000x on the square designs, which is why it was
+       # invisible to everything anybody tried by hand.
+       old="""    return max(self._bounds[2] - self._bounds[0],
+               self._bounds[3] - self._bounds[1])""",
+       new="""    return self._bounds[2] - self._bounds[0]""",
+       test="test_a_drag_previews_the_move_it_will_commit",
+       why="a dragged handle landing where the pointer put it, on a "
+           "design whose unit is taller than it is wide"),
   dict(name="the-controls-beside-the-drawing-are-not-crushed",
        file=TOPOLOGY_TAB,
        # Room for the drawing comes out of the column beside it, and

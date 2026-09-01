@@ -3855,13 +3855,16 @@ class WeavingSpaceDialog(QDialog):
         finally:
           self._label_columns_rechecked = False
         return
-    # `_label_columns_settled` was written here and read NOWHERE until
-    # 2026-09-01 -- write-only state, and the docstring's claim that a
-    # flag stopped a wrong reading being taken twice was false of code
-    # nothing consulted. What makes the method idempotent is the
-    # margins being remembered and restored at its head; the flag
-    # records only that a reading was ever managed at all.
-    self._label_columns_settled = True
+    # `_label_columns_settled` USED TO BE ASSIGNED HERE AND READ
+    # NOWHERE, and the docstring claimed it stopped a wrong reading
+    # being taken twice. It is gone rather than kept with an honest
+    # comment: state nothing consults is state the next reader has to
+    # work out the irrelevance of, and what makes this method
+    # idempotent is the margins being remembered and restored at its
+    # head. (2026-09-01. A hunt pointed at the same morning's repairs
+    # caught me replacing one write-only flag with another, which is
+    # the reason both are named here.)
+    return
 
   def _edges_of_the_label_columns(self, forms):
     """Where each form's label column starts, in this dialog's pixels.
