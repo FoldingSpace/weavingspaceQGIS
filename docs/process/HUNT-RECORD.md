@@ -1724,3 +1724,23 @@ fixture for a real block, which cost one command to disprove. The
 verification queue is the limit on this method, exactly as the
 paragraph above on stopping says, and running eight at once does not
 raise throughput.
+
+### ROUND SIX'S NINTH DEFECT CAME FROM CI, NOT FROM A HUNT
+
+Worth its own line for where it says to look. Ten hunts found eight
+defects; the ninth was found by three runners failing the SAME new
+guard on its own PREMISE -- "the drag drew no preview at all", 730
+passed and 1 failed on macOS, Linux 4.0.3 and Linux 4.0.0 alike --
+while that guard passed here.
+
+AN INTERMITTENT FAILURE ON A PREMISE IS NOT A SLOW MACHINE. It says
+something is ERASING the state the premise is about, and the stack
+said which: a topology build landing under the pointer, clearing the
+drag preview and the selection through the same method a rebuild uses.
+It reproduces here about one run in eight, which is the rate that gets
+a test called flaky and retried.
+
+THE INSTRUMENT WAS A STACK PRINTED FROM A PATCHED METHOD, not more
+runs. Recording who called `show_topology` between the press and the
+reading named the caller on the first failing attempt; counting how
+often the race is lost would have measured the machine.

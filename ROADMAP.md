@@ -901,12 +901,17 @@ since only the first grows the extent the fit re-measures.
 
 THREE THINGS ARE OWED FROM IT, none of them large:
 
-- THE macOS LEG IS RED at `3f8e8f2` and every other platform is green.
-  The failure is `every way of editing the topology moves the drawing`,
-  at `Apply nudge_vertex left ['design','edits']` -- one cell of the
-  matrix, on the platform whose window assembly this machine cannot
-  reproduce offscreen. The Linux 4.0.0 abort of the previous round did
-  not recur, so THAT repair remains unproven rather than confirmed.
+- ~~THE macOS LEG IS RED~~, and the next reading told us what it was.
+  It was never one platform: on `d41c5aa` macOS, Linux 4.0.3 and Linux
+  4.0.0 ALL returned 730 passed and 1 failed, on one test and on its
+  own PREMISE -- "the drag drew no preview at all". A topology build
+  landing under the pointer was clearing the drag's preview and the
+  selection, one run in eight here, so the panel HOLDS a landing for
+  the length of a gesture now and settles it at the drop. Ninth defect
+  of the round, guarded, two catalogue entries proved `caught`. What is
+  owed is the CI round that confirms it on the runners that found it.
+  The Linux 4.0.0 abort of the previous round did not recur, so THAT
+  repair remains unproven rather than confirmed.
 - ~~TWO DEAD AXES~~ and ~~ONE TEST THAT HAD STOPPED ARRIVING~~, all
   three closed the same day and kept here with their measurements. The
   font test allowed the two label columns to end EIGHT pixels apart
