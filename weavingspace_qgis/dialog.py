@@ -21090,18 +21090,42 @@ class WeavingSpaceDialog(QDialog):
     # limit of what it contains -- and ruling 8, since a dropped
     # element's column name and values are exactly the residue that
     # must not travel.
-    knew = set(self._element_layer_ids)
     record = bridge.read_working_state(path)
-    if isinstance(record, dict):
-      for element in (record.get("elements") or []):
-        if isinstance(element, dict) and element.get("id"):
-          knew.add(str(element["id"]))
-    for name in bridge.gpkg_tables(path):
-      for tid in knew:
-        stem = f"tiles_{tid}"
-        if name == stem or name.startswith(f"{stem}_"):
-          written.add(name)
-          break
+    # NAMED BY THE FUNCTION THAT WROTE THEM, NOT MATCHED BY PREFIX.
+    # This swept every table in the file whose name begins `tiles_<id>`
+    # for any id THIS map has -- and an element id is a letter every
+    # map in the world shares, so a colleague's `tiles_a_theirs` was a
+    # candidate and their `tiles_zz_theirs` was not. The `ours` gate
+    # above was the only thing standing in front of it, and that gate
+    # answers True the moment OUR OWN FIRST SAVE records the file: so
+    # the first press into somebody's GeoPackage was polite and the
+    # SECOND deleted their layer, under the word "Saved". Measured
+    # 2026-09-01 by staging their file and pressing twice.
+    #
+    # A table is ours if our own record accounts for it -- this
+    # session's list of what it wrote, or the file's own record of the
+    # elements a previous save put there, composed through
+    # `bridge.element_table_name`, which is the function that named
+    # them. A dropped element is still in that record, which is the
+    # case the sweep was widened for; somebody else's table never is.
+    present = set(bridge.gpkg_tables(path))
+    for element in ((record.get("elements") or [])
+                    if isinstance(record, dict) else []):
+      if not isinstance(element, dict) or not element.get("id"):
+        continue
+      tid = str(element["id"])
+      variable = element.get("variable")
+      written.add(f"tiles_{tid}")
+      if variable:
+        written.add(bridge.element_table_name(tid, variable))
+    # AND THE NO-DATA TWINS, which are named FOR their element's table
+    # rather than for the element, so they are composed rather than
+    # matched as well.
+    for name in list(written):
+      twin = f"{name}_no_data"
+      if twin in present:
+        written.add(twin)
+    written = {name for name in written if name in present}
     for stale in sorted(written):
       # older records held bare element ids; those still name the
       # `tiles_<id>` they were written for

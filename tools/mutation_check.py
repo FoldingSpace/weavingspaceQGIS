@@ -2508,6 +2508,27 @@ MUTATIONS = [
        test="test_the_dual_repeats_however_the_lattice_is_keyed",
        why="seeing the dual where the tiles are, on the two thirds of "
            "the catalogue whose lattice is not keyed by pairs"),
+  dict(name="a-drop-names-only-what-this-map-wrote",
+       file=DIALOG,
+       # The candidate sweep matched every table in the file whose
+       # name begins `tiles_<id>` for an id THIS map has -- and an id
+       # is a letter every map shares, so a colleague's
+       # `tiles_a_theirs` was a candidate and their `tiles_zz_theirs`
+       # was not. Putting the prefix match back is the defect as it
+       # shipped: their layer went on our SECOND press, because the
+       # gate above answers True once our own first save has recorded
+       # the file.
+       old="""    present = set(bridge.gpkg_tables(path))
+    for element in ((record.get("elements") or [])""",
+       new="""    present = set(bridge.gpkg_tables(path))
+    for name in present:
+      for tid in set(self._element_layer_ids):
+        if name == f"tiles_{tid}" or name.startswith(f"tiles_{tid}_"):
+          written.add(name)
+    for element in ((record.get("elements") or [])""",
+       test="test_a_save_never_removes_a_layer_this_map_did_not_write",
+       why="a colleague's layers surviving a save into the file you "
+           "both keep your maps in"),
   dict(name="a-drag-previews-in-the-units-it-commits",
        file=TOPOLOGY_TAB,
        # The library takes ABSOLUTE displacements and a drag reports a

@@ -5779,6 +5779,115 @@ def test_the_dual_repeats_however_the_lattice_is_keyed():
     f"repair was written for")
 
 
+def test_a_save_never_removes_a_layer_this_map_did_not_write():
+  """A colleague's tables survive a second press, and ours still go.
+
+  The stale-table drop existed to remove what an earlier save of THIS
+  map left behind, and it found its candidates by sweeping the file
+  for every table whose name begins `tiles_<id>` for an id this map
+  has. AN ELEMENT ID IS A LETTER EVERY MAP IN THE WORLD SHARES, so a
+  colleague's `tiles_a_theirs` was a candidate and their
+  `tiles_zz_theirs` was not.
+
+  THE GATE IN FRONT OF IT ANSWERS TRUE AFTER OUR OWN FIRST SAVE.
+  `_this_file_is_ours` says yes as soon as the file is in
+  `_gpkg_tables_written`, which our first press puts there -- so the
+  first save into somebody's GeoPackage was polite and the SECOND
+  deleted their layer, reporting "Saved". The repair of 2026-08-28
+  closed the stranger's-file case and did not survive our having
+  added a map to that file.
+
+  BOTH ARMS ARE HERE, because a fix that spares everything is as wrong
+  as one that removes everything: the second arm is the case the drop
+  was written for, where this map's own dropped element must still
+  take its table with it.
+
+  Regression: saving twice into a GeoPackage holding a colleague's map deleted the tables whose element ids ours happened to share, under the word "Saved". [mutation]
+  """
+  from osgeo import ogr
+  from weavingspace_qgis import bridge as bridge_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from qgis.PyQt.QtWidgets import QMessageBox
+
+  def their_file(path):
+    """A GeoPackage holding a colleague's two tile layers."""
+    source = ogr.GetDriverByName("GPKG").CreateDataSource(path)
+    for name in ("tiles_a_theirs", "tiles_zz_theirs"):
+      layer = source.CreateLayer(name, geom_type=ogr.wkbPolygon)
+      layer.CreateField(ogr.FieldDefn("value", ogr.OFTInteger))
+      feature = ogr.Feature(layer.GetLayerDefn())
+      feature.SetField("value", 1)
+      ring = ogr.Geometry(ogr.wkbLinearRing)
+      for x, y in ((0, 0), (1, 0), (1, 1), (0, 1), (0, 0)):
+        ring.AddPoint_2D(float(x), float(y))
+      polygon = ogr.Geometry(ogr.wkbPolygon)
+      polygon.AddGeometry(ring)
+      feature.SetGeometry(polygon)
+      layer.CreateFeature(feature)
+      feature = None
+    source = None
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as folder:
+    shared = os.path.join(folder, "shared.gpkg")
+    their_file(shared)
+    MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Yes
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      _generate_and_wait(dlg)
+      assert "a" in set(dlg._element_layer_ids), (
+        f"PREMISE: this map's elements are "
+        f"{sorted(dlg._element_layer_ids)}, none of which collides "
+        f"with the colleague's `tiles_a_theirs`, so the sweep this "
+        f"test is about could not reach their file")
+
+      dlg.gpkg_widget.setFilePath(shared)
+      for press in (1, 2):
+        # THE BUTTON READS THE WIDGET, not an argument, so the chooser
+        # is set the way a person sets it before each press.
+        dlg.gpkg_widget.setFilePath(shared)
+        assert press_save(dlg, shared), \
+          f"PREMISE: press {press} did not write anything"
+        theirs = [name for name in bridge_module.gpkg_tables(shared)
+                  if name.endswith("_theirs")]
+        assert sorted(theirs) == ["tiles_a_theirs", "tiles_zz_theirs"], (
+          f"after press {press} the colleague's file holds {theirs}: "
+          f"saving beside somebody else's map removed a layer of "
+          f"theirs, and the only thing the plugin said was that it "
+          f"had saved")
+
+      # ---- AND OUR OWN STALE TABLE STILL GOES, which is what the
+      # drop is for. Four elements, saved; then two, saved again.
+      ours = os.path.join(folder, "ours.gpkg")
+      dlg.gpkg_widget.setFilePath(ours)
+      assert press_save(dlg, ours), "PREMISE: the first save of our own file wrote nothing"
+      four = set(bridge_module.gpkg_tables(ours))
+      assert any(name.startswith("tiles_d") for name in four), (
+        f"PREMISE: a four-element map wrote no table for element d "
+        f"({sorted(four)})")
+      dlg.n_spin.setValue(2)
+      _tick(300)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(ours)
+      assert press_save(dlg, ours), "PREMISE: the second save wrote nothing"
+      two = set(bridge_module.gpkg_tables(ours))
+      left = [name for name in two if name.startswith("tiles_d")]
+      assert not left, (
+        f"our own dropped element left {left} in our own file: the "
+        f"repair that spares a colleague's tables must not spare this "
+        f"map's own stale ones, which is what the drop exists for")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      MODAL_ANSWERS.pop("question", None)
+      QgsProject.instance().removeAllMapLayers()
+
+
 def test_topology_edits_come_back_from_the_file():
   """A saved design opens as the design that was saved.
 
@@ -78956,6 +79065,8 @@ def main():
         test_a_drag_previews_the_move_it_will_commit)
   check("the dual repeats however the lattice is keyed",
         test_the_dual_repeats_however_the_lattice_is_keyed)
+  check("a save never removes a layer this map did not write",
+        test_a_save_never_removes_a_layer_this_map_did_not_write)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

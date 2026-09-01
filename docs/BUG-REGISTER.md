@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-471 defect(s) with a regression test.
+472 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -480,6 +480,8 @@ there is no separate list to remember.
   guarded by `test_a_resumed_layer_is_named_as_a_fresh_one_is`
 - **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
   guarded by `test_a_retired_dialogs_landing_is_discarded`
+- **saving twice into a GeoPackage holding a colleague's map deleted the tables whose element ids ours happened to share, under the word "Saved".**  
+  guarded by `test_a_save_never_removes_a_layer_this_map_did_not_write`
 - **a save made between a topology edit and its Generate wrote a motif the record named another design for, and the next reopen deleted it.**  
   guarded by `test_a_save_with_an_edit_outstanding_leaves_the_motif_alone`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
@@ -996,7 +998,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 151
+- the mutation campaign: 152
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 33
