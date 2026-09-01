@@ -3817,47 +3817,82 @@ class WeavingSpaceDialog(QDialog):
         form.getContentsMargins() for form in forms]
     for form, margins in zip(forms, self._design_form_margins):
       form.setContentsMargins(*margins)
-    edges = []
+    # ASK FOR THE LAYOUT RATHER THAN HOPING ONE HAS HAPPENED. The
+    # margins were just reset, and every edge below is read out of
+    # geometry -- so without this the reading can describe the layout
+    # as it was BEFORE the reset, or before a font change, which is a
+    # measurement of the past. `activate()` is Qt's own way to say
+    # "lay this out now" and costs nothing when the layout is already
+    # clean. (2026-09-01, suspected cause of the macOS runner's 51px
+    # split; see `_edges_of_the_label_columns` for what was ruled out
+    # before this was written.)
     for form in forms:
-      item = form.itemAt(0, QFormLayout.ItemRole.LabelRole)
-      widget = item.widget() if item is not None else None
-      if widget is None or widget.width() <= 0:
-        # NO LAYOUT PASS YET, SO ASK AGAIN -- AND THE ASKING IS THE
-        # POINT. This branch used to `return` under a comment reading
-        # "try again later" while nothing whatever scheduled a later,
-        # which is this project's own recorded fault: a dropped
-        # single-shot is LOST rather than late, and a comment claiming
-        # a thing recovers by itself must name the mechanism that
-        # recovers it. On a fast machine the layout has happened by
-        # the time the timer fires and this never runs; on a slower
-        # one the only pass can be the early one, after which the two
-        # columns stay ragged for the life of the dialog. Suspected
-        # cause of the macOS runner's 51px split, 2026-08-31.
-        self._label_columns_owed = True
-        # BOUNDED, because a dialog nobody ever shows would otherwise
-        # re-arm for ever: twenty tries at 50ms is one second of
-        # asking, after which the answer is that there is no layout to
-        # measure and never will be.
-        tries = getattr(self, "_label_column_tries", 0)
-        if tries < 20:
-          self._label_column_tries = tries + 1
-          QTimer.singleShot(50, self._settle_the_label_columns)
-        return
-      edges.append((form, widget.mapTo(self, widget.rect().topLeft()).x()))
+      form.activate()
+    edges = self._edges_of_the_label_columns(forms)
+    if edges is None:
+      return
     rightmost = max(x for _form, x in edges)
     for form, x in edges:
       if x < rightmost:
         left, top, right, bottom = form.getContentsMargins()
         form.setContentsMargins(left + (rightmost - x), top, right, bottom)
-    # A READING WAS TAKEN, so nothing is owed and the counter goes
-    # back. `_label_columns_settled` was written here and read NOWHERE
-    # until 2026-09-01 -- write-only state, and its docstring's claim
-    # that a flag stopped a wrong reading being taken twice was simply
-    # false. What is true is that the pass is idempotent, and what is
-    # useful is knowing whether it has managed to run at all.
-    self._label_columns_owed = False
-    self._label_column_tries = 0
+    # AND CHECK IT TOOK, ONCE. A margin does not feed a label's width,
+    # which is the whole reason this method moves a margin rather than
+    # widening labels -- so a second pass cannot run away, and the one
+    # thing it can do is notice that the first reading was taken of a
+    # layout that has since moved. Bounded at one repeat: if two
+    # readings in a row disagree, something else is moving the columns
+    # and a third pass would be a guess rather than a correction.
+    for form in forms:
+      form.activate()
+    again = self._edges_of_the_label_columns(forms)
+    if again is not None:
+      spread = max(x for _f, x in again) - min(x for _f, x in again)
+      if spread > 1 and not getattr(self, "_label_columns_rechecked", False):
+        self._label_columns_rechecked = True
+        try:
+          self._settle_the_label_columns()
+        finally:
+          self._label_columns_rechecked = False
+        return
+    # `_label_columns_settled` was written here and read NOWHERE until
+    # 2026-09-01 -- write-only state, and the docstring's claim that a
+    # flag stopped a wrong reading being taken twice was false of code
+    # nothing consulted. What makes the method idempotent is the
+    # margins being remembered and restored at its head; the flag
+    # records only that a reading was ever managed at all.
     self._label_columns_settled = True
+
+  def _edges_of_the_label_columns(self, forms):
+    """Where each form's label column starts, in this dialog's pixels.
+
+    Args:
+      forms: the QFormLayouts to read, in the order they are stacked.
+
+    Returns:
+      A list of `(form, x)` pairs, or None where any form's first
+      label reports no width at all -- which means no layout pass has
+      happened and there is nothing yet to measure.
+
+    IT HAS NEVER BEEN SEEN TO ANSWER None ON THIS PLATFORM, and that
+    is written down rather than assumed: measured 2026-09-01, an
+    unshown dialog's first labels already report 640px, so the
+    no-layout case is not reached by simply not showing the window. An
+    earlier repair re-armed a timer from that branch and was WITHDRAWN
+    for exactly that reason -- a fix applied where the fault is not
+    reachable is dead code that reads as protection, which this
+    project has recorded from the other side. The check stays because
+    a caller cannot know a layout has run, and returning None is the
+    honest answer when it has not.
+    """
+    edges = []
+    for form in forms:
+      item = form.itemAt(0, QFormLayout.ItemRole.LabelRole)
+      widget = item.widget() if item is not None else None
+      if widget is None or widget.width() <= 0:
+        return None
+      edges.append((form, widget.mapTo(self, widget.rect().topLeft()).x()))
+    return edges
 
   def _set_option_row_visible(self, lab: QWidget, widget: QWidget,
                               visible: bool) -> None:
