@@ -219,6 +219,112 @@ thing" is the colour-preserving one, and the k-colour wallpaper groups
 are the settled theory for it. Nothing in the code currently says which
 of the two groups it is reasoning about at any moment.
 
+## The better crystallographic approach, which nobody here has built
+
+Everything above treats symmetry as a question about GEOMETRY: find
+isometries, test them, take orbits. The crystallographic literature
+mostly does not do that for tilings. It uses a COMBINATORIAL encoding
+-- Delaney-Dress symbols, due to Dress and Delaney and carried into
+software by Delgado-Friedrichs -- and derives the group from it rather
+than the other way round.
+
+### What it is
+
+Cut every tile into chambers by barycentric subdivision: one triangle
+per (vertex, edge, tile) incidence, so four chambers per edge. Three
+involutions `s0`, `s1`, `s2` swap the vertex, the edge and the tile of
+a chamber for the other one available; two integer functions record
+how many times `s0 s1` and `s1 s2` must be applied to come back. The
+D-symbol is that structure QUOTIENTED BY THE SYMMETRY GROUP, so it is
+a handful of chambers with integer labels and nothing else. No
+coordinates appear anywhere in it.
+
+### Why it is better for what we do, measured
+
+**It is exact.** Integers and incidence only, so the tolerance
+fragility that hangs over any geometric detection -- a group found at
+one tolerance and not another -- simply does not arise.
+
+**Its labels do not move when the geometry does, and ours do.**
+Measured on `laves 3.3.4.3.4`: nudging ONE vertex class by five
+hundredths of the unit moves a tenth of the unit's area and takes the
+classes from 1 tile, `AB`, `ab` to 2 tiles, `ABC`, `abcde` -- while
+the combinatorial fingerprint is bit-identical before and after, the
+same corner counts, the same vertex degrees, the same edge incidence,
+the same 428 flags. On `archimedean 4.8.8` the same edit moves a
+quarter of the unit and neither answer changes, which is consistent
+rather than a counter-example. **So a D-symbol labelling gives for
+nothing what chaining currently works around.**
+
+**The group comes out of it, so naming needs no geometry at all.**
+The orbifold, and with it the wallpaper group, is read off the
+integer functions. Detection and naming become one step.
+
+**And it is a canonical identity.** Two designs are the same tiling
+exactly when their D-symbols agree up to isomorphism, and the
+canonical form is computable -- which is a durable identifier to store
+beside a saved motif, where today a file carries a family name and an
+element count and trusts them.
+
+### What it costs
+
+| step | method | bound |
+|---|---|---|
+| build the chambers | four per edge, from the incidence already held | O(E) |
+| the three involutions | table lookups over the incidence | O(E) |
+| quotient by the lattice | `base_ID` already assigns it | O(E) |
+| canonical form | root at each chamber in turn and propagate deterministically | O(D²), D chambers |
+| read off the group | the integer functions, via the orbifold | O(D) |
+| orbits for labels | the quotient IS the orbits | O(1) |
+
+`D` is the number of chamber ORBITS, which is small -- single figures
+for the isohedral cases -- and the whole thing is integer arithmetic
+over a structure of size `O(E)`. Measured here, the full patch carries
+428 flags on laves and 284 on archimedean 4.8.8, so the object being
+canonicalised is tiny.
+
+### Two more pieces of the same toolbox, also unbuilt
+
+**Group-subgroup descent** for the case where symmetry genuinely
+drops. When an edit lowers the group, the new group is a SUBGROUP of
+the old, and the maximal-subgroup relations say exactly which old
+class splits into which new ones. That is a principled answer to
+relabelling: rather than re-deriving names, you map them down the
+descent. It is what a crystallographer does with a phase transition,
+and it is the same problem.
+
+**A canonical form for the 1-skeleton**, the periodic-graph key that
+Systre computes for nets. Where a D-symbol identifies the tiling, this
+identifies its topology in the crystallographic sense, coordinate-free
+and stable across files and sessions.
+
+### Where it does not help
+
+It needs a face-to-face, gap-free tiling, which is the SAME
+restriction `Topology` already has -- so weaves at the default aspect
+and any design with a tile inset stay outside it, and the wallpaper
+route remains the only one of the three that reaches them.
+
+An edit that changes INCIDENCE rather than position -- inserting a
+vertex, merging edges at one -- changes the D-symbol, correctly. The
+stability above is about moving what is there, which is what four of
+the five manipulations do.
+
+And it says nothing about WHERE anything is. A D-symbol plus a
+geometric realisation is the pair; adopting it means carrying both and
+keeping them in step, which is one more thing that can disagree in a
+codebase whose commonest defect is exactly that.
+
+### Whether it is available to us
+
+Not as a dependency. The reference implementation is Gavrog, which is
+Java, and the vendored library carries no D-symbol code -- so this is
+an implementation rather than an import, either here or upstream. The
+size of it is not the chamber arithmetic, which is small and exact; it
+is that labels, the shelf key, the file record and the edit list all
+name classes today, so changing what a class IS reaches every one of
+those stores.
+
 ## Where each approach breaks
 
 **Ours breaks by being a search without a theory.** The candidate set
