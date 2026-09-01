@@ -708,7 +708,32 @@ class TopologyView(QWidget):
     vectors = getattr(tileable, "vectors", None) if tileable else None
     if not tiles or base <= 0 or not vectors:
       return [(0.0, 0.0)]
-    first, second = vectors.get((1, 0)), vectors.get((0, 1))
+    # ASKED OF THE TRANSLATIONS, NOT OF HOW THEY ARE KEYED. This read
+    # `vectors.get((1, 0))` and `.get((0, 1))` until 2026-09-01, and a
+    # HEX tileable keys the same dict by three-element coordinates --
+    # (0,1,-1), (1,0,-1), (1,-1,0) -- so both lookups missed and the
+    # fallback below fired in silence. Measured that day: 871 of the
+    # catalogue's 1,168 entries got the repeat and 297 did not, among
+    # them every hex-slice, hex-colouring and square-colouring, and
+    # hex-slice is one of the two designs the commit that wrote this
+    # quotes as its own measurement. Two lattice translations are two
+    # lattice translations however the dictionary spells their names,
+    # so the shortest and the shortest not parallel to it are taken.
+    first = second = None
+    for candidate in sorted(
+        (tuple(float(c) for c in v) for v in vectors.values()),
+        key=lambda v: v[0] * v[0] + v[1] * v[1]):
+      if candidate[0] == 0 and candidate[1] == 0:
+        continue
+      if first is None:
+        first = candidate
+        continue
+      # NOT PARALLEL, or the two together describe a line rather than
+      # a lattice and every copy would land on one row.
+      cross = first[0] * candidate[1] - first[1] * candidate[0]
+      if abs(cross) > 1e-9:
+        second = candidate
+        break
     if first is None or second is None:
       return [(0.0, 0.0)]
     # HOW FAR THE PATCH REACHES, asked of the patch rather than

@@ -5720,6 +5720,65 @@ def test_a_drag_previews_the_move_it_will_commit():
     QgsProject.instance().removeAllMapLayers()
 
 
+def test_the_dual_repeats_however_the_lattice_is_keyed():
+  """A hex design's dual is drawn on its lattice, not once in the middle.
+
+  The dual tiles ONE repeat's worth where the drawing shows a patch of
+  them, so with the toggle on it sat in the middle of a field it did
+  not cover -- the maintainer's report of 2026-08-31. The repair
+  translates it by the tileable's own lattice vectors, and it read
+  those out of `vectors` by the keys `(1, 0)` and `(0, 1)`.
+
+  A HEX TILEABLE KEYS THAT DICTIONARY BY THREE-ELEMENT COORDINATES --
+  (0,1,-1), (1,0,-1), (1,-1,0) -- so both lookups missed and the
+  fallback drew one copy, in silence, on every hex-keyed family in the
+  catalogue. `hex-slice` is one of the two designs the repairing
+  commit quotes as its own measurement, which is the tell worth
+  keeping: a repair that reads a dependency's dict BY KEY has to be
+  run against every key shape that dictionary uses.
+
+  THE PREMISE IS ASSERTED, or this test cannot fail: the hex design
+  must really key its vectors by something other than a pair, and the
+  square-keyed design is here as a control that the count is not
+  simply always nine.
+
+  Regression: every hex-keyed design drew its dual once, in the middle of a patch of tiles it did not cover, while the square-keyed families drew it properly. [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.topology_tab import TopologyView
+
+  view = TopologyView()
+  counts = {}
+  keyed = {}
+  for family, n in (("laves 3.3.4.3.4", 4), ("hex-slice", 6)):
+    named = [k for k in catalog.TILINGS_BY_N.get(n, {}) if k.startswith(family)]
+    assert named, f"PREMISE: the catalogue offers no {family} at n={n}"
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[n][named[0]],
+                             spacing=500, crs=3857)
+    topology, why = topology_edits.build(unit)
+    assert topology is not None, \
+      f"PREMISE: {family} {n} carries no topology to draw a dual of ({why})"
+    keys = list(getattr(topology.tileable, "vectors", {}) or {})
+    assert keys, f"PREMISE: {family} {n} states no lattice vectors at all"
+    keyed[family] = {len(k) for k in keys}
+    counts[family] = len(view._lattice_offsets(topology))
+
+  assert keyed["hex-slice"] != {2}, (
+    f"PREMISE: hex-slice now keys its vectors by pairs "
+    f"({keyed['hex-slice']}), so this test can no longer tell a lookup "
+    f"by key from one by value and would pass whatever the code did")
+  assert counts["laves 3.3.4.3.4"] > 1, (
+    f"PREMISE: even the square-keyed design draws its dual "
+    f"{counts['laves 3.3.4.3.4']} time(s), so the comparison below is "
+    f"not about hex at all")
+  assert counts["hex-slice"] > 1, (
+    f"a hex-keyed design draws its dual at "
+    f"{counts['hex-slice']} position(s) where the square-keyed one "
+    f"draws {counts['laves 3.3.4.3.4']}: the dual sits in the middle "
+    f"of a field of tiles it does not cover, which is the report this "
+    f"repair was written for")
+
+
 def test_topology_edits_come_back_from_the_file():
   """A saved design opens as the design that was saved.
 
@@ -78895,6 +78954,8 @@ def main():
         test_every_way_of_editing_the_topology_moves_the_drawing)
   check("a drag previews the move it will commit",
         test_a_drag_previews_the_move_it_will_commit)
+  check("the dual repeats however the lattice is keyed",
+        test_the_dual_repeats_however_the_lattice_is_keyed)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

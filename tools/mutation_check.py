@@ -2475,6 +2475,39 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="the-dual-is-repeated-by-the-lattice-it-has",
+       file=TOPOLOGY_TAB,
+       # Reading the two translations out of `vectors` BY KEY worked
+       # on square-keyed families and missed every hex-keyed one,
+       # whose keys are three-element coordinates -- so the fallback
+       # drew the dual once, in the middle of a patch it does not
+       # cover. Putting the key lookup back is the defect as it
+       # shipped in 8569854.
+       # ANCHORED ON THE WHOLE DECISION, not on its first line: an
+       # earlier attempt replaced the two lines above the loop and the
+       # loop then filled the same two names again, so the mutation
+       # was INERT and reported exactly like a weak test. The
+       # discriminator this project prescribes is to kill the site
+       # outright and watch the test; it went red at once.
+       old="""    first = second = None
+    for candidate in sorted(
+        (tuple(float(c) for c in v) for v in vectors.values()),
+        key=lambda v: v[0] * v[0] + v[1] * v[1]):
+      if candidate[0] == 0 and candidate[1] == 0:
+        continue
+      if first is None:
+        first = candidate
+        continue
+      # NOT PARALLEL, or the two together describe a line rather than
+      # a lattice and every copy would land on one row.
+      cross = first[0] * candidate[1] - first[1] * candidate[0]
+      if abs(cross) > 1e-9:
+        second = candidate
+        break""",
+       new="""    first, second = vectors.get((1, 0)), vectors.get((0, 1))""",
+       test="test_the_dual_repeats_however_the_lattice_is_keyed",
+       why="seeing the dual where the tiles are, on the two thirds of "
+           "the catalogue whose lattice is not keyed by pairs"),
   dict(name="a-drag-previews-in-the-units-it-commits",
        file=TOPOLOGY_TAB,
        # The library takes ABSOLUTE displacements and a drag reports a
