@@ -907,16 +907,21 @@ THREE THINGS ARE OWED FROM IT, none of them large:
   matrix, on the platform whose window assembly this machine cannot
   reproduce offscreen. The Linux 4.0.0 abort of the previous round did
   not recur, so THAT repair remains unproven rather than confirmed.
-- TWO DEAD AXES from `tools/deadaxes.py`. `split <= 8` at
-  tests/run_tests.py:7233 survives killing the whole margin pass and
-  should assert `<= 1`; `dlg.width() == wide` at :7099 cannot fail,
-  since the growth it names comes from Qt's own clamping rather than
-  from the code under test.
-- `test_a_save_leaves_a_shared_file_somebody_else_has_changed` NO
-  LONGER REACHES ITS CASE, which is why `a-changed-file-is-never-swept`
-  survives its control. The entry says so at itself; re-staging that
-  journey is the repair, and it is a test change rather than a code
-  one.
+- ~~TWO DEAD AXES~~ and ~~ONE TEST THAT HAD STOPPED ARRIVING~~, all
+  three closed the same day and kept here with their measurements. The
+  font test allowed the two label columns to end EIGHT pixels apart
+  where the margin pass moves them 3px, so it could not see the pass
+  at all; at one pixel it can, and a catalogue entry now stands on the
+  pass itself, proved `caught`. The no-shrink assertion in the
+  alignment test was DELETED rather than tightened: control-first,
+  the handler replaced by a no-op fails the growth assertion beside it
+  and the handler with its grow-only guard removed still passes,
+  because a page's sizeHint follows the window it is in -- so no
+  mutation of ours makes the window contract and the claim is Qt's.
+  And `test_a_save_leaves_a_shared_file_somebody_else_has_changed` now
+  stages the file's own RECORD as well as the colleague's table, which
+  is what a colleague's save leaves; `a-changed-file-is-never-swept`
+  catches again.
 
 AND FOUR THINGS ARE APPROVED AND NOT STARTED, from reading upstream's
 notebooks against what the tab offers: multi-class selectors (their own

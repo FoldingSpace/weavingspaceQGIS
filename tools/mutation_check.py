@@ -2801,6 +2801,31 @@ MUTATIONS = [
        test="test_a_font_change_moves_the_design_tab_s_fields",
        why="labels that still say what they say at the font somebody "
            "reads them in, rather than cut off with no ellipsis"),
+  dict(name="the-two-label-columns-end-at-one-edge",
+       file=DIALOG,
+       # The margin pass itself, which nothing stood on until
+       # 2026-09-01: the two Design blocks are separate forms and the
+       # Transformations group box frames its own, so equal label
+       # widths still leave the columns a few pixels apart. It is
+       # anchored on the WHOLE DECISION -- the rightmost edge and the
+       # loop that moves the others to it -- rather than on either
+       # line, since one alone is inert.
+       # MEASURED WITH THE PASS REPLACED BY A NO-OP: the split is 3px
+       # at 9, 13 and 20pt against 0px as built, which is why the
+       # test's tolerance had to come down from eight pixels to one
+       # before this entry could bite at all. A dead-axis hunt named
+       # that tolerance the same day.
+       old="""    rightmost = max(x for _form, x in edges)
+    for form, x in edges:
+      if x < rightmost:
+        left, top, right, bottom = form.getContentsMargins()
+        form.setContentsMargins(left + (rightmost - x), top, right, bottom)""",
+       new="""    rightmost = max(x for _form, x in edges)  # mutation: measured
+    pass  # mutation: and never acted on""",
+       test="test_a_font_change_moves_the_design_tab_s_fields",
+       why="the Transformations block's labels sitting on the same "
+           "column as the rows above them, at whatever font somebody "
+           "reads the dialog in"),
   dict(name="the-fields-follow-the-font-they-are-shown-at",
        file=DIALOG,
        # `_field_width` is a PIXEL taken once at construction, and a
@@ -8816,16 +8841,19 @@ MUTATIONS = [
        new="""    if True:
       self._drop_tables_this_map_no_longer_has(
         path, written_names, mine_from_the_start)""",
-       # AND IT SURVIVES AS OF 2026-09-01, WITH THE CONTROL RUN.
-       # Breaking BOTH routes at once -- this skip and the remembered
-       # ownership answer -- still leaves the named test passing, so
-       # this is neither a weak assertion nor a redundancy: the test
-       # has stopped REACHING the case. That is the third possibility
-       # docs/TESTING.md names, and re-staging the journey it drives
-       # is owed work rather than something to fix by weakening
-       # anything here. Left in place, and said out loud, because an
-       # entry quietly reporting SURVIVED is worth less than one that
-       # says why.
+       # IT SURVIVED EARLIER THE SAME DAY AND CATCHES NOW, and the
+       # reason is worth keeping. Breaking BOTH routes at once -- this
+       # skip and the remembered ownership answer -- left the named
+       # test passing, which is neither a weak assertion nor a
+       # redundancy but the third possibility docs/TESTING.md names:
+       # the test had stopped REACHING the case. What closed it off
+       # was the repair beside it, which composes drop candidates out
+       # of the file's own record instead of matching a `tiles_<id>`
+       # prefix -- so the colleague's table, staged under a name no
+       # record mentioned, was never a candidate for any of the three
+       # routes to remove. The journey is staged whole now: their
+       # table AND the record naming their column, which is what a
+       # colleague's own save leaves behind.
        test="test_a_save_leaves_a_shared_file_somebody_else_has_changed",
        why="nothing being deleted on a guess once a file has changed "
            "under us: what looks like our own abandoned table is just "

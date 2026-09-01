@@ -7789,10 +7789,21 @@ def _the_design_tab_lines_up(under):
       f"{max(edges) - min(edges)}px apart, so nothing lines up across "
       f"the boundary between them: {sorted(edges)}")
 
-    # AND THE WINDOW FOLLOWS THE TAB. Both answers are asserted,
-    # because a reader meeting either alone would take it for the
-    # whole rule: a wider tab GROWS the window, and coming back does
-    # not shrink it.
+    # AND THE WINDOW FOLLOWS THE TAB: a wider tab GROWS the window.
+    #
+    # THE NO-SHRINK HALF WAS ASSERTED HERE AND IS GONE, because it
+    # CANNOT FAIL and a dead assertion reads as protection.
+    # (2026-09-01, measured control-first after a dead-axis hunt named
+    # it.) Three readings: the product passes; `_size_to_the_current_
+    # tab` replaced by a no-op fails the GROWTH assertion below, which
+    # is the live axis and is what holds the handler in place; and the
+    # handler with its grow-only guard removed -- resizing whether or
+    # not the wanted width is larger -- ALSO passes, because a page's
+    # sizeHint follows the window it is in, so `wanted` on the way back
+    # is the width the window already has. No mutation of ours makes
+    # the window contract, so the claim is Qt's rather than this
+    # code's. It would be worth asserting again the day the width is
+    # computed from something that does not follow the window.
     dlg._tabs.setCurrentIndex(0)
     _tick(300)
     narrow = dlg.width()
@@ -7805,10 +7816,6 @@ def _the_design_tab_lines_up(under):
       f"front -- the stacked widget's own minimum is the largest page")
     dlg._tabs.setCurrentIndex(0)
     _tick(300)
-    assert dlg.width() == wide, (
-      f"under {under} the window shrank back to {dlg.width()}px on "
-      f"returning to Design, so it resizes under the pointer on every "
-      f"tab click; growth is deliberate and contraction is not")
   finally:
     dlg.close()
     QgsProject.instance().removeAllMapLayers()
@@ -7933,10 +7940,18 @@ def test_a_font_change_moves_the_design_tab_s_fields():
         # "Number of elem", which a reader is not told about.
         # ASKED AS "DOES ANY LABEL LOSE TEXT", because that is the
         # user-facing fact; a QLabel narrower than its own sizeHint
-        # simply cuts. The column split is allowed a few pixels: the
+        # simply cuts.
+        # THE COLUMN SPLIT IS ALLOWED ONE PIXEL, NOT EIGHT, and the
+        # difference is the whole of what this line measures.
+        # (2026-09-01, after a dead-axis hunt found it could not fail.)
+        # A tolerance of eight was written for a timing worry -- the
         # margin pass runs through a `singleShot` and a reused dialog
-        # can be measured a beat before it lands, which is a timing
-        # artefact rather than anything a person could see.
+        # might be read a beat early -- and it is wider than the fault:
+        # measured on this machine, the split is 0px at 9, 13 and 20pt
+        # with the pass and 3px at all three with the pass replaced by
+        # a no-op, so eight pixels of slack made the assertion blind to
+        # the very thing it names. The timing worry is answered by the
+        # ticks above rather than by slack.
         short = [(lab.text(), lab.width(), lab.sizeHint().width())
                  for lab in _design_labels(reused)
                  if 0 < lab.width() < lab.sizeHint().width()]
@@ -7944,7 +7959,7 @@ def test_a_font_change_moves_the_design_tab_s_fields():
           f"at {points}pt these labels are narrower than their own "
           f"text and are cut with no ellipsis: {short[:3]}")
         split = _label_column_split(reused)
-        assert split is None or split <= 8, (
+        assert split is None or split <= 1, (
           f"at {points}pt the two label columns of the Design tab end "
           f"{split}px apart, which is the ragged tab the alignment "
           f"pass exists to prevent")
@@ -35425,15 +35440,50 @@ def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
         f"PREMISE: element {tid}'s layer reads {theirs_gone!r}, which "
         f"the file does not hold, so the save was never in the state "
         f"this is about")
-      mine = f"tiles_{tid}_theirs"
+      # THE RECORD MOVES WITH THE TABLE, which is what makes this the
+      # journey the drop can actually reach. (Re-staged 2026-09-01,
+      # after the catalogue entry standing here SURVIVED with its
+      # control run: breaking both this skip and the remembered
+      # ownership answer left the test passing, which says the case
+      # was no longer arriving rather than that the axis was weak.)
+      # A colleague moving an element to another column writes THEIR
+      # table and leaves the file's own record naming their variable,
+      # so `tiles_<tid>_theirs` is a name our drop composes out of that
+      # record -- exactly the candidate the skip exists to spare.
+      # Staged as our own table gone and theirs in its place WITHOUT
+      # the record, the drop composed only names the file no longer
+      # held, so nothing was ever a candidate and the guard could not
+      # be seen to work.
+      mine = bridge.element_table_name(tid, "theirs")
       bridge.write_gpkg_layer(layer, path, mine, first=False,
                               open_after=False)
       assert bridge.drop_gpkg_layer(path, theirs_gone), \
         f"PREMISE: {theirs_gone!r} could not be removed from the file"
+      recorded = bridge.read_working_state(path)
+      assert isinstance(recorded, dict) and recorded.get("elements"), (
+        f"PREMISE: the file carries no working state to move, so this "
+        f"cannot stage what a colleague's own save leaves: {recorded!r}")
+      moved = False
+      for entry in recorded["elements"]:
+        if isinstance(entry, dict) and str(entry.get("id")) == tid:
+          entry["var"] = "theirs"
+          moved = True
+      assert moved, (
+        f"PREMISE: the file's record names no element {tid!r}, so the "
+        f"drop would compose no candidate for it whatever this save "
+        f"does: {[e.get('id') for e in recorded['elements']]}")
+      assert bridge.write_working_state(path, recorded), \
+        "PREMISE: the colleague's record could not be written back"
       after_them = set(bridge.gpkg_tables(path))
       assert theirs_gone not in after_them and mine in after_them, (
         f"PREMISE: the file was not left as a colleague would leave "
         f"it: {sorted(after_them)}")
+      composed = bridge.read_working_state(path)
+      assert any(str(e.get("id")) == tid and e.get("var") == "theirs"
+                 for e in (composed.get("elements") or [])), (
+        f"PREMISE: the record did not come back naming their column, "
+        f"so {mine!r} is not a name this map's own drop would compose "
+        f"and the case is not staged")
       assert element.source().split("layername=", 1)[-1].split("|")[0] \
         == theirs_gone, (
         "PREMISE: the layer stopped naming the table that was removed, "
