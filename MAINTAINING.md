@@ -559,6 +559,37 @@ colleague can open without the plugin at all. And anything travelling
 as a tuple comes home as a list, JSON having no tuple, so every reader
 has to put it back.
 
+### Whose file is it, and when was that decided
+
+`_this_map_owns_the_file` answers True as soon as the file is in
+`_gpkg_tables_written`, and OUR OWN FIRST PRESS puts it there. So the
+answer flips under us: a colleague's GeoPackage is theirs on press one
+and ours on press two. Three removers are gated on it -- the
+stale-table drop, the source-copy drop and the topology drop -- and on
+2026-09-01 the first was found deleting their `tiles_a_*` on a second
+press and the second their `weavingspace_region`, which is the copy
+that makes their file redrawable by anybody.
+
+**SO THE ANSWER IS TAKEN ONCE, BEFORE ANY WRITE, AND REMEMBERED PER
+FILE.** `_file_was_ours_when_met` holds it, and a file that did not
+exist counts as ours by construction -- without that clause a file we
+CREATE reads as somebody else's for ever, since nothing of ours is in
+it to recognise on the first press, and the drop would then spare this
+map's own orphans too. The OVERWRITE QUESTION keeps the live reading
+deliberately: with Save a deliberate press, asking every time is
+noise.
+
+**AND THE DROP NAMES ITS CANDIDATES RATHER THAN MATCHING THEM.** It
+swept every table whose name begins `tiles_<id>` for an id this map
+has, and an element id is a letter every map in the world shares. A
+table is ours if our own record accounts for it: this session's list
+of what it wrote, or the file's record of the elements a previous save
+put there, composed through `bridge.element_table_name`, which is the
+function that named them. Read the field key out of
+`WORKING_STATE_ELEMENT` when you touch this -- it is `var`, and a
+first repair that asked for `variable` composed nothing at all and
+spared everything.
+
 ### A save asks the FILE what is already there
 
 A layer whose source already names a table in this file is treated as
@@ -965,6 +996,57 @@ WHAT IS STILL NOT BUILT is the audit's other design, merging scale and
 rotate into one end handle. It is refused rather than pending: one
 handle would have to say two things, which is what the glyphs exist not
 to do. The argument is in docs/TOPOLOGY.md.
+
+### What a drag means, and in whose units
+
+Four things had to agree before a drag meant what it looked like, and
+on 2026-09-01 none of them did.
+
+**FRACTIONS IN THE RECORD, MAP UNITS AT THE LIBRARY, AT BOTH PLACES.**
+`dx`, `dy` and `push_d` are absolute displacements in the unit's own
+coordinates, and the controls offer them as fractions, so something
+must multiply. `topology_edits.in_map_units` is that something and it
+had exactly ONE caller, in `apply` -- the commit path. The drag
+PREVIEW handed the library the raw fraction, so a gesture's two halves
+disagreed by the whole span of the unit: 70.71 map units committed
+against 0.10 previewed on laves 3.3.4.3.4 at a tenth of the unit.
+Nothing appeared to happen while you dragged, and the design jumped
+when you let go.
+
+**AND THE TWO SPANS MUST BE THE SAME SPAN.** The view divided a drag
+by the unit's WIDTH while the model multiplies it back out by
+`max(width, height)`, which is 1.268x on that design (557.68 by
+707.11) and exactly 1.000x on a square one, so every example anybody
+tried by hand hid it. `TopologyView.unit_span` answers the same
+question as `topology_edits.unit_span` now, and the press stores that
+one expression rather than writing the arithmetic out a second time.
+
+**THE FRAME IS HELD FOR THE LENGTH OF A GESTURE.** `_fit` re-measures
+the drawn extent on every paint, and during a drag what is drawn is
+the preview -- so the transform became an output of the thing the
+gesture was changing. The loop is not subtle: the preview moves the
+geometry, the fit re-measures a larger extent, the scale falls, and
+the same screen point now means a larger displacement. Held still
+through six repaints, a recorded nudge climbed 0.104 to 0.356 while
+the scale fell 0.6138 to 0.5541. `_fit` returns early while `_press`
+is set, keeping the frame the drag's own origin was taken in, and
+resumes at the drop.
+
+**AND A DRAGGED VALUE IS HELD INSIDE ITS OWN BOX.** The three edge
+manipulations passed through `_within_the_box`; both vertex branches
+did not, so a drag past the range recorded a number the control would
+not show, and the record is what the drop keeps. Visible on
+`archimedean 4.8.8` and not on laves, where the library refuses a
+nudge that large before anything is recorded.
+
+**THE DUAL REPEATS ON WHATEVER LATTICE THE TILEABLE HAS.**
+`_lattice_offsets` read `vectors` by the keys `(1, 0)` and `(0, 1)`,
+and a hex tileable keys that dictionary by three-element coordinates,
+so both lookups missed and the fallback drew one copy in silence on
+every hex-keyed family. It takes the two shortest non-parallel
+translations out of the VALUES now, which is key-shape agnostic; hex-slice 6
+went from one position to nine and the square-keyed families are
+unmoved at nine.
 
 ### How an edit that cannot be drawn is told apart from one that did nothing
 

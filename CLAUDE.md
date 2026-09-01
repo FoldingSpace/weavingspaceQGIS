@@ -5958,3 +5958,83 @@ here, and the decision to add one is the maintainer's. Recorded
   LANDED: assert first that the thing moved, then assert what follows
   from its having moved. Two contradictory measurements of one object
   are usually two moments, not two answers.
+
+- **A FIX APPLIED WHERE THE FAULT CANNOT BE REACHED IS DEAD CODE THAT
+  READS AS PROTECTION, AND I WROTE ONE WITHIN AN HOUR OF WRITING THE
+  RULE'S OTHER HALF.** (2026-09-01.) A margin pass returned early for
+  want of a layout pass, under a comment promising to try again later
+  while nothing scheduled a later, so it was taught to re-arm a timer.
+  Measured afterwards, an unshown dialog's first labels already report
+  640px, so `width() <= 0` is not reached by not laying a window out
+  and the timer could never have fired. The repair was withdrawn and
+  re-aimed at the READING instead: ask for the layout, take the
+  measurement, apply the margins, then check once that they took --
+  bounded at one repeat, because a margin does not feed a label's
+  width. MEASURE THE BRANCH BEFORE REPAIRING IT; a condition that
+  looks reachable is a hypothesis like any other.
+
+- **AN OWNERSHIP QUESTION THAT OUR OWN ACT MAKES TRUE IS NOT AN
+  OWNERSHIP QUESTION.** (2026-09-01, found by the stochastic hunt and
+  widened by a second.) `_this_map_owns_the_file` answers True as soon
+  as the file is in `_gpkg_tables_written`, which OUR FIRST PRESS puts
+  there -- so a colleague's GeoPackage is theirs on press one and ours
+  on press two, and every remover gated on that answer was handed a
+  licence on the second press. Their element tables went; a second
+  hunt then found their embedded copy of their own data going the same
+  way through a different remover; a third remover took the same
+  argument with nobody having walked it to a harm. THREE REMOVERS AND
+  ONE MENDED IS THIS FILE'S OWN SIGNAL TO FIX THE QUESTION: the answer
+  is taken once, before any write, and remembered per file, with a
+  file that did not exist counting as ours by construction -- without
+  which a file we CREATE reads as somebody else's for ever. The
+  overwrite question keeps the live reading, deliberately, since
+  asking on every press is noise.
+
+- **AND THE FIRST REPAIR FOR IT SPARED EVERYTHING, BECAUSE THE RECORD
+  DOES NOT SPELL IT `variable`.** The drop was taught to name
+  candidates from the file's own record rather than match them by
+  prefix, composing table names through `bridge.element_table_name`
+  from `element.get("variable")` -- a key `WORKING_STATE_ELEMENT` does
+  not have, since it is `var`. The candidate set was therefore empty
+  and this map's own orphans were spared along with the colleague's
+  tables. Re-proving two orphaned catalogue entries is what caught it:
+  both came back UNJUDGEABLE, which means their tests had gone red.
+  THE WHITELIST IS THE RECORD'S REAL DEFINITION AND IS WHERE A KEY IS
+  READ FROM, never from memory.
+
+- **A WIDGET THAT RE-DERIVES ITS VIEW TRANSFORM FROM WHAT IT DRAWS HAS
+  MADE THE TRANSFORM AN OUTPUT OF THE GESTURE.** (2026-09-01, reported
+  by a hunt from the pixels and verified here from the numbers.) The
+  Topology view fits to what it is drawing, and during a drag that is
+  the PREVIEW; a drag freezes its origin and the unit's span at the
+  press and reads later positions as fractions of that frame. So a fit
+  taken mid-gesture closes a loop -- the preview moves the geometry,
+  the fit re-measures a larger extent, the scale falls, the same screen
+  point means a larger displacement. Held still through six repaints,
+  a recorded nudge went 0.104, 0.207, 0.280, 0.318, 0.342, 0.356 while
+  the scale fell 0.6138 to 0.5541. The frame is held for the length of
+  a gesture now. ASK OF ANY PAINT-TIME FIT WHETHER A GESTURE'S FROZEN
+  ORIGIN OUTLIVES IT.
+
+- **THE DESIGN A CLAIM IS DRIVEN ON CAN REFUTE A REAL DEFECT.**
+  (2026-09-01, twice in one afternoon, both mine.) A vertex drag past
+  its control's range records an out-of-range value on `archimedean
+  4.8.8` and cannot on `laves 3.3.4.3.4`, where the library refuses
+  the oversized nudge before anything is recorded; and a drag's frame
+  drifts when a VERTEX is held and not when an EDGE is scaled, since
+  only the first grows the extent the fit re-measures. Both of my
+  first probes came back clean and both would have been filed as
+  refutations. VARY THE DESIGN BEFORE BELIEVING A NEGATIVE, and where
+  a guard depends on which design it runs on, NAME the design in the
+  test and assert the premise that makes the case arise.
+
+- **AND I COMMITTED PAST A RED GATE, HAVING READ IT.** (2026-09-01.)
+  `check_standards` printed exit 1 and the commit ran anyway, because
+  the chain was `check; echo; git commit` and the commit branched off
+  the ECHO. That is this file's own entry about a gate whose exit
+  nobody branches on, made by somebody who had quoted it the same day.
+  Capture the status and branch on it IN THE SCRIPT THAT WOULD COMMIT.
+  What the gate had caught was two catalogue entries orphaned by the
+  repair, one of which then needed narrowing because
+  `record = bridge.read_working_state(path)` appears three times in
+  `dialog.py`.

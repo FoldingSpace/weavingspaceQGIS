@@ -12,7 +12,10 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-08-31 (late), after ROUND FIVE and the day the
+Last updated 2026-09-01, after ROUND SIX -- ten hunts, eight defects
+closed, and the first round in which two hunts converged on one defect
+from opposite directions TWICE. See the section immediately below;
+before that, 2026-08-31 (late), after ROUND FIVE and the day the
 twenty-defect campaign closed. See the section immediately below;
 before that, 2026-08-29 (late), after the verification session below
 and the DECISION session that followed it -- six open questions put to
@@ -446,6 +449,58 @@ described as looking for old bugs; here it was overwhelmingly a check
 on new work, and the directions that paid were the ones aimed at
 shapes (a paired identity, an order, a record that outlives its
 subject) rather than at features
+
+## ROUND SIX, 2026-09-01: ten hunts, eight defects, and a verification queue that was the whole cost
+
+Eight hunts at once in worktrees under `dev/hunts/round6`, with the
+consistency sweep run beside them per the standing rule, and TWO
+REPLACEMENTS launched as repairs completed rather than as hunts
+reported -- which is the maintainer's own instruction and matches what
+round five found. The sweep came back clean: 14 acts, 2,972
+comparisons, no disagreements and no harness faults of its own,
+including the five boundary crossings that went red the first time it
+ever ran.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the specification itself (2nd) | 1 (+1 in the same sentence) | when a ruling says a conversion happens "at the one place", COUNT the places -- `in_map_units` had one caller and the drag preview was not it, so a gesture's two halves disagreed by the whole span of the unit |
+| backwards from harm (7th) | (same) + 1 | converged on the drag units from the opposite end, having ranked the losses before opening the source; its second finding was the vertex branch not clamping where the edge branch does |
+| the round's own repairs (9th) | 1 | a repair that reads a dependency's dict BY KEY must be run against every key shape that dictionary uses -- one lookup pair covered 871 catalogue entries and quietly declined 297, and the commit's own message named one of the 297 as a case it had measured |
+| stochastic settled sessions (6th) | 1 | an ownership answer that our own first act makes true is not an ownership answer: the second save into a colleague's file deleted their layer |
+| topology edits across boundaries (2nd) | 1 | when a repair is guarded on "is there an X", enumerate what leaves a STALE X in hand; three of four cells were sound and the fourth differed only in that something non-None sat where the guard looked |
+| two stores of one fact, on the tab (2nd) | 1 | a widget that re-derives its view transform from what it is DRAWING has made the transform an output of the gesture as well as its frame |
+| tests that cannot fail (5th) | 2 axes | sixteen assertions mutated, fourteen killed cleanly; both dead axes were in tests written the day before |
+| the re-vendor's blast radius (1st) | 0, six equivalences | a re-vendor differential must compare SHAPES, not WKT -- normalised WKT invented three reshaped designs at 1e-16 -- and sweep a control's domain before calling a branch unreachable |
+| saving and what a colleague receives (1st) | 1 | when a repair closes a second-press ownership flip, sweep every remover taking the same argument in the same commit; three took it and one had been mended |
+| today's own repairs (10th) | 0 | a repair that narrows a candidate set from "matched" to "composed" is worth PROVING is a subset first: ten minutes of reading turned six speculative harms into one question, which four probes then closed |
+
+**WHAT THIS ROUND SETTLES.**
+
+**TWO CONVERGENCES IN ONE ROUND, AGAIN, AND ONE OF THEM ACROSS
+KINDS.** `spec` reached the drag-units defect by counting the places a
+ruling's own sentence names; `harm` reached it having refused to read
+the source until it had ranked twenty losses. That is a structural
+direction and a consequence direction arriving at one line, which is
+the strongest confirmation this method produces and is what made the
+claim safe to act on inside the hour.
+
+**THE DESIGN A CLAIM IS DRIVEN ON CAN REFUTE A REAL DEFECT.** Two of
+this round's verifications came back clean on the first design tried
+and reproduced on the second. A vertex drag past its control's range
+records an out-of-range value on `archimedean 4.8.8` and cannot on
+`laves 3.3.4.3.4`, where the library refuses the oversized nudge
+first; a drag's frame drifts when a VERTEX is held and not when an
+EDGE is scaled, because only the first grows the drawn extent the fit
+re-measures. Both of my first probes were clean, and both would have
+been recorded as refutations by anybody who stopped there. Vary the
+design before believing a negative.
+
+**AND THE QUEUE WAS THE WHOLE COST, for the third round running.**
+Ten hunts produced twelve claims; verifying them here, by a route each
+hunt did not use, is what set the pace, and four of my own repairs
+failed their controls before they were right. Two spare slots were
+held empty while the queue stood, which is this file's own rule
+applied against an instruction to launch more, and it was right again.
 
 ## ROUND FIVE, 2026-08-31: eight hunts, and the day the campaign closed
 

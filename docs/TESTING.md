@@ -4129,3 +4129,65 @@ survives while the code is genuinely wrong-headed.
 The same caution reaches any test that asserts about a size, a
 position or a hit target: those are all downstream of a layout pass
 that has its own opinion.
+
+## THE DESIGN A TEST DRIVES CAN REFUSE THE CASE, AND A CLEAN RESULT THEN MEANS NOTHING
+
+2026-09-01, twice in one afternoon, and both of my first probes came
+back clean on real defects.
+
+A vertex drag past its control's range records an out-of-range value
+on `archimedean 4.8.8` and CANNOT on `laves 3.3.4.3.4`: there the
+library refuses a nudge that large, the preview raises, and the
+handler clears the record, which is correct. And a drag's frame drifts
+when a VERTEX is held and not when an EDGE is scaled, because only the
+first grows the drawn extent that the paint-time fit re-measures.
+Either probe, stopped at its first design, would have been filed as a
+refutation of a claim that was true.
+
+**SO VARY THE DESIGN BEFORE BELIEVING A NEGATIVE**, and where the
+answer turns on which design is driven, NAME the design in the guard
+and assert the premise that makes the case arise -- here, that the
+preview survived the oversized drag at all, and that the manipulation
+chosen grows the extent. A test that silently drives the design where
+the case cannot occur is the fixture-that-cannot-exhibit-the-case
+trap, arriving through the catalogue rather than through the data.
+
+## AN ENTRY THAT SURVIVES WITH THE CONTROL RUN IS A TEST THAT HAS STOPPED ARRIVING
+
+Same day. `a-changed-file-is-never-swept` was re-anchored onto the
+call as it now reads and then SURVIVED. The prescribed discriminator
+is to break every route at once: both the `if not vanished` skip and
+the remembered ownership answer were mutated together, in a script
+whose restore is verified byte for byte, and the named test still
+PASSED. That rules out both of the usual readings -- the axis is not
+weak and it is not redundantly held -- and leaves the third: the test
+is no longer reaching that case at all.
+
+**AND THE ENTRY SAYS SO RATHER THAN REPORTING A BARE SURVIVED.** The
+comment at the entry records the control and names re-staging that
+journey as owed work. An entry quietly reporting SURVIVED is worth
+less than one that says which of the three possibilities was measured.
+
+## A MUTATION THAT LEAVES THE WORK IN PLACE IS INERT, AND READS AS A WEAK TEST
+
+Same day, on the dual's lattice. The entry replaced the two lines
+above a loop with the old key lookup -- and the loop below still
+filled the same two names, so nothing changed and the entry SURVIVED.
+Anchored on the WHOLE DECISION, from the assignment through the
+`break`, it caught at once. When an entry survives, ask first whether
+the mutation actually removed the behaviour: killing the site
+outright is the discriminator, and this project already carries it
+from the other direction.
+
+## STAGE A CONDITION THAT A RACE WOULD OTHERWISE DECIDE
+
+Same day, in a guard of my own that failed one way alone and the other
+way in a batch. It waited for a design change with the experimental
+box off to leave a STALE topology in the panel, which is the journey
+the defect needs -- but whether a build queued earlier had landed by
+then depends on the machine, so the premise failed as "the topology
+moved" in a batch and as "nothing is stale" when run alone. The
+repair was to put the previous design's topology and dual back by
+hand, in one line, which is the same state arrived at without a race.
+Where a case depends on a window, close the window; a premise about a
+window is still a bet on the machine.

@@ -873,6 +873,51 @@ measurement the next person should not have to take again:
   suffice alone, ninety lines apart, so no single anchor can make the
   assertion fail -- the numbers are written at the test.
 
+ROUND SIX, 2026-09-01: TEN HUNTS, EIGHT DEFECTS, ALL CLOSED. Every
+one carries an independent verification, a registered test and a
+catalogue entry proved `caught`, and every one is a wrong drawing or a
+lost file rather than a crash. Four were the same gesture disagreeing
+with itself -- a drag previewed in fractions and committed in map
+units (70.71 against 0.10 on laves 3.3.4.3.4), a view and a model
+dividing by different spans (1.268x there and exactly 1.000x on a
+square unit, which is why nobody met it by hand), a paint-time fit
+re-measuring the preview so a pointer held still recorded 0.104
+climbing to 0.356 over six repaints, and a vertex drag escaping the
+range its own box accepts. Two were a colleague's GeoPackage: their
+element tables on a second press, and their embedded copy of their own
+region, both through an ownership question our own first write makes
+true. One was the dual drawn once in the middle of a field of tiles,
+on every hex-keyed family. And one was a stale topology dropping a
+file's motif.
+
+WHAT THAT ROUND COST, kept because it is the argument for the shape.
+Two convergences -- three hunts on the drag and two on the ownership --
+and the verification queue was the whole of the expense, not the
+hunting. Two of my own verification probes came back CLEAN on real
+defects, both because of the design they were driven on: the clamp
+cannot be reached on laves, where the library refuses the oversized
+nudge first, and the frame drift needs a VERTEX rather than an edge,
+since only the first grows the extent the fit re-measures.
+
+THREE THINGS ARE OWED FROM IT, none of them large:
+
+- THE macOS LEG IS RED at `3f8e8f2` and every other platform is green.
+  The failure is `every way of editing the topology moves the drawing`,
+  at `Apply nudge_vertex left ['design','edits']` -- one cell of the
+  matrix, on the platform whose window assembly this machine cannot
+  reproduce offscreen. The Linux 4.0.0 abort of the previous round did
+  not recur, so THAT repair remains unproven rather than confirmed.
+- TWO DEAD AXES from `tools/deadaxes.py`. `split <= 8` at
+  tests/run_tests.py:7233 survives killing the whole margin pass and
+  should assert `<= 1`; `dlg.width() == wide` at :7099 cannot fail,
+  since the growth it names comes from Qt's own clamping rather than
+  from the code under test.
+- `test_a_save_leaves_a_shared_file_somebody_else_has_changed` NO
+  LONGER REACHES ITS CASE, which is why `a-changed-file-is-never-swept`
+  survives its control. The entry says so at itself; re-staging that
+  journey is the repair, and it is a test change rather than a code
+  one.
+
 AND FOUR THINGS ARE APPROVED AND NOT STARTED, from reading upstream's
 notebooks against what the tab offers: multi-class selectors (their own
 notebook zigzags thirteen classes in one call and the tab can aim at

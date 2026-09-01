@@ -403,3 +403,78 @@ returned 68.9px for ten designs in a row, which is this project's own
 rule arriving again: a uniform verdict is almost always the
 instrument, and it was not worth debugging once the question had been
 answered another way.
+
+## What a drag means, settled 2026-09-01
+
+Four faults in one gesture, found by three hunts and repaired the same
+day. They are listed together because each was invisible while the
+others stood.
+
+**The preview and the commit disagreed by the span of the unit.**
+`in_map_units` had one caller, in `apply`, so the commit converted a
+recorded fraction into map units and the preview did not: 70.71 map
+units against 0.10 on laves 3.3.4.3.4 at a tenth of the unit. Nothing
+seemed to happen while dragging, and the design jumped on release.
+
+**The view and the model divided by different spans.** The view used
+the unit's WIDTH where the model uses `max(width, height)`, which is
+1.268x on laves and exactly 1.000x on a square unit, so every design
+tried by hand hid it.
+
+**The frame moved under the gesture.** `_fit` re-measures the drawn
+extent at every paint, and during a drag the drawn thing is the
+preview, so the transform became an output of what the drag was
+changing. Held still through six repaints, a recorded nudge climbed
+0.104, 0.207, 0.280, 0.318, 0.342, 0.356 while the scale fell 0.6138
+to 0.5541. It is frozen for the length of a gesture and resumes at the
+drop.
+
+**And a dragged value escaped its own control.** Both vertex branches
+assigned it straight into the record where the edge branch clamps, so
+a drag past the range recorded a number its box would not show.
+
+**Which design a claim is driven on decides whether it can be seen.**
+The clamp shows on `archimedean 4.8.8` and not on laves, where the
+library refuses an oversized nudge first; the frame drift shows when a
+VERTEX is held and not when an EDGE is scaled, since only the first
+grows the extent the fit re-measures. Both first probes came back
+clean.
+
+## The dual repeats on whatever lattice the tileable has
+
+`_lattice_offsets` read `vectors` by the keys `(1, 0)` and `(0, 1)`.
+A hex tileable keys the same dictionary by three-element coordinates,
+so both lookups missed and the fallback drew the dual once, in the
+middle of a field of tiles it does not cover, on every hex-keyed
+family. It now takes the two shortest non-parallel translations out of
+the values, which does not care how they are named: hex-slice 6 goes
+from one position to nine, and laves, hex-colouring 4 and
+square-colouring 5 are unmoved at nine, which is the control that says
+the change did not simply make every answer nine.
+
+## Symmetry, and what a crystallographic reading would give
+
+`docs/process/wallpaper-groups-and-what-we-do.md` sets out what the
+transitivity classes we aim edits with actually are, what a wallpaper
+group would add, and what the combinatorial encoding crystallography
+uses would add beyond that -- with the costs measured rather than
+bounded: what we do takes 0.29 to 19.08 seconds across ten designs, a
+bounded symmetry enumeration takes 3.6 to 23.8 milliseconds, and
+building the combinatorial structure takes under 1.2 milliseconds.
+
+The finding that bears on this tab directly: **site symmetry predicts
+which manipulations can move which classes.** A vertex whose
+stabiliser contains a rotation has only the zero displacement
+available to it, which is why `push_vertex` moves nothing on laves
+3.3.4.3.4 and hex-slice 3 and a tenth of the unit on archimedean
+4.8.8. That is a rule rather than the arithmetic accident recorded
+above it, and it would let a dead control be greyed out with a reason
+instead of drawing a rail of zero length. It is necessary and not
+sufficient: laves class B has a one-dimensional fixed space and its
+own construction still yields nothing.
+
+**And `hex-colouring 7` takes 19.8 seconds to build a topology**,
+against the 0.75 to 4.4 seconds recorded above. The cost tracks the
+number of distinct shapes and their corners, which this document
+already said; nobody had run it far enough up the catalogue to meet a
+design where you wait that long before an edit can be aimed.
