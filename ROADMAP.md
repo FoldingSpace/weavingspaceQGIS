@@ -826,11 +826,61 @@ committed and guarded, and this is where it stands.
   CLOSED -- see the entry above, which is two faults and their
   measurements.
 
-**AND THE DECLARATION GOES BACK ON 2026-08-31.**
-There is nothing outstanding in code for 0.24.4.
-Every item this paragraph listed is
-built, guarded by a registered test and proved by a catalogue entry;
-what remains below is the maintainer's own and changes no software.
+**AND THE DECLARATION IS WITHDRAWN AGAIN, LATE ON 2026-08-31.** It went
+back earlier that day and the version has since taken on the RE-VENDOR
+and the Topology tab's rebuild, on the maintainer's decision to merge
+both into this version rather than hold them for 0.24.5 ("we want the
+revendor now"). Work is owed in code again, and the phrase this gate
+reads must not say otherwise.
+
+WHAT THE VERSION GAINED, all merged at `3f3f1a7`:
+
+- THE RE-VENDOR, upstream `bf1bbbf` to `6190917`, twelve commits with
+  the version string unmoved at both ends. Two patches retired
+  themselves because upstream took them; the vendored tree imports no
+  scipy anywhere; `TILE_IDS` is unchanged at 702 so the element
+  ceilings needed nothing. A two-checkout differential says 588 of 590
+  designs draw identical ground, the two that moved being
+  `square-colouring 6` and `8` shifting origin by about 34 map units,
+  neither of which the gallery draws.
+- THE TILING SPEED-UP, patch 3: `get_tiled_map` went 2.68s to 0.94s at
+  86,768 tiles because the tile-to-region lookup was a pandas groupby
+  walking every group in Python.
+- THE TOPOLOGY TAB REBUILT so it can be used at all -- the drawing
+  shows the edited design, edits chain rather than replaying, the
+  vertex controls can express a visible move, gaps are marked and
+  drawn, and every manipulation is reachable on the drawing with a
+  handle that looks like what it does.
+
+WHAT IS OWED IN CODE, which is why the declaration is withdrawn:
+
+- the tab's Change controls sit BELOW THE FOLD, under seven checkboxes
+  about what to draw -- the first thing in the maintainer's own
+  screenshot and untouched;
+- the DUAL is drawn once while the tiles are drawn as a patch, 6
+  against 36 on laves 3.3.4.3.4, though the tiling is periodic and the
+  dual repeats on the same lattice;
+- NO REGISTERED TEST covers the interaction modalities. The harness is
+  committed as a probe and is the thing that would stop any of this
+  regressing quietly;
+- edits surviving a QGIS and GeoPackage ROUNDTRIP is reasoned and not
+  driven;
+- and everything must be reachable at realistic sizes, window default
+  included.
+
+AND FOUR THINGS ARE APPROVED AND NOT STARTED, from reading upstream's
+notebooks against what the tab offers: multi-class selectors (their own
+notebook zigzags thirteen classes in one call and the tab can aim at
+one), the `cairo` family, which the library supports and the catalogue
+lacks entirely, the SYMMETRIES half of the library
+(`plot_tiling_symmetries`, `Symmetries`, `ShapeMatcher`), and promoting
+the dual to a tiling of its own. Whether they belong in this version or
+the next is a scope decision rather than work anybody has forgotten.
+
+NOTE ALSO THAT `for-**` BRANCHES GET NO CI. `ci.yml` triggers on
+`[main, "pre-**"]`, so the whole of the above was tested on one macOS
+machine until it was merged here. Whether that trigger should widen is
+recorded under 0.24.5.
 
 WHAT THE PHRASE IS RESTING ON, said plainly so it can be checked
 rather than believed, and REWRITTEN LATE ON 2026-08-31 because the
@@ -1954,13 +2004,30 @@ AND A PARITY CHECK IS THE CHEAPER HALF, worth doing either way: a
 document whose backtick count is odd is one the gate reads wrongly from
 somewhere onward, and the count is one command.
 
-## 0.24.5 — and the re-vendor came first
+## 0.24.5 — what is left once the re-vendor moved to 0.24.4
 
-**THE RE-VENDOR IS DONE**, on 2026-08-31, on the maintainer's decision
-of the same day that it should come before anything else in this
-version. `0.0.7.89 (bf1bbbf)` to `0.0.7.89 (6190917)`, twelve upstream
-commits, with `topology.py` at +179/-207 and `_tiling_geometries.py` at
-+44/-67; the third changed file is a notebook that does not ship.
+**THE RE-VENDOR WENT INTO 0.24.4 INSTEAD**, late on 2026-08-31, on the
+maintainer's decision ("we want the revendor now") once the Topology
+tab's rebuild turned out to sit on top of it. What it did is recorded
+under 0.24.4, where it landed. The rest of this section stands.
+
+**AND A QUESTION THE MERGE RAISED: SHOULD `for-**` BRANCHES GET CI?**
+`ci.yml` triggers on `[main, "pre-**"]`, so work parked on a
+`for-<version>/*` branch -- which is this project's OWN convention for
+work meant for a later release -- is never seen by a second machine
+until it is merged. The re-vendor, the tiling patch and the tab rebuild
+were all tested on one macOS machine for as long as they sat there.
+ADDING `for-**` IS ONE LINE and it is not obviously right: it doubles
+runner time for work that is by definition not being released, and
+this project's own argument is that cost is not a reason to skip a
+platform. Recorded rather than done, because it is a change to the CI
+contract.
+
+**THE RE-VENDOR'S OWN RECORD, kept here because the reasoning belongs
+with the version that planned it.** `0.0.7.89 (bf1bbbf)` to
+`0.0.7.89 (6190917)`, twelve upstream commits, with `topology.py` at
++179/-207 and `_tiling_geometries.py` at +44/-67; the third changed
+file is a notebook that does not ship.
 
 **THE VERSION STRING DID NOT MOVE**, which is the whole reason the
 stamp records a commit. A version comparison alone reports us current,
