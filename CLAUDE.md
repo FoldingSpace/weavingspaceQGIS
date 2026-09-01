@@ -6168,3 +6168,40 @@ here, and the decision to add one is the maintainer's. Recorded
   caught a quoting error in its own reader. The practice this file has
   recommended since the tenth fault works, and the cost of it is one
   minute.
+
+- **AND ALL FOUR WERE BUILT THE SAME DAY, with what each turned out to
+  cost.** (2026-09-01, after the grilling above.)
+  THE LABEL/KEY SEPARATION WAS THE ONE THE OTHERS SAT ON, and it
+  touched more than the catalogue: `family_combo` was built with
+  `addItems(names)`, so 13 product sites and 121 suite sites treated
+  the chooser's TEXT as the design's identity. The suite drives
+  `_choose_family` now, because `setCurrentText` on a non-editable
+  combo selects only an exact match and does NOTHING otherwise --
+  silently -- so every one of those sites would have gone on testing
+  whichever design happened to be selected.
+  MULTI-CLASS SELECTION FIXED AN OLDER DEFECT ON THE WAY: the
+  highlight compared a class label against the selection with `==`, so
+  "every edge", whose datum has always been the whole group, lit
+  nothing at all. Membership is what both need.
+  THE SYMMETRY GATE IS SCOPED TO `push_vertex` AND TO THE MEASUREMENT.
+  `directions_a_class_may_move` stacks (L - I) over a vertex's
+  stabiliser modulo the lattice and returns 2 minus the rank; it
+  agrees with what the manipulation does on every class measured --
+  0.0000 of the unit where it says zero -- and it is asked only of the
+  push, since a nudge is an arbitrary displacement and moves those
+  same classes by 0.2. Its guard refuses to pass if every class
+  answers the same way, which is what stops a gate that greys
+  everything looking like one that works.
+  THE DUAL NEEDED SOMETHING THE LIBRARY DOES NOT HAVE, and the
+  workaround is written to the dependency procedure: measurement and
+  removal criteria at the site, a canary asserting the gap, and a note
+  to upstream in `docs/process/`. `Tileable.__init__` accepts a
+  `tiles=` keyword, stores it, and overwrites it with a default unit,
+  which was measured rather than assumed.
+  AND THE TEST THAT MATTERED WAS THAT IT TILES. A thing that looks
+  like a Tileable is not one: through `Tiling`, the promoted dual lays
+  181 tiles over a 3km region for laves 3.3.4.3.4 and 84 for
+  archimedean 4.8.8. My first reading said ZERO for every design and
+  was the instrument -- a TiledMap holds its geometry in `map`, not
+  `tiles` -- which is this file's own rule that a uniform verdict is
+  almost always the instrument, met for the third time this week.

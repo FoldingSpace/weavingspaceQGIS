@@ -79,6 +79,11 @@
   "excerpt": "![Land use around the Great Lakes at six moments in time, dr",
   "where": "README.md"
  },
+ "0a346c29ee595d52": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 4.6.12 (truncated trihexagonal)",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "0ab09ebfa0f67e71": {
   "approved": "2026-08-28",
   "excerpt": "Elements {} are no longer in the project, so the file holds ",
@@ -123,6 +128,11 @@
   "approved": "2026-08-31",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
+ },
+ "0e4886a534044c1e": {
+  "approved": "2026-09-01",
+  "excerpt": "twill weave ab|cd 1,2,2,1",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "0e5bfb68c843615f": {
   "approved": "2026-08-09",
@@ -369,6 +379,11 @@
   "excerpt": "This map's layers are no longer in the project, so there is ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "263c6d94bd10f830": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 3.3.3.3.6 (snub trihexagonal)",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "264c7a8910295785": {
   "approved": "2026-08-09",
   "excerpt": "*Warn about lack of legibility in colour choices* checks, af",
@@ -474,6 +489,11 @@
   "excerpt": "Strand width as a fraction of spacing: 1.0 fills all space; ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "364842b54a8d689e": {
+  "approved": "2026-09-01",
+  "excerpt": ", so the map is tiled with the design itself.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "382b16c6ec6a72ea": {
   "approved": "2026-08-09",
   "excerpt": "'{}' has no values to colour in this layer.",
@@ -508,6 +528,11 @@
   "approved": "2026-08-29",
   "excerpt": "Drawing a map and saving one are separate acts. Nothing is w",
   "where": "docs/USER-GUIDE.md"
+ },
+ "3a4dbf3e89663faf": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 3.12.12 (truncated hexagonal)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "3aa50123d28c8efc": {
   "approved": "2026-08-29",
@@ -659,6 +684,11 @@
   "excerpt": "Upper end of the ramp stretch, as a percentage.",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "49a9343ed9c4d166": {
+  "approved": "2026-09-01",
+  "excerpt": "laves 3.12.12 (triakis triangular)",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "49cd57d1eb1b5e3b": {
   "approved": "2026-08-09",
   "excerpt": "Where this element's class colours come from: automatic, ano",
@@ -688,6 +718,11 @@
   "approved": "2026-08-08",
   "excerpt": "The selected layer has no (non-empty) polygon features.",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "4c57f07ad6c224ba": {
+  "approved": "2026-09-01",
+  "excerpt": "laves 3.3.3.3.6 (floret pentagonal)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "4c59c799e27ed06e": {
   "approved": "2026-08-08",
@@ -738,6 +773,11 @@
   "approved": "2026-08-09",
   "excerpt": "Choosing {} for element '{}' discarded {} class colour(s) yo",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "4f11d76c8df81b0d": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 3.4.6.4 (rhombitrihexagonal)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "4f67d46c1c8b2316": {
   "approved": "2026-08-08",
@@ -939,6 +979,11 @@
   "excerpt": "Where this element's class colours come from.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "6671b13cab179e33": {
+  "approved": "2026-09-01",
+  "excerpt": "This design has no dual to tile with",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "667374a0de228fcc": {
   "approved": "2026-08-31",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
@@ -1028,6 +1073,11 @@
   "approved": "2026-08-15",
   "excerpt": "{} of {} areas have no geometry, so they are left out of the",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "6c8b4c49646fca6a": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 3.3.4.3.4 (snub square)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "6d018091ba667251": {
   "approved": "2026-08-09",
@@ -1152,6 +1202,11 @@
  "78a93721207ec677": {
   "approved": "2026-08-08",
   "excerpt": "A coarse value from the layer extent, good for iterating",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "7a142fb8b52f266f": {
+  "approved": "2026-09-01",
+  "excerpt": "No {} in this catalogue has {} elements, so this design is a",
   "where": "weavingspace_qgis/dialog.py"
  },
  "7abf00660f3a6d78": {
@@ -1374,6 +1429,11 @@
   "excerpt": "![The plugin dialog](docs/img/dialog.png)",
   "where": "README.md"
  },
+ "957a62b8670943cb": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 3.3.3.4.4 (elongated triangular)",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "961fdb8bea1a97db": {
   "approved": "2026-08-17",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
@@ -1463,6 +1523,11 @@
   "approved": "2026-08-15",
   "excerpt": "Element '{}' was styled in QGIS, and changing its variable m",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "9d3ca2e52ee35546": {
+  "approved": "2026-09-01",
+  "excerpt": "laves 3.3.3.4.4 (prismatic pentagonal)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "9d8dc500b34d3e08": {
   "approved": "2026-08-20",
@@ -1583,6 +1648,11 @@
   "approved": "2026-08-19",
   "excerpt": "Changing the break method or the number of classes starts th",
   "where": "docs/USER-GUIDE.md"
+ },
+ "aa18c65dc0d74c52": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 3.6.3.6 (trihexagonal)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "aa2a80e206a7838e": {
   "approved": "2026-08-08",
@@ -2034,6 +2104,11 @@
   "excerpt": "Quantitative elements open the same window. Each class is li",
   "where": "docs/USER-GUIDE.md"
  },
+ "dc693cd6f209aca1": {
+  "approved": "2026-09-01",
+  "excerpt": "archimedean 4.8.8 (truncated square)",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "dd3edb0d6a4bbc1b": {
   "approved": "2026-08-08",
   "excerpt": "WeavingSpace \u2013 one-time setup",
@@ -2273,6 +2348,11 @@
   "approved": "2026-08-08",
   "excerpt": "<p>What the plugin adds to a QGIS project is not a picture b",
   "where": "docs/index.html"
+ },
+ "f8f26c670b09fd0f": {
+  "approved": "2026-09-01",
+  "excerpt": "laves 3.3.4.3.4 (cairo pentagonal)",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "fab95578f7f3e984": {
   "approved": "2026-08-12",

@@ -501,16 +501,22 @@ the held landing is the one that draws. Both halves carry a catalogue
 entry, since either alone leaves a tab that either wipes a gesture or
 goes on drawing a design the plugin has already replaced.
 
-## What the tab is getting, decided 2026-09-01 and not yet built
+## What the tab gained on 2026-09-01
 
-Four features were approved earlier and were scoped into 0.24.4 by a
-grilling on this date. ROADMAP.md carries the reasoning and the
-measurements; what a reader of this document needs is what each will
-mean here.
+Four features were approved earlier, scoped into 0.24.4 by a grilling
+on this date, and built the same day. ROADMAP.md carries the reasoning
+and the measurements; what a reader of this document needs is what
+each means here. Every one carries a registered test and catalogue
+entries proved `caught`.
 
-**Selecting several classes at once.** Click adds and removes a class
-on the drawing and a list beside it confirms the selection, each
-following the other. The record needs nothing -- an edit's `classes`
+**Selecting several classes at once.** A modified click -- shift,
+control or command -- adds and removes a class on the drawing, and a
+tick list beside the chooser confirms the selection, each following
+the other. `TopologyPanel._selection` is the one owner; the combo, the
+list and the drawing follow it, and Apply, the drag preview and the
+drop all ask it. The combo grows one temporary row -- "2 of 3 vertex
+classes" -- for a subset it does not list, rather than naming one
+class while an edit would move two. The record needs nothing -- an edit's `classes`
 is already a string selector, and the library matches `label in
 selector` -- and the case is rarer than it sounds: across a 48-design
 spread most designs carry one or two classes of each kind, so the
@@ -530,7 +536,8 @@ greyed with its reason rather than offering a rail of zero length, and
 because the rule is necessary rather than sufficient the gate says
 what it measured.
 
-**The dual promoted to a tiling of its own.** `Topology.get_dual_
+**The dual promoted to a tiling of its own, behind "Map the dual
+instead".** `Topology.get_dual_
 tiles()` gives a frame with tile ids whose ground covers the same
 lattice, but `Tileable.__init__` dispatches on `tiling_type` and has
 no path for supplied geometry, so building one means setting the

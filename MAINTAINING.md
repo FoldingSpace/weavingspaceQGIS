@@ -559,6 +559,93 @@ colleague can open without the plugin at all. And anything travelling
 as a tuple comes home as a list, JSON having no tuple, so every reader
 has to put it back.
 
+### A design is shown by one name and looked up by another
+
+`family_combo` was built with `addItems(names)`, so a catalogue key --
+`laves 3.3.4.3.4` -- was the label a person read, the string thirteen
+sites looked the design up by, AND the `family` value written into
+every saved GeoPackage and project. That is one string doing three
+jobs, and it meant an entry could not gain a common name without
+orphaning saved files.
+
+**THE ITEM CARRIES THE KEY AND SHOWS A LABEL.** `catalog.label_for`
+composes the label from `catalog.COMMON_NAMES`; `dialog._family_key`
+is the one owner of "which design is this" and every one of those
+thirteen sites asks it; the working state's `family` row is `"data"`,
+so it stores the key -- which is the same string every file already
+holds, so nothing saved moves. `_select_family` looks by data then by
+text, which is what makes an older record and a caller holding a
+label both land.
+
+**THE SUITE HAD 121 SITES NAMING A FAMILY BY TEXT**, and they matter
+because `setCurrentText` on a non-editable combo selects only an
+exact match and otherwise does NOTHING, in silence. They go through
+`_choose_family`.
+
+### What an edit is aimed at, and by which control
+
+`TopologyPanel._selection` is `(target, labels)` and is the one answer
+to "what would an edit move". Three controls follow it, with their
+signals blocked: the class combo, the tick list, and the drawing. A
+modified click on the drawing adds or removes a class; ticking a row
+does the same; picking a combo row replaces the lot. Apply, the drag
+preview and the drop all ask the owner rather than the combo they used
+to read.
+
+**THE COMBO CANNOT LIE.** Where the selection is one class it names
+it, where it is every class of a kind it names the group entry, and
+where it is anything between it grows ONE temporary row -- "2 of 3
+vertex classes" -- which is replaced rather than accumulated.
+
+**AND THE HIGHLIGHT ASKS MEMBERSHIP, NOT EQUALITY**, which was a
+defect of its own: "every edge" has always carried the whole group as
+its datum, so an equality test lit nothing at all.
+
+### The symmetries, and the one control they take away
+
+`Topology` already holds `tile_matching_transforms`; the tab draws the
+distinct ones -- highest order per centre, one line per mirror -- in
+its own painter, because upstream's `plot_tiling_symmetries` goes
+through matplotlib, which cannot run inside the signed QGIS process on
+macOS.
+
+**THE GATE IS A DIFFERENT QUESTION FROM THE READOUT, and they are kept
+apart deliberately.** `topology_edits.tile_symmetry_codes` answers
+about a TILE's own shape (`D4`, `C2`) and is a reading;
+`directions_a_class_may_move` answers about a CLASS's stabiliser and
+decides whether `push_vertex` is offered. Both get called symmetry.
+
+**WHAT THE GATE MEASURES**: stack `L - I` for every transform that
+holds a representative vertex modulo the lattice, and take 2 minus the
+rank. Zero means no displacement survives the symmetry, which is why
+`push_vertex` moved 0.0000 of the unit on `laves 3.3.4.3.4` class A
+and on both classes of `hex-slice 3`, against 0.1027 on `archimedean
+4.8.8`. It is asked ONLY of the push -- a nudge is an arbitrary
+displacement and moves those same classes by 0.2 -- and only where
+every selected class is held.
+
+### The dual as a design, and the constructor that is missing
+
+`topology_edits.dual_as_tileable` copies the source unit, replaces its
+tiles with `Topology.get_dual_tiles()`, and rebuilds the prototile
+from the vectors. That reaches into the library's own construction,
+and it is written that way because `Tileable.__init__` dispatches on
+`tiling_type` and has no path for supplied geometry: a `tiles=`
+keyword is accepted, stored, and overwritten by the default unit.
+
+**IT IS A WORKAROUND WITH THE PROCEDURE'S FURNITURE.** The measurement
+and the removal criteria are at the site,
+`test_the_library_still_cannot_build_a_unit_from_tiles` asserts the
+gap, and `docs/process/upstream-note-a-unit-from-supplied-tiles.md`
+asks for the constructor. When that test fails, delete the assembly
+and use the library's.
+
+**IT IS A GEOMETRY TERM**, so "Map the dual instead" is in
+`_geometry_signature` and in the working state -- a colleague opening
+the file gets the tiling that was sent -- and it falls through with a
+sentence where there is no dual, since an inset opens gaps and a
+gapped design has no topology.
+
 ### A gesture outranks a landing, for as long as it lasts
 
 `TopologyView.show_topology` clears the drag preview and the chosen
