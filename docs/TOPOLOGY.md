@@ -203,6 +203,67 @@ exist at n=4, so `setCurrentText` did nothing and three designs
 reported one topology, which read as a drawing that never rebuilt. Look
 fixture names up in the catalogue.
 
+## Making the interaction perceivable
+
+The maintainer's standard, 2026-08-31: it "should be easy to use and
+easy to learn for users", it "has to be perceivable", and "hover states
+aren't as good as shapes that make sense ... like visually make sense
+for what they do".
+
+**THE VIEW WAS FITTING THE PATCH AND NOT THE UNIT**, and that was the
+largest single cost to perceivability. `topology.tiles` is the unit AND
+its neighbouring copies — 36 tiles for a four-tile design on laves
+3.3.4.3.4 — so the thing being edited was drawn at about a third of the
+size the panel could give it. Every class label overlapped its
+neighbour and the handles arrived as a cluster of rings a few pixels
+across. It fits the unit's own tiles now (`n_tiles`, the library's own
+count) and lets the copies run off the edges, which is what context is
+for.
+
+**THE HANDLES ARE PICTURES OF WHAT THEY DO.** They were a square, a
+circle and a diamond, whose meanings existed only in the code. A hover
+label was the obvious repair and is the wrong one: a hover has to be
+discovered before it can teach anything, and a first-time reader never
+hovers. So each handle is drawn as a small glyph of its own effect — a
+double-headed arrow ALONG the edge for stretch, a curved arrow for
+turn, a wave for zigzag, a four-way cross for a vertex — on a white-
+rimmed seat, because a mark that competes with vertex and edge labels
+on a crowded drawing is a mark nobody finds. Twelve pixels rather than
+eight, since the glyph is the point.
+
+**EVERY MANIPULATION IS REACHABLE ON THE DRAWING**, which was the
+maintainer's next sentence — "all interactions in that topology image,
+not just one". An edge carries three handles and a vertex carried one:
+`push_vertex` existed only behind the chooser and the Apply button, so
+one of the five things the tab can do was absent from the thing it does
+them on. A vertex now carries two, and they LOOK like the different
+gestures they are — a nudge is free and two-dimensional, a push runs
+along the one direction the design chooses, so the push handle sits on
+a drawn RAIL. Where the design gives it nowhere to go there is no
+handle at all: on `laves 3.3.4.3.4` and `hex-slice 3` the incident
+edges are symmetric and the unit vectors cancel to 1.5e-9, so the
+control genuinely cannot move that design, and a handle that looks live
+and does nothing is worse than an absent one.
+
+**AND THE TEST FOR "NOWHERE TO GO" BELONGS IN UNIT COORDINATES.** The
+first version asked whether the rail was at least a pixel long on
+screen, which called a working control dead: `push_d = 1.0` returns
+0.414 unit coordinates on archimedean 4.8.8, and at the zoom the panel
+uses that is half a pixel. Asked of the vector itself, the two answers
+are 0.414 against 1.5e-9 — nine orders apart, with nothing to tune.
+
+**AND A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED.** Turning
+travel into a parameter needs a LEVER, and a lever is a gain factor
+nobody can see, so it can only be tuned by guessing — and it was wrong
+twice: half the edge's length made a 34px drag invert the edge, and the
+full length still turned a 35px drag into a scale factor of 0.28. The
+end handle starts half a length from the edge's middle, so where the
+pointer has taken it IS a polar coordinate about that middle: the scale
+factor is how much further out it sits, the rotation is the angle it
+now makes. Nothing to tune, the edge follows the pointer exactly, and
+the handle doubles as a readout because it already sits where the
+current value puts it.
+
 ## The rulings of 2026-08-31
 
 The maintainer's, on meeting the tab in rc9 and finding it unusable:
@@ -226,3 +287,29 @@ The maintainer's, on meeting the tab in rc9 and finding it unusable:
    when not all of it does is an acceptable state rather than an error.
 6. **Everything must be reachable at realistic sizes**, which may mean
    a larger default window.
+7. **The interaction must be easy to use and easy to learn, and it has
+   to be perceivable** — and "hover states aren't as good as shapes
+   that make sense ... like visually make sense for what they do".
+8. **Every manipulation is reachable on the drawing**, not just one.
+
+## What was NOT taken from the audit, and why
+
+The audit of 2026-08-30 recorded two designs. The first — a handle is a
+POSITION rather than a delta — is built, and its reasoning is above.
+
+**THE SECOND IS DELIBERATELY NOT BUILT.** It proposed merging scale and
+rotate into ONE end handle, on the ground that moving an endpoint is
+exactly (angle, length) in polar coordinates about the midpoint, which
+would remove a handle and the crowding with it. That is true, and it
+loses something the maintainer's later standard makes decisive: one
+handle would then have to say TWO things, and the whole reason the
+glyphs work is that each is a picture of a single effect. A drag on a
+merged handle would also record two edits from one gesture, which is
+honest but makes the change list harder to read back and harder to roll
+back through.
+
+So the crowding was answered the other way, by giving the handles room:
+the view fits the unit rather than the patch, the seats are 12px, and
+the three edge handles sit at 0 and 30 pixels of perpendicular offset
+rather than 0 and 16. If the merged handle is ever wanted, this is the
+argument it has to beat.

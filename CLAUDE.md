@@ -5679,6 +5679,30 @@ here, and the decision to add one is the maintainer's. Recorded
   matrix all stand on that module.
 
 
+- **A CONTROL'S SHAPE SHOULD SAY WHAT IT DOES, AND A HOVER STATE IS
+  NOT A SUBSTITUTE.** (Maintainer's rulings, 2026-08-31, on finding the
+  Topology tab unusable: it "should be easy to use and easy to learn",
+  it "has to be perceivable", and "hover states aren't as good as
+  shapes that make sense ... like visually make sense for what they
+  do".) The tab's handles were a square, a circle and a diamond whose
+  meanings existed only in the source. A hover label was the obvious
+  repair and is the wrong one -- a hover has to be DISCOVERED before it
+  can teach anything, and a first-time reader never hovers. Each handle
+  is a small picture of its own effect now.
+  AND PERCEIVABLE CAME FIRST, BECAUSE NONE OF IT MATTERS AT THE WRONG
+  SIZE. The view was fitting the whole PATCH -- 36 tiles for a
+  four-tile unit -- so the thing being edited was drawn at a third of
+  the size the panel could give it, and the handles were a cluster of
+  rings a few pixels across. Fitting the unit was worth more than every
+  other change to that drawing put together.
+  AND EVERY INTERACTION BELONGS ON THE THING ITSELF: one of the five
+  manipulations was reachable only through a chooser and a button, so
+  the drawing offered four of the five acts it is about.
+  THE GENERAL RULE, which reaches past this tab: when a control's
+  meaning lives in the code rather than in its appearance, adding an
+  explanation is the second-best repair. The first is to make the shape
+  mean the thing.
+
 - **PROFILE THE THING A PERSON WAITS FOR, BECAUSE THE COST IS OFTEN
   NOT WHERE THE SUBJECT IS.** (2026-08-31, asked whether the symmetry
   work could speed up tiling the plane.) It cannot -- covering the

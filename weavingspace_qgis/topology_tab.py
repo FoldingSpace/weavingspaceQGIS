@@ -102,15 +102,35 @@ _GAP_INK = "#e57373"
 #   out : how far perpendicular to that anchor, in pixels, so two
 #         handles on one anchor do not sit on top of each other
 #   shape: how it is drawn, so the three are told apart at a glance
+# WHERE EACH HANDLE SITS, and how far off the edge, in pixels. The
+# offsets are perpendicular to the edge, so a handle never sits on the
+# line it acts on -- at 0 and 16 the three of them piled into a cluster
+# a few pixels across on a 40px edge, which is the "perceivable"
+# failure the maintainer met on 2026-08-31.
+# THE GLYPHS ARE 12px SEATS NOW, so the offsets are sized to keep them
+# clear of each other and of the vertices at the edge's ends.
 _EDGE_HANDLES = (
   ("scale_edge", "end", 0, "square"),
-  ("rotate_edge", "end", 16, "circle"),
-  ("zigzag_edge", "middle", 16, "diamond"),
+  ("rotate_edge", "end", 30, "circle"),
+  ("zigzag_edge", "middle", 30, "diamond"),
 )
+# A VERTEX HAS TWO MANIPULATIONS AND THEREFORE TWO HANDLES.
+# (Maintainer, 2026-08-31: "all interactions in that topology image,
+# not just one".) `push_vertex` was reachable only through the chooser
+# and the Apply button, so one of the five things this tab can do was
+# absent from the thing it does them on.
+# THEY ARE DIFFERENT KINDS OF GESTURE AND LOOK IT: a nudge is free and
+# two-dimensional, a push runs along ONE direction the design chooses
+# -- away from everything the vertex is joined to -- so the push handle
+# sits on a drawn RAIL, which is what makes the constraint visible
+# rather than surprising.
 _VERTEX_HANDLES = (
   ("nudge_vertex", "point", 0, "circle"),
+  ("push_vertex", "rail", 34, "rail"),
 )
-_HANDLE_REACH = 9.0
+# Matched to the drawn seat: a handle a person can see is a
+# handle they can hit.
+_HANDLE_REACH = 13.0
 
 
 def _point_to_segment(point, start, finish) -> float:
@@ -314,8 +334,21 @@ class TopologyView(QWidget):
       mid-gesture -- a view that moves when you change what it shows
       is one nobody can aim at.
     """
+    # FIT THE UNIT, NOT THE WHOLE PATCH. (Maintainer, 2026-08-31: the
+    # interaction "has to be perceivable".) `topology.tiles` is the
+    # unit AND its neighbouring copies -- 36 tiles for a four-tile unit
+    # on laves 3.3.4.3.4 -- so fitting all of them drew the thing being
+    # edited at a third of the size the panel could give it, with the
+    # handles as a cluster of rings a few pixels across and every class
+    # label overlapping its neighbour.
+    # THE COPIES ARE STILL DRAWN, and run off the edges: they are
+    # context, which is what says how the tiles meet, and they are
+    # exactly what somebody is NOT editing. `n_tiles` is the library's
+    # own count of the unit's own tiles, and the patch is laid out so
+    # that the first n are those.
+    core = topology.tiles[:getattr(topology, "n_tiles", len(topology.tiles))]
     xs, ys = [], []
-    for tile in topology.tiles:
+    for tile in (core or topology.tiles):
       x0, y0, x1, y1 = tile.shape.bounds
       xs += [x0, x1]
       ys += [y0, y1]
@@ -479,24 +512,137 @@ class TopologyView(QWidget):
     # the handles would be describing a shape that is no longer under
     # them -- they are left out until the gesture ends.
     if self._preview is None:
+      frame = self._edge_frame(self._chosen_thing) \
+          if self._chosen[0] == "edge" else None
       for key, where, shape in self.handles():
         lit = (key in (self._hover_handle, self._held_handle))
-        painter.setBrush(QBrush(QColor(_HANDLE_LIT if lit
-                                       else _HANDLE_INK)))
-        painter.setPen(QPen(QColor("#ffffff"), 1.5))
-        size = 6.0 if lit else 5.0
-        if shape == "square":
-          painter.drawRect(QRectF(where.x() - size, where.y() - size,
-                                  size * 2, size * 2))
-        elif shape == "diamond":
-          painter.drawPolygon(
-            QPointF(where.x(), where.y() - size),
-            QPointF(where.x() + size, where.y()),
-            QPointF(where.x(), where.y() + size),
-            QPointF(where.x() - size, where.y()))
-        else:
-          painter.drawEllipse(where, size, size)
+        self._draw_handle(painter, key, where, frame, lit)
     painter.end()
+
+  def _draw_handle(self, painter, key, where, frame, lit):
+    """Draw one handle AS A PICTURE OF WHAT IT DOES.
+
+    Args:
+      painter: the active QPainter.
+      key: the manipulation this handle performs.
+      where: its position, in widget coordinates.
+      frame: the chosen edge's (mid_x, mid_y, along_x, along_y, length)
+        in unit coordinates, or None for a vertex. The glyphs that have
+        a direction are drawn ALONG the edge, since an arrow pointing
+        somewhere the edge does not go is worse than no arrow.
+      lit: whether the pointer is on it, or it is being dragged.
+
+    Returns:
+      None.
+
+    WHY GLYPHS RATHER THAN A HOVER LABEL. (Maintainer, 2026-08-31:
+    "hover states aren't as good as shapes that make sense ... like
+    visually make sense for what they do".) A hover has to be
+    discovered before it can teach anything, and a first-time reader
+    never hovers -- so what the handles were was three abstract shapes,
+    a square, a circle and a diamond, whose meanings existed only in
+    the code. A double-headed arrow along the edge, a curved arrow, and
+    a little wave say stretch, turn and zigzag without anybody being
+    told, and they go on saying it while the pointer is elsewhere.
+
+    EVERY GLYPH IS DRAWN OVER A PALE DISC, because a mark that competes
+    with vertex and edge labels on a crowded drawing is a mark nobody
+    finds -- and this project's own measurement of an unclipped hatch
+    is what that costs. The disc is the perceivable part; the glyph
+    inside it is the learnable part.
+    """
+    # BIG ENOUGH TO READ THE GLYPH IN. At eight pixels the arrow, the
+    # arc and the wave were three indistinguishable rings; the glyph is
+    # the whole point of drawing them, so the seat is sized for the
+    # glyph rather than for the dot it used to be.
+    size = 14.0 if lit else 12.0
+    ink = QColor(_HANDLE_LIT if lit else _HANDLE_INK)
+    # THE RAIL IS DRAWN BEFORE ITS HANDLE, from the vertex out to it,
+    # so the one direction a push can take is visible before anybody
+    # drags anything. Without it the handle looks free, and a person
+    # pulling sideways would find the design moving somewhere else.
+    if key == "push_vertex" and self._chosen_thing is not None:
+      try:
+        anchor = self._to_screen(self._chosen_thing.point.x,
+                                 self._chosen_thing.point.y)
+      except Exception:                               # noqa: BLE001
+        anchor = None
+      if anchor is not None:
+        rail = QPen(QColor(_HANDLE_INK), 1.0)
+        rail.setStyle(Qt.PenStyle.DotLine)
+        painter.setPen(rail)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawLine(anchor, where)
+    # The seat: a filled disc with a white rim, so the glyph reads
+    # against tiles, edges and labels alike.
+    painter.setPen(QPen(QColor("#ffffff"), 2.0))
+    painter.setBrush(QBrush(QColor("#ffffff")))
+    painter.drawEllipse(where, size, size)
+    painter.setPen(QPen(ink, 1.6))
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.drawEllipse(where, size, size)
+
+    # Which way the edge runs, on SCREEN. The view flips y, so this is
+    # taken from screen points rather than from the unit vector.
+    angle = 0.0
+    if frame is not None:
+      mid_x, mid_y, ax, ay, _length = frame
+      here = self._to_screen(mid_x, mid_y)
+      there = self._to_screen(mid_x + ax, mid_y + ay)
+      angle = math.degrees(math.atan2(there.y() - here.y(),
+                                      there.x() - here.x()))
+    painter.save()
+    painter.translate(where)
+    painter.rotate(angle)
+    painter.setPen(QPen(ink, 1.8))
+    reach = size - 2.5
+    if key == "scale_edge":
+      # A DOUBLE-HEADED ARROW ALONG THE EDGE: pull the end out or in.
+      painter.drawLine(QPointF(-reach, 0), QPointF(reach, 0))
+      for tip, step in ((reach, -1), (-reach, 1)):
+        painter.drawLine(QPointF(tip, 0),
+                         QPointF(tip + 3 * step, -3))
+        painter.drawLine(QPointF(tip, 0),
+                         QPointF(tip + 3 * step, 3))
+    elif key == "rotate_edge":
+      # A CURVED ARROW: the one glyph everybody already reads as turn.
+      rect = QRectF(-reach, -reach, reach * 2, reach * 2)
+      painter.drawArc(rect, 30 * 16, 240 * 16)
+      painter.drawLine(QPointF(reach * 0.87, -reach * 0.5),
+                       QPointF(reach * 0.87 - 3, -reach * 0.5 - 3))
+      painter.drawLine(QPointF(reach * 0.87, -reach * 0.5),
+                       QPointF(reach * 0.87 + 2, -reach * 0.5 - 4))
+    elif key == "zigzag_edge":
+      # A WAVE: the shape the manipulation makes, at the amplitude it
+      # is about to make it in.
+      path = QPainterPath(QPointF(-reach, 0))
+      path.lineTo(QPointF(-reach / 2, -reach * 0.7))
+      path.lineTo(QPointF(0, reach * 0.7))
+      path.lineTo(QPointF(reach / 2, -reach * 0.7))
+      path.lineTo(QPointF(reach, 0))
+      painter.drawPath(path)
+    elif key == "push_vertex":
+      # A SINGLE ARROW POINTING OUT ALONG THE RAIL: one direction, away
+      # from everything this vertex is joined to. The glyph is turned
+      # to the rail rather than to the edge, since there is no edge.
+      painter.rotate(-angle)
+      way = self.push_direction() or (1.0, 0.0)
+      painter.rotate(math.degrees(math.atan2(way[1], way[0])))
+      painter.drawLine(QPointF(-reach, 0), QPointF(reach, 0))
+      painter.drawLine(QPointF(reach, 0), QPointF(reach - 4, -3.5))
+      painter.drawLine(QPointF(reach, 0), QPointF(reach - 4, 3.5))
+    else:
+      # A VERTEX MOVES IN ANY DIRECTION, so: a four-way arrow.
+      painter.rotate(-angle)                 # direction means nothing here
+      for x, y in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        painter.drawLine(QPointF(0, 0), QPointF(x * reach, y * reach))
+        painter.drawLine(QPointF(x * reach, y * reach),
+                         QPointF(x * reach - (x * 3) + (y * 3),
+                                 y * reach - (y * 3) + (x * 3)))
+        painter.drawLine(QPointF(x * reach, y * reach),
+                         QPointF(x * reach - (x * 3) - (y * 3),
+                                 y * reach - (y * 3) - (x * 3)))
+    painter.restore()
 
   def _path(self, polygon):
     """A shapely polygon as a QPainterPath in widget coordinates.
@@ -679,8 +825,26 @@ class TopologyView(QWidget):
         point = self._to_screen(thing.point.x, thing.point.y)
       except Exception:                               # noqa: BLE001
         return []
-      return [(key, point, shape)
-              for key, _at, _out, shape in _VERTEX_HANDLES]
+      placed = []
+      for key, at, out, shape in _VERTEX_HANDLES:
+        if at != "rail":
+          placed.append((key, point, shape))
+          continue
+        # THE RAIL POINTS WHERE THE PUSH WOULD GO, and where the design
+        # gives it nowhere to go there is no handle at all. Measured
+        # 2026-08-31: `push_vertex` sums the unit vectors from each
+        # neighbour, and at a symmetric vertex those CANCEL -- on laves
+        # 3.3.4.3.4 and hex-slice 3 the resultant is 1e-9, so the
+        # control genuinely cannot move that design. A handle that
+        # looks live and does nothing is worse than an absent one.
+        way = self.push_direction()
+        if way is None:
+          continue
+        placed.append((key,
+                       QPointF(point.x() + way[0] * out,
+                               point.y() + way[1] * out),
+                       shape))
+      return placed
     frame = self._edge_frame(thing)
     if frame is None:
       return []
@@ -708,6 +872,55 @@ class TopologyView(QWidget):
                              anchor.y() + normal[1] * out),
                      shape))
     return placed
+
+  def push_direction(self):
+    """Which way a push would move the chosen vertex, on screen.
+
+    Returns:
+      A unit (dx, dy) in WIDGET coordinates, or None where nothing is
+      chosen, the chosen thing is not a vertex, or the direction
+      cancels to nothing.
+
+    ASKED OF THE LIBRARY RATHER THAN REIMPLEMENTED. `push_vertex`
+    returns its displacement without applying it, so calling it with a
+    distance of one gives the direction and costs nothing -- and it
+    cannot drift from what the manipulation will actually do, which a
+    second copy of the arithmetic here certainly would.
+
+    THE SCREEN FLIP IS WHY THIS RETURNS WIDGET COORDINATES. Map y grows
+    upward and widget y grows downward, so a direction taken in unit
+    space and drawn without flipping puts the rail on the wrong side of
+    the vertex -- the same trap the edge handles' normal already
+    carries a comment about.
+    """
+    if self._chosen[0] != "vertex" or self._chosen_thing is None:
+      return None
+    topology = self._drawn()
+    if topology is None:
+      return None
+    try:
+      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)
+    except Exception:                                 # noqa: BLE001
+      return None
+    # A CANCELLED PUSH IS TESTED IN UNIT COORDINATES, NOT IN PIXELS.
+    # `push_d = 1.0` returns a vector whose length is a property of the
+    # VERTEX -- 0.414 on archimedean 4.8.8, 1.5e-9 on laves 3.3.4.3.4
+    # where the incident edges are symmetric and the unit vectors
+    # cancel. Nine orders apart, so this discriminates with nothing to
+    # tune. Asking in PIXELS instead hid the real one: 0.414 units at
+    # this zoom is half a pixel, so a one-pixel floor called a working
+    # control dead.
+    if (dx * dx + dy * dy) ** 0.5 < 1e-6:
+      return None
+    here = self._to_screen(self._chosen_thing.point.x,
+                           self._chosen_thing.point.y)
+    there = self._to_screen(self._chosen_thing.point.x + dx,
+                            self._chosen_thing.point.y + dy)
+    run, rise = there.x() - here.x(), there.y() - here.y()
+    reach = (run * run + rise * rise) ** 0.5
+    if reach <= 0.0:                    # degenerate transform only
+      return None
+    return (run / reach, rise / reach)
 
   def _handle_at(self, point) -> str:
     """The manipulation whose handle is under a point, or "".
@@ -1219,22 +1432,35 @@ class TopologyPanel(QWidget):
     if key == "zigzag_edge":
       # Amplitude relative to the edge's own length, so the same
       # gesture means the same shape on a long edge and a short one.
+      # This one was ALREADY a position: the diamond sits off the
+      # middle, and how far off it now is IS the amplitude.
       return "h", abs(across) / length
-    # THE EDGE'S OWN LENGTH IS THE LEVER for both of the rest: drag
-    # across by as far as the edge is long and it turns 45 degrees;
-    # drag along by that far and it doubles.
+    # A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED.
+    # (Maintainer's instruction, 2026-08-31: the interaction has to be
+    # easy to use, easy to learn, and perceivable. This is the audit's
+    # own recommendation of 2026-08-30, which it recorded and did not
+    # build.)
     #
-    # HALF THE LENGTH WAS THE FIRST LEVER AND IT WAS TOO TWITCHY.
-    # Measured 2026-08-30 on laves 3.3.4.3.4: a 60px drag along an edge
-    # asked for a scale factor below zero, which clamped to the box's
-    # minimum of 0.1 -- so an ordinary gesture inverted the edge, and
-    # nothing gentler could be asked for at all. The lever has to be a
-    # length the person can SEE, and the edge they are holding is the
-    # only such length on screen.
+    # WHAT A DELTA COST. Turning travel into a parameter needs a LEVER,
+    # and a lever is a gain factor nobody can see -- so it can only be
+    # tuned by guessing, and it was wrong twice: half the edge's length
+    # made a 34px drag invert the edge, and the full length still
+    # turned a 35px drag into a scale factor of 0.28.
+    #
+    # THE END HANDLE STARTS AT THE END OF THE EDGE, half a length from
+    # the middle along its axis. Where the pointer has taken it is
+    # therefore (radius, angle) about that middle, and the two
+    # parameters ARE those polar coordinates -- the scale factor is how
+    # much further out it now sits, and the rotation is the angle it
+    # now makes. Nothing to tune, and the edge follows the pointer
+    # exactly, which is also what makes the handle a READOUT: it
+    # already sits where the current value puts it.
+    half = length / 2.0 or 1.0
+    out = half + along          # the handle's distance along the axis
     if key == "rotate_edge":
-      return "angle", math.degrees(math.atan2(across, length))
+      return "angle", math.degrees(math.atan2(across, out))
     if key == "scale_edge":
-      return "sf", 1.0 + (along / length)
+      return "sf", math.hypot(out, across) / half
     return None, None
 
   def _on_dragging(self, dx, dy):
@@ -1266,9 +1492,24 @@ class TopologyPanel(QWidget):
       return
     args = dict(self._arguments())
     if data[0] == "vertex":
-      if key != "nudge_vertex":
+      if key == "push_vertex":
+        # ALONG THE RAIL AND NOTHING ELSE. `dx` and `dy` arrive as
+        # fractions of the unit, so projecting them onto the push
+        # direction gives the push distance in the same fraction the
+        # record keeps -- one unit of travel along the rail is one unit
+        # of push, with no gain factor in between. Travel ACROSS the
+        # rail is discarded, which is what a one-dimensional control
+        # means and what the drawn rail promises.
+        way = self.view.push_direction()
+        if way is None:
+          return
+        # The rail is in WIDGET coordinates, where y grows downward,
+        # and the drag arrives in unit terms where y grows up.
+        args["push_d"] = float(dx * way[0] - dy * way[1])
+      elif key == "nudge_vertex":
+        args["dx"], args["dy"] = float(dx), float(dy)
+      else:
         return
-      args["dx"], args["dy"] = float(dx), float(dy)
     else:
       frame = self.view.grabbed_edge()
       if frame is None:

@@ -1293,32 +1293,43 @@ somewhere other than the ink; hit-testing the edited one records
 labels that mean something else on replay. Neither is obviously right,
 which makes it the maintainer's call and a candidate for a grilling.
 
-TWO DESIGNS CAME OUT OF THE AUDIT AND ARE NOT BUILT. Both are better
-than what shipped, and the second dissolves a problem rather than
-tuning it, so neither should be lost.
+TWO DESIGNS CAME OUT OF THE AUDIT. THE FIRST IS BUILT AND THE SECOND
+IS REFUSED, both on 2026-08-31.
 
-1. **A HANDLE SHOULD BE A POSITION, NOT A DELTA.** Every handle now
-   reports how far it has travelled, and that is turned into a
-   parameter by a LEVER -- `angle = atan2(across, length)`,
-   `sf = 1 + along/length`. A lever is a gain factor nobody can see
-   and it has already been wrong twice: half the edge's length made a
-   34px drag invert the edge, and the full length still turned a 35px
-   drag into a scale factor of 0.28. Making the handle a POSITION
-   removes the lever entirely -- put the end where you want it and
-   `sf` is the distance from the middle over what it was, the angle of
-   the handle about the middle IS the rotation, the diamond's
-   perpendicular distance IS the amplitude. Nothing to tune, the
-   geometry follows the pointer exactly, and the handles become a
-   READOUT as well as a control, since each already sits where the
-   current value puts it.
-2. **ONE END HANDLE INSTEAD OF TWO.** Moving an endpoint in two
-   dimensions is exactly (angle, length) in polar coordinates about
-   the midpoint, so scale and rotate are the radial and tangential
-   halves of ONE gesture. It removes a handle and the crowding with
-   it -- three handles at 16px offsets on a 43px edge is a cluster --
-   and it is how anybody would expect to move the end of a line. It
-   would record two edits from one gesture, which is honest and
-   composable.
+1. **A HANDLE IS A POSITION, NOT A DELTA -- BUILT.** Turning travel
+   into a parameter needs a LEVER, and a lever is a gain factor nobody
+   can see: half the edge's length made a 34px drag invert the edge,
+   and the full length still turned a 35px drag into a scale factor of
+   0.28. The end handle starts half a length from the edge's middle,
+   so where the pointer has taken it IS a polar coordinate about that
+   middle -- the scale factor is how far out it sits, the rotation is
+   the angle it makes, the diamond's perpendicular distance is the
+   amplitude. Nothing to tune, and each handle is a READOUT as well as
+   a control.
+2. **ONE END HANDLE INSTEAD OF TWO -- REFUSED, not deferred.** Moving
+   an endpoint is exactly (angle, length) in polar coordinates about
+   the midpoint, so scale and rotate really are two halves of one
+   gesture, and it would remove a handle and the crowding with it.
+   WHAT DECIDED AGAINST IT is the maintainer's standard of the same
+   day: the handles must be "shapes that make sense ... for what they
+   do", and one handle would have to say TWO things, which is the one
+   thing a glyph cannot do. It would also record two edits from one
+   gesture, which is honest and makes the change list harder to read
+   back and to roll back through -- and rolling back one or two edits
+   is a requirement of its own.
+   THE CROWDING WAS ANSWERED THE OTHER WAY: the view fits the UNIT
+   rather than the 36-tile patch, the seats are 12px, and the three
+   edge handles sit at 0 and 30px of perpendicular offset rather than
+   0 and 16. If the merged handle is wanted later, that is the argument
+   it has to beat.
+
+**AND EVERY MANIPULATION IS NOW REACHABLE ON THE DRAWING**
+(maintainer's instruction, 2026-08-31: "all interactions in that
+topology image, not just one"). `push_vertex` was reachable only
+through the chooser and the Apply button; it has a rail now, drawn
+along the one direction a push can take, with no handle at all where
+that direction cancels -- which on laves 3.3.4.3.4 and hex-slice 3 it
+exactly does, the incident unit vectors summing to 1.5e-9.
 
 **`push_vertex` IS SETTLED, AND IT WORKS: WHERE IT MOVES NOTHING THAT
 IS A FACT ABOUT THE DESIGN.** (Measured 2026-08-31, closing a question

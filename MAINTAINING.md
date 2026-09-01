@@ -902,12 +902,43 @@ meeting it, and measured on laves 3.3.4.3.4 at a realistic size the
 edges run 31 to 43px, so 12px at each end claimed 24 of a median 43 --
 more than half of every edge was unclickable as an edge.
 
-**WHAT IS KNOWN TO BE WRONG WITH IT, and both are written up in
-ROADMAP.md rather than fixed.** The handles report a DELTA which is
-fed through a lever, and that lever has been wrong twice; a handle
-should be a POSITION, with the parameter read off where it sits.
-Scale and rotate should be ONE end handle, because moving an endpoint
-is exactly (angle, length) in polar coordinates about the middle.
+**AND IT WAS REBUILT AGAIN ON 2026-08-31**, on the maintainer's report
+that the tab was unusable and their standard for what would fix it: it
+"should be easy to use and easy to learn", it "has to be perceivable",
+and "hover states aren't as good as shapes that make sense". Four
+things changed, and the reasoning for each is in docs/TOPOLOGY.md.
+
+THE VIEW FITS THE UNIT, NOT THE PATCH. `topology.tiles` is the unit and
+its neighbouring copies -- 36 tiles for a four-tile design -- so the
+thing being edited was drawn at a third of the size the panel could
+give it, every class label overlapping its neighbour and the handles
+arriving as a cluster of rings a few pixels across. `n_tiles` is the
+library's own count of the unit's own tiles; the copies still draw, and
+run off the edges as context.
+
+EACH HANDLE IS A PICTURE OF WHAT IT DOES: a double-headed arrow along
+the edge for stretch, a curved arrow for turn, a wave for zigzag, a
+four-way cross for a free vertex move, and an arrow on a rail for a
+push. They were a square, a circle and a diamond, whose meanings
+existed only here. A hover label was the obvious repair and is the
+wrong one -- a hover must be discovered before it can teach anything,
+and a first-time reader never hovers.
+
+A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED, which retires the
+lever that had been wrong twice. The end handle starts half a length
+from the edge's middle, so where the pointer has taken it IS a polar
+coordinate about that middle: the scale factor is how far out it now
+sits, the rotation is the angle it now makes.
+
+AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING. `push_vertex` lived
+behind the chooser alone; it has a rail now, drawn along the one
+direction a push can take -- and no handle at all where that direction
+cancels, which on laves 3.3.4.3.4 it exactly does.
+
+WHAT IS STILL NOT BUILT is the audit's other design, merging scale and
+rotate into one end handle. It is refused rather than pending: one
+handle would have to say two things, which is what the glyphs exist not
+to do. The argument is in docs/TOPOLOGY.md.
 
 ### How an edit that cannot be drawn is told apart from one that did nothing
 
