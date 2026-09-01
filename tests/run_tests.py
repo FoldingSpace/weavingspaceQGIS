@@ -5812,7 +5812,14 @@ def test_a_save_never_removes_a_layer_this_map_did_not_write():
   def their_file(path):
     """A GeoPackage holding a colleague's two tile layers."""
     source = ogr.GetDriverByName("GPKG").CreateDataSource(path)
-    for name in ("tiles_a_theirs", "tiles_zz_theirs"):
+    # THEIR EMBEDDED COPY OF THEIR OWN DATA IS IN HERE TOO, because
+    # the same ownership flip reaches it through a different remover:
+    # `_embed_or_drop_the_source` asks the same question and was
+    # mended for the first press only, so their `weavingspace_region`
+    # went on the second and their file stopped being redrawable by
+    # anybody. Found by a hunt at the save, 2026-09-01.
+    for name in ("tiles_a_theirs", "tiles_zz_theirs",
+                 "weavingspace_region"):
       layer = source.CreateLayer(name, geom_type=ogr.wkbPolygon)
       layer.CreateField(ogr.FieldDefn("value", ogr.OFTInteger))
       feature = ogr.Feature(layer.GetLayerDefn())
@@ -5852,8 +5859,12 @@ def test_a_save_never_removes_a_layer_this_map_did_not_write():
         dlg.gpkg_widget.setFilePath(shared)
         assert press_save(dlg, shared), \
           f"PREMISE: press {press} did not write anything"
-        theirs = [name for name in bridge_module.gpkg_tables(shared)
-                  if name.endswith("_theirs")]
+        held = bridge_module.gpkg_tables(shared)
+        theirs = [name for name in held if name.endswith("_theirs")]
+        assert "weavingspace_region" in held, (
+          f"after press {press} the colleague's own embedded copy of "
+          f"their data is gone from their file, so nobody can redraw "
+          f"the map they sent")
         assert sorted(theirs) == ["tiles_a_theirs", "tiles_zz_theirs"], (
           f"after press {press} the colleague's file holds {theirs}: "
           f"saving beside somebody else's map removed a layer of "
@@ -5945,9 +5956,19 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       _tick(400)
       _settle_topology(dlg, seconds=40)
       _generate_and_wait(dlg)
+      # SETTLED, NOT MERELY RETURNED. Run in a batch on a loaded
+      # machine the press met "the map is still drawing", which is the
+      # in-flight refusal doing its job against a test that had not
+      # waited for the event.
+      _settle(dlg)
+      _tick(100)
       dlg.gpkg_widget.setFilePath(path)
       assert press_save(dlg, path), "PREMISE: the first save wrote nothing"
       before = topology_tables(path)
+      # WHAT THE PANEL HOLDS FOR *THIS* DESIGN, kept so the journey's
+      # own state can be put back deterministically below.
+      stale_topology = getattr(panel, "_topology", None)
+      stale_pair = getattr(dlg, "_topology_dual", None)
       assert len(before) == 2, (
         f"PREMISE: the first save left {before} rather than a unit and "
         f"a dual, so there is no motif for a later save to lose")
@@ -5956,7 +5977,13 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       # panel: no build is queued while it is unticked.
       dlg.opt_experimental.setChecked(False)
       _tick(200)
-      held = id(getattr(panel, "_topology", None))
+      # LET ANY BUILD ALREADY IN FLIGHT LAND FIRST. Ticking the box on
+      # queues one, and in a batch it can arrive DURING the design
+      # change below and move the panel's object -- which is the
+      # premise this journey depends on staying still. Settling here
+      # closes that window rather than sampling it.
+      _settle_topology(dlg, seconds=40)
+      _tick(200)
       if inset:
         dlg.mod_t_inset.setValue(25.0)
       else:
@@ -5964,11 +5991,26 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
         _tick(200)
         dlg.family_combo.setCurrentText("hex-slice")
       _tick(400)
-      assert id(getattr(panel, "_topology", None)) == held, (
-        "PREMISE: the panel's topology moved with the box unticked, so "
-        "this journey no longer stages a stale one and the guard "
-        "under test is not reached")
+      # THE STATE IS STAGED RATHER THAN WAITED FOR. With the box off
+      # `_queue_topology` returns early and the panel keeps the
+      # previous design's topology -- which is the journey -- but
+      # whether a build queued earlier has landed by now depends on
+      # the machine, and a premise about it failed one way when this
+      # ran alone and the other way in a batch. Putting the previous
+      # design's pair back is the same state, arrived at in one line
+      # instead of a race, which is this project's own rule: where a
+      # case depends on a window, close the window.
+      panel._topology = stale_topology
+      dlg._topology_dual = stale_pair
+      assert stale_topology is not None, \
+        "PREMISE: the first design left no topology to go stale"
+      assert (stale_pair is None
+              or stale_pair[0] != dlg._topology_stamp()), (
+        "PREMISE: the staged pair is of the design being saved, so "
+        "nothing stale is in hand and the guard is not reached")
       _generate_and_wait(dlg)
+      _settle(dlg)
+      _tick(100)
       dlg.gpkg_widget.setFilePath(path)
       assert press_save(dlg, path), "PREMISE: the second save wrote nothing"
       return topology_tables(path)

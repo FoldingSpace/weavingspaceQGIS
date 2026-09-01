@@ -8779,10 +8779,27 @@ MUTATIONS = [
        # drop runs anyway -- removing the table somebody else wrote,
        # because it belongs to an element this map has and was not
        # among the names this save wrote.
+       # RE-ANCHORED 2026-09-01: the drop now takes the ownership
+       # answer REMEMBERED from the first meeting rather than the live
+       # one, so the call it guards is spelt differently. The mutation
+       # is unchanged in meaning -- sweep even when the file has
+       # changed under us.
        old="""    if not vanished:
-      self._drop_tables_this_map_no_longer_has(path, written_names, ours)""",
+      self._drop_tables_this_map_no_longer_has(
+        path, written_names, mine_from_the_start)""",
        new="""    if True:
-      self._drop_tables_this_map_no_longer_has(path, written_names, ours)""",
+      self._drop_tables_this_map_no_longer_has(
+        path, written_names, mine_from_the_start)""",
+       # AND IT SURVIVES AS OF 2026-09-01, WITH THE CONTROL RUN.
+       # Breaking BOTH routes at once -- this skip and the remembered
+       # ownership answer -- still leaves the named test passing, so
+       # this is neither a weak assertion nor a redundancy: the test
+       # has stopped REACHING the case. That is the third possibility
+       # docs/TESTING.md names, and re-staging the journey it drives
+       # is owed work rather than something to fix by weakening
+       # anything here. Left in place, and said out loud, because an
+       # entry quietly reporting SURVIVED is worth less than one that
+       # says why.
        test="test_a_save_leaves_a_shared_file_somebody_else_has_changed",
        why="nothing being deleted on a guess once a file has changed "
            "under us: what looks like our own abandoned table is just "

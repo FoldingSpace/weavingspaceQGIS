@@ -19133,6 +19133,32 @@ class WeavingSpaceDialog(QDialog):
     # the other side.
     ours = self._this_map_owns_the_file(path)
 
+    # ...AND OWNERSHIP IS REMEMBERED FROM THE FIRST MEETING, because
+    # the reading above flips under our own feet. `_this_map_owns_the
+    # _file` answers True as soon as the file is in
+    # `_gpkg_tables_written`, which OUR OWN FIRST PRESS puts there --
+    # so a stranger's GeoPackage is a stranger's on press one and ours
+    # on press two, and every remover below was handed a licence it
+    # was never meant to have. Measured 2026-09-01: their element
+    # tables went on the second press, and a hunt then found their
+    # embedded copy of their own data going the same way, by the same
+    # flip, through a different remover. THREE REMOVERS TAKE THIS
+    # ARGUMENT and one had been mended, which is this project's own
+    # signal to stop patching routes and fix the QUESTION.
+    #
+    # A FILE THAT DID NOT EXIST IS OURS BY CONSTRUCTION, and that
+    # clause is what stops this breaking the case the drop exists for:
+    # without it, a file we CREATE reads as somebody else's for ever,
+    # since nothing of ours is in it to recognise on the first press.
+    # The overwrite question keeps the live reading deliberately --
+    # with Save a deliberate press, asking every time is noise, which
+    # is the settled ruling of 2026-08-27.
+    existed = os.path.exists(path) and os.path.getsize(path) > 0
+    if not hasattr(self, "_file_was_ours_when_met"):
+      self._file_was_ours_when_met = {}
+    mine_from_the_start = self._file_was_ours_when_met.setdefault(
+      self._gpkg_key(path), (not existed) or ours)
+
     # WHAT EACH ELEMENT'S TABLE IS CALLED is decided when the map is
     # DRAWN, not here, so that two saves of one map cannot disagree
     # about it and so that the name follows the variable the element
@@ -19394,7 +19420,8 @@ class WeavingSpaceDialog(QDialog):
     # like our own abandoned one is just as likely to be their current
     # one. Nothing is deleted on a guess.
     if not vanished:
-      self._drop_tables_this_map_no_longer_has(path, written_names, ours)
+      self._drop_tables_this_map_no_longer_has(
+        path, written_names, mine_from_the_start)
     self._last_path = path
     self._gpkg_tables_written[self._gpkg_key(path)] = set(written_names)
 
@@ -19490,7 +19517,8 @@ class WeavingSpaceDialog(QDialog):
           merged = dict(element)
         rebuilt.append(merged)
       resumable["elements"] = rebuilt
-    resumable["region_embedded"] = self._embed_or_drop_the_source(path, ours)
+    resumable["region_embedded"] = self._embed_or_drop_the_source(
+      path, mine_from_the_start)
     # BEFORE THE RECORD, like the source copy above it and for the same
     # reason: the record says whether these tables are there, so it is
     # written once the answer is a fact about the file rather than an
@@ -19502,7 +19530,7 @@ class WeavingSpaceDialog(QDialog):
     # current one without building a topology to find out.
     (resumable["topology_written"],
      resumable["topology_design"]) = self._write_or_drop_the_topology(
-       path, ours, resumable)
+       path, mine_from_the_start, resumable)
     wrote_the_record = bridge.write_working_state(
       path, self._file_safe_state(resumable))
     # AND THE GROUP LEARNS WHERE ITS MAP WENT, which is the other half
