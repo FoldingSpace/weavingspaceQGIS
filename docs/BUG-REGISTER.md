@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-479 defect(s) with a regression test.
+480 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -991,6 +991,8 @@ there is no separate list to remember.
   guarded by `test_several_classes_can_be_moved_together`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
+- **the dual could be drawn over a design and not tiled with, though it is a periodic tiling on the same lattice.**  
+  guarded by `test_the_dual_can_be_the_design_the_map_is_tiled_with`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
   guarded by `test_the_mutation_guard_scales_with_the_diff`
 - **opening the plugin before adding a dataset left the Variable dropdown empty and Generate blaming the user for not assigning one.**  
@@ -1015,7 +1017,7 @@ there is no separate list to remember.
 - the mutation campaign: 157
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 35
+- reported by a user: 36
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 8

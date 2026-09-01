@@ -241,6 +241,10 @@ WORKING_STATE_DESIGN = (
   # written before labels existed holds that same string -- so
   # `findData` lands on it and nothing already saved moves.
   ("family", "family_combo", "data"),
+  # WHETHER THE MAP IS TILED WITH THE DESIGN OR WITH ITS DUAL. A
+  # design term rather than a preference, so it travels with the map:
+  # a colleague opening the file gets the tiling they were sent.
+  ("map_dual", "opt_map_dual", "checked"),
   ("spacing", "spacing_spin", "number"),
   ("offset", "opt_offset", "number"),
   ("offset_angle", "opt_offset_angle", "number"),
@@ -3322,6 +3326,12 @@ class WeavingSpaceDialog(QDialog):
     from .topology_tab import TopologyPanel
     self.topology_panel = TopologyPanel()
     self.topology_panel.edits_changed.connect(self._on_topology_edited)
+    # THE DUAL SWITCH IS A DESIGN CONTROL that happens to live on the
+    # Topology tab, so the dialog names it: `WORKING_STATE_DESIGN`
+    # reads its widgets off `self`, and every other design term is
+    # reachable that way. The same object, not a copy.
+    self.opt_map_dual = self.topology_panel.map_dual
+    self.opt_map_dual.toggled.connect(self._queue_preview)
     tabs.addTab(self.topology_panel, "Topology")
 
     # THE GATE, and the two records it needs. `_tabs` because nothing
@@ -6419,6 +6429,29 @@ class WeavingSpaceDialog(QDialog):
       # strands would vanish at inset values a tiling shrugs off
       unit = unit.inset_tiles(
         self.mod_t_inset.value() * self.opt_aspect.value() * spacing / 100)
+    # AND THE DUAL LAST, because it is a design made FROM the one every
+    # line above composed: the modifiers belong to the source, and the
+    # dual of a rotated, inset unit is what somebody ticking this asks
+    # for. Measured 2026-09-01, the promoted dual TILES -- 181 tiles
+    # over a 3km region for laves 3.3.4.3.4, 203 for hex-slice 4, 84
+    # for archimedean 4.8.8 -- which is the only test that matters,
+    # since a thing that merely looks like a Tileable is not one.
+    #
+    # IT FALLS THROUGH RATHER THAN FAILING where there is no dual to
+    # build: an inset opens gaps, a gapped design has no topology, and
+    # a map of the design somebody can see beats no map at all. The
+    # notice says which they got.
+    if getattr(self, "opt_map_dual", None) is not None \
+        and self.opt_map_dual.isChecked():
+      from . import topology_edits
+      built, why = topology_edits.build(unit)
+      dual = topology_edits.dual_as_tileable(built)
+      if dual is not None:
+        return dual
+      self._report_quietly(
+        "This design has no dual to tile with"
+        + (f": {why}" if why else "")
+        + ", so the map is tiled with the design itself.")
     return unit
 
   def _preview_wait(self) -> int:
@@ -14675,6 +14708,13 @@ class WeavingSpaceDialog(QDialog):
       self.opt_join_prototiles.isChecked(), self.opt_retain.isChecked(),
       self.opt_clip.isChecked(), self.opt_icons.isChecked(),
       self.opt_outlines.isChecked(),
+      # TILING WITH THE DUAL IS A DIFFERENT MAP, so it belongs with
+      # everything else that changes the tiles rather than their
+      # colours. Without this term, ticking the box would take the
+      # restyle fast path and every element layer would come back
+      # byte for byte as it was -- which is exactly what a topology
+      # edit did until 2026-08-30.
+      self.opt_map_dual.isChecked(),
       self.gpkg_widget.filePath().strip() or None,
       tuple(sorted(a["var"] for a in self._assignments() if a["var"])),
       # WHETHER EACH ELEMENT NEEDS ITS TILES SPLIT, which is geometry

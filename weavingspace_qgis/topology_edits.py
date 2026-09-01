@@ -1237,3 +1237,133 @@ def tile_symmetry_codes(unit):
     except Exception:                                 # noqa: BLE001
       codes.append("")
   return codes
+
+# ---------------------------------------------------------------------
+# THE DUAL, AS A DESIGN IN ITS OWN RIGHT
+#
+# THIS IS A WORKAROUND FOR SOMETHING THE LIBRARY DOES NOT OFFER, and it
+# is written to this project's own procedure for that (the
+# dependency-bug-workaround skill), which means: the measurement is
+# here, the removal criteria are here, and a canary test asserts that
+# the gap is still there so the day it closes the suite says so.
+#
+# WHAT IS MISSING. `Topology.get_dual_tiles()` hands back a frame of
+# the dual's polygons with tile ids, and the dual of a periodic tiling
+# repeats on the SAME lattice -- measured, its ground covers 249,423
+# map units against the unit's 248,842, a third of a percent apart.
+# But `Tileable.__init__` delegates to `_setup_tiles()`, which
+# dispatches on `tiling_type` and has no path for supplied geometry:
+# an unrecognised type prints a message and falls back to the default
+# tileable. So there is no constructor for "here are the tiles and the
+# vectors, make me a Tileable".
+#
+# WHAT WOULD LET THIS GO. A `TileUnit` that accepts tiles and vectors,
+# or a `Topology.dual_as_tileable()`. The patch has gone upstream; when
+# it lands, `test_the_library_still_cannot_build_a_unit_from_tiles`
+# fails, and that failure is GOOD NEWS: delete this function's body in
+# favour of the library's own, and delete the canary with it.
+
+def dual_as_tileable(topology):
+  """Turn a design's dual into a Tileable that can be mapped.
+
+  Args:
+    topology: a built Topology whose `generate_dual` has run, or which
+      can run it.
+
+  Returns:
+    A Tileable drawing the dual's tiles on the source design's own
+    lattice, or None where the dual cannot be built or the source
+    states no usable vectors. None rather than a raise, because a
+    design that cannot offer a dual is an ordinary answer and every
+    caller here has something to say about it.
+
+  IT COPIES THE SOURCE AND REPLACES ITS TILES, rather than
+  constructing a Tileable from nothing: the object carries a CRS, a
+  spacing, an id and the vectors, all of which the dual shares by
+  construction, and reaching for a constructor that does not exist is
+  what this function is working around in the first place.
+
+  THE IDS ARE OURS. The dual's tiles correspond to the source's
+  VERTICES, so they are lettered in the order `get_dual_tiles` returns
+  them through `bridge.element_table_name`'s own alphabet -- which is
+  what keeps a dual of twenty-seven tiles sorting `aa` after `z`
+  rather than second.
+  """
+  if topology is None:
+    return None
+  unit = getattr(topology, "tileable", None)
+  if unit is None:
+    return None
+  try:
+    if not getattr(topology, "dual_tiles", None):
+      topology.generate_dual()
+    frame = topology.get_dual_tiles()
+  except Exception:                                   # noqa: BLE001
+    return None
+  if frame is None or len(frame) == 0:
+    return None
+  if not _lattice_of(topology):
+    return None
+  try:
+    ids = [_letters(index) for index in range(len(frame))]
+    tiles = frame.copy()
+    tiles["tile_id"] = ids
+    dual = _shallow_copy_with_tiles(unit, tiles)
+    # THE PROTOTILE HAS TO BE REBUILT FROM THE VECTORS, or the unit
+    # carries the SOURCE design's outline around the dual's tiles and
+    # every consumer that clips to it -- the tiling, the preview, the
+    # region overlay -- draws a shape neither design has.
+    dual.prototile = dual.get_prototile_from_vectors()
+    dual._setup_regularised_prototile()
+  except Exception:                                   # noqa: BLE001
+    return None
+  return dual if _tiles_lay_out(dual) else None
+
+
+def _letters(index: int) -> str:
+  """The nth tile id, in this project's own alphabet.
+
+  Args:
+    index: zero-based position.
+
+  Returns:
+    "a" to "z", then "aa" to "zz" -- the same doubled alphabet the
+    element ceilings settled on, so a dual with more than
+    twenty-six tiles keeps ids a GeoPackage can hold apart.
+  """
+  first, second = divmod(index, 26)
+  return (chr(ord("a") + first - 1) if first else "") + chr(ord("a") + second)
+
+
+def the_library_can_build_a_unit_from_tiles() -> bool:
+  """Has the library grown a constructor for supplied geometry?
+
+  Returns:
+    True the day `Tileable` accepts tiles and vectors directly -- by
+    a `from_tiles` classmethod, a `tiles=` keyword its setup honours,
+    or a `dual_as_tileable` of its own. False while the workaround
+    above is still earning its place.
+
+  ASKED OF THE LIBRARY, WITH OUR CODE OUT OF THE WAY, which is what
+  makes the canary that reads it evidence about the dependency rather
+  than about us.
+  """
+  try:
+    from weavingspace.tile_unit import TileUnit
+    from weavingspace.topology import Topology
+  except Exception:                                   # noqa: BLE001
+    return False
+  if hasattr(TileUnit, "from_tiles") or hasattr(Topology, "dual_as_tileable"):
+    return True
+  # A `tiles=` keyword that the setup actually honours would show as a
+  # unit whose tiles are the ones handed over; today the keyword is
+  # swallowed by `**kwargs` and `_setup_tiles` builds a default.
+  try:
+    import geopandas as gpd
+    from shapely.geometry import Polygon
+    square = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
+    frame = gpd.GeoDataFrame({"tile_id": ["a"]}, geometry=[square])
+    made = TileUnit(tiling_type="cairo", tiles=frame)
+    return len(made.tiles) == 1
+  except Exception:                                   # noqa: BLE001
+    return False

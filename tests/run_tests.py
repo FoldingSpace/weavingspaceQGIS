@@ -7471,6 +7471,141 @@ def _settle_topology(dlg, seconds: int = 30):
       return
 
 
+def test_the_dual_can_be_the_design_the_map_is_tiled_with():
+  """Ticking the dual tiles the map with it, and the file remembers.
+
+  The dual has been drawable over a design since 2026-08-31 and was
+  not a design in its own right. Promoting it means a Tileable, and
+  the library has no constructor that takes supplied geometry --
+  `Tileable.__init__` dispatches on `tiling_type` and falls back to a
+  default for anything it does not know -- so `dual_as_tileable`
+  assembles one, which is a workaround with a canary beside it.
+
+  THE TEST THAT MATTERS IS THAT IT TILES. A thing that looks like a
+  Tileable is not one: measured 2026-09-01 through `Tiling`, the
+  promoted dual lays 181 tiles over a 3km region for laves 3.3.4.3.4,
+  203 for hex-slice 4 and 84 for archimedean 4.8.8. So this drives
+  the plugin's own Generate and counts what the map holds.
+
+  AND THE GROUND IS DIFFERENT GROUND. A dual whose tiles happened to
+  be the design's own would pass a count and fail the point, so the
+  two are compared as ground rather than as numbers.
+
+  THE RECORD TRAVELS, which is the half a colleague meets: the switch
+  is a design term rather than a preference, so it rides the working
+  state and a saved map opens as the map that was sent.
+
+  Regression: the dual could be drawn over a design and not tiled with, though it is a periodic tiling on the same lattice. [user]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), "PREMISE: no topology was built"
+
+    plain = dlg._build_unit()
+    assert plain is not None, "PREMISE: the design itself did not build"
+    dlg.opt_map_dual.setChecked(True)
+    _tick(200)
+    duals = dlg._build_unit()
+    assert duals is not None, "the dual was asked for and nothing was built"
+
+    # ---- IT IS A DIFFERENT DESIGN, compared as ground rather than as
+    # a count, since two designs can hold four tiles apiece.
+    from shapely.ops import unary_union
+    first = unary_union(list(plain.tiles.geometry))
+    second = unary_union(list(duals.tiles.geometry))
+    moved = first.symmetric_difference(second).area / max(first.area, 1e-9)
+    assert moved > 0.01, (
+      f"the dual covers the same ground as the design it came from "
+      f"(symmetric difference {moved:.4f} of the unit), so ticking "
+      f"the box changed nothing anybody could see")
+
+    # ---- AND IT TILES, through the plugin's own Generate.
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, \
+      "the run produced no layers at all with the dual asked for"
+    drawn = 0
+    for tile_id in dlg._element_layer_ids.values():
+      element = QgsProject.instance().mapLayer(tile_id)
+      if element is not None:
+        drawn += element.featureCount()
+    assert drawn > 0, (
+      "the map was tiled with the dual and holds no tiles: a design "
+      "that cannot cover a region is not a design")
+
+    # ---- AND THE RECORD SAYS SO
+    record = dlg._capture_working_state()
+    assert record["design"].get("map_dual") is True, (
+      f"the working state records {record['design'].get('map_dual')!r} "
+      f"for the dual, so a colleague opening this map would be given "
+      f"the design rather than the tiling that was sent")
+
+    # ---- AND A DESIGN WITH NO DUAL FALLS THROUGH, SAYING SO. An
+    # inset opens gaps and a gapped design has no topology, so this is
+    # the ordinary way to reach it.
+    BAR_MESSAGES.clear()
+    dlg.mod_t_inset.setValue(25.0)
+    _tick(300)
+    fallen = dlg._build_unit()
+    assert fallen is not None, (
+      "a design whose dual cannot be built produced no unit at all, "
+      "where the map of the design itself is what it should fall back "
+      "to")
+    said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+    assert "no dual" in said, (
+      f"nothing was said when the dual could not be built; the person "
+      f"is looking at a map of the design and asked for its dual. The "
+      f"messages were {said[:160]!r}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
+def test_the_library_still_cannot_build_a_unit_from_tiles():
+  """The canary for the dual workaround: is the gap still there?
+
+  `topology_edits.dual_as_tileable` assembles a Tileable by copying
+  one and replacing its tiles, because `Tileable.__init__` delegates
+  to `_setup_tiles()`, which dispatches on `tiling_type` and has no
+  path for supplied geometry. That is a workaround for something the
+  library does not offer, and this project's procedure for those says
+  a canary must assert the gap so the day it closes the suite says so.
+
+  A PATCH FOR IT HAS GONE UPSTREAM, which is what makes this canary
+  likely to fire rather than decorative: the same route the STRtree
+  optimisation took, which came back merged.
+
+  GOOD NEWS, PROBABLY: if this test fails, the library can now build a
+  unit from supplied tiles. Delete the body of `dual_as_tileable` in
+  favour of the library's own constructor, and delete this test with
+  it. Do NOT relax the assertion to make the suite green -- that hides
+  the very change this test exists to report.
+  """
+  from weavingspace_qgis import topology_edits
+
+  assert not topology_edits.the_library_can_build_a_unit_from_tiles(), (
+    "GOOD NEWS, PROBABLY: the vendored weavingspace can now build a "
+    "Tileable from supplied tiles and vectors, so the assembly in "
+    "`topology_edits.dual_as_tileable` is redundant and can be "
+    "deleted along with this test. Do NOT relax this assertion to "
+    "make the suite green -- that hides the very change this test "
+    "exists to report.")
+
+
 def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
   """The design's own symmetry is shown, and it greys a dead control.
 
@@ -80229,6 +80364,10 @@ def main():
         test_several_classes_can_be_moved_together)
   check("the symmetries are drawn and gate what cannot move",
         test_the_symmetries_are_drawn_and_gate_what_cannot_move)
+  check("the dual can be the design the map is tiled with",
+        test_the_dual_can_be_the_design_the_map_is_tiled_with)
+  check("the library still cannot build a unit from tiles",
+        test_the_library_still_cannot_build_a_unit_from_tiles)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
   check("every handle can be hit at the size the window opens at",

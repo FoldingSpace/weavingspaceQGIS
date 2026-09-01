@@ -1468,6 +1468,22 @@ class TopologyPanel(QWidget):
     self._argument_grid = grid
     side.addWidget(change)
 
+    # THE DUAL AS A DESIGN, not merely as an overlay. (Maintainer's
+    # decision, 2026-09-01.) The "Dual tiling" switch above draws the
+    # dual over the design; this MAKES it the design, so the map is
+    # tiled with it -- which is what promoting it to a tiling of its
+    # own means.
+    #
+    # IT COSTS A TOPOLOGY BUILD PER REBUILD, which is 0.3 to 20
+    # seconds depending on the design, and that is why it is a tick
+    # rather than something the plugin does on its own: the tick is
+    # the asking, exactly as it is for the experimental tabs.
+    self.map_dual = QCheckBox("Map the dual instead")
+    self.map_dual.setToolTip(
+      "Tile the map with the dual of this design. Slower: the dual "
+      "has to be worked out before anything can be drawn.")
+    side.addWidget(self.map_dual)
+
     buttons = QHBoxLayout()
     self.apply_button = QPushButton("Apply")
     self.apply_button.setToolTip("Adds this change to the design.")

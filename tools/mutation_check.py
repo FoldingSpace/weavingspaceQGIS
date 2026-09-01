@@ -2550,6 +2550,35 @@ MUTATIONS = [
        test="test_a_save_never_removes_a_layer_this_map_did_not_write",
        why="a colleague's layers surviving a save into the file you "
            "both keep your maps in"),
+  dict(name="the-dual-is-what-the-map-is-tiled-with", file=DIALOG,
+       # MUTATED to ignore the switch, so the box is ticked, the record
+       # says the map is the dual, and the map is the design -- which
+       # is this project's characteristic failure: a wrong map that
+       # looks exactly like a right one.
+       # THE ANCHOR IS RAW AND RUNS ON TO THE NEXT LINE, because it
+       # carries a line continuation (a backslash-newline inside a
+       # non-raw anchor is collapsed and matches nothing) and because
+       # an anchor ending on a quote closes its own delimiter.
+       old=r"""    if getattr(self, "opt_map_dual", None) is not None \
+        and self.opt_map_dual.isChecked():
+      from . import topology_edits""",
+       new=r"""    if False:
+      from . import topology_edits""",
+       test="test_the_dual_can_be_the_design_the_map_is_tiled_with",
+       why="the map being tiled with the design somebody asked for"),
+  dict(name="a-design-with-no-dual-says-so", file=DIALOG,
+       # MUTATED to fall back in SILENCE: the map is then of the design
+       # rather than of its dual, with nothing to say why, which is the
+       # quiet refusal this project has paid for twice.
+       old="""      self._report_quietly(
+        "This design has no dual to tile with"
+        + (f": {why}" if why else "")""",
+       new="""      _ = (
+        "This design has no dual to tile with"
+        + (f": {why}" if why else "")""",
+       test="test_the_dual_can_be_the_design_the_map_is_tiled_with",
+       why="being told that the dual could not be built, rather than "
+           "meeting a map of the design and wondering why"),
   dict(name="the-symmetry-greys-a-push-that-cannot-move",
        file=TOPOLOGY_TAB,
        # MUTATED to leave every manipulation offered, which is the tab
