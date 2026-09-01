@@ -324,6 +324,45 @@ def main():
   # stand above and _optional.py stays: QGIS ships no matplotlib and
   # upstream's plotting helpers import it at module level.
 
+  # ---- PATCH 3: the join lookup vectorises -------------------------
+  # `tile_map.py` builds the tile-to-region lookup with
+  #
+  #     overlaps.groupby("joinUID")[area_name].agg(pd.Series.idxmax)
+  #
+  # and passing the FUNCTION defeats pandas' cython path: it falls back
+  # to `_aggregate_series_pure_python` and walks every group in Python.
+  # The string form uses the fast path and returns the same answer.
+  #
+  # MEASURED 2026-08-31 on the packaged Auckland data, laves 3.3.4.3.4:
+  #
+  #     spacing   tiles     groups    callable    method    ratio
+  #        400    13,460     4,230     0.069s     0.002s      41x
+  #        250    32,436    10,526     0.173s     0.001s     141x
+  #        150    86,768    28,619     0.476s     0.003s     182x
+  #        100   191,184    63,684     1.076s     0.006s     191x
+  #
+  # The slow form scales with the number of groups and the fast one is
+  # flat, so this bites hardest on exactly the maps that already take
+  # longest -- at spacing 100 it was 2.16s of `get_tiled_map`'s 3.92s.
+  #
+  # IT IS BEHAVIOUR-PRESERVING, INCLUDING TIES, and that was staged
+  # rather than hoped for: real areas rarely tie to the last bit, so a
+  # run over real data says nothing about it. On a frame built with
+  # exact ties, the callable, the method and the string all return the
+  # FIRST occurrence of the maximum, index for index.
+  #
+  # WORTH SENDING UPSTREAM, and recorded in ROADMAP.md as the second
+  # conversation to have; carried here meanwhile because a patch
+  # re-applies itself at every re-vendor and NAMES itself if the line
+  # moves, which is what this family is for.
+  targeted(VENDOR_DIR / "tile_map.py", "3 join lookup without a python loop",
+           """        lookup = overlaps \\
+          .iloc[overlaps.groupby("joinUID")[area_name] \\
+          .agg(pd.Series.idxmax)][["joinUID", id_var]]""",
+           """        lookup = overlaps \\
+          .iloc[overlaps.groupby("joinUID")[area_name] \\
+          .agg("idxmax")][["joinUID", id_var]]""")
+
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself
   # (commit 8235837), in its own variant — per-geometry convex hulls,

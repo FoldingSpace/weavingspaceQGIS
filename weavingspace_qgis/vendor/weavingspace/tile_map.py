@@ -408,7 +408,7 @@ class Tiling:
         # make a lookup by largest area tile to region id
         lookup = overlaps \
           .iloc[overlaps.groupby("joinUID")[area_name] \
-          .agg(pd.Series.idxmax)][["joinUID", id_var]]
+          .agg("idxmax")][["joinUID", id_var]]
       # now join the lookup and from there the region data
       if debug:
         t6 = perf_counter()

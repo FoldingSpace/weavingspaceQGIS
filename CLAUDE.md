@@ -5679,6 +5679,29 @@ here, and the decision to add one is the maintainer's. Recorded
   matrix all stand on that module.
 
 
+- **PROFILE THE THING A PERSON WAITS FOR, BECAUSE THE COST IS OFTEN
+  NOT WHERE THE SUBJECT IS.** (2026-08-31, asked whether the symmetry
+  work could speed up tiling the plane.) It cannot -- covering the
+  plane is TRANSLATION, and that half is already vectorised: 191,184
+  tiles are built in 2.7s of numpy and STRtree, which is upstream
+  having taken this project's own optimisation. What the profile
+  actually named was `_aggregate_series_pure_python` at 2.16s of
+  `get_tiled_map`'s 3.92s -- a pandas groupby walking 63,684 groups in
+  Python because `tile_map.py` passes the FUNCTION `pd.Series.idxmax`
+  to `.agg()` instead of the string. Measured 41x to 191x depending on
+  size, growing with the map; end to end, `get_tiled_map` at 86,768
+  tiles went from 2.68s to 0.94s.
+  THE DOMAIN WAS THE WRONG PLACE TO LOOK. The question was about
+  symmetry, the code is about geometry, and the answer was a pandas
+  idiom -- which no amount of reasoning about tilings would have
+  reached. This is the same rule as diagnosing by cpu-against-elapsed
+  rather than by the stack that looks guilty, arriving at a library.
+  AND MEASURE WHAT THE ALTERNATIVE COSTS AS WELL AS WHAT IT SAVES: the
+  `overlay` beside it looked equally replaceable, a centroid `sjoin`
+  doing it eight times faster -- and it answers a DIFFERENT QUESTION,
+  which 4.4% of tiles would notice. A speed-up that changes 8,467
+  tiles' data is a ruling, not an optimisation.
+
 - **THE VENDOR-CLAIM GATE READS "commit <sha>" ANYWHERE IN THREE
   FILES, SO WRITING ABOUT SOMEBODY ELSE'S COMMIT TRIPS IT.**
   (2026-08-31, met while mending the claims the re-vendor had made

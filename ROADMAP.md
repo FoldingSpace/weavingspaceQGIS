@@ -2074,6 +2074,35 @@ supersedes the first, which blamed a commit wrongly), and the WEAVE
 half of the element-id ceiling above, which is upstream's decision
 rather than ours now that the tiling half is built.
 
+**AND A THIRD, MEASURED 2026-08-31: THE JOIN LOOKUP IS A PYTHON LOOP.**
+`tile_map.py` builds the tile-to-region lookup with
+`.agg(pd.Series.idxmax)`, and passing the FUNCTION defeats pandas'
+cython path -- it falls back to `_aggregate_series_pure_python` and
+walks every group in Python. `.agg("idxmax")` is the same answer by the
+fast path.
+
+    spacing   tiles     groups    callable    method    ratio
+       400    13,460     4,230     0.069s     0.002s      41x
+       250    32,436    10,526     0.173s     0.001s     141x
+       150    86,768    28,619     0.476s     0.003s     182x
+       100   191,184    63,684     1.076s     0.006s     191x
+
+END TO END through the plugin's own path, old vendor against patched:
+`get_tiled_map` goes from 2.68s to 0.94s at 86,768 tiles and from 3.21s
+to 1.91s at 191,184. TIES BREAK IDENTICALLY, staged rather than hoped
+for -- on a frame built with exact ties the callable, the method and
+the string all return the first occurrence of the maximum. Carried
+meanwhile as patch 3 in `tools/vendor_weavingspace.py`, which
+re-applies it at every re-vendor and names it if the line moves.
+
+AND WHAT IS **NOT** WORTH SENDING, measured beside it: the `overlay`
+that costs the other 1.44s is doing real work. A centroid `sjoin`
+answers in 0.17s and is a DIFFERENT RULE -- it cannot say which zone a
+tile mostly lies in, and 8,467 of 191,184 tiles (4.4%) straddle a zone
+boundary. Swapping it would change which zone those tiles take their
+data from, which is a cartographic decision rather than an
+optimisation, and the maintainer's if it is ever wanted.
+
 **AND A THIRD, RAISED 2026-08-30: `zigzag_edge` EMITS REPEATED
 VERTICES**, which shapely reports as self-intersections and which make
 the result untileable. On `chavey` code K -- the design their own
