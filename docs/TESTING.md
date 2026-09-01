@@ -4222,3 +4222,28 @@ without it, and with the WINDOW driven to 1200x900, the drawing is
 drawn INSIDE the widget, so a believed size that is not the size is
 how a cell quietly stops being able to aim on a machine whose fonts
 are wider.
+
+## A PREMISE THAT FAILS ELSEWHERE MUST CARRY WHAT HAPPENED, NOT WHAT IT EXPECTED
+
+2026-09-01, from one Linux shard. `test_topology_edits_come_back_from_
+the_file` failed its own premise with "the edits moved nothing, so a
+roundtrip that preserved nothing would pass -- both (4, 250000.0,
+3863.703)". The number is the whole diagnosis and the sentence did not
+say so: it equals the PLAIN design rather than the rotated one, which
+means the replay handed back the original -- both edits refused --
+rather than the reading being taken early, which is the other and much
+likelier-sounding explanation.
+
+**SO A PREMISE ABOUT A REPLAY REPORTS THE REPLAY.** It now carries the
+ground after the first edit alone, the per-edit marks
+`topology_edits.apply` returns, and the sentence the panel was given,
+so the next occurrence names its own cause. This is the project's
+standing rule -- say what was FOUND, not which assertion was reached --
+applied where it bites hardest, on a machine nobody here can drive.
+
+**AND A FAILURE THAT APPEARS ON ONE TREE AND NOT ANOTHER IS ABOUT THE
+MACHINE UNTIL PROVED OTHERWISE.** The same test passed on the commit
+before, whose product code is byte-identical; the difference was the
+runner. That is not a reason to shrug -- an intermittent failure is
+still a case somebody can meet -- but it does say the instrument comes
+before the theory.

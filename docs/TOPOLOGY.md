@@ -500,3 +500,46 @@ older design first would be a flicker; where it committed nothing,
 the held landing is the one that draws. Both halves carry a catalogue
 entry, since either alone leaves a tab that either wipes a gesture or
 goes on drawing a design the plugin has already replaced.
+
+## What the tab is getting, decided 2026-09-01 and not yet built
+
+Four features were approved earlier and were scoped into 0.24.4 by a
+grilling on this date. ROADMAP.md carries the reasoning and the
+measurements; what a reader of this document needs is what each will
+mean here.
+
+**Selecting several classes at once.** Click adds and removes a class
+on the drawing and a list beside it confirms the selection, each
+following the other. The record needs nothing -- an edit's `classes`
+is already a string selector, and the library matches `label in
+selector` -- and the case is rarer than it sounds: across a 48-design
+spread most designs carry one or two classes of each kind, so the
+existing per-class entries and the "every" entry already cover every
+subset on most of the catalogue.
+
+**Symmetries drawn, and edits gated by them.** `Topology` already
+holds `tile_matching_transforms`, and upstream's own plot goes through
+matplotlib, which cannot run inside the signed QGIS process on macOS
+-- so the drawing is ours, in the view's painter, from upstream's
+data. The gate is the finding in
+`docs/process/wallpaper-groups-and-what-we-do.md`: a vertex whose
+stabiliser contains a rotation has only the zero displacement
+available, which is why `push_vertex` moves nothing on laves
+3.3.4.3.4 or hex-slice 3. A control that cannot move the selection is
+greyed with its reason rather than offering a rail of zero length, and
+because the rule is necessary rather than sufficient the gate says
+what it measured.
+
+**The dual promoted to a tiling of its own.** `Topology.get_dual_
+tiles()` gives a frame with tile ids whose ground covers the same
+lattice, but `Tileable.__init__` dispatches on `tiling_type` and has
+no path for supplied geometry, so building one means setting the
+fields upstream's own setup would set. It goes in behind one function
+with a canary that fails the day the library grows a real
+constructor, and the same work goes upstream as a patch.
+
+**And the catalogue learns that a name is not an identity.** `cairo`
+and `laves 3.3.4.3.4` draw the same ground -- symmetric difference
+0.000 -- so the entry gains the common name as a LABEL while the
+record goes on storing the catalogue key, which is what keeps every
+saved file readable.

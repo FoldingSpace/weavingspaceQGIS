@@ -6059,3 +6059,112 @@ here, and the decision to add one is the maintainer's. Recorded
   where an intermittent failure is on a PREMISE rather than an
   assertion, suspect something erasing the state the premise is about
   rather than a slow machine.
+
+- **THE SIX DECISIONS OF 2026-09-01, SETTLED BY GRILLING.** All four
+  approved features go into 0.24.4 on the maintainer's decision, and
+  each was put with a measurement rather than an opinion; the
+  measurements are recorded because they are what a later session will
+  not have.
+  MULTI-CLASS SELECTORS: CLICK TO SELECT, A LIST TO CONFIRM, each
+  following the other with the blocked-signal discipline the pin
+  controls already carry. What decided the shape was how much there is
+  to select: across a 48-design spread most designs carry ONE OR TWO
+  transitivity classes of each kind, and where there are two the
+  chooser's per-class entries plus "every vertex" and "every edge"
+  already cover all three subsets, so the feature only bites on the
+  eight of 48 with three or more -- `hex-slice 5` at 5 vertex and 7
+  edge classes being the richest. The record needs nothing: an edit's
+  `classes` is already a STRING selector and the library matches
+  `label in selector`.
+  CAIRO IS A RENAME, NOT A FAMILY. Measured through `catalog.make_unit`,
+  `tiling_type="cairo"` and the catalogue's own `laves 3.3.4.3.4` draw
+  the SAME GROUND -- four tiles, ids a-d, identical areas and bounds,
+  symmetric difference 0.000 -- so one entry reads `laves 3.3.4.3.4
+  (cairo)` and the well-known Archimedean and Laves names come with
+  it, through `text_review` like any other prose.
+  **AND THE MECHANISM IS THE LABEL/KEY SEPARATION THIS FILE ALREADY
+  PREACHES.** `family_combo` is built with `addItems(names)`, so the
+  catalogue name does duty as label AND identity, and
+  `WORKING_STATE_DESIGN` stores `family` as the combo's TEXT -- which
+  is why renaming an entry looked as though it would orphan every
+  saved GeoPackage. Items carry the catalogue KEY as item data and
+  show a LABEL; the record goes on storing the key; every saved file
+  restores unchanged and the next rename costs nothing. This is "a
+  name you show is not a name you look up by" arriving at the
+  catalogue, where it had never been applied.
+  THE DUAL IS BUILT HERE AND OFFERED UPSTREAM. `Tileable.__init__`
+  delegates to `_setup_tiles()`, which dispatches on `tiling_type` and
+  has NO path for supplied geometry, so assembling a Tileable from
+  `Topology.get_dual_tiles()` means setting the fields upstream's own
+  setup would set -- the vendoring boundary. It goes in behind one
+  function with the measurement and the removal criteria at the site
+  and a canary that fails the day the library grows a real
+  constructor, AND goes up as a patch, which is the route the STRtree
+  optimisation took and came back merged.
+  THE SYMMETRIES: DRAWN, GATING, AND REPORTED. `Topology` already
+  holds `tile_matching_transforms` and `Symmetries(polygon)` gives a
+  tile's group code, but `plot_tiling_symmetries` draws through
+  matplotlib, which cannot run inside the signed QGIS process on
+  macOS -- so the drawing is OURS, in the view's painter, from
+  upstream's data. The gating is the symmetry note's own finding: a
+  vertex whose stabiliser contains a rotation has only the zero
+  displacement available, so a control that cannot move the selection
+  is greyed WITH ITS REASON rather than offering a rail of zero
+  length. Necessary and not sufficient -- laves class B has a
+  one-dimensional fixed space and still yields nothing -- so the gate
+  says what it measured.
+  THE ELEMENT SLIDER KEEPS ITS RANGE AND THE FLIP SPEAKS. Weave
+  families run n=2 to 12 and tilings to 256, so from 13 up only
+  tilings exist and `test_design_cascade` requires the toggle to flip.
+  Capping the track would have to cap the spin box with it, since the
+  count is one control in two widgets, and would retire that contract
+  along with the route by which somebody on weaves meets the tilings
+  above. Crossing 12 on a weave SAYS what it did, in the sentence
+  family the switch door was given on 2026-08-26.
+
+- **A RECORDED "DECISION" IS A HYPOTHESIS TOO: CHECK IT IS STILL ONE
+  BEFORE PUTTING IT TO ANYBODY.** (2026-09-01, and it is this file's
+  own rule about inventing questions, met from the other side.) The
+  roadmap carried an open question -- does `publish_candidate` require
+  every workflow, or every workflow whose red would stop a release --
+  whose stated worry was that a genuine sampling survivor would one
+  day block a candidate and start the `--despite-ci` habit. It cannot.
+  Every measuring step in `mutation.yml` is `continue-on-error`: the
+  catalogue sweep, `mutate_auto` on changed lines, the census and the
+  gallery render. What CAN redden that workflow is provisioning, the
+  baseline check, an artefact upload, or the coverage leg, which
+  checks each shard's exit and refuses a partial record -- and the two
+  reds of 2026-08-31 were both that leg. So the gate already means
+  what the 2026-08-11 decision says. ASK OF ANY RECORDED QUESTION
+  WHETHER ITS PREMISE STILL HOLDS before spending somebody's attention
+  on it; a question written months ago describes the software of that
+  day.
+
+- **A FIGURE WITH NO INSTRUMENT BESIDE IT IS FOLKLORE, AND A READER
+  WILL SAY SO.** (2026-09-01, from a colleague reading the symmetry
+  note.) Their two comments were "I have no idea what code it's
+  running to find that the hex 7-colouring is especially egregious"
+  and "what did it do with the rough implementations it claims to have
+  written". Both were fair: the note quoted timings and a comparison
+  without naming the probe behind either, and the rough
+  implementations it described were committed inside one of those
+  probes with nothing pointing at them. Every figure now names its
+  probe, the note gives the one command that runs any of them, and it
+  says why those implementations live in `tools/probes/` rather than
+  in the plugin -- neither is a feature anybody has decided to build,
+  and a half-implementation under `weavingspace_qgis/` reads as one.
+  THE RULE: when a document quotes a measurement, name the code that
+  made it in the same sentence, and re-run it before quoting it again.
+  Re-measured that day, the nineteen seconds came back at 21.0 and
+  21.2 against 4.2 for `hex-colouring 4`, which is what turns a number
+  into evidence.
+
+- **THE TWENTY-SECOND WATCHER FAULT WAS CAUGHT BEFORE ARMING, WHICH IS
+  THE FIRST TIME.** (2026-09-01.) `gh` reads the repository from the
+  WORKING DIRECTORY, so a watcher launched from a scratch folder asks
+  about nothing, gets an empty answer, and reports nothing -- which is
+  indistinguishable from a quiet branch. A hand-run before arming
+  showed the silence in thirty seconds; the same hand-run had already
+  caught a quoting error in its own reader. The practice this file has
+  recommended since the tenth fault works, and the cost of it is one
+  minute.

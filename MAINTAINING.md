@@ -559,6 +559,40 @@ colleague can open without the plugin at all. And anything travelling
 as a tuple comes home as a list, JSON having no tuple, so every reader
 has to put it back.
 
+### A gesture outranks a landing, for as long as it lasts
+
+`TopologyView.show_topology` clears the drag preview and the chosen
+thing. That is right for a rebuild -- both belong to the topology
+being replaced -- and wrong under a pointer that is still down: a
+build finishing mid-drag put the un-edited design back beneath
+somebody's hand, dropped the highlight showing what they were aiming
+at, and left the drop to commit an edit out of a record they could no
+longer see.
+
+**SO THE PANEL HOLDS A LANDING AND SETTLES IT AT THE DROP.**
+`set_unit` stashes `(unit, topology, message, ghost)` in
+`_landing_held` while `view.gesture_in_progress()` answers True, and
+`_settle_a_landing_the_drag_held` applies it afterwards -- through a
+`finally` rather than at each of the four exits, since an exit added
+later would otherwise strand a build nobody applied. Where the gesture
+committed an edit the held landing is DISCARDED, because that record
+makes the dialog chain and land again within the tick and drawing the
+older design first is a flicker; where it committed nothing, the held
+one is what draws. A landing arriving with no gesture supersedes a
+held one, which is what stops a press nobody released leaving a stale
+design for ever.
+
+**AND IT IS ONE QUESTION, NOT TWO.** `gesture_in_progress` is also
+what makes `_fit` return early, so the frame a drag is measured in and
+the topology it is aimed at are frozen by the same method for the same
+span. Two predicates would come apart the day somebody changed one.
+
+**IT WAS FOUND FROM A RUNNER.** It shows here about one run in eight,
+and macOS, Linux 4.0.3 and Linux 4.0.0 all failed the drag guard on
+its own premise -- "the drag drew no preview at all", 730 passed and 1
+failed, three times over. A stack printed from a patched
+`show_topology` named the caller on the first failing attempt.
+
 ### Whose file is it, and when was that decided
 
 `_this_map_owns_the_file` answers True as soon as the file is in
