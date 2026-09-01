@@ -343,3 +343,63 @@ the view fits the unit rather than the patch, the seats are 12px, and
 the three edge handles sit at 0 and 30 pixels of perpendicular offset
 rather than 0 and 16. If the merged handle is ever wanted, this is the
 argument it has to beat.
+
+## Reachable at realistic sizes, and what carried it
+
+The maintainer asked that everything be clickable at realistic sizes,
+"maybe that means making the window a little larger by default". Two
+things were wrong and neither could be seen from the source.
+
+THE DRAWING HAD 180px OF AN 825px WINDOW. The view's floor was 180 and
+the column of controls beside it takes its own preferred width, so the
+floor was not a floor but the whole allowance: the thing this tab
+exists to edit was drawn at a fifth of the window it sits in. Raising
+it to 420 without giving the control column a floor of its own MOVED
+THE COMPLAINT rather than answering it, and measurably so -- 71px of
+viewport for content wanting 271. The horizontal scrollbar is
+deliberately off, so a column narrower than its content does not
+scroll, it CLIPS.
+
+TWO HANDLES CLOSER THAN TWICE THE REACH MAKE ONE UNREACHABLE
+EVERYWHERE, not merely fiddly, because the hit test returns the first
+within reach and the order is fixed. Rotate and zigzag are pushed along
+the same normal from an edge's end and its middle, so at equal offsets
+their separation is HALF THE EDGE'S SCREEN LENGTH: 20.4px inside a 26px
+reach on two designs of three, costing 23 edges apiece their zigzag
+handle. They stand at different offsets now, which makes the separation
+hypotenuse(half the length, 30) instead.
+
+PUTTING THE ZIGZAG ON THE OTHER SIDE WAS TRIED FIRST AND IS WORSE. A
+negative offset separates it from rotate just as well and lands it
+where the VERTICES are -- and handles are tested before vertices, so
+while an edge was held the vertex under that handle could not be
+clicked at all. The interaction matrix caught it within minutes, which
+is the second time that test has paid for itself in a day.
+
+### Why no entry stands on the separation
+
+Four attempts to make one bite, and the fourth measurement is the
+answer rather than a fifth attempt. Both fixes bear on the same
+outcome and EITHER ALONE IS SUFFICIENT, so a tool that applies one
+replacement cannot make the assertion fail. As the worst
+rotate-to-zigzag gap against the 26px needed: as it stands 41.5px;
+with the offsets matched but the floor kept, 28.7px; with the floor
+removed but the offsets kept, 32.7px; with both undone, 12.9px. The
+sites are ninety lines apart, so no anchor spans them, and the honest
+record is the measurement written at the test. The figure to watch is
+28.7 -- the offsets are headroom on a margin of 2.7px.
+
+### A widget inside a layout does not keep a size you give it
+
+Three of those four attempts failed on this alone. Resizing the view
+to its own floor is undone on the next layout pass, because the layout
+hands it whatever is left over; the WINDOW is the lever, and the
+window's own minimum is what pins the drawing in practice -- measured
+at 1025x450, below which it will not go, holding the view at 420x346
+however small a size it is asked for.
+
+And the sweep looking for the design with the shortest drawn edges
+returned 68.9px for ten designs in a row, which is this project's own
+rule arriving again: a uniform verdict is almost always the
+instrument, and it was not worth debugging once the question had been
+answered another way.

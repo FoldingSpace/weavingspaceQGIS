@@ -42,6 +42,9 @@ PLUGIN = "weavingspace_qgis/plugin.py"
 CATALOG = "weavingspace_qgis/catalog.py"
 COMPAT = "weavingspace_qgis/compat.py"
 TOPOLOGY_EDITS = "weavingspace_qgis/topology_edits.py"
+# The Topology tab itself: the drawing, its handles, and the
+# column of controls beside it.
+TOPOLOGY_TAB = "weavingspace_qgis/topology_tab.py"
 PERCEPTION = "weavingspace_qgis/perception.py"
 EDITOR = "weavingspace_qgis/category_editor.py"
 WORKER = "weavingspace_qgis/worker.py"
@@ -2472,6 +2475,19 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="the-controls-beside-the-drawing-are-not-crushed",
+       file=TOPOLOGY_TAB,
+       # Room for the drawing comes out of the column beside it, and
+       # the horizontal scrollbar is deliberately off -- so a column
+       # narrower than its content does not scroll, it CLIPS. Without
+       # the floor: 71px of viewport for content wanting 271.
+       old="""      bar = self._side_scroll.verticalScrollBar().sizeHint().width()
+      self._side_scroll.setMinimumWidth(wanted + bar)""",
+       new="""      bar = self._side_scroll.verticalScrollBar().sizeHint().width()
+      self._side_scroll.setMinimumWidth(0 * (wanted + bar))""",
+       test="test_every_handle_can_be_hit_at_the_size_the_window_opens_at",
+       why="reaching the controls that make the edit, which are "
+           "clipped rather than scrolled when they do not fit"),
   dict(name="an-edit-is-aimed-with-the-labels-it-was-made-with",
        file=TOPOLOGY_EDITS,
        # Chaining is what lets a second edit follow one that opened

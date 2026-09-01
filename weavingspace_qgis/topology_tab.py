@@ -112,7 +112,23 @@ _GAP_INK = "#e57373"
 _EDGE_HANDLES = (
   ("scale_edge", "end", 0, "square"),
   ("rotate_edge", "end", 30, "circle"),
-  ("zigzag_edge", "middle", 30, "diamond"),
+  # THE ZIGZAG STANDS FURTHER OUT, and the gap between the offsets is
+  # what separates it. It and `rotate_edge` are pushed along the SAME
+  # normal, one from the middle and one from the end, so at equal
+  # offsets their separation is HALF THE EDGE'S SCREEN LENGTH --
+  # measured 20.4px on hex-slice 6 and archimedean 4.8.8 at the
+  # window's own size, inside the 26px within which `_handle_at`
+  # returns whichever comes first. Rotate is asked first, so it won the
+  # whole overlap and the zigzag handle could not be hit at all on 23
+  # edges of each design. Different offsets make the separation
+  # hypotenuse(half-length, 30), which is at least 30px however short
+  # the edge, with nothing to tune.
+  # PUTTING IT ON THE OTHER SIDE WAS TRIED FIRST AND IS WORSE. A
+  # negative offset separates it from rotate just as well and lands it
+  # where the VERTICES are: handles are tested before vertices, so
+  # while an edge was held the vertex under that handle could not be
+  # clicked at all, which the interaction matrix caught within minutes.
+  ("zigzag_edge", "middle", 60, "diamond"),
 )
 # A VERTEX HAS TWO MANIPULATIONS AND THEREFORE TWO HANDLES.
 # (Maintainer, 2026-08-31: "all interactions in that topology image,
@@ -203,7 +219,14 @@ class TopologyView(QWidget):
     # that had just been added. A MINIMUM BEATS A RESIZE, so the clamp
     # could not pull it back. The view is happiest large and must be
     # able to be small.
-    self.setMinimumSize(180, 150)
+    # THE FLOOR IS WHAT THE VIEW ACTUALLY GETS, because the side panel
+    # takes its own preferred width and the view is what is left. At
+    # 180 the drawing a person came here to edit had 180px of an 825px
+    # window -- measured 2026-08-31 -- which is the "perceivable"
+    # failure the maintainer met, arriving through the layout rather
+    # than through the handles. The page's own sizeHint carries this
+    # up to the window, which grows when the tab is chosen.
+    self.setMinimumSize(420, 300)
     self.setMouseTracking(True)
     self._topology = None
     # The design the edits were made FROM, drawn as a wireframe under
@@ -1183,6 +1206,17 @@ class TopologyPanel(QWidget):
     side_scroll.setHorizontalScrollBarPolicy(
       Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
     layout.addWidget(side_scroll)
+    # AND IT MUST NOT BE CRUSHED, which is the other half of scrolling.
+    # The horizontal bar is deliberately off, so a column narrower than
+    # its content does not scroll -- it CLIPS, with no way to reach what
+    # is cut off. Measured 2026-08-31 at the window's own size: 71px of
+    # viewport for content wanting 271, which is every control on this
+    # side of the tab gone. The floor is taken from the content itself
+    # in `showEvent`, once a real layout pass has made the answer
+    # meaningful.
+    self._side_scroll = side_scroll
+    self._side_holder = side_holder
+    self._floored = False
 
     # ONE LINE, BECAUSE THE LABEL WRAPS. `setWordWrap(True)` reflows to
     # whatever width the panel has, so an embedded newline is the
@@ -1291,6 +1325,34 @@ class TopologyPanel(QWidget):
     """
     self._edits = [dict(edit) for edit in (edits or [])]
     self._refresh_list()
+
+  def showEvent(self, event):  # noqa: N802 (Qt API)
+    """Give the control column a floor, once the layout is real.
+
+    Args:
+      event: Qt's show event, passed straight through.
+
+    Returns:
+      None.
+
+    SIZE HINTS ARE STALE BEFORE A LAYOUT PASS, which is this project's
+    own rule and the reason this is not done in the constructor: a
+    column measured before assembly reports its children's phantom
+    widths. `activate()` forces the pass, and the flag makes it once --
+    re-reading on every show would let the floor creep up as the
+    content changes, which is a feedback loop rather than a floor.
+    """
+    super().showEvent(event)
+    if self._floored:
+      return
+    self._side_holder.layout().activate()
+    wanted = self._side_holder.sizeHint().width()
+    if wanted > 0:
+      # The scrollbar's own width, so the vertical bar cannot eat into
+      # the content it is there to scroll.
+      bar = self._side_scroll.verticalScrollBar().sizeHint().width()
+      self._side_scroll.setMinimumWidth(wanted + bar)
+      self._floored = True
 
   def set_unit(self, unit, topology, message: str = "", ghost=None):
     """Show a new design's topology.

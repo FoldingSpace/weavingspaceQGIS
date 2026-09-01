@@ -5688,6 +5688,191 @@ def test_topology_edits_come_back_from_the_file():
       _tick(50)
 
 
+def test_every_handle_can_be_hit_at_the_size_the_window_opens_at():
+  """No handle is hidden by another, and the controls are not crushed.
+
+  The maintainer's requirement, 2026-08-31: "everything needs to be
+  clickable at realistic sizes of course... maybe that means making the
+  window a little larger by default". Two things were measured wrong
+  that day and neither was visible from the code.
+
+  A HANDLE HIDDEN BY ANOTHER IS UNREACHABLE EVERYWHERE, not merely
+  awkward. `_handle_at` returns the FIRST handle within
+  `_HANDLE_REACH`, so where two sit closer than twice that reach the
+  earlier one wins the whole overlap and the later one cannot be
+  clicked at any point at all. `rotate_edge` and `zigzag_edge` are
+  pushed out along the SAME normal, one from the edge's end and one
+  from its middle, so at equal offsets their separation is HALF THE
+  EDGE'S SCREEN LENGTH -- 20.4px on hex-slice 6 and archimedean 4.8.8,
+  inside a 26px reach, which cost 23 edges of each design their zigzag
+  handle.
+
+  AND ROOM FOR THE DRAWING COMES OUT OF THE COLUMN BESIDE IT. The
+  view's floor was 180px, which is what it got: 180px of an 825px
+  window for the thing this tab exists to edit. Raising it without
+  giving the control column a floor of its own moved the complaint
+  rather than answering it -- measured at 71px of viewport for content
+  wanting 271, and the horizontal scrollbar is deliberately off, so a
+  column narrower than its content does not scroll but CLIPS.
+
+  THE VIEW IS GRABBED, because `_fit` runs inside `paintEvent` and an
+  unpainted widget reports unit coordinates as pixels.
+
+  NO CATALOGUE ENTRY STANDS ON THE SEPARATION, and the measurement is
+  why rather than an omission. Two independent things keep those
+  handles apart and EITHER ALONE IS SUFFICIENT, so a tool that applies
+  one replacement cannot make this assertion fail. Measured 2026-08-31,
+  as the worst rotate-to-zigzag gap against the 26px the hit test
+  needs: as it stands, 41.5px; with the offsets matched but the view's
+  floor kept, 28.7px; with the floor removed but the offsets kept,
+  32.7px; with BOTH undone, 12.9px. Entries aimed at each half were
+  written and each SURVIVED, which is this project's own rule about a
+  fact held redundantly at two distant sites -- the sites are ninety
+  lines apart, so an anchor cannot span them, and the honest record is
+  here. What would put a guard back within reach is anything that
+  removes one of the two, and the 28.7px figure is the one to watch:
+  the offsets are headroom on a margin of 2.7px.
+
+  THE WINDOW IS THE LEVER FOR THE SMALL READING, not the view. A widget
+  inside a layout does not keep a size handed to it, so `view.resize`
+  is undone on the next pass -- and the window's own minimum is what
+  pins the drawing in practice.
+
+  Regression: handles could sit on top of one another, so a manipulation was unreachable by mouse on most edges; and the drawing's floor left the control column clipped. [user]
+  """
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def handle_seats(view, kind, thing):
+    """Where this thing's handles sit, in widget pixels.
+
+    Args:
+      view: the drawing widget, already painted.
+      kind: "edge" or "vertex".
+      thing: the topology object to select.
+
+    Returns:
+      The list `handles()` returns, empty where the design offers none.
+    """
+    view._chosen = (kind, getattr(thing, "label", "") or "")
+    view._chosen_thing = thing
+    return view.handles()
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    panel = dlg.topology_panel
+    view = panel.view
+
+    # ---- the control column has room for its own contents
+    holder = panel._side_holder
+    holder.layout().activate()
+    wants = holder.sizeHint().width()
+    got = panel._side_scroll.viewport().width()
+    assert wants > 0, \
+      "PREMISE: the control column reports no width to compare against"
+    assert got >= wants, (
+      f"the Topology tab's controls are clipped: {got}px of viewport "
+      f"for content wanting {wants}px, and the horizontal scrollbar is "
+      f"off, so what does not fit cannot be reached")
+
+    # ---- and no handle is hidden underneath another
+    #
+    # AT TWO SIZES, AND THE SMALL ONE IS WHERE IT BITES. Handles are
+    # placed in PIXELS while the thing they sit on is drawn to fit, so
+    # every separation shrinks with the view -- and the view's own
+    # minimum is a size a person reaches simply by dragging the window
+    # in. Measured 2026-08-31: at the opening size these designs clear
+    # the reach comfortably, and it was widening the view that bought
+    # that, not the offsets; at the minimum they do not, which is what
+    # the offsets are for.
+    reach = topology_tab._HANDLE_REACH
+    looked_at = 0
+    opened = dlg.size()
+    for family, n in (("laves 3.3.4.3.4", 4), ("hex-slice", 6)):
+      dlg.n_spin.setValue(n)
+      _tick(200)
+      dlg.family_combo.setCurrentText(family)
+      _tick(300)
+      assert _wait_for_the_topology(dlg), \
+        f"PREMISE: {family} {n} built no topology to place handles on"
+      # THE WINDOW IS THE LEVER, NOT THE VIEW. A widget inside a layout
+      # does not keep a size given to it: the layout hands the view
+      # whatever is left over on the next pass, so `view.resize` to its
+      # own floor is undone before anything can be measured -- which is
+      # why an entry aimed at that floor SURVIVED until this was driven
+      # through the window instead.
+      for size in (opened, dlg.minimumSizeHint()):
+        dlg.resize(size)
+        _tick(100)
+        view.grab()
+        _tick(50)
+        _check_the_handles(dlg, view, family, n, reach)
+        looked_at += _check_the_handles.counted
+    assert looked_at >= 20, (
+      f"PREMISE: only {looked_at} things offered two or more handles, "
+      f"so this test has hardly measured anything")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
+def _check_the_handles(dlg, view, family, n, reach):
+  """Require every pair of one thing's handles to clear the hit test.
+
+  Args:
+    dlg: the open dialog, only for the message.
+    view: the drawing widget, already painted at the size in question.
+    family: the design family, for the message.
+    n: the element count, for the message.
+    reach: the radius `_handle_at` searches within.
+
+  Returns:
+    None. Sets `counted` on itself: how many things were looked at, so
+    a caller can refuse a run that measured nothing. A loop over
+    nothing asserts nothing, and every fixture fault this tab has
+    produced looked exactly like a clean pass.
+  """
+  counted = 0
+  topology = view._drawn()
+  if topology is not None:
+    width, height = view.width(), view.height()
+    for kind, things in (("edge", list(topology.edges.values())),
+                         ("vertex", list(topology.points.values()))):
+      for thing in things:
+        view._chosen = (kind, getattr(thing, "label", "") or "")
+        view._chosen_thing = thing
+        placed = view.handles()
+        if len(placed) < 2:
+          continue
+        # ONLY WHAT IS DRAWN INSIDE THE VIEW CAN BE SELECTED AT ALL.
+        # `edges` and `points` span the whole PATCH of repeats while
+        # the view fits the UNIT, so the surrounding ring is off the
+        # widget by design and is not this test's subject.
+        anchor = placed[0][1]
+        if not (0 <= anchor.x() <= width and 0 <= anchor.y() <= height):
+          continue
+        counted += 1
+        for index, (key_a, at_a, _shape_a) in enumerate(placed):
+          for key_b, at_b, _shape_b in placed[index + 1:]:
+            gap = ((at_a.x() - at_b.x()) ** 2 +
+                   (at_a.y() - at_b.y()) ** 2) ** 0.5
+            assert gap >= 2 * reach, (
+              f"on {family} {n} at {width}x{height}, a {kind}'s "
+              f"{key_a} and {key_b} handles sit {gap:.1f}px apart "
+              f"inside a {reach}px reach, so whichever is asked "
+              f"second cannot be clicked anywhere")
+  _check_the_handles.counted = counted
+
+
 def test_the_topology_matrix():
   """Every manipulation, across designs, across what happens next.
 
@@ -78496,6 +78681,8 @@ def main():
         test_every_way_of_editing_the_topology_moves_the_drawing)
   check("topology edits come back from the file",
         test_topology_edits_come_back_from_the_file)
+  check("every handle can be hit at the size the window opens at",
+        test_every_handle_can_be_hit_at_the_size_the_window_opens_at)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
   check("the vendored version is checked where a user reads it",

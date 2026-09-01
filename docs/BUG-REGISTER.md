@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-468 defect(s) with a regression test.
+469 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -965,6 +965,8 @@ there is no separate list to remember.
   guarded by `test_equal_intervals_stay_equal_under_a_pin`
 - **`_classification_values` REPLACED its cache dict on every miss, so elements carrying different columns evicted each other and each rescanned the whole layer on every tick; twenty-three elements made the plugin unusable and the maintainer's colleague reported it as extreme slowness at any spacing.**  
   guarded by `test_every_column_is_scanned_once_not_once_per_element`
+- **handles could sit on top of one another, so a manipulation was unreachable by mouse on most edges; and the drawing's floor left the control column clipped.**  
+  guarded by `test_every_handle_can_be_hit_at_the_size_the_window_opens_at`
 - **the Topology tab's drawing never reflected an edit by any route -- the landing handed the panel the motif built from the UN-EDITED unit while the map and the preview drew the edited one.**  
   guarded by `test_every_way_of_editing_the_topology_moves_the_drawing`
 - **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
@@ -993,7 +995,7 @@ there is no separate list to remember.
 - the mutation campaign: 149
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 32
+- reported by a user: 33
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 8
