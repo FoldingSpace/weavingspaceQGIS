@@ -2454,6 +2454,37 @@ MUTATIONS = [
        test="test_a_reopen_does_not_take_the_motif_out_of_the_file",
        why="a saved map keeping its motif when somebody opens it at "
            "the plugin's own defaults"),
+  dict(name="the-tab-draws-the-design-as-edited", file=DIALOG,
+       # The landing handed the panel `unit` and `topology`, which are
+       # the motif built from the UN-EDITED unit -- so a drag showed a
+       # transient and the settled drawing went back to the design
+       # somebody had just edited away from. One fact in two stores,
+       # disagreeing on screen, and the maintainer's report that the
+       # tab was "impossible to use".
+       old="""        panel.set_unit(built.get("edited") or built.get("unit"),
+                       built.get("edited_topology")
+                       or built.get("topology"),
+                       built.get("why", ""),
+                       ghost=built.get("topology")
+                       if built.get("edited") is not None else None)""",
+       new="""        panel.set_unit(built.get("unit"), built.get("topology"),
+                       built.get("why", ""))""",
+       test="test_every_way_of_editing_the_topology_moves_the_drawing",
+       why="seeing what you just did to the design, which is the whole "
+           "of what makes an edit worth making"),
+  dict(name="an-edit-is-aimed-with-the-labels-it-was-made-with",
+       file=TOPOLOGY_EDITS,
+       # Chaining is what lets a second edit follow one that opened
+       # gaps: `Topology` refuses a design with gaps, so rebuilding
+       # between edits made `rotate then nudge` impossible on every
+       # design measured. Putting the rebuild back reproduces that, and
+       # the roundtrip guard notices because the design that comes back
+       # from the file is no longer the design that went in.
+       old="""    current = moved""",
+       new="""    current, _rebuilt_why = build(drawable)""",
+       test="test_topology_edits_come_back_from_the_file",
+       why="an edit after one that opened gaps, and labels that go on "
+           "meaning what they meant when somebody aimed with them"),
   dict(name="the-saved-dual-belongs-to-the-saved-unit", file=DIALOG,
        # `apply` rebinds rather than mutates, so `panel._topology` is
        # never the edited one. Taking the dual from it pairs an edited

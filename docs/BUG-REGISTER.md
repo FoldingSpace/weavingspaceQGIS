@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-466 defect(s) with a regression test.
+468 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -965,6 +965,8 @@ there is no separate list to remember.
   guarded by `test_equal_intervals_stay_equal_under_a_pin`
 - **`_classification_values` REPLACED its cache dict on every miss, so elements carrying different columns evicted each other and each rescanned the whole layer on every tick; twenty-three elements made the plugin unusable and the maintainer's colleague reported it as extreme slowness at any spacing.**  
   guarded by `test_every_column_is_scanned_once_not_once_per_element`
+- **the Topology tab's drawing never reflected an edit by any route -- the landing handed the panel the motif built from the UN-EDITED unit while the map and the preview drew the edited one.**  
+  guarded by `test_every_way_of_editing_the_topology_moves_the_drawing`
 - **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
   guarded by `test_icon_mode_is_not_counted_as_a_tiling`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
@@ -983,13 +985,15 @@ there is no separate list to remember.
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
   guarded by `test_the_unclassed_list_fades_without_a_graphics_effect`
+- **an edit made after one that opened gaps was refused outright, because the topology was rebuilt between edits and Topology refuses a design with gaps -- so a saved design carrying such a sequence did not come back as the design that was saved.**  
+  guarded by `test_topology_edits_come_back_from_the_file`
 
 ## Which shape of test found them
 
 - the mutation campaign: 149
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 30
+- reported by a user: 32
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 9
 - the functional suite, run whole: 8

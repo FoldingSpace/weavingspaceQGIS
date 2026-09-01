@@ -5297,6 +5297,397 @@ def test_the_element_slider_follows_a_restore():
     dlg.close()
 
 
+def test_every_way_of_editing_the_topology_moves_the_drawing():
+  """Each modality does something, and the DRAWING follows it.
+
+  The maintainer met this tab in 0.24.4rc9 and could not use it:
+  clicking and dragging changed the map and the preview, the drawing
+  flickered during a drag and went back, and the settled picture never
+  reflected an edit. "If you can't see what you're doing and manipulate
+  it iteratively on the results of previous changes, it just doesn't
+  make sense."
+
+  THE FOUR STORES ARE READ SEPARATELY, because this plugin's
+  characteristic defect is one fact in two of them disagreeing: what
+  the panel thinks is held, what the view is drawing, what the map is
+  built from, and the record. A row that moves the design and not the
+  drawing IS the reported fault; a row that moves nothing at all is a
+  dead control.
+
+  IT DRIVES THE WIDGET'S OWN MOUSE EVENTS rather than calling the
+  handlers, because a control must act through its own signal -- a test
+  that calls `_on_dragging` proves the panel can compute an argument
+  and says nothing about whether anybody can reach it.
+
+  THREE THINGS THE PROBE BEHIND THIS GOT WRONG FIRST, each of which
+  read as a product defect and is guarded against here by construction:
+  a vertex taken as "the first in the topology" is usually drawn off
+  the widget; an edge's `coords` ARE its endpoints and its endpoints
+  are vertices, so a point taken there is always inside a vertex's
+  reach; and `_fit` runs inside `paintEvent`, so a view that is resized
+  and never painted has no transform at all and reports raw pixels as
+  fractions of the unit.
+
+  Regression: the Topology tab's drawing never reflected an edit by any route -- the landing handed the panel the motif built from the UN-EDITED unit while the map and the preview drew the edited one. [user]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def ground(unit):
+    """The tiles' area and perimeter, or None."""
+    if unit is None or getattr(unit, "tiles", None) is None:
+      return None
+    tiles = unit.tiles
+    return (round(float(tiles.geometry.area.sum()), 3),
+            round(float(tiles.geometry.length.sum()), 3))
+
+  def stores(dlg):
+    """The four stores this test is about, read together."""
+    panel = dlg.topology_panel
+    preview = getattr(panel.view, "_preview", None)
+    return {"chose": panel.class_combo.currentText(),
+            "preview": None if preview is None else id(preview),
+            "drawn": ground(getattr(panel, "_unit", None)),
+            "design": ground(getattr(dlg, "_unit", None)),
+            "edits": len(panel.edits() or [])}
+
+  def moved(before, after):
+    """Which of the stores changed between two readings."""
+    return {key for key in before if before[key] != after[key]}
+
+  def aim_at(view, kind):
+    """A widget point on the vertex or edge nearest the middle.
+
+    Args:
+      view: the drawing widget.
+      kind: "vertex" or "edge".
+
+    Returns:
+      A QPoint, or None where the topology offers no such thing inside
+      the widget. An edge point is taken along a SEGMENT and required
+      to clear every vertex by more than the hit test's own reach,
+      since a vertex wins ties inside it.
+    """
+    topology = view._drawn()
+    if topology is None:
+      return None
+    middle = (view.width() / 2, view.height() / 2)
+    best = at = None
+
+    def consider(x, y):
+      point = view._to_screen(x, y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        return None
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      return away, QPoint(int(round(point.x())), int(round(point.y())))
+
+    if kind == "vertex":
+      for vertex in topology.points.values():
+        found = consider(vertex.point.x, vertex.point.y)
+        if found and (best is None or found[0] < best):
+          best, at = found
+      return at
+    seats = [view._to_screen(v.point.x, v.point.y)
+             for v in topology.points.values()]
+    for edge in topology.edges.values():
+      try:
+        coords = list(edge.get_geometry().coords)
+      except Exception:                                 # noqa: BLE001
+        continue
+      for (ax, ay), (bx, by) in zip(coords, coords[1:]):
+        for step in range(1, 10):
+          fraction = step / 10.0
+          found = consider(ax + (bx - ax) * fraction,
+                           ay + (by - ay) * fraction)
+          if not found:
+            continue
+          clear = min(((found[1].x() - seat.x()) ** 2
+                       + (found[1].y() - seat.y()) ** 2) ** 0.5
+                      for seat in seats) if seats else 99.0
+          if clear <= 12.0:
+            continue
+          if best is None or found[0] < best:
+            best, at = found
+    return at
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir():
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.opt_experimental.setChecked(True)
+      dlg.live_check.setChecked(False)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), \
+        "PREMISE: no topology was built, so there is nothing to edit"
+      panel = dlg.topology_panel
+      view = panel.view
+      view.resize(600, 600)
+      _tick(100)
+      # PAINT IT, OR IT HAS NO TRANSFORM: `_fit` runs inside
+      # `paintEvent`, so offscreen -- where nothing ever exposes a
+      # widget -- `_bounds` stays at its default and every coordinate
+      # below would mean widget pixels.
+      view.grab()
+      _tick(50)
+
+      dead = []
+
+      # ---- selection, both kinds
+      for kind in ("vertex", "edge"):
+        at = aim_at(view, kind)
+        assert at is not None, \
+          f"PREMISE: no {kind} is drawn inside the widget to click"
+        before = stores(dlg)
+        QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, at)
+        _tick(150)
+        if "chose" not in moved(before, stores(dlg)):
+          dead.append(f"clicking a {kind} selected nothing")
+
+      # ---- dragging, both kinds. An EDGE is dragged by a handle, not
+      # by its own line: `_handle_at` is asked first, so a press
+      # anywhere else is a selection.
+      for kind in ("vertex", "edge"):
+        at = aim_at(view, kind)
+        if at is None:
+          continue
+        QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, at)
+        _tick(150)
+        if kind == "edge":
+          spots = view.handles()
+          if not spots:
+            dead.append("an edge offers no handle to drag")
+            continue
+          _key, where, _shape = spots[0]
+          at = QPoint(int(round(where.x())), int(round(where.y())))
+        before = stores(dlg)
+        far = QPoint(at.x() + 12, at.y() - 9)
+        QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, at)
+        _tick(30)
+        QTest.mouseMove(view, far)
+        _tick(30)
+        during = moved(before, stores(dlg))
+        QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                           QtNamespace.KeyboardModifier.NoModifier, far)
+        _settle_topology(dlg, seconds=40)
+        _settle(dlg)
+        after = moved(before, stores(dlg))
+        if "preview" not in during:
+          dead.append(f"dragging a {kind} showed nothing while it moved")
+        if not {"design", "drawn"} <= after:
+          dead.append(f"dragging a {kind} left {sorted(after)} rather "
+                      f"than moving the design AND the drawing")
+
+      # ---- every manipulation through the numeric path
+      for how in ("nudge_vertex", "push_vertex", "rotate_edge",
+                  "scale_edge", "zigzag_edge"):
+        wanted = "vertex" if "vertex" in how else "edge"
+        at = aim_at(view, wanted)
+        if at is not None:
+          QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                           QtNamespace.KeyboardModifier.NoModifier, at)
+          _tick(150)
+        index = panel.how_combo.findData(how)
+        held = (panel.class_combo.currentData() or ("", ""))[0]
+        if index < 0:
+          dead.append(f"{how} is not offered while holding a "
+                      f"{held or 'nothing'}")
+          continue
+        panel.how_combo.setCurrentIndex(index)
+        _tick(100)
+        before = stores(dlg)
+        panel.apply_button.click()
+        _settle_topology(dlg, seconds=40)
+        _settle(dlg)
+        after = moved(before, stores(dlg))
+        if not {"design", "drawn", "edits"} <= after:
+          dead.append(f"Apply {how} left {sorted(after)} rather than "
+                      f"moving the design, the drawing and the record")
+
+      # ---- and taking them back
+      for name, button in (("Undo", panel.undo_button),
+                           ("Clear", panel.clear_button)):
+        before = stores(dlg)
+        button.click()
+        _settle_topology(dlg, seconds=40)
+        _settle(dlg)
+        after = moved(before, stores(dlg))
+        if not {"design", "drawn", "edits"} <= after:
+          dead.append(f"{name} left {sorted(after)} rather than moving "
+                      f"the design, the drawing and the record")
+
+      assert not dead, (
+        "the Topology tab does not answer to every way of driving it: "
+        + "; ".join(dead))
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+
+
+def test_topology_edits_come_back_from_the_file():
+  """A saved design opens as the design that was saved.
+
+  (Maintainer's requirement, 2026-08-31: edits "need to persist stably
+  ... across roundtrips to QGIS and GPKG".)
+
+  THE ORDER OF THE EDITS IS THE POINT. A rotation FIRST, which opens
+  gaps and leaves a design whose topology cannot be REBUILT -- measured
+  on this design at every angle from 10 to 30 degrees -- and then a
+  nudge, which is the edit rebuilding between edits cannot make,
+  because there is nothing left to aim it with. Putting the rotation
+  second instead lets a rebuilt path recover: it rebuilds after the
+  nudge, reaches a different design that still builds, and agrees with
+  the chained one. The catalogue entry for this survived twice that
+  way before the order was measured rather than assumed.
+
+  WHY IT SHOULD HOLD, so a future failure is read correctly: each edit
+  is aimed with the labels the object carried when it was made, and a
+  replay from the same starting topology reproduces the same sequence.
+  If this test fails, suspect anything that re-derives labels between
+  edits before suspecting the file.
+
+  A FRESH DIALOG AND A FRESH PROJECT, because sharing either would
+  measure this session's memory rather than what the file holds.
+
+  Regression: an edit made after one that opened gaps was refused outright, because the topology was rebuilt between edits and Topology refuses a design with gaps -- so a saved design carrying such a sequence did not come back as the design that was saved. [user]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def ground(unit):
+    """The tiles' count, area and perimeter, or None."""
+    if unit is None or getattr(unit, "tiles", None) is None:
+      return None
+    tiles = unit.tiles
+    return (len(tiles),
+            round(float(tiles.geometry.area.sum()), 3),
+            round(float(tiles.geometry.length.sum()), 3))
+
+  QgsProject.instance().addMapLayer(make_region_layer())
+  with _temp_dir() as td:
+    out = os.path.join(td, "roundtrip.gpkg")
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.opt_experimental.setChecked(True)
+      dlg.live_check.setChecked(False)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.family_combo.setCurrentText("laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), "PREMISE: no topology built"
+      panel = dlg.topology_panel
+      plain = ground(dlg._unit)
+
+      # THE GAP-OPENER GOES FIRST, and the order is the whole of what
+      # this test is about. A rotation leaves a design whose topology
+      # cannot be REBUILT -- measured on this design at every angle
+      # from 10 to 30 degrees -- so an edit made after it is the one
+      # thing rebuilding between edits cannot do. Put the rotation
+      # second and the mutated path simply rebuilds after the nudge,
+      # reaches a different design that still builds, and agrees with
+      # the chained one: the catalogue entry survived twice that way.
+      panel._record({"classes": "a", "how": "rotate_edge",
+                     "args": {"angle": 15.0}})
+      _settle_topology(dlg, seconds=40)
+      _settle(dlg)
+      _tick(250)
+      after_one = ground(dlg._unit)
+      # THE EDIT HAS TO HAVE LANDED BEFORE ITS CONSEQUENCE IS ASKED
+      # ABOUT. `_settle_topology` returns when no build is in flight,
+      # and the edited unit is adopted a beat later -- so asking about
+      # gaps immediately reads the UN-EDITED design and reports, quite
+      # correctly, that it still carries a topology.
+      assert after_one != plain, \
+        "PREMISE: the rotation has not reached the dialog's unit yet"
+      assert not topology_edits.still_has_a_topology(dlg._unit), (
+        "PREMISE: the rotation left a design that still carries a "
+        "topology, so the edit after it is not the case this test is "
+        "about")
+
+      panel._record({"classes": "A", "how": "nudge_vertex",
+                     "args": {"dx": 0.03, "dy": 0.03}})
+      _settle_topology(dlg, seconds=40)
+      _settle(dlg)
+      # ASSERTED ABSOLUTELY, NOT BY COMPARING THE TWO SIDES: both the
+      # saved design and the opened one are produced by the same
+      # `apply`, so anything that breaks it breaks BOTH and a roundtrip
+      # comparison goes on agreeing.
+      assert ground(dlg._unit) != after_one, (
+        "the second edit changed nothing, so an edit made AFTER one "
+        "that opened gaps is being refused -- which is what rebuilding "
+        "between edits does, and what chaining exists to avoid")
+
+      made = list(panel.edits() or [])
+      edited = ground(dlg._unit)
+      assert len(made) == 2, \
+        f"PREMISE: the tab kept {len(made)} edits rather than two"
+      assert edited != plain, (
+        "PREMISE: the edits moved nothing, so a roundtrip that "
+        f"preserved nothing would pass -- both {edited}")
+
+      # A MAP HAS TO EXIST BEFORE IT CAN BE SAVED: the tab edits the
+      # design whether or not anything is drawn.
+      dlg._generate()
+      _settle(dlg)
+      _settle_topology(dlg, seconds=60)
+      assert dlg._element_layer_ids, "PREMISE: the run produced no layers"
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(150)
+      assert press_save(dlg), "PREMISE: the save wrote nothing"
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(100)
+
+    QgsProject.instance().clear()
+    QgsProject.instance().addMapLayer(make_region_layer())
+    second = WeavingSpaceDialog(iface=_Iface())
+    try:
+      second.opt_experimental.setChecked(True)
+      second.live_check.setChecked(False)
+      second.show()
+      _tick(200)
+      second.resume_widget.setFilePath(out)
+      _tick(150)
+      second.load_button.click()
+      _settle_topology(second, seconds=60)
+      _settle(second)
+      _tick(300)
+
+      came_back = list(second.topology_panel.edits() or [])
+      assert came_back == made, (
+        "the edits did not come back as they went in: saved "
+        f"{[e['how'] for e in made]}, opened "
+        f"{[e['how'] for e in came_back]}")
+      opened = ground(second._unit)
+      assert opened == edited, (
+        f"the opened design is not the saved one: saved {edited}, "
+        f"opened {opened} -- so somebody's edits do not survive the "
+        f"file they were saved in")
+      drawn = ground(getattr(second.topology_panel, "_unit", None))
+      assert drawn == edited, (
+        f"the map came back edited and the TAB did not: it draws "
+        f"{drawn} where the design is {edited}")
+    finally:
+      second.close()
+      second.deleteLater()
+      _tick(50)
+
+
 def test_the_topology_matrix():
   """Every manipulation, across designs, across what happens next.
 
@@ -78101,6 +78492,10 @@ def main():
         test_the_saved_unit_and_dual_carry_no_crs)
   check("the topology matrix",
         test_the_topology_matrix)
+  check("every way of editing the topology moves the drawing",
+        test_every_way_of_editing_the_topology_moves_the_drawing)
+  check("topology edits come back from the file",
+        test_topology_edits_come_back_from_the_file)
   check("a text column shares one classification",
         test_a_text_column_shares_one_classification)
   check("the vendored version is checked where a user reads it",
