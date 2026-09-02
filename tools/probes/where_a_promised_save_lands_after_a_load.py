@@ -99,7 +99,14 @@ def one_arm(probe, name, open_the_other_map):
   suite._settle(dlg)
   suite._tick(600)
 
-  result = {"promised": promised,
+  # ---- AND THE SECOND HALF OF THE RULING: the Load itself. "The save
+  # should happen first, then the load" is two claims, and a repair
+  # that merely protects the save while swallowing the Load would
+  # satisfy the reading above and leave somebody pressing a button
+  # that does nothing.
+  opened = str(dlg.gpkg_widget.filePath() or "")
+  result = {"opened_theirs": opened.endswith(f"{name}-theirs.gpkg"),
+            "promised": promised,
             "mine": spacing_in(mine), "theirs": spacing_in(theirs),
             "still_owed": bool(getattr(dlg, "_save_pending", False)),
             "said": probe.said(dlg)[len(said_at_the_press):].strip()}
@@ -115,7 +122,8 @@ def main():
     row = one_arm(probe, name, load)
     print(f"{name:8s} promised={row['promised']}  "
           f"mine's record={row['mine']}  theirs={row['theirs']}  "
-          f"still owed={row['still_owed']}")
+          f"still owed={row['still_owed']}  "
+          f"their map then opened={row['opened_theirs']}")
   print()
   print("A promised save is about the map that was on screen when the "
         "button was pressed; 520 in MINE is that promise kept, 700 is "

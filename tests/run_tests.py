@@ -9224,6 +9224,129 @@ def test_a_cancel_the_writer_could_not_serve_says_nothing():
       f"writer had already answered it. What was said: {said!r}")
 
 
+def test_a_load_waits_for_a_promised_save():
+  """A save already asked for happens first, and then the Load.
+
+  (Maintainer's ruling, 2026-09-02: "the save should happen first.
+  then the load".)
+
+  WHAT IT COST. With live update on, changing the design arms a
+  re-tile and a Save pressed inside that window is KEPT rather than
+  refused -- the ruling of 2026-08-29, because most people do not
+  read a refusal. `_honour_a_queued_save` then deliberately re-reads
+  the output chooser at the moment of the write, so that a person who
+  changed their mind about where the map goes is obeyed. A LOAD moves
+  that chooser too, and means nothing of the kind: it says where the
+  map being OPENED lives. So pressing Load inside the promise's
+  window consumed the promise against the other file, and the map
+  they had asked to save was never written -- silently, after the
+  plugin had said it would be saved once redrawn.
+
+  BOTH HALVES OF THE RULING ARE ASSERTED, because they are two claims
+  and a repair can satisfy either alone. The save must land on the
+  person's OWN file, and the Load must then happen: a fix that merely
+  protected the save while swallowing the Load would leave somebody
+  pressing a button that does nothing.
+
+  Regression: a Load pressed while a save was promised threw the
+  promise away, and the map it was about was never written.
+  [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_load_waits_")
+
+  def spacing_in(path):
+    """What a saved file's own record says it was drawn at."""
+    record = bridge.read_working_state(path) or {}
+    return (record.get("design") or {}).get("spacing")
+
+  def drive(name, press_load):
+    """Promise a save, optionally press Load, and read both files.
+
+    Args:
+      name: names this arm's two files.
+      press_load: True to open the other map inside the window where
+        our own save stands promised, which is the claim; False for
+        the control, where the promise simply lands.
+
+    Returns:
+      (our file's recorded spacing, theirs, whether the chooser ended
+      up on their file).
+    """
+    theirs = os.path.join(folder, f"{name}-theirs.gpkg")
+    mine = os.path.join(folder, f"{name}-mine.gpkg")
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(900.0)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(theirs)
+      assert press_save(dlg, theirs), \
+        "PREMISE: the other map was never saved, so there is nothing to open"
+      dlg.gpkg_widget.setFilePath(mine)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      assert press_save(dlg, mine), "PREMISE: our own map was never saved"
+      assert spacing_in(mine) == 700.0, \
+        f"PREMISE: our file says {spacing_in(mine)!r} rather than 700"
+
+      # ---- THE PROMISE: live update on, the design changed, so a
+      # re-tile is coming and the press is kept rather than refused.
+      dlg.live_check.setChecked(True)
+      dlg.spacing_spin.setValue(520.0)
+      _tick(50)
+      dlg.save_button.click()
+      _tick(50)
+      assert getattr(dlg, "_save_pending", False), (
+        "PREMISE: the press was not deferred, so this arm is about an "
+        "ordinary save and cannot say anything about the ruling")
+      if press_load:
+        dlg.resume_widget.setFilePath(theirs)
+        dlg.load_button.click()
+        _settle(dlg)
+      _tick(1200)
+      _settle(dlg)
+      _tick(600)
+      chooser = str(dlg.gpkg_widget.filePath() or "")
+      return spacing_in(mine), spacing_in(theirs), chooser == theirs
+    finally:
+      dlg.close()
+      QgsProject.instance().clear()
+      _tick(200)
+
+  try:
+    # ---- THE CONTROL: nothing interrupts, so the promise lands.
+    mine, theirs, opened = drive("control", press_load=False)
+    assert mine == 520.0, (
+      f"PREMISE: the promise did not land even with nothing in its "
+      f"way -- our file says {mine!r} -- so the arm below would be "
+      f"measuring the deferral rather than the Load")
+    assert theirs == 900.0 and not opened, \
+      "PREMISE: the control opened or wrote the other map"
+
+    # ---- THE RULING: the save happens first, and then the Load.
+    mine, theirs, opened = drive("loaded", press_load=True)
+    assert mine == 520.0, (
+      f"the Load took the promised save with it: our own file still "
+      f"says {mine!r} rather than 520, so the map the person asked to "
+      f"save was never written and nothing said so")
+    assert theirs == 900.0, (
+      f"the promised save landed on the OTHER map's file, which now "
+      f"says {theirs!r}")
+    assert opened, (
+      "the save happened and the Load did not: the chooser never "
+      "reached the file the person asked to open, so the second half "
+      "of the ruling is unmet and the button did nothing")
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_closing_during_a_write_asks_before_interrupting_it():
   """Shutting the panel does not stop a save; it asks first.
 
@@ -85293,6 +85416,8 @@ def main():
         test_a_save_waits_for_a_build_already_coming)
   check("a close during a write does not wait for the write",
         test_a_close_during_a_write_does_not_wait_for_the_write)
+  check("a load waits for a promised save",
+        test_a_load_waits_for_a_promised_save)
   check("closing during a write asks before interrupting it",
         test_closing_during_a_write_asks_before_interrupting_it)
   check("a save after a load names the opened map's own tables",

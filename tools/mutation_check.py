@@ -2250,9 +2250,15 @@ MUTATIONS = [
        # this entry bound to. The subject is unchanged -- the
        # constructor's own initialisation -- and the line above is
        # still what tells the three sites apart.
-       old="""    self._live_timer.timeout.connect(self._honour_a_queued_save)
+       # RE-ANCHORED AGAIN 2026-09-02, when a THIRD connection to that
+       # timeout went in for the deferred Load and took the neighbour
+       # a second time. The lesson is the one this file already
+       # carries about anchoring on a decision rather than on
+       # whatever happens to sit beside it: a constructor's
+       # initialisations are exactly where new neighbours arrive.
+       old="""    self._live_timer.timeout.connect(self._honour_a_queued_load)
     self._live_pending = False""",
-       new="""    self._live_timer.timeout.connect(self._honour_a_queued_save)
+       new="""    self._live_timer.timeout.connect(self._honour_a_queued_load)
     self._live_pending = True""",
        test="test_a_finished_run_leaves_nothing_armed",
        why="an ordinary Generate not arming a live rebuild nobody "
@@ -9177,6 +9183,34 @@ MUTATIONS = [
            "Cancel abandoning the save was put to the maintainer as a "
            "question on 2026-09-01 and answered, because either "
            "reading costs somebody a map"),
+  dict(name="a-load-waits-for-a-promised-save", file=DIALOG,
+       # TWO ENTRIES RATHER THAN ONE, deliberately: this one makes the
+       # Load ignore the promise, and its sibling below makes the
+       # deferred Load never happen. Either half alone leaves a rule
+       # that reads as kept -- a save protected while the button does
+       # nothing, or a Load that works while the map goes unwritten --
+       # and an entry a sibling can satisfy reports `caught` about
+       # nothing.
+       old="""    if self._save_pending:
+      self._load_pending = path
+      return False""",
+       new="""    if False:  # mutation: open now and let the promise take its chance""",
+       test="test_a_load_waits_for_a_promised_save",
+       why="a Load pressed while a save stands promised taking the "
+           "promise with it. `_honour_a_queued_save` re-reads the "
+           "output chooser at the moment of the write and a Load "
+           "moves that chooser, so the person's own map was never "
+           "written -- after the plugin had said it would be saved "
+           "once redrawn (maintainer's ruling, 2026-09-02: the save "
+           "happens first, then the load)"),
+  dict(name="a-deferred-load-is-still-performed", file=DIALOG,
+       old="""    self._load_pending = None
+    self._resume_from_gpkg(path)""",
+       new="""    self._load_pending = None  # mutation: forget it instead""",
+       test="test_a_load_waits_for_a_promised_save",
+       why="a Load deferred behind a save and then dropped, so the "
+           "button a person pressed did nothing at all. The ruling "
+           "has two halves and this is the second"),
   dict(name="closing-asks-before-it-interrupts-a-save", file=DIALOG,
        # ANCHORED ON THE QUESTION ITSELF rather than on the assignment
        # below it: `self._save_cancelled = True` appears twice, here

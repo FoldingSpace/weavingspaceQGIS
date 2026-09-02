@@ -2339,6 +2339,9 @@ class WeavingSpaceDialog(QDialog):
     # there: an exception in a Qt slot is swallowed and takes the rest
     # of the handler with it.
     self._live_timer.timeout.connect(self._honour_a_queued_save)
+    # AND THE LOAD THAT WAITED FOR IT, connected after the save's own
+    # handler so the order a person asked for is the order they get.
+    self._live_timer.timeout.connect(self._honour_a_queued_load)
     self._live_pending = False
     # A Generate PRESSED while a run is in flight, which is a
     # different fact from a live tick deferred the same way and must
@@ -2375,6 +2378,11 @@ class WeavingSpaceDialog(QDialog):
     # chooser is read again at the moment of the write, exactly as the
     # button reads it, so every guard the press would have met is met.
     self._save_pending = False
+    # A LOAD ASKED FOR WHILE A SAVE WAS PROMISED, kept so the two
+    # happen in the order the person asked for them (maintainer's
+    # ruling, 2026-09-02). Cleared where the window closes, since a
+    # deferred act belongs to the session that asked for it.
+    self._load_pending = None
     # WHETHER A TEXT COLUMN READS AS NUMBERS, keyed by layer, column,
     # fingerprint and data version exactly as `_values_cache` is, so an
     # edit that could change the answer retires the entry and nothing
@@ -6268,6 +6276,13 @@ class WeavingSpaceDialog(QDialog):
         # person should be asked first.
         self._report_quietly("Closed without saving; the map is still "
                              "in the project.")
+    # AND A LOAD THAT WAS WAITING FOR THAT SAVE GOES WITH THE WINDOW.
+    # A deferred act belongs to the session that asked for it, and
+    # `open_dialog` reuses this object -- so leaving it standing would
+    # open somebody's map minutes later, out of a window they had shut.
+    # This is the deferred-work rule's other end, which this project
+    # paid for once already in a flag no journey cleared.
+    self._load_pending = None
     if self._task is not None:
       try:
         self._task.cancel()
@@ -16220,6 +16235,33 @@ class WeavingSpaceDialog(QDialog):
     here = self.gpkg_widget.filePath().strip() or None
     return any(term != here for term in differing)
 
+  def _honour_a_queued_load(self):
+    """Open the map somebody asked for while a save was outstanding.
+
+    Returns:
+      None. Does nothing unless a Load was deferred AND the save it
+      was waiting for has ended -- kept or dropped, since either
+      answers the question the deferral asked. The intent is TAKEN
+      AND CLEARED before the resume runs, which is the rule every
+      other remembered intent here follows: handing it to a path that
+      can refuse would leave it standing to fire again.
+
+    WHY IT ENDS ON A DROPPED PROMISE TOO. The person asked for two
+    things in an order, and the ruling is about the ORDER rather than
+    about the save succeeding: a save they cancelled is a save that
+    has ended, and making them press Load a second time would be the
+    refusal this deferral exists to avoid.
+    """
+    if _dialog_is_gone(self):
+      return                  # ...before anything of ours is touched
+    path = getattr(self, "_load_pending", None)
+    if not path or self._save_pending:
+      return
+    if getattr(self, "_saving_now", False):
+      return                  # the write is running; it lands first
+    self._load_pending = None
+    self._resume_from_gpkg(path)
+
   def _honour_a_queued_save(self):
     """Write the map a Save press was deferred over, once it is drawn.
 
@@ -20710,6 +20752,31 @@ class WeavingSpaceDialog(QDialog):
         "A map is still being generated; open the saved map once it "
         "finishes.")
       return False
+    # AND A SAVE ALREADY ASKED FOR HAPPENS FIRST, THEN THIS LOAD.
+    # (Maintainer's ruling, 2026-09-02.) A press kept while a re-tile
+    # is coming is a promise about THIS map (the ruling of
+    # 2026-08-29), and `_honour_a_queued_save` deliberately re-reads
+    # the output chooser at the moment of the write -- so a Load
+    # arriving inside that window repointed the chooser at the file
+    # being opened, and the promised save was consumed against it.
+    # The person's own map was never written and nothing said so:
+    # measured 2026-09-02, the file still holding the design they had
+    # changed away from
+    # (`tools/probes/where_a_promised_save_lands_after_a_load.py`,
+    # whose control arm has the promise landing correctly).
+    # IT IS DEFERRED RATHER THAN REFUSED, for the reason the whole
+    # deferral family exists: most people do not read a refusal, and
+    # one here would leave somebody pressing Load twice while their
+    # map went unsaved either way.
+    # AND A WRITE UNDER WAY CANNOT REACH THIS LINE, which is why only
+    # the promise is asked about: Load is in
+    # `CONTROLS_A_PUMP_TAKES_DOWN`, so it is disabled for the whole of
+    # a write and no click can be delivered by the write's own pump.
+    # Spinning here would be the nested wait that froze the window for
+    # a whole ceiling earlier the same day.
+    if self._save_pending:
+      self._load_pending = path
+      return False
     # WHY IT WILL NOT OPEN, BEFORE "IT CARRIES NO MAP". Five different
     # situations answered None from `read_working_state` and were told
     # the same thing -- a path that does not exist, an empty file, a
@@ -23668,6 +23735,7 @@ class WeavingSpaceDialog(QDialog):
       # landing, and this site was written without it.
       if not _dialog_is_gone(self):
         QTimer.singleShot(0, self._honour_a_queued_save)
+        QTimer.singleShot(0, self._honour_a_queued_load)
       if self._topology_wanted:
         self._topology_wanted = False
         self._queue_topology()
@@ -24153,6 +24221,7 @@ class WeavingSpaceDialog(QDialog):
     # inside it is the one that decides; a condition here would be a
     # second copy of that decision, and this project has paid for those.
     QTimer.singleShot(0, self._honour_a_queued_save)
+    QTimer.singleShot(0, self._honour_a_queued_load)
 
   def _add_output_layers(self, gdf, family, source_layer, assignments,
                          path, run_sig=None, geometry_sig=None,
