@@ -20905,7 +20905,7 @@ class WeavingSpaceDialog(QDialog):
                     ("output_path", path))
                    if value}
         landing["region_crs"] = self._crs_the_resume_landed_on(
-          landed_on, record)
+          landed_on, record, already)
         self._stamp_working_state(already, launch_state=landing)
         # AND THE LAYERS ARE TOLD THE SAME THING, or the group's own
         # record and the layers it holds disagree about which dataset
@@ -21212,11 +21212,10 @@ class WeavingSpaceDialog(QDialog):
       landing = {key: value for key, value in
                  (("region", landed_on or record.get("region")),
                   ("output_path", path)) if value}
+      ours = self._group_of_our_layers(QgsProject.instance().layerTreeRoot())
       landing["region_crs"] = self._crs_the_resume_landed_on(
-        landed_on, record)
-      self._stamp_working_state(
-        self._group_of_our_layers(QgsProject.instance().layerTreeRoot()),
-        launch_state=landing)
+        landed_on, record, ours)
+      self._stamp_working_state(ours, launch_state=landing)
       # AND THE LAYERS TOO, for the reason written at the twin: the
       # group's record and the layers it holds must not disagree about
       # which dataset this map came from.
@@ -21366,20 +21365,40 @@ class WeavingSpaceDialog(QDialog):
       return 0
     return missing
 
-  def _crs_the_resume_landed_on(self, landed_on, record):
+  def _crs_the_resume_landed_on(self, landed_on, record, group=None):
     """The system to record beside a resumed map's region.
 
     Args:
       landed_on: the source string `_recover_the_source` actually
         landed on, or None where none of its three routes answered.
-      record: the file's own working state, read for `region_crs`
-        where the recovery found nothing to ask.
+      record: the FILE's own working state, read for `region_crs`
+        where neither the resolution nor the group can answer.
+      group: the output group this resume is landing on, whose own
+        record was written by the landing that DREW the map. None
+        where there is no group to ask.
 
     Returns:
-      An authid, or None where neither the resolution nor the record
-      has one -- a file written before that key existed says nothing,
-      rather than claiming a system, which is the state
-      `_wear_the_recorded_crs` is built to meet.
+      An authid, or None where none of the three has one -- a file
+      written before that key existed says nothing, rather than
+      claiming a system, which is the state `_wear_the_recorded_crs`
+      is built to meet.
+
+    THREE STORES, IN THE ORDER OF WHAT EACH KNOWS, and the middle one
+    was learned the hard way within the hour. The first repair for
+    ledger row 22 handed this answer to `_stamp_working_state` as part
+    of the LAUNCH STATE, which beats the carry -- so at the
+    already-open door, where the group carries a record its own
+    landing wrote, the FILE's value was stamped over it. Measured on
+    two arms the first repair did not have: a file written before
+    `region_crs` existed left the group saying nothing at all, and a
+    file carrying the value rows 16 and 22 wrote before they were
+    repaired had that value copied back onto a group that had been
+    right all along. The old code healed both, by accident of not
+    writing the key; the repair took the healing away.
+    SO THE GROUP IS ASKED BEFORE THE FILE. Its record was written by
+    the landing that drew this map, which is the moment the system is
+    a fact about; the file's is a copy of that, possibly older and
+    possibly written by a defect this very repair exists to close.
 
     THE RESOLUTION FIRST, THE RECORD SECOND, AND THE CHOOSER NEVER ON
     ITS OWN. Where the recovery landed on a layer, that layer is the
@@ -21395,6 +21414,17 @@ class WeavingSpaceDialog(QDialog):
     describes where something came from and only the resolution
     describes where it IS, so the two are compared before either is
     believed.
+    THAT COMPARISON IS NOT REACHED BY ANY JOURNEY MEASURED HERE, and
+    it is written down rather than left to be rediscovered: on both
+    doors the recovery points the chooser and nothing between that and
+    this call moves it, so a per-assertion hunt found the check
+    unable to fail. It is kept because the chooser is the one thing
+    this method reads that other code moves -- the switch machinery,
+    `_point_the_chooser_at` and the exclusions all touch it -- and
+    because the alternative, walking the project for a layer whose
+    source matches, is the lookup this project already records as
+    answering with the WRONG layer where an overlay was built on the
+    region's own source.
     """
     chosen = self.layer_combo.currentLayer()
     here = chosen.source() if chosen is not None else None
@@ -21402,7 +21432,8 @@ class WeavingSpaceDialog(QDialog):
       authid = chosen.crs().authid()
       if authid:
         return authid
-    return (record or {}).get("region_crs")
+    carried = (self._read_working_state(group) or {}) if group else {}
+    return carried.get("region_crs") or (record or {}).get("region_crs")
 
   def _wear_the_recorded_crs(self, layer, record):
     """Give a recovered region the system it was drawn in.

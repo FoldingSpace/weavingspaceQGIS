@@ -1762,6 +1762,7 @@ count.
 | Direction | Confirmed | Aimed at |
 | --- | ---: | --- |
 | the round's own repairs (12th) | (same) | today's rows 14-21 and the acting-controls owner two acts now share. Reached row 22 from the write-only side, independently of the row below |
+| the round's own repairs (13th, replenished) | 1 | commit 367248c, the repair for row 22, per assertion. Row 23: that repair's launch state BEATS the carry it said was holding the other door, so a file older or wronger than the group's own record was stamped over it. Also two dead axes in the new guard, counted apart |
 | backwards from harm (10th) | -- | the last two days, ranked BEFORE any source is opened |
 | stochastic settled sessions (7th) | -- | the save, the Load doors, the waiting window, the tab |
 | two stores of one fact | 1 | the save's three records after the single-session rewrite. Row 22: the resume's two stamps hand over `region` and not `region_crs`, so a recovery that found nothing records the file's own region beside a stranger's system |

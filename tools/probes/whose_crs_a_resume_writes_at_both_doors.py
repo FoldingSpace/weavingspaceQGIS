@@ -54,7 +54,8 @@ REGION = "EPSG:3857"      # what the map's own region declares
 STRANGER = "EPSG:27700"   # an unrelated layer, in another system
 
 
-def one_arm(probe, name, keep_the_region, keep_the_layers):
+def one_arm(probe, name, keep_the_region, keep_the_layers,
+            the_file_says="as saved"):
   """Draw a map, come back to it later, and read what the file says.
 
   Args:
@@ -69,6 +70,13 @@ def one_arm(probe, name, keep_the_region, keep_the_layers):
       project, which is what makes `_resume_from_gpkg` take its
       ALREADY-OPEN branch; False removes them, so the fresh branch
       runs.
+    the_file_says: what the FILE's own record carries when the resume
+      reads it -- "as saved", "nothing" for a file written before
+      `region_crs` existed, or an authid for a file written while the
+      key was being filled in wrongly, which is every file this
+      project saved between 2026-08-28 and the repairs of 2026-09-02.
+      The group's own record is left alone, so this is the question
+      of which of TWO stores the stamp should believe.
 
   Returns:
     A dict of what was measured: the file's `region_crs` as the first
@@ -100,6 +108,18 @@ def one_arm(probe, name, keep_the_region, keep_the_layers):
   assert first == REGION, (
     f"PREMISE: the file left the first save saying {first!r} rather "
     f"than {REGION}, so this arm cannot say whose system travelled")
+
+  # ---- WHAT THE FILE SAYS WHEN THE RESUME READS IT. The group's own
+  # record is untouched, so an arm that changes this is asking which
+  # of the two stores the stamp believes.
+  if the_file_says != "as saved":
+    older = dict(bridge.read_working_state(path) or {})
+    if the_file_says == "nothing":
+      older.pop("region_crs", None)
+    else:
+      older["region_crs"] = the_file_says
+    assert bridge.write_working_state(path, older), \
+      "PREMISE: the file's record could not be staged"
 
   # ---- A LATER SESSION. The dialog is closed; what stays in the
   # project is the arm's own question.
@@ -165,13 +185,21 @@ def main():
   """
   probe = probe_kit.start()
   arms = (
-    ("control-fresh", True, False),
-    ("treated-fresh", False, False),
-    ("treated-already-open", False, True),
+    ("control-fresh", True, False, "as saved"),
+    ("treated-fresh", False, False, "as saved"),
+    ("treated-already-open", False, True, "as saved"),
+    # ---- AND THE TWO STORES, ASKED AT THE DOOR THAT HAS BOTH. The
+    # group's record is this map's own landing; the file's may be
+    # older than `region_crs` or may carry the value the defect of
+    # rows 16 and 22 wrote. A stamp that prefers the file over the
+    # group destroys a good record with a bad one.
+    ("older-file-already-open", False, True, "nothing"),
+    ("wrong-file-already-open", False, True, STRANGER),
   )
   results = {}
-  for name, keep_the_region, keep_the_layers in arms:
-    results[name] = one_arm(probe, name, keep_the_region, keep_the_layers)
+  for name, keep_the_region, keep_the_layers, the_file_says in arms:
+    results[name] = one_arm(probe, name, keep_the_region, keep_the_layers,
+                            the_file_says)
     row = results[name]
     print(f"{name:22s} door={row['door']:12s} "
           f"chooser={row['chooser']:34s} "
@@ -182,7 +210,7 @@ def main():
     verdict = ("as drawn" if row["second"] == REGION
                else f"THE CHOOSER'S ({row['second']})")
     print(f"{name:22s} the file's region_crs is {verdict}")
-  print("\nPROBE COMPLETE: three arms reported, teardown next.")
+  print("\nPROBE COMPLETE: five arms reported, teardown next.")
 
 
 main()

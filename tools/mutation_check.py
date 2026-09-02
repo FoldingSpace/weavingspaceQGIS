@@ -9352,7 +9352,7 @@ MUTATIONS = [
        # (`tools/probes/whose_crs_a_resume_writes_at_both_doors.py`):
        # fresh EPSG:27700, already-open EPSG:3857, control EPSG:3857.
        old="""      landing["region_crs"] = self._crs_the_resume_landed_on(
-        landed_on, record)""",
+        landed_on, record, ours)""",
        new="""      landing.pop("region_crs", None)  # mutation: leave it live""",
        test="test_a_resume_records_the_system_it_landed_on",
        why="a resume that found NOTHING recording the region it was "
@@ -9367,6 +9367,26 @@ MUTATIONS = [
            "kilometres from its own tiles. Found 2026-09-02 by two "
            "hunts from opposite directions and verified by a third "
            "route"),
+  dict(name="the-groups-own-record-outranks-the-files", file=DIALOG,
+       # THE OTHER HALF OF THE ENTRY ABOVE, and it exists because the
+       # first repair for that row created the defect this one names:
+       # a launch state BEATS `_stamp_working_state`'s carry, so
+       # handing the file's answer over unconditionally stamped a good
+       # group record with an absent or stale one. The group's record
+       # was written by the landing that DREW the map; the file's is a
+       # copy of it, possibly older than the key and possibly written
+       # by the defect the sibling entry guards.
+       old="""    carried = (self._read_working_state(group) or {}) if group else {}
+    return carried.get("region_crs") or (record or {}).get("region_crs")""",
+       new="""    return (record or {}).get("region_crs")  # mutation: file first""",
+       test="test_a_resume_records_the_system_it_landed_on",
+       why="a resume stamping the FILE's idea of the region's system "
+           "over the group's own, which the landing wrote: a file "
+           "written before `region_crs` existed left the group saying "
+           "nothing at all, and one carrying the value this day's own "
+           "defect wrote had it copied back onto a record that was "
+           "right. Measured at 9,813 km between a region and its "
+           "tiles by the hunt aimed at the repair, within the hour"),
   dict(name="an-empty-shell-is-not-somebody-elses-file", file=DIALOG,
        old="""    if bridge.gpkg_holds_nothing(path):
       return True""",

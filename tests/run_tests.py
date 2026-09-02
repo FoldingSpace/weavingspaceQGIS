@@ -40687,6 +40687,49 @@ def test_a_resume_records_the_system_it_landed_on():
       f"{record.get('region_crs')!r} rather than the system that "
       f"layer has, so the next recovery rebuilds it from the source "
       f"string alone and brings it back in the file's coordinates")
+
+    # ---- AND THE THIRD STORE, WHICH THE FIRST REPAIR FOR THIS ROW
+    # OVERRODE. The already-open door finds a group carrying a record
+    # its own LANDING wrote, and that landing is the moment the system
+    # is a fact about; the file's copy may be older than the key or
+    # may hold what the defect above wrote before it was mended. A
+    # launch state beats the carry, so handing the FILE's answer over
+    # unconditionally stamped a good group record with a bad one --
+    # measured at 9,813 km by the hunt aimed at this repair, and here
+    # as the file coming home saying None or the stranger's system.
+    for name, staged in (("older", None), ("wrong", stranger_crs)):
+      QgsProject.instance().clear()
+      _tick(200)
+      path, alpha, layer_ids = draw_and_save(name)
+      drawn_in = alpha.crs().authid()
+      record = dict(bridge.read_working_state(path) or {})
+      if staged is None:
+        record.pop("region_crs", None)
+      else:
+        record["region_crs"] = staged
+      assert bridge.write_working_state(path, record), \
+        f"PREMISE: the {name} file's record could not be staged"
+      # THE MAP'S LAYERS STAY, which is what makes the resume take its
+      # already-open branch; the REGION goes, so the recovery lands on
+      # nothing and the question is which record answers.
+      QgsProject.instance().removeMapLayer(alpha.id())
+      stranger = make_region_layer(origin=(500000, 200000))
+      stranger.setName("somebody else's basemap")
+      stranger.setCrs(QgsCoordinateReferenceSystem(stranger_crs))
+      QgsProject.instance().addMapLayer(stranger)
+      _tick(300)
+      assert any(QgsProject.instance().mapLayer(layer_id) is not None
+                 for layer_id in layer_ids), (
+        f"PREMISE: the {name} arm has no layers left in the project, "
+        f"so the resume takes the fresh branch and this arm is not "
+        f"about the carry at all")
+      record, _chooser = resume_and_save(path)
+      assert record.get("region_crs") == drawn_in, (
+        f"the {name}-file arm came home saying "
+        f"{record.get('region_crs')!r} where the group's own record, "
+        f"written by the landing that drew this map, says {drawn_in} "
+        f"-- so a record the file had wrong or lacked was stamped "
+        f"over one that was right")
   finally:
     QgsProject.instance().clear()
     shutil.rmtree(folder, ignore_errors=True)
