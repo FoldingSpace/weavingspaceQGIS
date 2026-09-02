@@ -477,6 +477,40 @@ not gates: a mutation survivor is an argument for the next round of
 test-writing, and treating it as a blocker would either delay every
 release or teach everybody to wave it through.
 
+**AND YET A RED `mutation` WORKFLOW DOES STOP A CANDIDATE, WHICH IS
+NOT A CONTRADICTION AND HAS TWICE BEEN READ AS ONE.** The question
+gets asked because the workflow's NAME is on the red. What is
+actually in it, read off `.github/workflows/mutation.yml` rather than
+off the prose about it:
+
+    Sweep this slice of the catalogue      continue-on-error: true
+    Mutate the lines changed since ...     continue-on-error: true
+    Record which tests touch which lines   exits 1 on a failed shard
+
+So no mutation MEASUREMENT can redden that workflow, and the rule
+above holds exactly as written. What can redden it is provisioning,
+the baseline check, an artefact upload, or the coverage leg -- which
+is not a mutation instrument at all. It runs the WHOLE SUITE three
+ways under the per-test recorder and refuses a partial record, for a
+reason that has nothing to do with sampling: a coverage record missing
+a shard never offers the absent tests the chance to notice a mutant,
+so it overstates survivors silently and in one direction only.
+
+TWICE NOW THAT LEG HAS STOPPED A CANDIDATE AND BEEN RIGHT TO. It took
+rc7 on 2026-08-31 with a real test fault that macOS and Windows found
+independently, and rc10 on 2026-09-01 with one test failing on its own
+premise. Neither was a survivor; both were the suite.
+
+WHAT IS UNSETTLED IS THE SPLIT, and it is a release gate, so it is the
+maintainer's. `publish_candidate` requires every WORKFLOW on the
+candidate's commit to be green; the honest division may be per JOB,
+with the sampling jobs reporting and the whole-suite leg gating. It is
+recorded under "Conflicts to settle by grilling" in ROADMAP.md rather
+than changed in passing, because a gate is changed deliberately or not
+at all. Nothing here has been tightened: that workflow file has not
+moved since 2026-08-19, and `publish_candidate` has asked for every
+workflow since the day it was written.
+
 Full reasoning, including what deliberately did NOT move to CI, in
 docs/MUTATION-LOOP.md.
 

@@ -190,6 +190,22 @@ def arm(rt, name, stage_a_handle):
             real_handle_at = view._handle_at
 
             def _handle_at(point, _real=real_handle_at, _at=blocked):
+                """Answer as though a handle sat over the blocked point.
+
+                Args:
+                  point: the QPoint being hit-tested.
+                  _real: the view's own `_handle_at`, bound at
+                    definition so the stand-in cannot recurse into
+                    itself once it is installed.
+                  _at: the point a handle is declared over, which is
+                    the first candidate the old aimer would pick.
+
+                Returns:
+                  A manipulation name where the point is within six
+                  pixels of `_at`, and whatever the real hit test says
+                  otherwise -- so every other part of the drawing goes
+                  on behaving exactly as it does in the product.
+                """
                 near = ((point.x() - _at.x()) ** 2
                         + (point.y() - _at.y()) ** 2) ** 0.5
                 return "nudge_vertex" if near <= 6.0 else _real(point)

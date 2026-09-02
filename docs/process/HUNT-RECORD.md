@@ -1744,3 +1744,86 @@ THE INSTRUMENT WAS A STACK PRINTED FROM A PATCHED METHOD, not more
 runs. Recording who called `show_topology` between the press and the
 reading named the caller on the first failing attempt; counting how
 often the race is lost would have measured the machine.
+
+## THE 24-BUG CAMPAIGN, PLANNED 2026-09-01
+
+The maintainer's instruction, given while `0.24.4rc11` was building:
+once the candidate is published, keep EIGHT hunts going on temporary
+worktrees, replenishing to eight after each bug is fixed, committed
+and its worktree retired, until TWENTY-FOUR bugs have been repaired
+and tested. Recorded here because a plan that lives in a conversation
+is gone when the conversation is, and because `dev/` is gitignored.
+
+**WHAT COUNTS AS ONE OF THE TWENTY-FOUR.** A bug is CLOSED when the
+claim has been reproduced BY A ROUTE THE HUNT DID NOT USE, repaired,
+guarded by a registered test, proved by a catalogue entry judged
+`caught`, committed, and written into the day's defect ledger under
+this directory. That is this project's standing definition rather than
+a bar invented for the campaign. Only CONFIRMED PRODUCT DEFECTS count;
+faults in our own instruments are tallied separately and reported,
+because a day whose findings are mostly its own instruments is a day
+nobody should act on.
+
+**REPLENISHMENT IS TRIGGERED BY A CLOSED BUG, NOT BY A REPORT**, so
+the eight slots can never fill with unverified claims. The
+verification queue is the campaign's real limit: running more hunts
+does not raise throughput, it lengthens that queue, and it runs in one
+context. Each replacement worktree is created at the CURRENT head,
+which is what the instruction's "removed, recreated, updated" asks
+for and what stops a hunt reading a tree that has moved under it.
+
+**THE OPENING SLATE**, aimed at the two days of work this version has
+just taken on, since the record says a hunt pays on fresh ground and
+returned one confirmed defect for 573,967 tokens when it was aimed at
+old code:
+
+    1  two-stores   the save's records after the single-session
+                    rewrite: the file's, the group's, the layers' own
+                    stamps, which must agree
+    2  one-boundary the waiting window -- quit, window close, cancel --
+                    where a crossing must change NOTHING
+    3  asymmetry    write_gpkg_layers' rollback path against its
+                    ordinary one: styles, repointing, the drop
+    4  unreachable  the topology deferral: a state that defers twice,
+                    or never
+    5  write-only   the symmetry gate and the multi-class selection
+    6  free-form    what the re-vendor changed that a differential over
+                    make_unit cannot see, driven through the PRODUCT
+    7  the sweep    agreement, collateral and return over the ordinary
+                    acts: open, close, reopen, save, load, switch,
+                    rename, press twice
+    8  the trigger  a per-assertion hunt at the guards written
+                    2026-09-01, which were a batch in one sitting
+
+FOUR OF THE EIGHT CANNOT PATTERN-MATCH against the code, which keeps
+the portfolio rule this record already states.
+
+**THE SWEEP IS IN THE ROUND RATHER THAN INSTEAD OF IT**, which is the
+choice CLAUDE.md requires be made with a reason. Hunts pay on fresh
+work and this work is fresh, so the round is right; but the newest of
+it is a rewrite of a WRITER, and one fact held in several stores is
+both this project's commonest defect and exactly what the sweep
+enumerates without needing an oracle. One slot of eight buys that
+coverage without spending the round on it.
+
+**THE MACHINERY.** `tools/hunt_campaign_watch.sh` is the watcher, and
+it is committed for the reason every instrument here is. It reports
+change rather than state, names the commit on every line, re-derives
+the whole picture each pass, keeps what it has already said in FILES
+rather than in shell variables -- this machine's bash is 3.2, which
+has no associative arrays and evaluates a subscript as arithmetic --
+and EXITS when something is owed, which is what makes it prompt rather
+than log. Its state lives under `dev/hunts`: `logs/<slug>.md` for the
+check-in logs the briefs require, `state/` for the offsets that make
+it report change, `closed.txt` for the count, and `wt-<slug>` for the
+worktrees. Hand-run it once before arming it, as the tenth watcher
+fault here taught and the twenty-second confirmed.
+
+The launch, once a candidate is out:
+
+    git worktree add dev/hunts/wt-<slug> HEAD
+    python3 tools/bug_hunt_brief.py --shape <shape> --area "<area>"
+    bash tools/hunt_campaign_watch.sh 24 8 300
+
+`dev/hunts/campaign.md` carries the same rules beside the state, for
+whoever is reading the working directory rather than the repository.

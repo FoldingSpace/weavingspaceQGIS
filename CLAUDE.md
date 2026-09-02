@@ -6414,3 +6414,61 @@ here, and the decision to add one is the maintainer's. Recorded
   `metadata.txt` -- so a changelog correction after a candidate is a
   new candidate, which is the trade the approved-prose-goes-stale rule
   is really about.
+
+- **A WORKFLOW'S NAME IS NOT ITS CONTRACT, AND THIS ONE HAS BEEN
+  MISREAD TWICE.** (2026-09-01, on the maintainer asking whether the
+  mutation gate had been tightened.) It had not, and nothing about it
+  had moved since 2026-08-19. Read off `.github/workflows/mutation.yml`
+  rather than off the prose about it: both measuring steps carry
+  `continue-on-error`, so no survivor can redden that workflow and the
+  decision of 2026-08-11 holds exactly as written. What exits 1 is the
+  step that records which tests touch which lines -- the WHOLE SUITE,
+  three ways, refusing a partial record because one missing shard
+  never offers its tests the chance to notice a mutant and so
+  overstates survivors in one direction only.
+  IT HAS STOPPED TWO CANDIDATES AND BEEN RIGHT BOTH TIMES, rc7 and
+  rc10, and neither red was a survivor. The confusion is entirely the
+  NAME on the red, which is why the honest split -- per job rather
+  than per workflow -- is recorded as a conflict for a grilling rather
+  than changed in passing.
+  THE HABIT: when a gate's behaviour surprises you, open the gate,
+  not the document that describes it. Three of this project's own
+  documents describe that workflow, and none of them said which of its
+  steps can fail.
+
+- **CHECK YOUR OWN ARITHMETIC BEFORE REPORTING A PARTITION AS
+  BROKEN.** (Same day.) I read a summary log and made the shards sum
+  to 749 against a local 748, and said so -- which under this
+  project's own rule means something ran twice or not at all. Asked of
+  the shard logs themselves, all three say "of 748" and 250 plus 249
+  plus 249 is 748. The partition was exact and the discrepancy was
+  mine. A suspected instrument fault is still a claim, and it wants
+  the same measurement as any other before it is written down.
+
+- **AND I EDITED A DOCUMENT THE RUNNING SUITE READS.** (Same day, and
+  it is the tree-lock rule with the roles reversed.) That rule is
+  usually stated about SOURCE -- do not edit what a gate is measuring
+  -- and `STAGE_DEPENDS` names CLAUDE.md, MAINTAINING.md, README.md
+  and ROADMAP.md for exactly this reason: `test_every_documented_
+  command_still_exists` opens them, so a documentation edit really can
+  turn a running candidate red, and it is the kind of change that
+  feels as though it cannot. Nothing came of it here, checked rather
+  than hoped by running that test on the edited tree while the
+  candidate was still in its suite. The habit: while a candidate is
+  reading the working tree, documentation is not automatically safe --
+  it is safe from the RECEIPT, which digests only what ships, and not
+  from the SUITE.
+- **AN INSTRUMENT THAT DIES AFTER REPORTING LOOKS EXACTLY LIKE THE
+  THING IT MEASURES DYING.** (2026-09-01.) A two-arm probe printed
+  both its readings and then took a SEGMENTATION FAULT at interpreter
+  teardown, holding dialogs alive past `exitQgis`. Nothing about that
+  crash concerns the product, and a reader meeting the last line of
+  the log would have every reason to think otherwise. It prints a
+  sentinel now -- both arms reported, teardown complete -- so a
+  truncated run is distinguishable from a finished one, which is this
+  file's own rule that a check must state its own completeness rather
+  than leave it to be inferred.
+  AND ITS EXIT STATUS WAS READ FROM A PIPE, which said 0 while the
+  probe had segfaulted: the status belonged to `tail`. That is the
+  gate-behind-a-pipe fault arriving at a PROBE rather than a gate, and
+  the sentinel is what tells the two apart when the status cannot.

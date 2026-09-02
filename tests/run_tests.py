@@ -8358,6 +8358,20 @@ def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
     _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(300)
     assert _wait_for_the_topology(dlg), "PREMISE: no topology was built"
+    # AND THEN WAIT FOR QUIET, WHICH IS A DIFFERENT QUESTION.
+    # `_wait_for_the_topology` returns as soon as the panel holds an
+    # ANSWER, and an answer left over from the PREVIOUS design is an
+    # answer -- so a build queued behind the family change can land
+    # between the two readings below. Measured 2026-09-02 by staging
+    # exactly that: the verdicts were taken on one topology, the
+    # build landed, and the oracle was computed on the next, which
+    # produced "class A has 1 free direction(s) and its push is
+    # greyed" on a tab behaving perfectly. CI found it first, on the
+    # Linux 4.0.3 leg, where a loaded runner supplies the timing for
+    # itself. Fifth site of the mechanism `_the_topology_tab_is_quiet`
+    # owns.
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: the topology tab never went quiet"
     panel = dlg.topology_panel
     view = panel.view
     view.grab()
@@ -8366,7 +8380,14 @@ def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
     # ---- THE CONTROL IS GREYED FOR A HELD CLASS, AND OFFERED FOR THE
     # REST. Both answers, since a gate that greys everything passes
     # the first half as well as a gate that works.
+    #
+    # THE VERDICT AND ITS ORACLE ARE READ IN ONE BREATH, from the
+    # topology the gate itself just consulted, so that quiet arriving
+    # late cannot make this compare two designs. Waiting is what
+    # stops the build landing here; reading together is what makes
+    # the comparison meaningful if it does anyway.
     verdicts = {}
+    free_classes = {}
     for label in topology_edits.classes(panel._topology).get("vertex", ""):
       panel._select_classes("vertex", label)
       _tick(100)
@@ -8375,10 +8396,8 @@ def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
         f"PREMISE: the push is not offered at all for class {label}"
       item = panel.how_combo.model().item(index)
       verdicts[label] = item.isEnabled()
-    free_classes = {
-      label: topology_edits.directions_a_class_may_move(
+      free_classes[label] = topology_edits.directions_a_class_may_move(
         panel._topology, "vertex", label)
-      for label in verdicts}
     for label, enabled in verdicts.items():
       assert enabled == (free_classes[label] > 0), (
         f"class {label} has {free_classes[label]} free direction(s) "

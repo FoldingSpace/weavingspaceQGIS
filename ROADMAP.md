@@ -338,6 +338,50 @@ file has not changed since 2026-08-19 -- and the confusion it invites
 is the per-workflow against per-job question already listed under
 "Conflicts to settle by grilling".
 
+**AND `0.24.4rc11` IS BUILT FROM `4b643c7`, WITH EVERY LOCAL GATE
+GREEN**: the roadmap and branches, the standards check, the secrets
+audit, the functional suite at 29 minutes, the visual gallery, the
+colourspace comparison, the published-content audit, the zip and its
+receipt. Two shards were read live at 250 and 249 passed with none
+failed, each naming the same total of 748; the third's log was cleared
+when the stage completed, so that one rests on the stage's verdict
+rather than the shard's.
+IT IS rc10'S SOFTWARE, MEASURED RATHER THAN ASSUMED: the two archives
+hold the same thirty-four members under the same names and differ in
+one file by one line, the version label in `metadata.txt`.
+
+**AND rc11 IS SPENT TOO, ON TWO SUITE FAULTS AND NO PRODUCT DEFECT.**
+CI answered for `4b643c7` on 2026-09-02: `mutation` green, `windows`
+and `macos` green, three installs and three galleries green, `suite
+(stable)` green, and the two remaining Linux legs red on ONE TEST
+EACH -- different tests, one per leg, which is the tell that both are
+about timing rather than about the plugin. That is the third candidate
+in a row spent on a test repair, and the trade is the documented one:
+`publish_candidate` requires CI green on the candidate's OWN commit,
+so a repair is a new commit and the old number can never be published.
+THE FIRST WAS PREDICTED AND ALREADY REPAIRED.
+`test_several_classes_can_be_moved_together` failed on 4.0.0, exactly
+as the entry above said it might; its aimer took the first vertex of a
+class drawn inside the widget without asking whether a click there
+would REACH it, since handles are hit-tested first and sit on whatever
+is already selected. Merged from `fix/topology-aim`.
+THE SECOND IS THE FIFTH SITE OF A MECHANISM THIS PROJECT HAS ALREADY
+NAMED. `the symmetries are drawn and gate what cannot move` failed on
+4.0.3 with "class B has 1 free direction(s) and its push is greyed" --
+a disagreement between the control and the arithmetic that CANNOT
+arise, since the tab and the test call one function. It arose because
+they called it about TWO TOPOLOGIES: the test waits with
+`_wait_for_the_topology`, which returns as soon as the panel holds an
+ANSWER, and an answer left over from the previous design is an answer,
+so a build queued behind the family change landed between the verdicts
+and the oracle. MEASURED BY STAGING IT, both arms in one run
+(`tools/probes/what_the_gate_and_the_test_read.py`): with the readings
+split the assertion fails for class A on a tab behaving perfectly,
+and with them taken in one breath it holds. The test waits for
+`_the_topology_tab_is_quiet` now -- the owner made for exactly this on
+rc10's repair -- and reads the verdict and its oracle together, so
+quiet arriving late cannot make it compare two designs.
+
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
 work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and

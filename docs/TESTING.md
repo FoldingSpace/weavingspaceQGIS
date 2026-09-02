@@ -4441,3 +4441,125 @@ AND THE REPAIR WAS MADE AS A FAMILY, not where CI met it. All three
 sites took the same two lines, and the local partial run had never
 reached that test at all -- so mending the one the remote named would
 have left two standing in instruments this project runs by hand.
+
+## ONE OWNER FOR "IS IT QUIET", AND THE TEST THAT MUST NOT ASK IT
+
+2026-09-01, found by CI on a candidate's own commit and costing that
+candidate. Three tests carried the same premise -- "the chosen vertex
+offers no handle to drag" -- and all three staged it the same way:
+wait with `_wait_for_the_topology`, click a vertex, tick, read the
+handles. That waiter returns as soon as the panel holds an ANSWER, a
+queue made while a build is RUNNING is deferred and re-queued at the
+landing, and `show_topology` clears the chosen thing on its way past.
+So a build arriving in the tick after the click takes away the very
+selection the premise is about.
+
+**THE THIRD NARROW LOOP IS THE SIGNAL TO FIX THE QUESTION.** Two of
+these had already been mended one at a time, in place, with inline
+waits. `_the_topology_tab_is_quiet` asks it once -- no build in
+flight, none queued behind one, no working sentence up -- with a
+ceiling that catches a hang rather than budgeting the work.
+
+**AND ONE OF THE THREE MUST NOT USE IT, which the same change proved
+by breaking it.** `test_a_build_that_lands_mid_drag_does_not_wipe_the
+_gesture` is ABOUT a landing arriving under a pointer, so draining the
+queued build ahead of its click changes the sequence the rest of it
+depends on. A control arm settled it in minutes: three runs of three
+pass without the settle there, and the committing arm fails with it,
+saying the panel adopted a new topology mid-gesture.
+
+That is this file's own rule -- when you add a step to a sequence, ask
+what it resets -- arriving on the person who had re-read it that
+morning, and it is the second time in one day that a repair of mine
+needed the same suspicion as the defect. A shared helper is right;
+applying it everywhere the phrase matches is not. **Ask of each site
+whether the condition being staged is the thing the test is about,
+because where it is, staging it away is deleting the test.**
+
+## AIM AT A DRAWING BY ASKING THE PRODUCT, NOT BY COMPUTING A POINT
+
+2026-09-01, found by reading a superseded CI round rather than by any
+failure here. `test_several_classes_can_be_moved_together` aimed its
+shift-click at "a vertex of the second class" by taking the FIRST such
+vertex drawn inside the widget. One Linux leg failed it with the
+selection left exactly where the plain click had put it, while this
+Mac passed every time.
+
+THE PRODUCT WAS INNOCENT AND THE MECHANISM IS ORDINARY.
+`mousePressEvent` tests HANDLES first -- they sit on whatever is
+already selected and are the smaller target -- and takes the NEAREST
+thing otherwise. So a point drawn on the class you want can land on
+the previous selection's own handle, or nearer a neighbour, and select
+nothing at all. Which vertex that is true of is decided by the drawn
+layout, and so by the fonts, which is why one runner sees it and one
+machine does not.
+
+**SO ASK THE VIEW'S OWN HIT TEST BEFORE CLICKING.** The aimer offers
+every candidate and keeps the first the product agrees about -- no
+handle over it, and `_nearest` naming the class wanted. A fixture that
+cannot aim then fails on its own premise instead of reporting the
+plugin as broken, which is the difference between a work list and a
+wrong diagnosis. This file already says to drive a control through its
+own signal; the sharper version for anything DRAWN is that computing
+where a thing is on screen is not the same question as where a click
+would reach it.
+
+AND THE REPAIR WAS PROVED BY STAGING THE RUNNER'S CONDITION rather
+than waiting for it. With a handle declared over the first candidate,
+the old aimer selects nothing and the selection stays `('vertex',
+'A')` -- the runner's own message -- while the new one holds both
+classes; the control arm has both working on the ordinary drawing.
+Two arms, one run, one process, each clearing the project first.
+
+THE WINDOW WAS TRIED AS THE LEVER AND IS NOT ONE. At 1025x450,
+1200x700, 1400x900 and 1600x1000 the drawing measures 420x462 every
+time, because the window's own minimum pins it -- so a sweep over
+sizes returns one verdict for every input, which is this file's oldest
+tell for an instrument that is varying nothing. The lever had to be
+the hit test itself.
+
+## READ A VERDICT AND ITS ORACLE IN ONE BREATH
+
+2026-09-02, found by CI on a candidate's own commit and the second
+suite fault to spend one. `the symmetries are drawn and gate what
+cannot move` failed on the Linux 4.0.3 leg with "class B has 1 free
+direction(s) and its push is greyed" -- a disagreement between a
+control and the arithmetic behind it that CANNOT HAPPEN, because the
+tab and the test call the same function.
+
+IT COULD HAPPEN BECAUSE THEY CALLED IT ABOUT TWO DIFFERENT OBJECTS.
+The test took its verdicts in one loop and computed its oracle in a
+second loop afterwards, and a topology build landed in between -- so
+the greying described the design that was in hand and the freedom
+described the one that arrived. Nothing about the product was wrong
+and nothing about the arithmetic was wrong.
+
+**THE WAITER WAS THE FIRST HALF.** `_wait_for_the_topology` returns as
+soon as the panel holds an ANSWER, and an answer left over from the
+PREVIOUS design is an answer. `_the_topology_tab_is_quiet` is the one
+that asks whether anything is still coming, and it exists because four
+tests met this a site at a time; this is the fifth, and it was found on
+a runner rather than here.
+
+**AND READING THEM TOGETHER IS THE SECOND**, which is the part that
+generalises past topology. Where a test compares a CONTROL against a
+MEASUREMENT, take both in the same breath from the same object.
+Waiting is what stops the state moving; reading together is what makes
+the comparison mean something if it moves anyway. Two loops over one
+subject are two readings of two subjects the moment anything lands
+between them.
+
+MEASURED, BOTH ARMS IN ONE RUN, by staging the condition rather than
+chasing its frequency
+(`tools/probes/what_the_gate_and_the_test_read.py`): put a topology in
+the panel, change the design, take the verdicts before the new build
+lands. Split, the assertion fails for class A while every control is
+correct; taken together, it holds. The control arm -- the ordinary
+sequence, settled -- agrees throughout, which is what says the probe
+can answer either way.
+
+AND THE TELL WAS IN THE PAIR OF FAILURES RATHER THAN IN EITHER. Two
+Linux legs went red on ONE TEST EACH, and they were DIFFERENT tests,
+with stable, macOS and Windows green. One test failing on three legs
+is a claim about the code; different tests failing on one leg apiece
+is a claim about timing.
