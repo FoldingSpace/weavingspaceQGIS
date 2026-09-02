@@ -7911,6 +7911,129 @@ def test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_cancel_during_the_write_stops_the_write():
+  """Cancel means cancel while the file is being written, too.
+
+  The OTHER moment. Its sibling above cancels a save that is only
+  PROMISED, where dropping the intent is the whole of the rollback
+  because nothing has been opened. This one is pressed while
+  `_save_the_map` is WRITING, where the rollback is real:
+  `write_gpkg_layers` asks `_save_cancelled` between tables and
+  answers True with a `RollbackTransaction`.
+
+  WHY IT IS A DIFFERENT TEST RATHER THAN A LEG. The close or the quit
+  arrives BY THE WRITE'S OWN PUMP -- the write turns the event loop
+  once per element behind its progress bar -- so the hold runs in a
+  frame nested BELOW the writer. Until 2026-09-02 the hold cleared
+  `_save_cancelled` on its way out under a comment claiming any write
+  that read it had already returned, which is true of the promised
+  journey and false of this one: the writer was still suspended above,
+  and it read False at every table afterwards. Measured then: the
+  writer asked four times, was told False four times, all four tables
+  were written, and the person was told "Saved" about the save they
+  had just stopped.
+
+  BOTH DIRECTIONS ARE ASSERTED, because the obvious repair breaks the
+  other one. Leaving the flag standing for the suspended writer is
+  right here and wrong for a wait that never opens the file, where
+  nothing consumes it and the person's NEXT save is rolled back
+  instead -- which is what the last assertion is for.
+
+  Regression: a Cancel pressed during the write wrote the map anyway
+  and reported it saved. [mutation]
+  """
+  import os
+  from qgis.PyQt.QtGui import QCloseEvent
+  from qgis.PyQt.QtWidgets import QApplication, QPushButton
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  window = _a_window_that_counts_its_closes()
+  with _temp_dir() as td:
+    out = os.path.join(td, "cancelled-mid-write.gpkg")
+    dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+
+      at_the_press = {}
+      watcher = QTimer()
+      watcher.setInterval(10)
+
+      def press_the_cancel():
+        """Click Cancel once the write is genuinely under way.
+
+        Returns:
+          None. It waits for `_saving_now` deliberately: pressing as
+          soon as the window appears would measure the promised
+          journey again, which the sibling test above already covers,
+          and the two arms differ by the MOMENT rather than the act.
+        """
+        if not getattr(dlg, "_saving_now", False):
+          return
+        waiting = getattr(dlg, "_waiting_window", None)
+        if waiting is None:
+          return
+        for button in waiting.findChildren(QPushButton):
+          at_the_press["saving_now"] = True
+          button.click()
+          watcher.stop()
+          return
+
+      watcher.timeout.connect(press_the_cancel)
+      watcher.start()
+
+      def deliver_the_quit():
+        """Send QGIS's Close inside the write's own pump.
+
+        Returns:
+          None. Armed at zero before the press, so it is delivered by
+          the first `processEvents` the write makes -- which is what
+          puts the hold's frame below the writer rather than after it.
+        """
+        QApplication.sendEvent(window, QCloseEvent())
+
+      QTimer.singleShot(0, deliver_the_quit)
+      BAR_MESSAGES.clear()
+      press_save(dlg, expect=False)
+      watcher.stop()
+      said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+
+      assert at_the_press.get("saving_now"), (
+        "FIXTURE: the cancel never landed while the write was running, "
+        "so this measured the promised journey rather than the one "
+        "this test is about")
+      after = gpkg_contents(out)
+      wrote = [name for name in after["tables"] if name.startswith("tiles_")]
+      assert not wrote, (
+        f"the cancelled write left {wrote} in the file: the rollback "
+        f"is what Cancel promises once the writing has started")
+      assert "not written" in said or "stopped" in said, (
+        f"a cancelled write said {said!r}, so somebody who stopped it "
+        f"has no way to know their map is not on disk")
+      assert window.closes == 1, (
+        f"the main window received {window.closes} closes: cancelling "
+        f"is the answer to 'may I stop waiting', so the quit goes "
+        f"through")
+
+      # AND THE FLAG DID NOT OUTLIVE THE WRITE IT WAS SET FOR. The
+      # writer's own branch clears it; a repair that made the hold
+      # keep it unconditionally would pass everything above and roll
+      # back this press instead.
+      _settle(dlg)
+      assert press_save(dlg), (
+        "a save pressed after a cancelled WRITE wrote nothing: the "
+        "flag outlived the act, so the next press was rolled back")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
 def test_closing_the_window_over_an_unsaved_map_asks_first():
   """Shutting the panel does not throw a promised save away.
 
@@ -81836,6 +81959,8 @@ def main():
         test_a_quit_waits_for_an_outstanding_save)
   check("cancelling the wait abandons the save and lets the quit go",
         test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go)
+  check("a cancel during the write stops the write",
+        test_a_cancel_during_the_write_stops_the_write)
   check("closing the window over an unsaved map asks first",
         test_closing_the_window_over_an_unsaved_map_asks_first)
   check("the experimental box gates its tabs",

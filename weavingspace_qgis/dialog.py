@@ -22517,20 +22517,36 @@ class WeavingSpaceDialog(QDialog):
       if not self._saving_now:
         self._report_quietly(
           "The save was cancelled, so the map was not written.")
-      # AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR.
-      # `_save_cancelled` exists to be read BETWEEN TABLES by
-      # `write_gpkg_layers`, and where the wait was for a REDRAW or a
-      # topology build nothing ever opens the file, so nothing ever
-      # consumes it. Left standing it stops the person's NEXT save:
-      # measured 2026-09-01 while writing the guard for this button --
-      # cancel a deferred press, press Save again, and the writer stops
-      # at its first table, rolls back, and reports "The save was
-      # stopped, so the map was not written" to somebody who stopped
-      # nothing. Clearing it here is safe in both directions, because a
-      # write that DID read it has already returned by the time this
-      # line runs: the pump that delivered the click sits inside that
-      # write, and `_save_the_map` resets the flag on its own way out.
-      self._save_cancelled = False
+        # AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR.
+        # `_save_cancelled` exists to be read BETWEEN TABLES by
+        # `write_gpkg_layers`, and where the wait was for a REDRAW or
+        # a topology build nothing ever opens the file, so nothing
+        # ever consumes it. Left standing it stops the person's NEXT
+        # save: measured 2026-09-01 while writing the guard for this
+        # button -- cancel a deferred press, press Save again, and the
+        # writer stops at its first table, rolls back, and reports
+        # "The save was stopped, so the map was not written" to
+        # somebody who stopped nothing.
+        #
+        # AND IT IS CLEARED ONLY WHERE NO WRITE IS RUNNING, which is
+        # the correction of 2026-09-02. This line used to run
+        # unconditionally, under a comment claiming that a write which
+        # DID read the flag had already returned -- "the pump that
+        # delivered the click sits inside that write". That is true of
+        # the ordinary deferred press and FALSE when the close or the
+        # quit is delivered BY THE WRITE'S OWN PUMP: the hold then
+        # runs in a frame nested BELOW `_save_the_map`, so clearing
+        # here happened while the writer was still suspended above it,
+        # and the writer read False at every table afterwards.
+        # MEASURED, three arms in one run
+        # (`tools/probes/what_a_cancel_during_the_write_does.py`):
+        # cancel pressed with `_saving_now` True, the writer asked
+        # `should_stop` four times and was told False each time, all
+        # four tables written, and the person told "Saved" about the
+        # save they had just stopped. A write in progress is left to
+        # its own branch, which clears the flag, rolls the transaction
+        # back and says the map was not written.
+        self._save_cancelled = False
     window.close()
     window.deleteLater()
     self._waiting_window = None

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-489 defect(s) with a regression test.
+490 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -346,6 +346,8 @@ there is no separate list to remember.
   guarded by `test_a_boundary_retyped_beside_a_recolour_is_still_recorded`
 - **a topology build finishing while a vertex was being dragged wiped the preview and the selection under the pointer, so the drawing snapped back mid-gesture and the drop committed an edit nobody could see.**  
   guarded by `test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture`
+- **a Cancel pressed during the write wrote the map anyway and reported it saved.**  
+  guarded by `test_a_cancel_during_the_write_stops_the_write`
 - **copying a categorized scheme from an element with no hand-picks left the target's old picks painting the map and stamped into the file, against the overwrite ruling. Found by the class-source hunt of 2026-08-26; verified at the layer stamp.**  
   guarded by `test_a_categorical_copy_overwrites_the_targets_picks`
 - **a categorical colour scheme could not be copied to another element at all, where the graduated one could.**  
@@ -1032,7 +1034,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 162
+- the mutation campaign: 163
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

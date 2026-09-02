@@ -9158,13 +9158,15 @@ MUTATIONS = [
            "reading costs somebody a map"),
   dict(name="a-cancel-does-not-poison-the-next-save", file=DIALOG,
        # ANCHORED WITH THE LINE ABOVE, because a match is a SUBSTRING:
-       # the six-space assignment here sits inside the eight-space one
-       # in `_save_the_map`, and an ambiguous anchor is refused rather
-       # than judged.
-       old="""      # write, and `_save_the_map` resets the flag on its own way out.
-      self._save_cancelled = False""",
-       new="""      # write, and `_save_the_map` resets the flag on its own way out.
-      pass  # mutation: leave the flag set for the next save to meet""",
+       # the eight-space assignment here sits inside no other, but the
+       # bare line appears three times in this file and an ambiguous
+       # anchor is refused rather than judged. RE-ANCHORED 2026-09-02,
+       # when the clearing moved under `if not self._saving_now` and
+       # took its comment with it.
+       old="""        # back and says the map was not written.
+        self._save_cancelled = False""",
+       new="""        # back and says the map was not written.
+        pass  # mutation: leave the flag set for the next save to meet""",
        test="test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go",
        why="the save AFTER a cancelled one being rolled back and "
            "reported as stopped, to somebody who stopped nothing. "
@@ -9174,6 +9176,26 @@ MUTATIONS = [
            "2026-09-01 while writing the guard for the Cancel button: "
            "cancel a deferred press, press Save again, and the writer "
            "stops at its first table and rolls back"),
+  dict(name="a-cancel-mid-write-is-left-for-the-writer-to-read", file=DIALOG,
+       # THE CONDITION IS THE FIX, so the mutation puts the clearing
+       # back where it was: outside the `if`, running whatever the
+       # write is doing.
+       old="""      if not self._saving_now:
+        self._report_quietly(
+          "The save was cancelled, so the map was not written.")""",
+       new="""      if True:  # mutation: clear it whatever the write is doing
+        self._report_quietly(
+          "The save was cancelled, so the map was not written.")""",
+       test="test_a_cancel_during_the_write_stops_the_write",
+       why="a Cancel pressed while the file is being WRITTEN doing "
+           "nothing at all, with the map written anyway and the "
+           "person told it was saved. The close or the quit arrives "
+           "by the write's own pump, so the hold runs in a frame "
+           "NESTED BELOW the writer -- clearing the flag there ran "
+           "while the writer was still suspended above it, and it "
+           "read False at every table afterwards. Measured 2026-09-02: "
+           "the writer asked four times and was told False four "
+           "times"),
   dict(name="the-close-question-holds-the-close", file=DIALOG,
        old="""        self._hold_until_the_save_lands("close")""",
        new="""        pass  # mutation: close without waiting for the save""",
