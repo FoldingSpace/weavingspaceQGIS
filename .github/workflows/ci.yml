@@ -269,6 +269,12 @@ jobs:
       - name: Platform metrics probe
         run: python3 -u tools/platform_probe.py
 
+      - name: What a click on the Topology drawing can reach here
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python3 -u tools/ci_probe_the_topology_aim.py
+
       - name: Functional suite
         run: python3 -u tests/run_tests.py
 
@@ -580,6 +586,13 @@ jobs:
         shell: cmd
         run: call "%QGIS_SHIM%" -u tools/platform_probe.py
 
+      - name: What a click on the Topology drawing can reach here
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        shell: cmd
+        run: call "%QGIS_SHIM%" -u tools/ci_probe_the_topology_aim.py
+
       - name: Functional suite
         # THE SAME SUITE THE MAC RUNS, because a platform that only
         # proves the plugin loads has not been tested -- it has been
@@ -810,6 +823,13 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           "$QGIS_PY" -u tools/platform_probe.py
+
+      - name: What a click on the Topology drawing can reach here
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          "$QGIS_PY" -u tools/ci_probe_the_topology_aim.py
 
       - name: Functional suite
         timeout-minutes: 180
