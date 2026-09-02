@@ -6254,3 +6254,137 @@ here, and the decision to add one is the maintainer's. Recorded
   is ISO and conformant, so the honest answer was to say nothing and
   let it fire. This is the project's own rule about comparing what a
   file HOLDS rather than how it renders, met from the WRITING side.
+
+- **NOTHING ENDS WHILE A SAVE IS OUTSTANDING.** (Maintainer's ruling,
+  2026-09-01.) A quit or a window close met a save that had been
+  promised and not yet written, and dropped it: `closeEvent` cleared
+  `_save_pending` with nothing said. So a waiting window now holds
+  both doors, says what it is waiting for, and offers Cancel; a quit
+  is DELAYED rather than vetoed, because refusing outright leaves
+  somebody unable to leave QGIS if a save ever wedges. TWO THINGS
+  WERE PUT AS QUESTIONS AND ANSWERED, and both would have cost a map
+  if guessed: Cancel abandons the save and lets the quit through, and
+  "save it" at a close means WAIT FOR THE REDRAW rather than write
+  what is on screen -- the press was deferred precisely because the
+  map on screen is the one they had changed away from. Account in
+  MAINTAINING.md under "Nothing ends while a save is outstanding".
+  AND CANCEL IS CERTAIN ONLY BEFORE THE WRITING STARTS, which is said
+  at the line rather than implied: a cancel mid-write needs
+  `write_gpkg_layers` to take a stop callback, and until it does, a
+  button offered there would be a button that lies.
+
+- **ONE STORE, ONE MEANING -- AND A QLabel IS A STORE.** (2026-09-01.)
+  The Topology tab was given a sentence saying a build was coming, and
+  it went into `note`, which already means "the answer, or the reason
+  there is none". The suite's `_settle_topology` treats a non-empty
+  note as an answer having ARRIVED, so every waiter returned before
+  the build landed and a registered test read a class list that did
+  not exist yet. It has its own label now, cleared by `set_unit`
+  wherever a build lands. This project's commonest defect is one fact
+  in two stores; this is its mirror -- two facts in one store -- and
+  it arrives most easily in a widget nobody thinks of as state.
+
+- **A HARNESS THAT MATCHES A SENTENCE THE PRODUCT SAYS IS RETUNED BY
+  THE NEXT SENTENCE.** (Same day, and it had been true of every save
+  test in the suite.) `press_save` waited out a deferred press by
+  matching "will be saved afterwards" in what the plugin said. A
+  SECOND kind of deferral -- a save waiting on a topology -- says
+  something else, so the wait never happened and a guard failed with
+  the product behaving exactly as ruled. It asks `_save_pending` now,
+  which is the promise itself and is set by every kind. The recorded
+  form of this fault was a MAINTAINER REWORDING a notice; what today
+  adds is that a new code path retunes it just as well, and nobody is
+  editing prose when it happens.
+
+- **A GUARD OVER THE WHOLE TREE CANNOT TELL YOUR OWN EDIT FROM WHAT IT
+  IS WATCHING FOR.** (Same day, twice in one hour.) A chain proving
+  catalogue entries asserted the tree was restored by asking `git diff
+  --quiet` over everything, and stopped on a document I had
+  regenerated myself twenty minutes earlier. Scoped to the
+  directories the catalogue mutates and baselined against what was
+  ALREADY dirty, it runs. Then the same shape again: `git diff
+  --quiet -- weavingspace_qgis` reported "not restored" because my own
+  deliberate work lives there. THE QUESTION IS NEVER "IS THE TREE
+  CLEAN" BUT "IS ANYTHING HERE THAT I DID NOT PUT THERE" -- for a
+  mutating job, a baseline taken before it starts; for shipped source,
+  a grep for the marker the mutation leaves.
+
+- **A WATCHER'S OWN SHELL IS PART OF THE WATCHER, AND `/bin/bash` HERE
+  IS 3.2.** (2026-09-01, the twenty-third watcher fault.) A standing
+  beat tracked "failures I have already reported" in an associative
+  array. Bash 3.2 has none, so `seen[$name]` is an INDEXED array whose
+  subscript is evaluated as ARITHMETIC -- and a log called
+  `suite_175817_shard0.log` is not arithmetic. The script died on its
+  first pass, before printing anything a reader could act on, which is
+  the one failure mode a watcher must not have. State that survives a
+  pass now lives in FILES.
+  AND THE FIX FOR THE FAULT IT REPLACED WAS ALREADY THERE: the same
+  loop reads `grep -c` without a `|| echo 0` fallback, because that
+  command PRINTS 0 and EXITS 1 when nothing matches, so a fallback
+  appends to a good answer rather than replacing it. That is the
+  fifteenth fault, which this project has now paid for twice; the
+  reason is written at the line rather than only here, which is what
+  stops it travelling into the next throwaway script.
+
+- **A WATCHER KEYED TO ONE RUN ENDS WITH THAT RUN.** (Same evening.)
+  The beat armed over a sharded suite was correct and useful, and when
+  the suite was stopped it stopped too -- leaving nothing watching the
+  work that followed, at the exact moment the maintainer asked where
+  the watcher was. A watcher over a JOB and a watcher over the SESSION
+  are different instruments: the second reports what is running, says
+  "nothing running" in those words rather than going quiet, and
+  outlives any single measurement.
+
+- **A FLAG READ BY ONE CONSUMER OUTLIVES THE JOURNEYS THAT CONSUMER
+  NEVER RUNS ON.** (2026-09-01, found by writing the guard for a
+  button added the same day.) The waiting window's Cancel sets
+  `_save_cancelled`, which `write_gpkg_layers` reads BETWEEN TABLES
+  and answers with a rollback. That is exact for a cancel during a
+  WRITE -- and the commonest wait is for a REDRAW or a topology build,
+  where nothing ever opens the file, so nothing ever reads the flag.
+  Left standing it stopped the person's NEXT save: the writer halted
+  at its first table, rolled back, and said "The save was stopped, so
+  the map was not written" to somebody who had stopped nothing.
+  THE SHAPE IS THIS FILE'S OWN DEFERRED-WORK RULE WEARING A FLAG.
+  That rule asks what CONSUMES a remembered intent and whether the
+  consumer can decline; this is the other end of it -- what CLEARS a
+  remembered intent on the journeys where the consumer never runs at
+  all. Enumerate those journeys in the same commit, and write the
+  answer at the line rather than in a document.
+  AND IT WAS FOUND BY THE GUARD RATHER THAN BY READING, which is the
+  argument for writing the guard before believing the repair: four
+  axes of that button were asserted, three passed, and the fourth --
+  a later save still works -- went red on the first run.
+
+- **WHEN A NAME GAINS A LABEL, SWEEP EVERY READER OF THE QUESTION, AND
+  THE SILENT ONES FIRST.** (Same day.) The label/key separation of the
+  morning gave `laves 3.3.4.3.4` the displayed name
+  `laves 3.3.4.3.4 (cairo)`, and the product moved cleanly: items
+  carry the key as data, records store the key, one owner answers
+  "which design is this". SIX SITES IN THE SUITE did not, and only one
+  of the six was turned up by the search that found the first.
+  FIVE FAILED LOUDLY, which is the helper doing its job: `_choose_family`
+  refuses a design the chooser does not offer, where `setCurrentText`
+  had been selecting nothing in silence and leaving each test to
+  measure whichever design happened to be current. That is a work list
+  rather than a regression.
+  THE SIXTH SKIPPED IN SILENCE and cost far more. The topology matrix
+  guards each cell with "is this family on offer", asked of the
+  chooser's TEXT, and a cell that answered no was counted and NOT
+  named -- so 15 of 35 cells survived and the failure listed one skip
+  of nineteen. Its own accounting was thorough; what defeated it was a
+  cheap guard at the top of the loop, written about the fixture rather
+  than about the product, which is exactly the kind nobody re-reads.
+  SO THE SWEEP IS FOR THE QUESTION -- which design is this -- and not
+  for the string that happened to break; and any skip added to a loop
+  carries its reason, or it is a cell that never existed.
+
+- **AN ENVIRONMENT SCRIPT THAT PRINTS BARE ASSIGNMENTS NEEDS `set -a`,
+  OR THE CHILD NEVER SEES THEM.** (Same day, caught before it cost
+  anything.) `tools/macos_qgis_env.sh` prints KEY=value lines, so a
+  plain eval sets SHELL variables and exports nothing -- and the run
+  then dies with "No module named 'encodings'" while the shell
+  believes PYTHONHOME is set, which reads as a broken interpreter
+  rather than a missing export. The reason lives at the line in the
+  session's own helper, because a rule in a binding document does not
+  travel into the next throwaway script.

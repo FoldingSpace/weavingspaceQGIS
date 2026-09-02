@@ -4325,3 +4325,67 @@ require the result to equal the original text, character for
 character, before anything is written. That catches a line eaten, a
 line duplicated and a blank line mangled, none of which a parse check
 would notice -- a file that parses can still be missing a statement.
+
+## A WAITER THAT RETURNS ON A STALE ANSWER, AND A QUEUE THAT DEFERS
+
+2026-09-01, two tests that passed alone every time and failed in a
+three-shard run. Both were read as timing; neither was, and in both
+cases the mechanism is a branch somebody can point at.
+
+**A QUEUE MADE WHILE A BUILD IS RUNNING DOES NOT START A SECOND.**
+`_queue_topology` sets `_topology_wanted` and returns, and the landing
+re-queues -- which says a build is coming all over again. So a test
+that chose a family, waited for an answer and then read the tab's own
+"working" sentence was reading the SECOND build's, queued by its own
+call and started after the first landed. On a fast machine the
+debounce's build is already home before the test asks, and there is no
+second build at all.
+
+**AND `_settle_topology` RETURNS AS SOON AS THE PANEL HOLDS AN
+ANSWER**, which it may already have held from the PREVIOUS design. A
+test that changed the design, called it, and then ticked a fixed 400ms
+was betting that a build it never waited for would finish inside those
+ticks.
+
+THE REPAIR IN BOTH CASES IS TO CLOSE THE WINDOW, which this file
+already prescribes: settle the dialog so the test's own queue is the
+only one in flight and assert that premise out loud; and wait on the
+EVENT the test is about -- here the promise being kept -- with a
+ceiling that catches a hang rather than budgeting the work.
+
+**AND THE TELL THAT IT IS NOT THE CLOCK** is that the mechanism can be
+NAMED. Ask which branch produces the wrong reading and whether a
+person could point at it; where the answer is a real line, staging is
+available and a longer wait is the wrong repair. A fix invented for a
+cause nobody found passes for the same reason a slower machine fails.
+
+## A SKIP WITHOUT A LINE IS A CELL THAT NEVER EXISTED
+
+Same day, and it is the sharpest thing the label/key separation
+taught. The topology matrix guards each cell with "is this family on
+offer", and asked it of the chooser's TEXT -- the label, which since
+that morning may carry a common name. Every renamed design was
+therefore skipped, and skipped WITHOUT a line in the record of what
+was passed over: the count came back 15 of 35 and named ONE skip of
+nineteen.
+
+The test's own machinery was right about everything else: it counts
+skips, it fails when a route is skipped in every cell it was drawn
+for, and it fails when most cells staged nothing. What defeated all
+three was a `continue` that incremented a counter and told the reader
+nothing.
+
+**SO EVERY SKIP CARRIES ITS REASON, AND THE ONES ADDED LATER MOST OF
+ALL.** A skip written beside the assertion that reports skips will be
+reported; one written at the top of a loop, as a cheap guard about the
+fixture, is exactly the one that goes quiet -- and it is the one a
+reader least expects, because the accounting below it looks thorough.
+This is the no-silent-caps rule met INSIDE a test that already keeps
+it everywhere else.
+
+**AND THE QUESTION IS SWEPT, NOT THE PHRASING.** Six sites in this
+suite named a design where it does not exist or read a label as an
+identity, and only one of the six was found by the search that found
+the first. What they share is the QUESTION -- which design is this --
+and the sweep that finds them is for every reader of the family
+chooser, not for the string that happened to break.

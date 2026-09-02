@@ -3878,8 +3878,12 @@ MUTATIONS = [
        # RE-ANCHORED 2026-09-01 onto the session writer's own
        # `recreate`, which carries exactly what `first` did: a file
        # holding anything is added to, never rebuilt.
-       old="""        path, recreate=fresh, on_table=a_table_landed)""",
-       new="""        path, recreate=True, on_table=a_table_landed)""",
+       # RE-ANCHORED 2026-09-01 for the same edit as its neighbour: the
+       # call gained `should_stop`, so the line this stood on now ends
+       # in a comma. `recreate` still carries exactly what it did -- a
+       # file holding anything is added to, never rebuilt.
+       old="""        path, recreate=fresh, on_table=a_table_landed,""",
+       new="""        path, recreate=True, on_table=a_table_landed,""",
        test="test_a_generate_spares_the_rest_of_the_users_geopackage",
        why="the plugin never destroying data it did not create. "
            "Recreating an existing GeoPackage wipes every other "
@@ -9028,9 +9032,14 @@ MUTATIONS = [
        # ONE, which is what this project's own rule asks for: this IS
        # the loop that stood here until 2026-09-01, and it is what
        # somebody would plausibly write again.
+       # RE-ANCHORED 2026-09-01, when the call gained `should_stop` so
+       # a Cancel during the write can roll the transaction back. The
+       # claim is unchanged -- every table goes in inside ONE session
+       # -- and the mutation is still the per-layer loop this replaced.
        old="""      written, write_trouble = bridge.write_gpkg_layers(
         [(layer, table) for layer, table, _subset in to_write],
-        path, recreate=fresh, on_table=a_table_landed)""",
+        path, recreate=fresh, on_table=a_table_landed,
+        should_stop=lambda: self._save_cancelled)""",
        new="""      written, write_trouble = set(), []
       _mutated_fresh = fresh
       for _m_layer, _m_table, _m_subset in to_write:
@@ -9099,6 +9108,81 @@ MUTATIONS = [
            "demanded three counting formats of the four present: the "
            "survivors satisfied it and no stretch had to be named. "
            "The test asks for four now"),
+  dict(name="a-quit-waits-for-an-outstanding-save", file=DIALOG,
+       old="""      self._hold_until_the_save_lands("quit")""",
+       new="""      pass  # mutation: let QGIS go without waiting""",
+       test="test_a_quit_waits_for_an_outstanding_save",
+       why="somebody closing QGIS over a save the plugin promised and "
+           "had not yet made. The press is KEPT rather than refused "
+           "inside the live debounce (maintainer's ruling, "
+           "2026-08-29), so the dialog really can be holding a promise "
+           "at the moment of a quit -- and until 2026-09-01 nothing "
+           "looked: `closeEvent` cleared `_save_pending` with nothing "
+           "said and the person closed QGIS believing their map was on "
+           "disk"),
+  dict(name="a-held-quit-is-delayed-and-not-vetoed", file=DIALOG,
+       # THE WRONG IMPLEMENTATION RATHER THAN A MUTATION OF THE RIGHT
+       # ONE. Returning True is what somebody would plausibly write for
+       # "hold the quit", and it is the reading the maintainer's ruling
+       # explicitly did not take.
+       old="""      self._hold_until_the_save_lands("quit")
+    return False""",
+       new="""      self._hold_until_the_save_lands("quit")
+    return True  # mutation: veto the quit rather than delaying it""",
+       test="test_a_quit_waits_for_an_outstanding_save",
+       why="a save that wedged leaving somebody unable to leave QGIS "
+           "at all. The waiting window's Cancel is their escape, and a "
+           "veto makes the code the escape instead -- which is why the "
+           "filter returns False deliberately and the guard counts the "
+           "closes the main window actually received"),
+  dict(name="a-cancelled-wait-abandons-the-save", file=DIALOG,
+       old="""      self._save_pending = False
+      if not self._saving_now:""",
+       new="""      pass  # mutation: keep the promise they cancelled
+      if not self._saving_now:""",
+       test="test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go",
+       why="a Cancel that closes its own window and leaves the save "
+           "standing, so the map is written anyway a moment later. "
+           "Cancel abandoning the save was put to the maintainer as a "
+           "question on 2026-09-01 and answered, because either "
+           "reading costs somebody a map"),
+  dict(name="a-cancel-does-not-poison-the-next-save", file=DIALOG,
+       # ANCHORED WITH THE LINE ABOVE, because a match is a SUBSTRING:
+       # the six-space assignment here sits inside the eight-space one
+       # in `_save_the_map`, and an ambiguous anchor is refused rather
+       # than judged.
+       old="""      # write, and `_save_the_map` resets the flag on its own way out.
+      self._save_cancelled = False""",
+       new="""      # write, and `_save_the_map` resets the flag on its own way out.
+      pass  # mutation: leave the flag set for the next save to meet""",
+       test="test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go",
+       why="the save AFTER a cancelled one being rolled back and "
+           "reported as stopped, to somebody who stopped nothing. "
+           "`_save_cancelled` is read between tables by "
+           "`write_gpkg_layers`, and a wait for a REDRAW never opens "
+           "the file at all, so nothing consumes it. Measured "
+           "2026-09-01 while writing the guard for the Cancel button: "
+           "cancel a deferred press, press Save again, and the writer "
+           "stops at its first table and rolls back"),
+  dict(name="the-close-question-holds-the-close", file=DIALOG,
+       old="""        self._hold_until_the_save_lands("close")""",
+       new="""        pass  # mutation: close without waiting for the save""",
+       test="test_closing_the_window_over_an_unsaved_map_asks_first",
+       why="answering Save at the closing question and getting no "
+           "save. SAVE MEANS WAIT FOR THE REDRAW rather than writing "
+           "what is on screen, because the press was deferred "
+           "precisely for being about a map the person had already "
+           "changed away from"),
+  dict(name="closing-without-saving-says-so", file=DIALOG,
+       old="""        self._report_quietly("Closed without saving; the map is still "
+                             "in the project.")""",
+       new="""        pass  # mutation: drop the promise in silence""",
+       test="test_closing_the_window_over_an_unsaved_map_asks_first",
+       why="a promise dropped without a word. The plugin had just told "
+           "them the map would be saved once it was redrawn, so "
+           "silence here is the harm the ruling of 2026-08-29 is "
+           "about -- a refusal nobody reads is a save that quietly did "
+           "not happen"),
   dict(name="a-save-owed-a-topology-waits-off-the-main-thread",
        file=DIALOG,
        # THE WRONG IMPLEMENTATION RATHER THAN A MUTATION OF THE RIGHT
@@ -9334,6 +9418,27 @@ MUTATIONS = [
        # with its own test. This entry is about the motif being
        # REPLACED; that one is about the window still painting while it
        # happens. Two claims, two sites, two tests.
+       # ITS VERDICT IS `caught`, AND IT WAS ESTABLISHED BY HAND.
+       # (2026-09-01.) The tool reports HUNG for this one -- and then
+       # prints "all 1 mutations were caught", which is why the verdict
+       # could not be read off its own summary. Re-judged alone on an
+       # idle machine, twice: HUNG again. Applied by hand and run
+       # through the suite's own runner with nothing suppressed, the
+       # test FAILS in about forty-five seconds, at
+       # `assert press_save(second)`, saying the plugin promised "the
+       # design's structure is being worked out" and wrote nothing.
+       # WHY THE TOOL CANNOT SEE THAT: its watchdog allows 45 seconds
+       # of quiet, and this mutation sends the test down the DEFERRAL'S
+       # OWN WAITING PATH -- `press_save` settles for a topology that
+       # will never be built, which is minutes of an event loop mostly
+       # idle and silent. A stall is what patience meeting a
+       # deliberately slowed path looks like from outside.
+       # WHAT IS NOT DONE HERE: a stall counting toward a printed rate
+       # is a campaign commitment governed by docs/MUTATION-TESTING.md
+       # and belongs to a session that has read it, which ROADMAP.md
+       # already records. Reproduce with
+       # `tools/run_some.py test_a_file_that_holds_a_motif_gets_a_fresh_one`
+       # against a tree carrying the replacement below.
        old="""      self._queue_topology(even_if_unasked=True)""",
        new="""      pass  # mutation: never build the motif the file is owed""",
        test="test_a_file_that_holds_a_motif_gets_a_fresh_one",

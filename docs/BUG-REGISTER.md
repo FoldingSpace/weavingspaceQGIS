@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-486 defect(s) with a regression test.
+489 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -462,6 +462,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_kept_silently_still_reaches_the_stores`
 - **removing the region layer and then recolouring an output layer in QGIS wrote a fieldless table over the group's working record, losing every element's variable and style. Found by the working-state hunt, 2026-08-27.**  
   guarded by `test_a_queued_restamp_never_writes_a_blank_the_plugin_imposed`
+- **a quit met a save that had been promised and not yet written, and dropped it in silence. (Maintainer's ruling, 2026-09-01.)**  
+  guarded by `test_a_quit_waits_for_an_outstanding_save`
 - **a qualitative ramp tried on a quantitative row was filed under the categorical slot, so undoing the experiment returned every visible cell while the memory kept it, and the next change of variable to a text column drew a ramp nobody had chosen in that session. Found by the return sweep, 2026-08-27, and ruled on the same day.**  
   guarded by `test_a_ramp_is_remembered_under_the_mode_the_row_is_in`
 - **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
@@ -536,6 +538,10 @@ there is no separate list to remember.
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **a re-tile whose element named a class source that had gone re-seeded automatic colours over the QML's, unrecoverably, while the identical journey through the restyle path kept them -- two runs less than a second apart gave two different maps. Found by the class-source hunt of 2026-08-26.**  
   guarded by `test_an_unreadable_source_keeps_the_map_at_the_landing`
+- **the waiting window offered a Cancel with nothing behind it.**  
+  guarded by `test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go`
+- **`closeEvent` cleared `_save_pending` with nothing said, so closing the panel inside the live debounce threw away a save the plugin had just promised.**  
+  guarded by `test_closing_the_window_over_an_unsaved_map_asks_first`
 - **the Copy to... dropdown had no way to tick every element at once, so giving one classification to a whole design meant one trip through the list per element. Asked for by the maintainer, 2026-08-27.**  
   guarded by `test_copy_to_offers_select_all`
 - **control ranges and steps were unasserted as a class; a mutation batch moved one and the suite was silent.**  
@@ -1026,7 +1032,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 159
+- the mutation campaign: 162
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

@@ -58,7 +58,10 @@ changelog=0.24.4 Saving a map is now something you do rather than
     still yours until you say otherwise. Save asks first where the
     file holds data from another map, and unticking Include the
     source data takes that copy out of the file rather than leaving
-    it there.
+    it there. Nothing ends while a save is still going: QGIS waits
+    rather than closing under it, closing the plugin asks first, and
+    a window says what is being waited for with a button to stop it,
+    which leaves the file as it was rather than half written.
     Designs: a tiling can now carry more than twenty-six elements,
     running a to z and then aa to zz, and every list you meet reads
     them in that order. A weave keeps one character per strand, and
@@ -88,8 +91,10 @@ changelog=0.24.4 Saving a map is now something you do rather than
     save.
     And what else it puts right: the plugin could close QGIS outright
     after being opened several times in one session. Saving a large
-    map left the window looking as though it had hung, and now says
-    what it is doing. Assignment table columns cut their text short
+    map left the window looking as though it had hung; it now says
+    what it is doing, and the slowest part of it, working out the
+    design's structure, happens behind the window instead of freezing
+    it. Assignment table columns cut their text short
     at ordinary desktop font sizes. The Create as new group checkbox
     is gone: the group chooser's Create new entry is now the only way
     to ask for a second map, so nothing can disagree about where a run
@@ -131,6 +136,10 @@ changelog=0.24.4 Saving a map is now something you do rather than
     know by name can be found by it. Maps saved before this open
     exactly as they did.
     Speed: a large map is drawn in about a third of the time it took.
+    Saving a map with many elements, and opening one again, are much
+    faster than they were: the file is opened once for the whole map
+    rather than once for every element in it. Both say which layer
+    they are on as they go.
     The pattern library is updated to the latest version of the work
     behind it.
     In the Topology tab: dragging in it

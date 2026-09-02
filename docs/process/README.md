@@ -16,6 +16,13 @@ vision rather than in RGB. The uncomfortable result — most gallery
 maps have element fills closer than a distance a reader can reliably
 tell apart — is why the colour editor exists.
 
+**Round six's briefs and logs** sit in `hunt-logs-2026-09-01/`, ten
+hunts against the Topology tab's rebuild, the re-vendor and the save.
+Read them beside the 2026-08-13 set for the same ratio, and for two
+things that set does not show: what a BRIEF looks like when it names
+what its siblings cover, and what a round looks like when four of its
+ten hunts keep no running record at all.
+
 **The hunt record** (HUNT-RECORD.md) is the newest of these and the
 one to read if you are about to look for defects: which directions
 have paid, which came back empty, how to run and watch a hunt, and

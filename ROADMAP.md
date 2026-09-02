@@ -444,11 +444,27 @@ was equally open, and a repair at one would have left the other.
 WHAT IS STILL OWED FROM THAT LIST -- one claim, in the ledger with its
 measurements:
 
-- **SAVE AND LOAD ARE QUADRATIC IN THE ELEMENT COUNT, AND THE REWRITE
-  THAT CLOSES IT IS OWED BY THIS VERSION.** (Maintainer's decision,
-  2026-09-01, moving it here from 0.24.5: "we are doing that all asap
-  to avoid quadratic time in saving/loading -- unacceptable".) 134s and
-  122s at the 256 ceiling. Every store was measured clean, so the
+- **SAVE AND LOAD WERE QUADRATIC IN THE ELEMENT COUNT, AND THE REWRITE
+  LANDED.** (Maintainer's decision, 2026-09-01, moving it here from
+  0.24.5: "we are doing that all asap to avoid quadratic time in
+  saving/loading -- unacceptable".) Built at `e804be9`; measured after
+  at 16, 32 and 64 elements with the committed instrument. EVERY
+  file-touching call on the LOAD is now one -- `read_embedded_styles`,
+  `read_working_state`, `gpkg_tables` -- and its wall clock doubles as
+  the map doubles where it used to quadruple. On the SAVE everything
+  is one call except pointing each layer at its table, which is linear
+  in count and rising in cost per call: the documented residue, since
+  every layer genuinely needs its own provider.
+  WHAT IT COST TO PROVE: sixteen catalogue entries re-anchored or
+  written, fourteen caught, two retired by MEASUREMENT as inert rather
+  than left as bare survivors -- the second-save skip, which the
+  session writer made harmless, and the resumed style, which QGIS
+  applies itself when a layer is constructed.
+  AND THE SYNCHRONOUS TOPOLOGY BUILD WENT WITH IT, on the same day and
+  for the same reason: it sat inside the write on the thread that
+  paints, and froze the window for 27.29s on `hex-colouring 7` against
+  1.05s on `laves 3.3.4.3.4`. The press is deferred behind an
+  off-thread build now. The figures below are what it was. Every store was measured clean, so the
   defect is in the ACT rather than in what it writes.
   MEASURED TO ITS EQUATION on 2026-08-29, and the equation is what
   makes this a rewrite rather than a repair. Every call count is
@@ -474,6 +490,41 @@ measurements:
   is responsiveness rather than cost. The two are separate questions
   and answering the cheap one first is what stopped the rewrite being
   done in a hurry.
+
+**NOTHING ENDS WHILE A SAVE IS OUTSTANDING -- BUILT, AND ONE PIECE OF
+IT IS OWED.** (Maintainer's ruling, 2026-09-01.) A waiting window
+holds a quit or a window close while a save is promised or being
+written, says what it is waiting for, and offers Cancel; the quit is
+DELAYED rather than vetoed, so a wedged save can never trap somebody
+in QGIS. Closing the plugin asks first, with Save as the default, and
+Save means WAIT FOR THE REDRAW rather than write the map they had
+already changed away from. Both were put as questions and answered,
+because either read the other way costs a map.
+THE MID-WRITE CANCEL SHIPS IN THIS VERSION, decided by grilling on
+2026-09-01 against deferring it to 0.24.5.
+`bridge.write_gpkg_layers` takes `should_stop`, asks it between tables
+and answers True with a rollback, and the save then returns rather
+than embedding styles for tables that are not there or repointing
+layers at tables the rollback removed. What was rejected is the
+cheaper answer -- disabling the button once writing starts -- because
+it greys a control at the moment somebody most wants it.
+THE GUARDS ARE WRITTEN AND PROVED (2026-09-01, later the same
+evening): three registered tests and SIX catalogue entries, one per
+axis, every one `caught` with the restoration checked between
+judgements. The quit held; the quit DELAYED rather than vetoed, which
+a filter returning True would have satisfied every other assertion of;
+cancel abandoning the save; cancel not poisoning the next one; the
+close question holding the close; and closing without saving saying
+so.
+AND WRITING THE CANCEL GUARD FOUND A DEFECT IN THE SAME DAY'S WORK,
+which is the rate this project's record predicts of a repair.
+`_save_cancelled` is read BETWEEN TABLES by the writer, and a wait for
+a redraw never opens the file -- so the flag outlived the act and the
+person's NEXT save was rolled back and reported as stopped. Cleared
+where the intent is dropped, with the measurement at the line and an
+entry of its own.
+And the CHANGELOG for all of it is written and approved (2026-09-01),
+in the paragraphs that already existed rather than a new category.
 
 **AND A SIXTH RULING OF THE ROUND, THE MAINTAINER'S, ON 2026-08-29: A
 SAVE PRESSED WHILE A RE-TILE IS COMING IS KEPT RATHER THAN REFUSED.**

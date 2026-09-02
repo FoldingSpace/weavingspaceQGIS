@@ -6232,7 +6232,7 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       else:
         dlg.n_spin.setValue(3)
         _tick(200)
-        _choose_family(dlg, "hex-slice")
+        _choose_family(dlg, "hex-slice 3")
       _tick(400)
       # THE STATE IS STAGED RATHER THAN WAITED FOR. With the box off
       # `_queue_topology` returns early and the panel keeps the
@@ -6771,7 +6771,7 @@ def test_every_handle_can_be_hit_at_the_size_the_window_opens_at():
     reach = topology_tab._HANDLE_REACH
     looked_at = 0
     opened = dlg.size()
-    for family, n in (("laves 3.3.4.3.4", 4), ("hex-slice", 6)):
+    for family, n in (("laves 3.3.4.3.4", 4), ("hex-slice 6", 6)):
       dlg.n_spin.setValue(n)
       _tick(200)
       _choose_family(dlg, family)
@@ -6980,8 +6980,23 @@ def test_the_topology_matrix():
         _tick(200)
         dlg.n_spin.setValue(int(n))
         _tick(200)
-        if dlg.family_combo.findText(family) < 0:
+        # ASKED THE WAY `_choose_family` ASKS IT. `findText` reads the
+        # LABEL, and since 2026-09-01 a label may carry a common name
+        # -- `laves 3.3.4.3.4 (cairo)` -- while the KEY is the item's
+        # data and is what every record, every shelf and this list
+        # store. So this skipped every renamed design, and skipped it
+        # SILENTLY: `passed_over` never learned, so the count said most
+        # of the matrix could not reach its case and named one cell of
+        # nineteen. Measured 2026-09-01, 15 of 35 cells surviving.
+        # AND A SKIP SAYS SO NOW, which is the no-silent-caps rule this
+        # test already applies everywhere else: a cell dropped without
+        # a line is indistinguishable from a cell that passed.
+        if (dlg.family_combo.findData(family) < 0
+            and dlg.family_combo.findText(family) < 0):
           skipped[route] = skipped.get(route, 0) + 1
+          passed_over.append(
+            f"{label} / {aftermath} / {route}: the chooser offers no "
+            f"family {family!r} at n={n}")
           continue
         _choose_family(dlg, family)
         _tick(300)
@@ -7441,8 +7456,19 @@ def test_a_save_owed_a_topology_waits_for_it():
       f"waiting on anything")
 
     # AND IT IS HONOURED when the build lands.
+    # WAITING ON THE PROMISE, NOT ON A CLOCK. `_settle_topology`
+    # returns as soon as the panel holds an ANSWER -- and it already
+    # holds the PREVIOUS design's, so it can come back before the
+    # build this press is waiting on has started. Everything after it
+    # was then a fixed tick, which is a bet on how loaded the machine
+    # is: green alone every time and red in a three-shard run on
+    # 2026-09-01. The promise being kept is the event this test is
+    # about, so that is what it waits for, with a ceiling that catches
+    # a hang rather than budgeting the work.
     _settle_topology(dlg, seconds=60)
-    _tick(400)
+    kept_by = time.monotonic() + 90.0
+    while time.monotonic() < kept_by and dlg._save_pending:
+      _tick(100)
     _settle(dlg)
     assert not dlg._save_pending, "the promise was never kept"
     assert dlg._topology_description_key() == \
@@ -7478,6 +7504,26 @@ def test_the_topology_tab_says_when_it_is_working():
     dlg.n_spin.setValue(4)
     _choose_family(dlg, "laves 3.3.4.3.4")
     panel = dlg.topology_panel
+    # NOTHING IN FLIGHT BEFORE THE QUESTION IS ASKED, and this is a
+    # staged condition rather than a longer wait. Choosing a family
+    # arms the preview debounce, which rebuilds the unit and queues a
+    # build of its own -- and `_queue_topology` called while one is
+    # RUNNING does not start a second: it sets `_topology_wanted` and
+    # the landing re-queues, which says a build is coming all over
+    # again. So on a loaded machine the waiter below returned on the
+    # FIRST build's answer while the second had just re-filled the
+    # sentence, and the last assertion read that as the tab failing to
+    # clear it. Measured 2026-09-01: green alone, red in a three-shard
+    # run, and the mechanism is `_queue_topology`'s own in-flight
+    # branch rather than anything about the clock.
+    _settle(dlg)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: the design built no topology at all"
+    _tick(200)
+    assert dlg._topology_task is None and not panel.working.text().strip(), (
+      "PREMISE: a build is still outstanding before this test has "
+      "asked for one, so the sentence it is about to read is somebody "
+      "else's")
     # QUEUED, NOT LANDED: read it in the same breath as the request.
     dlg._queue_topology()
     assert panel.working.text().strip(), (
@@ -7487,7 +7533,27 @@ def test_the_topology_tab_says_when_it_is_working():
     assert not panel.note.text().strip(), (
       "the working sentence reached `note`, which every waiter here "
       "reads as an answer having arrived")
-    assert _wait_for_the_topology(dlg), "PREMISE: no topology was built"
+    # AND THE WAIT IS ON THE BUILD LANDING, not on the panel having an
+    # answer. `_wait_for_the_topology` returns as soon as there IS one
+    # -- and the settle above has just made sure there is, so it comes
+    # back before the build queued on the line above has started and
+    # the sentence is legitimately still up. That was this repair's
+    # own first draft, red in a batch on 2026-09-01 at the same
+    # assertion it was written to cure, which is the stale-answer
+    # fault one waiter along.
+    # THE TASK CLEARING IS THE EVENT, and it is unambiguous here
+    # because the queue on the line above set it: `_queue_topology`
+    # assigns `_topology_task` before handing the task over, and
+    # nothing pumps in between, so a build that never started fails
+    # the premise rather than being waited out.
+    assert dlg._topology_task is not None, (
+      "PREMISE: the queue started no build, so nothing below is about "
+      "one landing")
+    landed_by = time.monotonic() + 90.0
+    while time.monotonic() < landed_by and dlg._topology_task is not None:
+      _tick(100)
+    assert dlg._topology_task is None, \
+      "PREMISE: the build never landed, so the tab was never asked"
     _tick(200)
     assert not panel.working.text().strip(), (
       "the tab still says it is working after the build landed")
@@ -7497,6 +7563,356 @@ def test_the_topology_tab_says_when_it_is_working():
     _tick(50)
     QgsProject.instance().removeAllMapLayers()
 
+
+def _a_window_that_counts_its_closes():
+  """A stand-in for QGIS's main window that says whether it closed.
+
+  Returns:
+    A QWidget whose `closes` counts the Close events it actually
+    received. That count is the whole discriminator between DELAYING
+    a quit and VETOING one: `eventFilter` returns False deliberately,
+    so the close must go through after the wait, and a filter that
+    returned True would leave this at zero while every other
+    assertion in the test still passed.
+  """
+  from qgis.PyQt.QtWidgets import QWidget
+
+  class _MainWindow(QWidget):
+    """Records that the close reached it."""
+
+    def __init__(self):
+      """Start with nothing closed."""
+      super().__init__()
+      self.closes = 0
+
+    def closeEvent(self, event):        # noqa: N802 (Qt API)
+      """Count the close and let Qt have it.
+
+      Args:
+        event: the close event, passed straight on.
+
+      Returns:
+        None.
+      """
+      self.closes += 1
+      super().closeEvent(event)
+
+  return _MainWindow()
+
+
+def _an_iface_with_a_main_window(window):
+  """The stub iface, plus a main window the dialog can watch.
+
+  Args:
+    window: the widget to hand back as QGIS's main window.
+
+  Returns:
+    An `_Iface` whose `mainWindow()` is that widget. The ordinary stub
+    answers None, so `_watch_the_main_window` returns without
+    installing anything and the quit path is unreachable from the
+    suite -- which is why this exists rather than the plain stub.
+  """
+  class _IfaceWithAWindow(_Iface):
+    """Only the one method differs."""
+
+    def mainWindow(self):               # noqa: N802 (Qt API)
+      """The window the event filter is installed on."""
+      return window
+
+  return _IfaceWithAWindow()
+
+
+def _a_save_waiting_on_a_redraw(dlg, out):
+  """Stage a save the plugin has promised and not yet kept.
+
+  Args:
+    dlg: an open dialog with live update ON and a map already drawn
+      and saved to `out`.
+    out: the GeoPackage that map was saved to.
+
+  Returns:
+    What the file held before the press, so a caller can ask whether
+    the deferred save ever landed. The design is moved first, which
+    arms the live timer, and the press inside that window is KEPT
+    rather than refused (maintainer's ruling, 2026-08-29) -- so the
+    dialog is left holding a promise, which is the state both doors of
+    the waiting window are about.
+
+  THE PREMISES ARE ASSERTED SEPARATELY, because a spin box clamps in
+  silence and this one spans 1e-6 to 1e12: "I called setValue" is not
+  "the value changed", and a premise reading one fact where two must
+  hold names neither.
+  """
+  before = gpkg_contents(out)
+  was = dlg.spacing_spin.value()
+  dlg.spacing_spin.setValue(was / 2.0)
+  _tick(50)
+  assert dlg.spacing_spin.value() != was, (
+    f"PREMISE: the spacing did not move when halved -- it was {was} "
+    f"and still is, so nothing was queued")
+  assert dlg._live_timer.isActive(), (
+    f"PREMISE: the spacing moved from {was} to "
+    f"{dlg.spacing_spin.value()} and the live timer is still not "
+    f"armed, so no redraw is coming and no press can be deferred")
+  BAR_MESSAGES.clear()
+  dlg.save_button.click()
+  assert dlg._save_pending, (
+    "PREMISE: the press was not deferred, so there is no outstanding "
+    "save for the waiting window to be about. What was said: "
+    + " ".join(str(t) for _k, t in BAR_MESSAGES))
+  return before
+
+
+def test_a_quit_waits_for_an_outstanding_save():
+  """QGIS closing does not walk off with a save it promised.
+
+  A press inside the live debounce is KEPT rather than refused, so the
+  dialog can be holding a promise when somebody quits QGIS. Until
+  2026-09-01 nothing looked: the quit went through, `closeEvent`
+  cleared `_save_pending` with nothing said, and the person closed
+  QGIS believing their map was on disk.
+
+  THE DISCRIMINATOR IS THAT THE WRITE HAPPENS INSIDE `sendEvent`.
+  Nothing else turns the event loop there, so a file that has gained
+  the new map by the time delivering the close returns can only have
+  been written by the hold. With the filter gone, the same line
+  returns with the promise still outstanding and nothing written.
+
+  AND THE QUIT IS DELAYED RATHER THAN VETOED, which is the other half
+  of the ruling and is why the window counts its closes: `eventFilter`
+  returns False on purpose, so that a save which somehow wedged can
+  never leave somebody unable to leave QGIS. A filter returning True
+  would satisfy every other assertion here.
+
+  Regression: a quit met a save that had been promised and not yet
+  written, and dropped it in silence. (Maintainer's ruling,
+  2026-09-01.) [mutation]
+  """
+  import os
+  from qgis.PyQt.QtGui import QCloseEvent
+  from qgis.PyQt.QtWidgets import QApplication
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  window = _a_window_that_counts_its_closes()
+  with _temp_dir() as td:
+    out = os.path.join(td, "a-quit-waits.gpkg")
+    dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
+    try:
+      assert dlg._watched_window is window, (
+        "PREMISE: the dialog is not watching the main window, so this "
+        "test cannot reach the quit path at all")
+      dlg.live_check.setChecked(True)
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      assert press_save(dlg), "PREMISE: the first save did not write"
+      before = _a_save_waiting_on_a_redraw(dlg, out)
+
+      BAR_MESSAGES.clear()
+      event = QCloseEvent()
+      QApplication.sendEvent(window, event)
+      said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+
+      assert not dlg._save_pending, (
+        "the quit was delivered and the promise is still outstanding, "
+        "so QGIS was about to close over a save the plugin had said "
+        "it would make")
+      assert "saved to" in said, (
+        f"nothing said the map had been written during the quit; what "
+        f"was said was {said!r}")
+      after = gpkg_contents(out)
+      assert after["tables"] != before["tables"], (
+        "the file still holds the map it held before the press, so "
+        "the deferred save did not land before the quit went through")
+      assert window.closes == 1, (
+        f"the main window received {window.closes} closes: the quit "
+        f"must be DELAYED and then allowed, never vetoed, or a wedged "
+        f"save would trap somebody inside QGIS")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
+def test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go():
+  """Cancel means cancel, and the quit then goes through.
+
+  Put as a question to the maintainer and answered on 2026-09-01,
+  because either reading costs a map: Cancel ABANDONS the save rather
+  than merely hiding the window, and the quit that was waiting is then
+  allowed.
+
+  THREE THINGS ARE ASSERTED AND THE THIRD IS THE ONE A REPAIR BREAKS.
+  The promise is dropped; nothing is written; and A LATER SAVE STILL
+  WORKS. `asked_to_stop` sets `_save_cancelled`, which
+  `write_gpkg_layers` reads between tables -- and where the wait was
+  for a REDRAW rather than a write, nothing ever reads it, so a flag
+  left standing would roll back the person's next save instead.
+
+  THE CANCEL IS PRESSED WHERE A PERSON PRESSES IT: `_waiting_window`
+  is held for the length of the wait precisely so a `singleShot` armed
+  beforehand can fire inside the hold's own pump, which is exactly
+  where a click would land. A test that reached past the button and
+  set the flag would prove nothing about the button.
+
+  Regression: the waiting window offered a Cancel with nothing behind
+  it. [mutation]
+  """
+  import os
+  from qgis.PyQt.QtGui import QCloseEvent
+  from qgis.PyQt.QtWidgets import QApplication, QPushButton
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  window = _a_window_that_counts_its_closes()
+  with _temp_dir() as td:
+    out = os.path.join(td, "a-cancelled-wait.gpkg")
+    dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
+    try:
+      dlg.live_check.setChecked(True)
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      assert press_save(dlg), "PREMISE: the first save did not write"
+      before = _a_save_waiting_on_a_redraw(dlg, out)
+
+      pressed = {"did": False}
+
+      def press_the_cancel():
+        """Click Cancel on the waiting window, where a person would.
+
+        Returns:
+          None. It finds the window through the seam the hold holds it
+          open on, and records that it pressed, so a fixture that
+          never reached the button fails loudly rather than reporting
+          a cancel that nobody performed.
+        """
+        waiting = getattr(dlg, "_waiting_window", None)
+        if waiting is None:
+          return
+        for button in waiting.findChildren(QPushButton):
+          button.click()
+          pressed["did"] = True
+
+      QTimer.singleShot(0, press_the_cancel)
+      BAR_MESSAGES.clear()
+      event = QCloseEvent()
+      QApplication.sendEvent(window, event)
+      said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+
+      assert pressed["did"], (
+        "FIXTURE: the cancel was never pressed, so nothing below is "
+        "about cancelling -- the waiting window was not there when "
+        "the timer fired")
+      assert not dlg._save_pending, (
+        "the save is still promised after the cancel, so the person "
+        "who asked for it to stop is still owed a write")
+      assert "cancel" in said, (
+        f"the cancel said nothing, so somebody who pressed it has no "
+        f"way to know their map was not written; what was said was "
+        f"{said!r}")
+      after = gpkg_contents(out)
+      assert after["tables"] == before["tables"], (
+        "the map was written anyway, which is the one thing Cancel "
+        "promises not to do")
+      assert window.closes == 1, (
+        f"the main window received {window.closes} closes: cancelling "
+        f"is the answer to 'may I stop waiting', so the quit must go "
+        f"through")
+
+      # AND THE NEXT SAVE IS NOT POISONED BY THE FLAG THE CANCEL SET.
+      # `_save_cancelled` is read between tables by the writer, so a
+      # cancel that stopped a REDRAW -- where no write ever ran and
+      # nothing consumed it -- must clear it, or the very next press
+      # is rolled back and the person is told the save was stopped
+      # when they never stopped anything.
+      _settle(dlg)
+      assert press_save(dlg), (
+        "a save pressed AFTER a cancelled wait wrote nothing: the "
+        "cancel's flag outlived the act it was set for")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
+def test_closing_the_window_over_an_unsaved_map_asks_first():
+  """Shutting the panel does not throw a promised save away.
+
+  BOTH ANSWERS ARE ASSERTED, because a reader meeting either alone
+  would take it for the whole rule and a repair that stopped asking
+  would pass half of it. Answer Save and the close WAITS for the
+  redraw and writes; answer Close and nothing is written AND the
+  person is told so.
+
+  SAVE MEANS WAIT FOR THE REDRAW, never "write what is on screen".
+  The press was deferred precisely because the map on screen is the
+  one they had already changed away from, so writing it here would be
+  ledger row 54 of 2026-08-29 arriving through this door.
+
+  A FRESH DIALOG PER ARM: `closeEvent` asks only while the window has
+  not already been closed, so a second close on one dialog reaches
+  none of this.
+
+  Regression: `closeEvent` cleared `_save_pending` with nothing said,
+  so closing the panel inside the live debounce threw away a save the
+  plugin had just promised. [mutation]
+  """
+  import os
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  verdicts = {}
+  try:
+    with _temp_dir() as td:
+      for answer in ("save", "close"):
+        out = os.path.join(td, f"closing-{answer}.gpkg")
+        dlg = WeavingSpaceDialog(iface=_Iface())
+        try:
+          dlg.live_check.setChecked(True)
+          dlg.gpkg_widget.setFilePath(out)
+          _tick(200)
+          dlg._generate()
+          _settle(dlg)
+          assert press_save(dlg), "PREMISE: the first save did not write"
+          before = _a_save_waiting_on_a_redraw(dlg, out)
+
+          MODAL_ANSWERS["question"] = (
+            QMessageBox.StandardButton.Save if answer == "save"
+            else QMessageBox.StandardButton.Close)
+          BAR_MESSAGES.clear()
+          dlg.close()
+          said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+          verdicts[answer] = (before["tables"],
+                              gpkg_contents(out)["tables"], said)
+        finally:
+          MODAL_ANSWERS.pop("question", None)
+          dlg.deleteLater()
+          _tick(50)
+  finally:
+    QgsProject.instance().removeAllMapLayers()
+
+  before_save, after_save, said_save = verdicts["save"]
+  before_shut, after_shut, said_shut = verdicts["close"]
+  assert after_save != before_save, (
+    f"answering Save left the file holding the map it already had, "
+    f"so the close did not wait for the redraw; what was said was "
+    f"{said_save!r}")
+  assert "saved to" in said_save, (
+    f"answering Save wrote without saying so: {said_save!r}")
+  assert after_shut == before_shut, (
+    "answering Close wrote the map anyway, which is the map the "
+    "person had already changed away from")
+  assert "without saving" in said_shut, (
+    f"closing without saving said nothing, so somebody who pressed "
+    f"Save and then shut the window has no way to know the map was "
+    f"never written; what was said was {said_shut!r}")
 
 def test_topology_edits_survive_the_working_state():
   """What somebody did to the topology comes home with the map.
@@ -15243,9 +15659,12 @@ def test_an_inset_that_eats_the_design_says_so():
     _tick(300)
     dlg.n_spin.setValue(count)
     _tick(200)
-    index = dlg.family_combo.findText(family)
-    assert index >= 0, f"{family!r} is not offered at n={count}"
-    dlg.family_combo.setCurrentIndex(index)
+    # ONE OWNER FOR "PUT THE CHOOSER ON THIS DESIGN". This looked the
+    # family up by TEXT, which is the label rather than the key -- true
+    # of `stripes 25` today and not of an entry that gains a common
+    # name, and the day it stops being true this asks the wrong
+    # question in its own way rather than the helper's.
+    _choose_family(dlg, family)
     _tick(500)
     dlg.spacing_spin.setValue(500)
     dlg.mod_t_inset.setValue(inset)
@@ -33764,10 +34183,20 @@ def test_the_icon_notice_names_the_elements_the_map_is_missing():
     # by surviving, twice.
     dlg.kind_combo.setCurrentText("weave")
     _tick(300)
+    # ASKED BY KEY, AND IT MUST FIND ONE. `findText` reads the label,
+    # which for a weave is its key today and need not stay so -- and a
+    # fall-through here chooses NOTHING and leaves the cell testing
+    # whichever design was already selected, in silence. That is the
+    # shape that cost the topology matrix nineteen cells.
     for name in ("plain weave ab|cd", "twill weave ab|cd"):
-      if dlg.family_combo.findText(name) >= 0:
+      if (dlg.family_combo.findData(name) >= 0
+          or dlg.family_combo.findText(name) >= 0):
         _choose_family(dlg, name)
         break
+    else:
+      raise AssertionError(
+        "PREMISE: neither weave is on offer, so this test would run "
+        "against whatever design happened to be selected")
     _tick(400)
     dlg.opt_icons.setChecked(True)
     dlg.opt_outlines.setChecked(True)
@@ -59241,6 +59670,12 @@ def test_controls_respond_without_being_prompted():
 
   # 2. a colour picked on a Single colour row must reach the element's
   # memory on its own, so it survives a later rebuild
+  # THE COUNT COMES FIRST. The star block above leaves the design on
+  # whatever count that family needs, and a family is only on offer at
+  # its own count -- which `setCurrentText` used to swallow, leaving
+  # this section to test whichever design was already selected.
+  dlg.n_spin.setValue(4)
+  _tick(200)
   _choose_family(dlg, "laves 3.3.4.3.4")
   _tick(700)
   dlg.table.cellWidget(0, 2).setCurrentText("Single colour")
@@ -65169,6 +65604,19 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
   race test here: whatever the plugin does with a restyle mid-save,
   the ramp the person picked has to reach the map afterwards.
 
+  NO CATALOGUE ENTRY STANDS ON THE MID-WRITE OUTCOME, and saying which
+  of the three possibilities that is matters more than a bare absence.
+  It is not a weak assertion and not a redundant one: since the save
+  became a SINGLE OGR SESSION the styles are embedded in ONE pass
+  AFTER every table is written, so a file carrying two moments is not
+  reachable by any one-line mutation of the write -- it would take
+  moving the style pass back inside the table loop, which is a
+  structural change rather than a mutation. The entry that names this
+  test stands on the mid-run REFUSAL instead, which is a different
+  axis of the same test. What holds this one is construction, and the
+  day the styles go back into the loop this sentence is what says the
+  guard needs an entry again.
+
   A SAVE PRESSED WHILE A RUN IS IN FLIGHT is refused in words, and
   that is asserted here too because this is the one test that has a
   run and a save in the same room. What is on screen mid-run is the
@@ -65185,7 +65633,7 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
   folder = tempfile.mkdtemp(prefix="weavingspace_qgis_gpkg_race_")
   path = os.path.join(folder, "tiles.gpkg")
   dlg = None
-  original_write = bridge.write_gpkg_layer
+  original_write = bridge.write_gpkg_layers
   try:
     dlg = WeavingSpaceDialog(iface=_Iface())
     dlg.live_check.setChecked(False)
@@ -65220,13 +65668,35 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
     # write, and the probe rides on top of it. docs/TESTING.md records
     # two false diagnoses in one day from probes that stood IN for the
     # function they were studying.
+    # AND IT RIDES THE WRITER'S OWN CALLBACK, since 2026-09-01. The
+    # save became a SINGLE OGR SESSION that day, so there is no longer
+    # a call per element to hook -- `bridge.write_gpkg_layer` is off
+    # the save's path entirely, and this test duly reported that it had
+    # checked nothing. `on_table` is asked after each table, so
+    # `done == 1` is the same moment the per-layer hook stood at: one
+    # element written, the rest still carrying the style from before.
+    # THE CALLBACK IS WRAPPED RATHER THAN REPLACED, or the dialog's
+    # progress bar stops moving and its pump -- which is what lets a
+    # widget be touched from in here at all -- never runs.
     def watched(*args, **kwargs):
-      result = original_write(*args, **kwargs)
-      if observed["calls"] == 0:
-        # exactly one element written so far, which is the moment the
-        # file is least able to survive a second writer -- and the
-        # moment at which half its elements carry the style from
-        # before whatever happens next
+      inner = kwargs.get("on_table")
+
+      def after_a_table(done, total):
+        """Let the save do its own thing, then stage the restyle once.
+
+        Args:
+          done: how many tables have been written.
+          total: how many there are.
+
+        Returns:
+          None.
+        """
+        if inner is not None:
+          inner(done, total)
+        first = observed["calls"] == 0
+        observed["calls"] += 1
+        if not first:
+          return
         observed["task_held"] = dlg._task is not None
         try:
           combo = dlg.table.cellWidget(0, 4)
@@ -65242,8 +65712,9 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
           observed["refused"] = dlg._restyle_only()
         except Exception as exc:      # noqa: BLE001 -- reported, not hidden
           observed["raised"] = f"{type(exc).__name__}: {exc}"
-      observed["calls"] += 1
-      return result
+
+      kwargs["on_table"] = after_a_table
+      return original_write(*args, **kwargs)
 
     def colours_of(renderer):
       """Every class colour a renderer paints, in class order.
@@ -65286,14 +65757,14 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
     _generate_and_wait(dlg)
     _tick(250)
     assert _element_layers(dlg), "the re-tile drew nothing"
-    bridge.write_gpkg_layer = watched
+    bridge.write_gpkg_layers = watched
     press_save(dlg)
-    bridge.write_gpkg_layer = original_write
+    bridge.write_gpkg_layers = original_write
     _tick(300)
 
     assert observed["calls"] > 0, \
-      "bridge.write_gpkg_layer was never called, so the restyle never " \
-      "arrived during a GeoPackage write and this test checked nothing"
+      "no table was written, so the restyle never arrived during a " \
+      "GeoPackage write and this test checked nothing"
     assert observed["task_held"] is False, \
       "a run was in flight during the save, so this test is measuring " \
       "the mid-run refusal above rather than the mid-write restyle"
@@ -65339,7 +65810,7 @@ def test_a_restyle_arrives_while_the_geopackage_is_written():
       "reached the map; declining a restyle mid-write would only be " \
       "correct because the next Generate applies it"
   finally:
-    bridge.write_gpkg_layer = original_write
+    bridge.write_gpkg_layers = original_write
     if dlg is not None:
       dlg.close()
     shutil.rmtree(folder, ignore_errors=True)
@@ -66077,7 +66548,13 @@ def test_an_unassigned_element_beside_elements_sharing_one_field():
   _tick(300)
   dlg.n_spin.setValue(4)
   dlg.kind_combo.setCurrentText("tiling")
-  families = [dlg.family_combo.itemText(i)
+  # THE KEY, NOT THE LABEL. Since 2026-09-01 an item SHOWS a label --
+  # `laves 3.3.4.3.4 (cairo)` -- and CARRIES the catalogue key as its
+  # data, which is what every saved record stores and what
+  # `_choose_family` looks up. A premise reading the label asks a
+  # question the product stopped answering, and breaks on a rename
+  # that was designed to cost nothing.
+  families = [dlg.family_combo.itemData(i)
               for i in range(dlg.family_combo.count())]
   assert "laves 3.3.4.3.4" in families, \
     f"the four-element families are {families}; this test needs " \
@@ -68989,7 +69466,7 @@ dlg.live_check.setChecked(False)
 dlg.spacing_spin.setValue(1234.5)
 dlg.n_spin.setValue(2)
 dlg.kind_combo.setCurrentText("tiling")
-_choose_family(dlg, "hex-slice 2")
+rt._choose_family(dlg, "hex-slice 2")
 dlg.opt_offset.setValue(0.05)
 dlg._rebuild_unit()
 print("SPACING %r" % dlg.spacing_spin.value())
@@ -81136,6 +81613,12 @@ def main():
         test_a_save_owed_a_topology_waits_for_it)
   check("the topology tab says when it is working",
         test_the_topology_tab_says_when_it_is_working)
+  check("a quit waits for an outstanding save",
+        test_a_quit_waits_for_an_outstanding_save)
+  check("cancelling the wait abandons the save and lets the quit go",
+        test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go)
+  check("closing the window over an unsaved map asks first",
+        test_closing_the_window_over_an_unsaved_map_asks_first)
   check("the experimental box gates its tabs",
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",

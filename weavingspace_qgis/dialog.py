@@ -1652,6 +1652,14 @@ class WeavingSpaceDialog(QDialog):
   # correction and the Classes and Reverse columns each to hold an
   # opinion about it, and a chooser that silently grows an item is not
   # trusted.
+  # HOW LONG A QUIT OR A CLOSE WILL WAIT FOR AN OUTSTANDING SAVE. It
+  # is a HANG-CATCHER and not a budget: the honest wait here is a
+  # topology build plus a re-tile, and a build was measured at 21s on
+  # `hex-colouring 7` on this machine, reported at about 5s on the
+  # library author's. Sized well above the slowest MEASURED figure and
+  # multiplied, which is this project's rule for every ceiling; the
+  # person's own escape is the Cancel button rather than this number.
+  SAVE_WAIT_CEILING = 180.0
   DEFERRING = "Deferring to QGIS"
   MODES = ["Quant: Quantiles", "Quant: Equal intervals",
            "Quant: Natural breaks", "Quant: Pretty breaks",
@@ -1867,6 +1875,16 @@ class WeavingSpaceDialog(QDialog):
     self._topology_task = None
     self._topology_wanted = False
     self._topology_shelf = {}
+    # THE WAITING WINDOW'S OWN RE-ENTRANCY GUARD. It pumps the event
+    # loop, which is exactly what lets a second close arrive while the
+    # first is being served.
+    self._holding_for_a_save = False
+    self._watched_window = None
+    self._waiting_window = None
+    # ASKED BY THE WRITER BETWEEN TABLES, so a Cancel pressed while the
+    # file is being written rolls the whole transaction back rather
+    # than leaving a half-made map.
+    self._save_cancelled = False
     # WHICH DESIGN A BUILD HAS BEEN ATTEMPTED FOR, whatever it came
     # back with. A save that finds the file owed a motif defers behind
     # an off-thread build and is honoured when it lands; asking
@@ -2256,6 +2274,11 @@ class WeavingSpaceDialog(QDialog):
     # the message line.
     self._said_source_gone = False
     self._retire_previous_instance()
+    # AND QGIS'S MAIN WINDOW IS ASKED TO TELL US BEFORE IT CLOSES, so
+    # a quit cannot walk away from a save this plugin has promised.
+    # Installed AFTER the previous instance is retired, since that is
+    # what takes the old dialog's filter off again.
+    self._watch_the_main_window()
     # The ramps come FIRST, and the order is load-bearing as of
     # 2026-08-13. Adoption now reads an existing layer's ramp back
     # off its renderer, which means asking which library ramp draws
@@ -6102,6 +6125,13 @@ class WeavingSpaceDialog(QDialog):
         self._open_editor.reject()
       except Exception:
         pass
+    # AND THE MAIN WINDOW STOPS TELLING US ABOUT ITS CLOSE. A filter
+    # left installed is this project's retired-dialog family wearing
+    # new clothes: an object that outlives the plugin and goes on
+    # being called by a window it no longer belongs to, which here
+    # would put a waiting dialog in front of somebody who has disabled
+    # the plugin.
+    self._stop_watching_the_main_window()
     _dump("RETIRE", "plugin-unloaded")
 
   def closeEvent(self, event):  # noqa: N802 (Qt API)
@@ -6121,6 +6151,33 @@ class WeavingSpaceDialog(QDialog):
       window nobody can see -- which is exactly what a user unloading
       the plugin has asked not to happen.
     """
+    # A SAVE THE PERSON ASKED FOR IS NOT DROPPED IN SILENCE BY THE
+    # ORDINARY ACT OF SHUTTING THE WINDOW. (Maintainer's decision,
+    # 2026-09-01, put as a question and answered: ask before closing,
+    # with the safe button as the default, and the window closes
+    # either way because closing is not destructive here -- the layers
+    # stay in the project and `open_dialog` reuses this object.)
+    # WHAT IT REPLACES is the two lines below clearing `_save_pending`
+    # with nothing said: the person pressed Save, read that the map
+    # would be written once it was ready, and shutting the panel threw
+    # that promise away. That is the harm the ruling of 2026-08-29 is
+    # about, met through a door nobody had walked.
+    # SAVE MEANS WAIT FOR THE REDRAW, not "write what is on screen".
+    # The press was deferred precisely because the map on screen is
+    # the one they had already changed away from, so writing it now
+    # would be ledger row 54 arriving through this door.
+    if self._a_save_is_outstanding() and not self._closed:
+      answer = self._ask(
+        "This map has not been saved yet. Save it before closing?",
+        QMessageBox.StandardButton.Save
+        | QMessageBox.StandardButton.Close,
+        QMessageBox.StandardButton.Save)
+      if answer == QMessageBox.StandardButton.Save:
+        self._hold_until_the_save_lands("close")
+      else:
+        self._save_pending = False
+        self._report_quietly("Closed without saving; the map is still "
+                             "in the project.")
     if self._task is not None:
       try:
         self._task.cancel()
@@ -19602,8 +19659,27 @@ class WeavingSpaceDialog(QDialog):
 
       written, write_trouble = bridge.write_gpkg_layers(
         [(layer, table) for layer, table, _subset in to_write],
-        path, recreate=fresh, on_table=a_table_landed)
+        path, recreate=fresh, on_table=a_table_landed,
+        should_stop=lambda: self._save_cancelled)
       trouble.extend(write_trouble)
+      # A CANCELLED WRITE STOPS THE WHOLE ACT, not just the tables.
+      # (Maintainer's decision, 2026-09-01, that a Cancel during a
+      # write rolls back.) The transaction is already undone by the
+      # time this reads, so `written` is empty; carrying on would
+      # embed styles for tables that are not there, drop "stale"
+      # tables on the strength of a map that was never written, and
+      # record a design the file does not hold. Every one of those is
+      # a writer this project has already had to teach not to run on a
+      # half-finished save.
+      # THE LAYERS ARE NOT REPOINTED EITHER, which is the quiet half:
+      # `point_layer_at` below would leave every element reading from
+      # a table the rollback removed, and a layer whose table went out
+      # from under it answers `isValid` True and yields nothing.
+      if self._save_cancelled:
+        self._save_cancelled = False
+        self._report_quietly(
+          "The save was stopped, so the map was not written.")
+        return False
 
       # THE REPOINTING STAYS PER LAYER, and that is measured rather
       # than conceded: `compat.point_layer_at` costs 3.93ms into a file
@@ -22220,6 +22296,227 @@ class WeavingSpaceDialog(QDialog):
     if not allowed and tabs.currentIndex() in getattr(
         self, "_experimental_tabs", ()):
       tabs.setCurrentIndex(0)
+
+  def eventFilter(self, watched, event):               # noqa: N802 (Qt API)
+    """Hold QGIS's own quit while a save of ours is outstanding.
+
+    Args:
+      watched: the object the filter is installed on -- QGIS's main
+        window, and nothing else.
+      event: the event being delivered.
+
+    Returns:
+      False always, so the event goes on to its normal handling. This
+      DELAYS a close rather than vetoing it: the waiting window turns
+      the loop until the save lands or somebody cancels, and then the
+      quit proceeds. Returning True would refuse the quit outright,
+      which is not what was asked and would leave somebody unable to
+      leave QGIS at all if a save ever wedged.
+
+    (Maintainer's ruling, 2026-09-01: "when a save is off-thread and
+    qgis or the user tries to quit the app, there should be a 'Waiting
+    for save' with status update window that pops up (with a cancel
+    button that stops the save) and doesn't let the plugin/QGIS quit
+    until the save is finished.")
+
+    THE FILTER IS TAKEN OFF IN `unload`, or it is the retired-dialog
+    family wearing an event filter: an object that outlives the plugin
+    and goes on being called by a window it no longer belongs to.
+    """
+    if (event is not None
+        and event.type() == QEvent.Type.Close
+        and watched is getattr(self, "_watched_window", None)
+        and self._a_save_is_outstanding()
+        and not _dialog_is_gone(self)):
+      self._hold_until_the_save_lands("quit")
+    return False
+
+  def _watch_the_main_window(self) -> None:
+    """Ask QGIS's main window to tell us before it closes.
+
+    Returns:
+      None, and nothing at all where there is no main window to watch
+      -- which is the suite's stub iface, and is why this is asked for
+      rather than assumed.
+    """
+    window = None
+    try:
+      window = self.iface.mainWindow() if self.iface else None
+    except Exception:                                   # noqa: BLE001
+      window = None
+    if window is None:
+      return
+    self._watched_window = window
+    window.installEventFilter(self)
+
+  def _stop_watching_the_main_window(self) -> None:
+    """Take the filter off again.
+
+    Returns:
+      None. Safe to call twice, and safe once the C++ object has gone,
+      which is the state every teardown path here has to survive.
+    """
+    window = getattr(self, "_watched_window", None)
+    if window is None:
+      return
+    try:
+      window.removeEventFilter(self)
+    except RuntimeError:
+      pass                      # the window went first, which is fine
+    self._watched_window = None
+
+  def _a_save_is_outstanding(self) -> bool:
+    """Is there a save that has been asked for and not finished?
+
+    Returns:
+      True while a press is remembered or a write is under way. Both,
+      because the two are one act to the person who pressed the
+      button: `_save_pending` is a promise the plugin has made and not
+      yet kept, and `_saving_now` is the keeping of it.
+    """
+    return bool(getattr(self, "_save_pending", False)
+                or getattr(self, "_saving_now", False))
+
+  def _hold_until_the_save_lands(self, because: str) -> bool:
+    """Keep the window in front of somebody until their save is done.
+
+    Args:
+      because: what is trying to end the session -- "quit" or
+        "close" -- which is the only part of the sentence that
+        differs, so the wording has one owner.
+
+    Returns:
+      True where the save finished, False where it was cancelled or
+      the ceiling was reached. The caller lets the act proceed either
+      way: cancelling IS the answer to "may I stop waiting", and the
+      person asked to leave before they asked to stop.
+
+    (Maintainer's ruling, 2026-09-01: when a save is outstanding and
+    QGIS or the user tries to quit, a window says what is being waited
+    for, offers Cancel, and nothing ends until the save is finished or
+    the cancel is pressed. Cancel abandons the save and the quit then
+    goes through -- put as a question and answered, because the other
+    reading loses somebody a map.)
+
+    IT PUMPS RATHER THAN `exec()`ing, and that is a testability
+    decision as much as a design one. The suite's shim patches
+    QMessageBox and nothing else, so a modal `exec()` on a custom
+    dialog waits offscreen for a click that can never come -- the
+    thirty-one-minute hang this project has already paid for. Turning
+    the loop until a STATE changes is what the save itself does, and
+    a headless run reaches the same exits a person does.
+
+    THE CEILING IS A HANG-CATCHER, not a budget. It is sized well
+    above the slowest thing that can legitimately be waited for here:
+    a topology build, measured at 21s on `hex-colouring 7` on this
+    machine and reported faster elsewhere, plus a re-tile.
+    """
+    if not self._a_save_is_outstanding():
+      return True
+    if getattr(self, "_holding_for_a_save", False):
+      # RE-ENTRANCY, and it is not hypothetical: pumping the loop is
+      # exactly what lets a second Close arrive while the first is
+      # being served. The second one waits for nothing and lets the
+      # act through, because the first is already holding it.
+      return False
+    self._holding_for_a_save = True
+    window = QDialog(self)
+    window.setWindowTitle("WeavingSpace")
+    layout = QVBoxLayout(window)
+    said = QLabel(
+      "Waiting for the map to be saved before "
+      + ("QGIS closes." if because == "quit" else "this window closes."))
+    said.setWordWrap(True)
+    layout.addWidget(said)
+    where = QLabel("")
+    where.setWordWrap(True)
+    layout.addWidget(where)
+    stop = QPushButton("Cancel the save")
+    layout.addWidget(stop)
+    cancelled = {"asked": False}
+
+    def asked_to_stop():
+      """Take the intent away, and stop a write already under way.
+
+      Returns:
+        None. Both halves are set because the press means one thing to
+        the person and reaches two mechanisms: a promise not yet kept
+        is simply dropped, and a write in progress is stopped by
+        `write_gpkg_layers` asking `_save_cancelled` between tables.
+      """
+      cancelled["asked"] = True
+      self._save_cancelled = True
+
+    stop.clicked.connect(asked_to_stop)
+    # THE SEAM, and it is the difference between a guard and a hope.
+    # The suite's shim patches QMessageBox and nothing else, so a
+    # window built inside a method is a window no test can press. It
+    # is held here for the length of the wait -- a test arms a
+    # `singleShot` before delivering the close, and the timer fires
+    # inside the pump below exactly where a person's click would.
+    self._waiting_window = window
+    window.show()
+    QApplication.processEvents()
+
+    settled = False
+    started = time.monotonic()
+    while time.monotonic() - started < self.SAVE_WAIT_CEILING:
+      if cancelled["asked"]:
+        break
+      if not self._a_save_is_outstanding():
+        settled = True
+        break
+      # WHAT IT IS WAITING FOR, said rather than spun: the progress
+      # bar already carries which layer a write is on, so this says
+      # the part the bar cannot -- that the wait is for the design's
+      # structure, which is the thing that takes the seconds.
+      # CANCEL MEANS CANCEL AT EVERY MOMENT, since 2026-09-01 on the
+      # maintainer's decision. Before the write it takes the INTENT
+      # away, and nothing has been opened. During the write it sets
+      # `_save_cancelled`, which `write_gpkg_layers` reads between
+      # tables and answers with a ROLLBACK -- every table went in
+      # inside one transaction, so undoing them is one call. The
+      # button was briefly disabled here instead, which was honest
+      # about what it could do and worse than doing it.
+      where.setText(self.progress.text() if self._saving_now
+                    else "Working out the design's structure…")
+      QApplication.processEvents()
+      time.sleep(0.05)
+
+    if cancelled["asked"]:
+      # NOTHING HAS BEEN WRITTEN AT THIS POINT, which is what makes
+      # dropping the intent the whole of the rollback the maintainer
+      # asked for ("roll back if possible"). A press waiting on a
+      # build or a re-tile has not opened the file at all.
+      # AND A WRITE ALREADY UNDER WAY IS ROLLED BACK rather than left
+      # half done: `write_gpkg_layers` reads `_save_cancelled` between
+      # tables and undoes the transaction, which is why that flag is
+      # set beside this one and not instead of it. The save's own
+      # return path says so to the person; this line covers the case
+      # where nothing had started.
+      self._save_pending = False
+      if not self._saving_now:
+        self._report_quietly(
+          "The save was cancelled, so the map was not written.")
+      # AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR.
+      # `_save_cancelled` exists to be read BETWEEN TABLES by
+      # `write_gpkg_layers`, and where the wait was for a REDRAW or a
+      # topology build nothing ever opens the file, so nothing ever
+      # consumes it. Left standing it stops the person's NEXT save:
+      # measured 2026-09-01 while writing the guard for this button --
+      # cancel a deferred press, press Save again, and the writer stops
+      # at its first table, rolls back, and reports "The save was
+      # stopped, so the map was not written" to somebody who stopped
+      # nothing. Clearing it here is safe in both directions, because a
+      # write that DID read it has already returned by the time this
+      # line runs: the pump that delivered the click sits inside that
+      # write, and `_save_the_map` resets the flag on its own way out.
+      self._save_cancelled = False
+    window.close()
+    window.deleteLater()
+    self._waiting_window = None
+    self._holding_for_a_save = False
+    return settled
 
   def _a_topology_is_owed(self, path: str, ours: bool) -> bool:
     """Would saving into this file need a topology we have not built?

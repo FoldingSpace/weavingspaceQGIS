@@ -4524,7 +4524,8 @@ def _ogr_geometry_type(layer):
   return declared if 1 <= declared <= 7 else ogr.wkbUnknown
 
 
-def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None):
+def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None,
+                      should_stop=None):
   """Write several layers into a GeoPackage in ONE OGR session.
 
   Args:
@@ -4546,6 +4547,17 @@ def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None):
       shorter freeze with no bar at all, which answers the cost and
       undoes the responsiveness -- two different questions, and this
       one must not be paid for out of the other.
+    should_stop: asked after each table, or None. Where it answers
+      True the transaction is ROLLED BACK and `written` comes back
+      empty, so a cancelled save leaves the file as it was rather than
+      half a map -- the line this project has held since the commit
+      failure was first handled, and the maintainer's decision of
+      2026-09-01 that a Cancel during a write rolls back rather than
+      being refused. It is asked BETWEEN tables and never mid-table: a
+      partial feature write has nothing to say to a person, and the
+      granularity that matters is the layer `on_table` already names.
+      The caller pumps the event loop in `on_table`, which is what
+      lets a button press be seen here at all.
 
   Returns:
     A pair ``(written, trouble)``: the set of table names that reached
@@ -4606,6 +4618,12 @@ def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None):
     # cost this function exists to remove into a different one of the
     # same size.
     started_transaction = False
+    # WHETHER SOMEBODY ASKED US TO STOP, read in the `finally` below to
+    # decide between committing and rolling back. It is set before the
+    # loop rather than inside it, because a `finally` that reads a name
+    # the loop may never have bound is a NameError in the one place a
+    # failure must not be able to reach.
+    stopped = False
     try:
       started_transaction = (data.StartTransaction() == ogr.OGRERR_NONE)
     except Exception:                                   # noqa: BLE001
@@ -4625,10 +4643,33 @@ def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None):
         # to avoid.
         if on_table is not None:
           on_table(done, len(jobs))
+        # ASKED BETWEEN TABLES, WHICH IS WHERE A ROLLBACK IS WHOLE.
+        # (Maintainer's decision, 2026-09-01: a Cancel during a write
+        # rolls back rather than being refused.) The caller pumps the
+        # event loop in `on_table` above, so a button pressed while
+        # this runs is seen HERE, one table later at worst -- and
+        # because every table went in inside one transaction, undoing
+        # them is one call rather than a repair.
+        # IT IS NOT ASKED MID-TABLE, deliberately: a partial feature
+        # write has nothing to say to a person, and the granularity
+        # that matters to them is the layer the bar already names.
+        if should_stop is not None and should_stop():
+          stopped = True
+          break
     finally:
       if started_transaction:
         try:
-          data.CommitTransaction()
+          if stopped:
+            # NOTHING SURVIVES, which is what makes cancelling honest:
+            # a half-written map is worse than an unwritten one, and
+            # this project has held that line since the commit failure
+            # was first handled. `written` is cleared with it, or the
+            # caller would repoint layers at tables that went away.
+            data.RollbackTransaction()
+            written.clear()
+            trouble.append("the save was stopped and nothing was kept")
+          else:
+            data.CommitTransaction()
         except Exception:                               # noqa: BLE001
           # A commit that will not go through leaves the file as it
           # was, which is the right way for this to fail: a half

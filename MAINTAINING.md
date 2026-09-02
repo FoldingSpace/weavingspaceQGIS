@@ -777,6 +777,88 @@ save can be pressed while Generate is already refusing for its own
 reasons. The bar comes down in a `finally`, the write raising
 included.
 
+## Nothing ends while a save is outstanding
+
+(Maintainer's ruling, 2026-09-01: when a save is outstanding and QGIS
+or the user tries to quit, a window says what is being waited for,
+offers Cancel, and nothing ends until the save finishes or the cancel
+is pressed.)
+
+`_a_save_is_outstanding` is the one question -- `_save_pending`, a
+promise made and not yet kept, OR `_saving_now`, the keeping of it --
+and two doors ask it.
+
+**QGIS'S OWN QUIT** goes through an event filter on the main window.
+It DELAYS rather than vetoes: `eventFilter` returns False, so the
+close proceeds after the waiting window has held it. Refusing outright
+would leave somebody unable to leave QGIS at all if a save ever
+wedged, and their escape is the button rather than the code. The
+filter is installed after `_retire_previous_instance` (which takes the
+old dialog's off) and removed in the retirement path, or it is this
+project's retired-dialog family wearing an event filter.
+
+**CLOSING THE PLUGIN WINDOW** asks first, with Save as the default.
+Before 2026-09-01 `closeEvent` cleared `_save_pending` with nothing
+said, so shutting the panel threw away a promise the plugin had just
+made -- the harm of the 2026-08-29 ruling, through a door nobody had
+walked. SAVE MEANS WAIT FOR THE REDRAW, never "write what is on
+screen": the press was deferred precisely because the map on screen is
+the one they had changed away from.
+
+**THE HOLD PUMPS RATHER THAN `exec()`ING**, and that is a
+testability decision as much as a design one. The suite's shim patches
+QMessageBox and nothing else, so a modal `exec()` on a custom dialog
+waits offscreen for a click that can never come -- the thirty-one
+minute hang this project has already paid for. `_waiting_window` is
+held for the length of the wait so a test can arm a `singleShot` and
+press Cancel where a person would click.
+
+**CANCEL MEANS CANCEL AT EVERY MOMENT**, and the two moments are
+answered by different mechanisms. Before the write, dropping the
+intent IS the rollback -- nothing has been opened. During the write,
+`_save_cancelled` is what `bridge.write_gpkg_layers` reads through its
+`should_stop` argument: it asks BETWEEN tables, never mid-table, and
+answers True with a `RollbackTransaction`. Every table went in inside
+one transaction, so undoing them is one call rather than a repair.
+`written` is cleared with it, and the save then RETURNS rather than
+carrying on -- otherwise it would embed styles for tables that are not
+there, drop "stale" tables on the strength of a map that was never
+written, and repoint every layer at a table the rollback removed.
+
+THE BUTTON WAS BRIEFLY DISABLED DURING THE WRITE INSTEAD, which was
+honest about what it could do and worse than doing it. The maintainer
+chose to ship the callback (2026-09-01) rather than defer it, on a
+branch about to be a candidate, which is worth recording: the
+alternative was a control that greys itself at the moment somebody
+most wants it.
+
+A CANCELLED FIRST SAVE LEAVES AN EMPTY FILE, because the writer
+creates the data source before the transaction opens. That follows the
+existing behaviour of a FAILED write rather than being a new decision,
+and it is why the sentence says the MAP was not written rather than
+that nothing was.
+
+**AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR**, which is the
+half that was missing until the guard for the button was written the
+same day. `_save_cancelled` exists to be read BETWEEN TABLES by
+`write_gpkg_layers`, and on the commonest journey of all -- a wait for
+a REDRAW or a topology build -- nothing ever opens the file, so nothing
+ever consumes it. Left standing it stopped the person's NEXT save:
+measured 2026-09-01, cancel a deferred press, press Save again, and
+the writer halts at its first table, rolls back, and reports "The save
+was stopped, so the map was not written" to somebody who stopped
+nothing. It is cleared where the intent is dropped, which is safe in
+both directions: a write that DID read it has already returned by
+then, since the pump that delivered the click sits inside that write
+and `_save_the_map` resets the flag on its own way out.
+THE GENERAL FORM, and it is this project's deferred-work rule wearing
+a flag: when a repair adds state read by ONE consumer, enumerate the
+journeys where that consumer never runs, and say at the line what
+clears it there. Guarded by `a-cancel-does-not-poison-the-next-save`.
+
+`SAVE_WAIT_CEILING` is a hang-catcher and not a budget, sized above a
+topology build plus a re-tile.
+
 ## What a resume has to say for itself
 
 Opening a saved map is not a passive act, and three records have to

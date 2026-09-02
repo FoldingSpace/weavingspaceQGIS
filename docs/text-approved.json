@@ -39,6 +39,11 @@
   "excerpt": "Check your internet connection and try again, or install the",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "04e59ff8b2fe3d0e": {
+  "approved": "2026-09-01",
+  "excerpt": "The design's structure is being worked out, and the map will",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "0585e47f26154737": {
   "approved": "2026-08-08",
   "excerpt": "That layer has no categorized symbology",
@@ -309,6 +314,11 @@
   "excerpt": "Where the ladder stops; values above are not drawn",
   "where": "weavingspace_qgis/category_editor.py"
  },
+ "1b429cf80c99dada": {
+  "approved": "2026-09-01",
+  "excerpt": "This map has not been saved yet. Save it before closing?",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "1c2e89bbd04a4727": {
   "approved": "2026-08-08",
   "excerpt": "({} other pair(s) are close too)",
@@ -393,6 +403,11 @@
   "approved": "2026-08-09",
   "excerpt": "*Warn about lack of legibility in colour choices* checks, af",
   "where": "docs/USER-GUIDE.md"
+ },
+ "28087909795141e0": {
+  "approved": "2026-09-01",
+  "excerpt": "Waiting for the map to be saved before",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "289110568eabf7a3": {
   "approved": "2026-08-08",
@@ -874,6 +889,11 @@
   "excerpt": "<h1>WeavingSpace QGIS</h1>\n<p class=\"byline\">An experimental",
   "where": "docs/index.html"
  },
+ "56fd63dfa383daf0": {
+  "approved": "2026-09-01",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "571b2159090fac57": {
   "approved": "2026-08-15",
   "excerpt": "That element has no variable to classify.",
@@ -1163,6 +1183,11 @@
   "approved": "2026-08-19",
   "excerpt": "Set this bound; moving it off the computed value makes it yo",
   "where": "weavingspace_qgis/category_editor.py"
+ },
+ "739e0d35d5e57eba": {
+  "approved": "2026-09-01",
+  "excerpt": "The save was stopped, so the map was not written.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "73c0239ddfcb2822": {
   "approved": "2026-08-15",
@@ -1488,6 +1513,11 @@
   "approved": "2026-08-09",
   "excerpt": "Lower end of the ramp stretch, as a percentage.",
   "where": "weavingspace_qgis/category_editor.py"
+ },
+ "9696be72da56b431": {
+  "approved": "2026-09-01",
+  "excerpt": "Closed without saving; the map is still in the project.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "96f2e73735b75691": {
   "approved": "2026-08-19",
@@ -1894,6 +1924,11 @@
   "excerpt": "The first class must end below where the last class begins.",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "c3e6480074a5e4f1": {
+  "approved": "2026-09-01",
+  "excerpt": "the save was stopped and nothing was kept",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "c4bece54633725fb": {
   "approved": "2026-08-19",
   "excerpt": "The highest value drawn ({}) leaves too few values below it ",
@@ -2184,10 +2219,20 @@
   "excerpt": "Mapping several attributes of the same areas at once is a lo",
   "where": "docs/USER-GUIDE.md"
  },
+ "df374193d93b446b": {
+  "approved": "2026-09-01",
+  "excerpt": "Working out the design's structure\u2026",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "e0a5f8bed87985c0": {
   "approved": "2026-08-12",
   "excerpt": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8",
   "where": "docs/index.html"
+ },
+ "e10a77dbe5579c04": {
+  "approved": "2026-09-01",
+  "excerpt": "The save was cancelled, so the map was not written.",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "e268c01e7b3cbad9": {
   "approved": "2026-08-29",
