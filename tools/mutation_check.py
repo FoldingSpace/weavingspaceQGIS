@@ -9340,6 +9340,22 @@ MUTATIONS = [
            "region which declares its own correctly, landing it a "
            "long way from its own tiles. Found 2026-09-02 by two "
            "hunts independently, from opposite directions"),
+  dict(name="an-edit-belongs-to-the-design-it-was-made-on",
+       file=TOPOLOGY_EDITS,
+       # ANCHORED ON THE KEY ITSELF rather than on any one of its seven
+       # callers: the fact is what the key MEANS, and mutating a single
+       # site would be answered by the writer or the reader beside it.
+       # The mutation is the key as it stood before 2026-09-02, which
+       # is the whole defect in one expression.
+       old="""  return f"{family}#{int(elements)}" + ("#dual" if dual else "")""",
+       new="""  return f"{family}#{int(elements)}"  # mutation: one shelf for two""",
+       test="test_an_edit_on_the_dual_is_not_an_edit_on_the_design",
+       why="an edit made on a design's DUAL being filed under the "
+           "design itself, so unticking 'Map the dual instead' replays "
+           "it onto whatever edge of the original happens to share the "
+           "label -- silently, into the map and the saved file. Found "
+           "2026-09-02 by THREE hunts of one round from three "
+           "directions, and verified from the shelf's own record"),
   dict(name="a-resume-records-the-system-it-landed-on", file=DIALOG,
        # ANCHORED ON THE FRESH DOOR, WHICH IS THE ONE THAT CAN FAIL.
        # The twin above it, the already-open branch, writes the same

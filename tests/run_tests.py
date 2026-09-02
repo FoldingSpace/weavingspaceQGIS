@@ -40513,6 +40513,104 @@ def test_a_records_region_and_its_crs_name_one_dataset():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_an_edit_on_the_dual_is_not_an_edit_on_the_design():
+  """A design and its dual do not share one shelf of edits.
+
+  `topology_edits.shelf_key` was the family and the element count, and
+  "Map the dual instead" moves neither -- so the dual, which the
+  ruling of 2026-09-01 calls a design in its own right, was filed
+  under the design it was made from. `a` names one edge of a design
+  and quite another of its dual, and edits are replayed by LABEL, so
+  shaping an edge of the dual and then unticking the box bent the
+  ORIGINAL design on a different edge, silently, and that is the map
+  drawn and saved.
+
+  FOUND BY THREE HUNTS OF ONE ROUND, from three directions --
+  backwards from harm, the specification itself, and the stochastic
+  sessions -- which is the strongest confirmation this project's hunt
+  method produces. Verified here from the RECORD rather than from the
+  geometry all three took their verdicts from
+  (`tools/probes/what_the_shelf_key_cannot_tell_apart.py`).
+
+  BOTH ANSWERS ARE ASSERTED. The shelf's whole job is that leaving a
+  design puts its edits quiet and returning brings them back, so a
+  repair that simply stopped shelving the dual's edits would satisfy
+  the first arm and destroy the feature: the second requires the
+  dual's own edit to come back when the box goes on again.
+
+  Regression: an edit made on the dual was replayed onto the design's
+  own like-named edge the moment the box came off. [mutation]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    _choose_family(dlg, "hex-slice 4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: this design carries no topology, so nothing can be edited"
+    panel = dlg.topology_panel
+    assert panel._topology is not None, \
+      "PREMISE: the tab holds no topology, so Apply would record nothing"
+
+    def shelved(dual):
+      """What the shelf holds for this design, with or without the dual."""
+      key = topology_edits.shelf_key(dlg._family_key(),
+                                     dlg._element_count(), dual)
+      return list(dlg._topology_shelf.get(key) or [])
+
+    # ---- THE DESIGN'S OWN EDIT.
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=30)
+    _tick(400)
+    on_the_design = shelved(False)
+    assert on_the_design, \
+      "PREMISE: pressing Apply shelved nothing, so this test measures nothing"
+
+    # ---- THE SAME PRESS WITH THE DUAL IN FORCE.
+    dlg.opt_map_dual.setChecked(True)
+    _tick(600)
+    _wait_for_the_topology(dlg)
+    assert dlg._mapping_the_dual(), \
+      "PREMISE: the dual was not taken, so this arm is about the design"
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=30)
+    _tick(400)
+    on_the_dual = shelved(True)
+    assert on_the_dual, (
+      "PREMISE: the edit made on the dual was shelved nowhere, so the "
+      "assertion below would hold with the feature deleted outright")
+    assert shelved(False) == on_the_design, (
+      f"the dual's edit reached the DESIGN's shelf: it now holds "
+      f"{len(shelved(False))} edit(s) where the design's own act left "
+      f"{len(on_the_design)}, and an edit is replayed by label, so the "
+      f"design is bent on whatever edge shares that letter")
+
+    # ---- AND THE OTHER ANSWER: the dual's own edits come back to the
+    # dual, which is what the shelf is FOR.
+    dlg.opt_map_dual.setChecked(False)
+    _tick(600)
+    _wait_for_the_topology(dlg)
+    assert shelved(False) == on_the_design, \
+      "the design's own edits did not survive the round trip"
+    dlg.opt_map_dual.setChecked(True)
+    _tick(600)
+    _wait_for_the_topology(dlg)
+    assert shelved(True) == on_the_dual, (
+      "the dual's own edits did not come back when the box went on "
+      "again, so they are being dropped rather than shelved")
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
+    _tick(200)
+
+
 def test_a_resume_records_the_system_it_landed_on():
   """A resume that found nothing keeps the file's own system.
 
@@ -85187,6 +85285,8 @@ def main():
         test_a_records_region_and_its_crs_name_one_dataset)
   check("a resume records the system it landed on",
         test_a_resume_records_the_system_it_landed_on)
+  check("an edit on the dual is not an edit on the design",
+        test_an_edit_on_the_dual_is_not_an_edit_on_the_design)
   check("no acting control is live while a save writes",
         test_no_acting_control_is_live_while_a_save_writes)
   check("both doors remember the file carried the data",

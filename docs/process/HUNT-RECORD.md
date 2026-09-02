@@ -1763,11 +1763,11 @@ count.
 | --- | ---: | --- |
 | the round's own repairs (12th) | (same) | today's rows 14-21 and the acting-controls owner two acts now share. Reached row 22 from the write-only side, independently of the row below |
 | the round's own repairs (13th, replenished) | 1 | commit 367248c, the repair for row 22, per assertion. Row 23: that repair's launch state BEATS the carry it said was holding the other door, so a file older or wronger than the group's own record was stamped over it. Also two dead axes in the new guard, counted apart |
-| backwards from harm (10th) | -- | the last two days, ranked BEFORE any source is opened |
-| stochastic settled sessions (7th) | -- | the save, the Load doors, the waiting window, the tab |
+| backwards from harm (10th) | 1 | the last two days, ranked BEFORE any source is opened. Row 24: `map_dual` is a design term the topology keys do not carry, so an edit made on the dual bends the design. Reached from item NINE of a list written before any source was read |
+| stochastic settled sessions (7th) | (same) | the save, the Load doors, the waiting window, the tab. 81 seeded sessions found nothing; the same defect as row 24 came from asking which two stores hold what an edit is about -- an invariant only catches what it measures |
 | two stores of one fact | 1 | the save's three records after the single-session rewrite. Row 22: the resume's two stamps hand over `region` and not `region_crs`, so a recovery that found nothing records the file's own region beside a stranger's system |
 | asymmetry / twins (8th) | -- | `_save_the_map` against `_resume_from_gpkg`; the two Load doors |
-| the specification itself (4th) | -- | the tab's rules: is a settled DECISION wrong |
+| the specification itself (4th) | (same) | the tab's rules: is a settled DECISION wrong. Reached row 24 by diffing `shelf_key`'s JUSTIFICATION (families differ) against its SCOPE (the design), and carried it further than the dual: a modifier moves the class structure under a label too, which is the ruling left for the maintainer |
 | unreachable branches (4th) | -- | the deferral machinery of 2026-09-01 |
 | tests that cannot fail (6th) | -- | the six guards written this afternoon, per assertion |
 

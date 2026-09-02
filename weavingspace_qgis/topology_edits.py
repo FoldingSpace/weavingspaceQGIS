@@ -194,20 +194,49 @@ def whole_where_needed(args: dict) -> dict:
           for name, value in args.items()}
 
 
-def shelf_key(family: str, elements: int) -> str:
+def shelf_key(family: str, elements: int, dual: bool = False) -> str:
   """The key an edit list is shelved under.
 
   Args:
-    family: the family name as the chooser shows it.
+    family: the catalogue KEY of the design, never the label.
     elements: how many elements the design has.
+    dual: whether the map is being tiled with the design's DUAL, which
+      is a different design with its own edges and its own class
+      labels. False where the caller has no opinion, which is what an
+      older record carries.
 
   Returns:
     A string, because this travels through JSON in the working state
     and JSON has no tuples -- a lesson this repository has already
     paid for once, where an edge id went out as a tuple and came home
     as a list.
+
+  THE DUAL IS A TERM BECAUSE IT IS A DESIGN. (2026-09-02, found by
+  THREE hunts of one round from three directions -- backwards from
+  harm, the specification itself, and the stochastic sessions.) `a`
+  names one edge of `hex-slice 4` and quite another of its dual, and
+  this key could not tell them apart: an edit made on the dual was
+  replayed onto the design's own like-named edge the moment the box
+  came off, silently, and rode into the map and the saved file.
+  Measured from the record rather than from the geometry
+  (`tools/probes/what_the_shelf_key_cannot_tell_apart.py`): with the
+  control, a change of family, the key moves and the shelf goes quiet
+  as designed; ticking the dual left the key at `hex-slice 4#4` and
+  the design's own edit standing, and an edit applied on the dual
+  landed in the DESIGN's shelf -- one entry becoming two.
+
+  IT IS A SUFFIX so that nothing already saved moves: a record written
+  before this carries the plain key and goes on restoring under it,
+  which is the same reasoning as `WORKING_STATE_VERSION` not being
+  bumped for an added key.
+
+  WHAT IS DELIBERATELY NOT IN IT is every other design term -- the
+  spacing, the modifiers -- though a modifier can move the class
+  structure under a label too. That is a wider question about when
+  somebody's edits should go quiet, it is the maintainer's, and it is
+  recorded in ROADMAP.md rather than settled here.
   """
-  return f"{family}#{int(elements)}"
+  return f"{family}#{int(elements)}" + ("#dual" if dual else "")
 
 
 def can_build(unit) -> tuple[bool, str]:

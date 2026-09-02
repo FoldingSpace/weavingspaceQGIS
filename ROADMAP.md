@@ -111,6 +111,22 @@ fault -- so the question is whether the split belongs per JOB rather
 than per workflow, the sampling jobs reporting and the whole-suite leg
 gating.
 
+**7. WHICH DESIGN TERMS PUT A TOPOLOGY EDIT AWAY.** (Under 0.24.4,
+added 2026-09-02.) `topology_edits.shelf_key` now carries the family,
+the element count and whether the DUAL is being mapped -- the last
+added as ledger row 24, because a dual is a design in its own right
+and an edit is replayed by label. Every OTHER design term is still
+outside it, and the specification hunt measured what that costs: a
+scale modifier turned two edge classes into four on `laves 3.3.4.3.4`,
+so the class an edit names came to describe a disjoint set of edges
+while the change list still read the same. Widening the key to the
+whole design is the obvious repair and it is a RULING rather than a
+fix: it would mean an ordinary spacing or modifier tweak putting
+somebody's edits away and bringing them back, and where that line
+falls is what a person feels. The alternative is to keep the key
+narrow and REPORT at replay time where a named class no longer means
+what it did.
+
 **3. THE ELEMENT SLIDER'S TRACK AGAINST `test_design_cascade`.**
 (Under 0.24.4, flagged rather than decided.) The track spans the whole
 catalogue, 2 to 256, where a weave-capped track would offer thirteen

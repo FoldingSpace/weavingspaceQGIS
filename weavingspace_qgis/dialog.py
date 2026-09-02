@@ -6721,7 +6721,12 @@ class WeavingSpaceDialog(QDialog):
     family = design.get("family") or self._family_key()
     count = design.get("n") or self._element_count()
     try:
-      key = topology_edits.shelf_key(str(family), int(count))
+      # THE DUAL COMES FROM THE RECORD TOO, for the reason the family
+      # and the count already do: this runs while the controls are
+      # being written, so reading the box would file the edits under
+      # whatever the dialog happened to hold at that instant.
+      key = topology_edits.shelf_key(str(family), int(count),
+                                     bool(design.get("map_dual")))
     except (TypeError, ValueError):
       return
     # SILENCE CLEARS, which is the group chooser's whole contract and
@@ -6781,7 +6786,8 @@ class WeavingSpaceDialog(QDialog):
       return
     from . import topology_edits
     key = topology_edits.shelf_key(self._family_key(),
-                                   self._element_count())
+                                   self._element_count(),
+                                   self._mapping_the_dual())
     panel.set_edits(self._topology_shelf.get(key, []))
 
   # ------------------------------------------------------------- data table
@@ -23362,7 +23368,8 @@ class WeavingSpaceDialog(QDialog):
     from . import topology_edits
     wanted_edits = self._topology_shelf.get(
       topology_edits.shelf_key(self._family_key(),
-                               self._element_count()), [])
+                               self._element_count(),
+                               self._mapping_the_dual()), [])
     result_crs = getattr(self._unit, "crs", None)
 
     def work(task):
@@ -23470,7 +23477,8 @@ class WeavingSpaceDialog(QDialog):
         _dump("TOPOLOGY", "superseded")
       elif wanted_edits != self._topology_shelf.get(
           topology_edits.shelf_key(self._family_key(),
-                                   self._element_count()), []):
+                                   self._element_count(),
+                                   self._mapping_the_dual()), []):
         # THE EDIT LIST MOVED WHILE THIS WAS BEING WORKED OUT, and the
         # stamp cannot see that: it is about the topology BUILD, whose
         # input is the un-edited unit, so it deliberately carries no
@@ -23783,7 +23791,8 @@ class WeavingSpaceDialog(QDialog):
     try:
       from . import topology_edits
       key = topology_edits.shelf_key(self._family_key(),
-                                     self._element_count())
+                                     self._element_count(),
+                                     self._mapping_the_dual())
       edits = (getattr(self, "_topology_shelf", None) or {}).get(key) or []
       return tuple(
         (str(edit.get("classes", "")), str(edit.get("how", "")),
@@ -23818,13 +23827,37 @@ class WeavingSpaceDialog(QDialog):
     """
     kwargs = self._unit_kwargs()
     kwargs.pop("spec", None)
+    # AND THE DUAL IS A TERM, because a build about the design and a
+    # build about its dual are about different geometry with different
+    # class labels -- so without it a landing for one was accepted as
+    # describing the other. (2026-09-02, the second face of the shelf
+    # key's own defect.)
     return (self._family_key(), self._element_count(),
+            self._mapping_the_dual(),
             tuple(sorted(kwargs.items())),
             (self.mod_rotate.value(),
              self.mod_scale_x.value(), self.mod_scale_y.value(),
              self.mod_glyph.isChecked(),
              self.mod_skew_x.value(), self.mod_skew_y.value(),
              self.mod_t_inset.value(), self.mod_p_inset.value()))
+
+  def _mapping_the_dual(self) -> bool:
+    """Whether the map is being tiled with the design's DUAL.
+
+    Returns:
+      True where "Map the dual instead" is ticked. False where the
+      control does not exist yet, which is what a dialog still being
+      built answers.
+
+    IT HAS ONE OWNER BECAUSE FIVE SITES ASK IT, and they must agree:
+    the shelf key, the panel's own list, the build's wanted-edits
+    reading, the guard that notices the list moving under a build, and
+    the key written beside the motif in the file. A dual is a design
+    in its own right (2026-09-01), and until 2026-09-02 none of those
+    five could see it.
+    """
+    box = getattr(self, "opt_map_dual", None)
+    return bool(box is not None and box.isChecked())
 
   def _topology_description_key(self) -> str:
     """What the unit and dual tables in a file would be ABOUT.
@@ -23884,7 +23917,8 @@ class WeavingSpaceDialog(QDialog):
     made = json.dumps(edits, sort_keys=True, default=str)
     return "|".join((
       topology_edits.shelf_key(self._family_key(),
-                               self._element_count()),
+                               self._element_count(),
+                               self._mapping_the_dual()),
       hashlib.sha256(options.encode()).hexdigest()[:8],
       hashlib.sha256(made.encode()).hexdigest()[:8]))
 
@@ -23896,8 +23930,17 @@ class WeavingSpaceDialog(QDialog):
       asks for a redraw, which is what makes an edit reach the map.
     """
     from . import topology_edits
+    # THE WRITER IS WHERE "the design they were made on" IS DECIDED,
+    # so the dual belongs here first: an edit applied while the box is
+    # ticked is an edit to the DUAL's edge, and shelving it under the
+    # plain key is what put it on the design's own like-named edge the
+    # moment the box came off. Measured from this very record
+    # (`tools/probes/what_the_shelf_key_cannot_tell_apart.py`): the
+    # design's shelf went from one entry to two without the design
+    # being touched.
     key = topology_edits.shelf_key(self._family_key(),
-                                   self._element_count())
+                                   self._element_count(),
+                                   self._mapping_the_dual())
     self._topology_shelf[key] = self.topology_panel.edits()
     # AND THE EXPERIMENTAL GATE IS ASKED AGAIN, because the answer it
     # gives depends on THIS. `_gate_experimental_tabs` exempts the
