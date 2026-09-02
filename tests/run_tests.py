@@ -6752,15 +6752,30 @@ def test_topology_edits_come_back_from_the_file():
                      "args": {"angle": 15.0}})
       _settle_topology(dlg, seconds=40)
       _settle(dlg)
-      _tick(250)
-      after_one = ground(dlg._unit)
       # THE EDIT HAS TO HAVE LANDED BEFORE ITS CONSEQUENCE IS ASKED
       # ABOUT. `_settle_topology` returns when no build is in flight,
       # and the edited unit is adopted a beat later -- so asking about
       # gaps immediately reads the UN-EDITED design and reports, quite
       # correctly, that it still carries a topology.
-      assert after_one != plain, \
-        "PREMISE: the rotation has not reached the dialog's unit yet"
+      # AND THE BEAT IS WAITED FOR RATHER THAN COUNTED. A fixed 250ms
+      # is a bet on how fast the machine is, and it lost on Windows on
+      # 2026-09-02, failing this premise while passing here every
+      # time. What the premise is about is the dialog's own unit
+      # moving, so that is what is waited on -- bounded by a ceiling
+      # that catches a hang rather than budgeting the work, since an
+      # adoption that never happens must still fail and say what it
+      # saw.
+      after_one = plain
+      for _ in range(200):              # 200 x 50ms, a hang-catcher
+        _tick(50)
+        after_one = ground(dlg._unit)
+        if after_one != plain:
+          break
+      assert after_one != plain, (
+        f"PREMISE: the rotation has not reached the dialog's unit "
+        f"after ten seconds of waiting -- the ground is still {plain}, "
+        f"which is the un-edited design, so the edit was refused "
+        f"rather than merely slow to arrive")
       assert not topology_edits.still_has_a_topology(dlg._unit), (
         "PREMISE: the rotation left a design that still carries a "
         "topology, so the edit after it is not the case this test is "
@@ -9454,6 +9469,20 @@ def test_a_save_waits_for_a_build_already_coming():
       if pause:
         assert _the_topology_tab_is_quiet(dlg), \
           "PREMISE: the second build never landed"
+      else:
+        # THE CONDITION IS STAGED, NOT HOPED FOR. This arm needs a
+        # build still outstanding at the press, and it used to rely on
+        # the one the design change queued not having landed yet --
+        # which is a bet on how fast the machine is. It lost on three
+        # legs of one CI round and on two rounds before that, always
+        # on this premise, while passing here every time; the run that
+        # went green in between was the lucky one, not the fixed one.
+        # Queueing explicitly puts the dialog in exactly the state the
+        # behaviour is about -- a save pressed while a build is coming
+        # -- with no race to lose. Where a case depends on a window,
+        # close the window.
+        dlg._queue_topology(even_if_unasked=True)
+        _tick(0)
       outstanding = (dlg._topology_task is not None
                      or bool(getattr(dlg, "_topology_wanted", False)))
       assert press_save(dlg), "PREMISE: the press wrote nothing at all"
@@ -11171,11 +11200,23 @@ def test_a_font_change_moves_the_design_tab_s_fields():
         assert not short, (
           f"at {points}pt these labels are narrower than their own "
           f"text and are cut with no ellipsis: {short[:3]}")
+        # AND THE PASS IS WAITED FOR, NOT COUNTED. The alignment pass
+        # runs through a `singleShot`, so the 400ms above is a bet on
+        # how fast the machine is -- and it lost on the macOS runner
+        # on 2026-09-02, reading 51px at 13pt where this machine reads
+        # 0 at every size. The ceiling catches a pass that never runs,
+        # which must still fail; what it must not do is fail because
+        # the reading was taken first.
         split = _label_column_split(reused)
+        for _ in range(100):            # 100 x 50ms, a hang-catcher
+          if split is None or split <= 1:
+            break
+          _tick(50)
+          split = _label_column_split(reused)
         assert split is None or split <= 1, (
           f"at {points}pt the two label columns of the Design tab end "
-          f"{split}px apart, which is the ragged tab the alignment "
-          f"pass exists to prevent")
+          f"{split}px apart after five seconds of waiting, which is "
+          f"the ragged tab the alignment pass exists to prevent")
       # The claim the repair's own docstring makes: a second pass
       # computes the same number, so this is not a feedback loop.
       settled = reused._field_width
