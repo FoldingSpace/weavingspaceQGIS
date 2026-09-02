@@ -29,6 +29,51 @@ slowest of those and n=12 is not — so it cannot be bounded by the
 element spinner. Against that, building the unit itself is 0.01-0.05 s
 at every count up to 256, and the live debounce is 900 ms.
 
+**AND A SAVE USED TO WAIT FOR ONE, ON THE THREAD THAT PAINTS.** Until
+2026-09-01 `_write_or_drop_the_topology` built a topology
+synchronously inside the write, where the file already carried a motif
+whose design had moved. Measured that day, both arms in one run: on
+`hex-colouring 7` the save took 27.53s of which the build was 27.22,
+and a 50 ms heartbeat recorded its longest gap at 27.29s -- the window
+went twenty-seven seconds without repainting, buttons down, the bar
+frozen on whatever it last said. `laves 3.3.4.3.4` froze for 1.05s,
+which is the control that says the instrument moves. The build is
+queued off the main thread now and the PRESS waits for it, through the
+deferred-save machinery of 2026-08-29.
+
+**AND THE PLUGIN IS NOT WHY IT IS SLOW HERE, WHICH WAS WORTH
+MEASURING.** The library's author reports `chavey K` at about 10s and
+`hex-colouring 7` at about half that, in a notebook on a MacBook Air
+-- not a faster machine than this one. Decomposed on 2026-09-01 at
+load 6-7, with QGIS 4.0.3's own Python 3.12.11, shapely 2.1.2 and
+numpy 1.26.4:
+
+    design             make_unit   deepcopy   our build   bare Topology   TileUnit direct
+    laves 3.3.4.3.4      0.007s     0.000s      0.83s         0.81s           0.855s
+    hex-colouring 7      0.043s     0.000s     21.23s        23.11s          21.291s
+    chavey K             0.013s     0.000s     17.03s        14.35s          14.510s
+
+Our wrapper costs nothing: the deepcopy and the CRS strip are
+unmeasurable, and `topology_edits.build` reads the same as a bare
+`Topology(unit, True)` within the noise, in both directions. Nor is it
+`catalog.make_unit`: built the way a NOTEBOOK builds it, straight
+through `TileUnit(**spec)` with the library's own defaults, the times
+are the same again. The cost is `Topology.__init__` in this
+environment.
+
+**THE ORDERING IS INVERTED, AND NO MACHINE EXPLAINS THAT.** He has
+chavey K the dearer of the two, at 10s against about 5; we have it the
+cheaper, at 14.5 against 21. A slower interpreter scales both and
+keeps the order. So at least part of the gap is a difference in the
+LIBRARY rather than in the hardware -- his own rewrite of
+`topology.py` was +179/-207 -- or in what his timing covers, since
+`Topology.__init__` runs `generate_dual()` eagerly and a cell timing
+only the constructor would not show it. Both are questions for him.
+
+What does NOT turn on the answer is the shape of the defect the
+deferral cures: a build whose cost nobody bounds, inside a write, on
+the thread that paints.
+
 **THE RE-VENDOR DID NOT CHANGE IT.** Upstream 6190917 rewrote
 `topology.py` by +179/-207, including "converted Topology code so only
 Topology object references Tiles, Vertices, and Edges directly" and

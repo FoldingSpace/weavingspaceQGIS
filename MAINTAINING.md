@@ -984,6 +984,27 @@ moved. `_topology_stamp` is what tells a landing whose topology it is
 holding, so a build that finishes after the design has moved on is
 discarded rather than drawn against a unit it does not describe.
 
+**And the tab SAYS when it is working.** A build is queued by whatever
+rebuilds the unit and lands seconds later, and in between the panel
+still holds the PREVIOUS design's topology -- so an edge somebody
+clicks there is not the edge that would move.
+`TopologyPanel.say_a_build_is_coming` writes "Working out the design's
+structure…" from the moment the work is QUEUED, and `set_unit` clears
+it wherever a build lands, so no route has to remember to.
+
+GREYING THE TAB WAS TRIED FIRST AND TAKEN OUT THE SAME HOUR
+(maintainer, 2026-09-01: "it doesn't have to grey, that seems to make
+trouble"). It takes the tab away from somebody mid-edit for as long as
+a build lasts, and it retires a contract two registered tests state
+outright -- ticking the box makes these tabs usable. Both went red.
+
+AND IT IS ITS OWN LABEL RATHER THAN `note`, which is the part worth
+remembering. `note` already means "the answer, or the reason there is
+none", and the suite's `_settle_topology` treats a non-empty note as
+an answer having ARRIVED. Writing a third meaning into it made that
+waiter return before the build landed, and a test then read a class
+list that did not exist yet. One store, two meanings, met in a QLabel.
+
 **Not every design has a topology.** `Topology` needs a GAP-FREE
 tiling, so a design with insetting or a family that does not close up
 refuses, and `can_build` says which it is in words rather than letting
@@ -1690,16 +1711,44 @@ dialog, so reopening a saved map, nudging the spacing, pressing
 Generate and pressing Save moved the key while `topology` was None, and
 the drop fired alone.
 
-`_write_or_drop_the_topology` now BUILDS one, and three conditions keep
-that affordable and honest. It asks only where the file in front of it
+The build that answers it asks only where the file in front of it
 already carries our unit table, so somebody who has never opened the
-Topology tab pays none of the 0.75-4.4s. It is SYNCHRONOUS, because the
-save already turns the event loop once per element behind a determinate
-progress bar with both buttons down -- there is a window to build in
-and no press can land in it, where orchestrating the QgsTask from
-inside a write would add a second way for a save to be half done. And
-where the design genuinely has no topology the build returns None with
-a reason and the drop is correct.
+Topology tab pays none of it. And where the design genuinely has no
+topology the build returns None with a reason and the drop is correct.
+
+**AND IT RUNS OFF THE MAIN THREAD, WITH THE PRESS DEFERRED BEHIND IT.**
+(Maintainer's decision, 2026-09-01.) It was SYNCHRONOUS until then, on
+the argument that the save already turns the event loop behind a
+determinate bar with both buttons down, so there was a window to build
+in and no press could land in it. The window was real; its SIZE was
+taken from a figure of 0.75-4.4s that had already been superseded.
+MEASURED, both arms in one run: on `hex-colouring 7` a save took
+27.53s of which the build was 27.22, and a 50 ms heartbeat recorded
+its longest gap at 27.29s -- twenty-seven seconds without a repaint,
+against 1.05s on `laves 3.3.4.3.4` as a control. That is the hang
+decision 3 of 2026-08-29 exists to prevent, arriving through the door
+that decision opened.
+(THE SIZE OF THAT FIGURE IS OPEN. The library's author measures
+`chavey K` at about 10s and `hex-colouring 7` at about half that, in a
+notebook on a MacBook Air, which is not a faster machine. Whether ours
+is this machine's load, our own wrapper or QGIS's bundled shapely is
+being measured; what does not turn on the answer is the SHAPE -- a
+build of unbounded cost inside a write, on the thread that paints.)
+So `_save_the_map` asks `_a_topology_is_owed` BEFORE it writes
+anything, queues the build through `_queue_topology(even_if_unasked=
+True)`, sets `_save_pending`, and says the map will be saved once the
+structure is worked out. `_honour_a_queued_save` -- the third deferred
+kind, which the landing already calls -- writes the file when the
+build lands. The press is DEFERRED rather than refused for the reason
+the maintainer gave on 2026-08-29: most people will not read a
+refusal, and a save that quietly did not happen is somebody closing
+QGIS believing their map is on disk.
+`_topology_built_for` is what stops it deferring twice. It records
+which design a build has been ATTEMPTED for, whatever came back, so a
+design that has no topology at all -- an inset opens gaps, and
+`Topology` needs a gap-free tiling -- defers once, comes back empty,
+and is written without one. Asking whether a build SUCCEEDED would
+have been a livelock.
 
 **THE DUAL IS BUILT AND STAMPED BESIDE THE UNIT, or the write declines
 and the clear runs anyway.** This is the part that made two repairs

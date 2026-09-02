@@ -9090,9 +9090,54 @@ MUTATIONS = [
        new="""      self.progress.setFormat("%p%")""",
        test="test_a_save_and_a_load_count_their_layers_on_the_bar",
        why="each stretch of a save saying how far through IT is. The "
-           "three take different times per layer, so one bar spanning "
-           "them crawls through one and leaps through another and says "
-           "nothing about how long is left"),
+           "four -- deciding what to write, writing the tables, "
+           "linking the layers to them, embedding the styles -- take "
+           "different times per layer, so one bar spanning them "
+           "crawls through one and leaps through another and says "
+           "nothing about how long is left. THE ENTRY SURVIVED WHEN "
+           "IT WAS FIRST PROVED, on 2026-09-01, because its test "
+           "demanded three counting formats of the four present: the "
+           "survivors satisfied it and no stretch had to be named. "
+           "The test asks for four now"),
+  dict(name="a-save-owed-a-topology-waits-off-the-main-thread",
+       file=DIALOG,
+       # THE WRONG IMPLEMENTATION RATHER THAN A MUTATION OF THE RIGHT
+       # ONE, which is what this project's rule asks for: writing
+       # straight through is what the save did until 2026-09-01, and
+       # it is what somebody would plausibly write again.
+       old="""    if self._a_topology_is_owed(path, mine_from_the_start):""",
+       new="""    if False:  # mutation: write now, whatever the file is owed""",
+       test="test_a_save_owed_a_topology_waits_for_it",
+       why="a save that needs a topology waiting for one instead of "
+           "building it on the thread that paints. Measured 2026-09-01 "
+           "on `hex-colouring 7`, both arms in one run: 27.53s of save "
+           "of which 27.22 was the build, and a 50 ms heartbeat whose "
+           "longest gap was 27.29s -- the window went twenty-seven "
+           "seconds without repainting, buttons down, the bar frozen "
+           "on whatever it last said, which is the hang decision 3 of "
+           "2026-08-29 exists to prevent"),
+  dict(name="the-topology-tab-says-it-is-working", file=TOPOLOGY_TAB,
+       old="""    self.working.setText("Working out the design's structure…")""",
+       new="""    pass  # mutation: say nothing while the build runs""",
+       test="test_the_topology_tab_says_when_it_is_working",
+       why="the tab saying that its answer is still coming. A build is "
+           "0.83s on laves and 21s on hex-colouring 7, and until it "
+           "lands the panel still holds the PREVIOUS design's "
+           "topology -- so an edge somebody clicks is not the edge "
+           "that would move, and nothing on screen says why"),
+  dict(name="the-working-sentence-is-not-the-note", file=TOPOLOGY_TAB,
+       # AIMED AT THE FAULT THAT WAS ACTUALLY MADE, on the day it was
+       # made: the sentence went into `note` first, and `note` already
+       # means "the answer, or the reason there is none".
+       old="""    self.working.setText("Working out the design's structure…")""",
+       new="""    self.note.setText("Working out the design's structure…")""",
+       test="test_the_topology_tab_says_when_it_is_working",
+       why="the working sentence staying OUT of the store that means "
+           "'the answer'. `_settle_topology` treats a non-empty note "
+           "as an answer having arrived, so a third meaning in that "
+           "store makes every waiter return before the build lands -- "
+           "measured 2026-09-01, when it turned a registered test red "
+           "by handing it a class list that did not exist yet"),
   dict(name="the-already-saved-skip-asks-the-file", file=DIALOG,
        # Back to asking the SOURCE STRING alone, which nobody else
        # rewriting the file can change. The element is skipped as
@@ -9278,8 +9323,19 @@ MUTATIONS = [
        # ANCHORED AT THE DECISION to build, not at the write below it:
        # the write is shared with the ordinary path and mutating it
        # would break a case this entry is not about.
-       old="""    if topology is None and path and ours and self._unit is not None:""",
-       new="""    if False:""",
+       # RE-ANCHORED 2026-09-01, when the build left the write. It was
+       # SYNCHRONOUS and froze the window for 27s on `hex-colouring 7`,
+       # so `_save_the_map` now defers the press and asks for the build
+       # off the main thread. THE CLAIM IS UNCHANGED -- a file holding a
+       # motif gets a fresh one -- and this is still the line that makes
+       # one appear; what moved is which thread it appears on.
+       # DELIBERATELY NOT THE DEFERRAL ITSELF, which
+       # `a-save-owed-a-topology-waits-off-the-main-thread` stands on
+       # with its own test. This entry is about the motif being
+       # REPLACED; that one is about the window still painting while it
+       # happens. Two claims, two sites, two tests.
+       old="""      self._queue_topology(even_if_unasked=True)""",
+       new="""      pass  # mutation: never build the motif the file is owed""",
        test="test_a_file_that_holds_a_motif_gets_a_fresh_one",
        why="a colleague opening the GeoPackage gets no motif at all, "
            "after a journey that needs no interest in the feature "

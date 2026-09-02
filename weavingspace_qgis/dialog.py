@@ -1867,6 +1867,13 @@ class WeavingSpaceDialog(QDialog):
     self._topology_task = None
     self._topology_wanted = False
     self._topology_shelf = {}
+    # WHICH DESIGN A BUILD HAS BEEN ATTEMPTED FOR, whatever it came
+    # back with. A save that finds the file owed a motif defers behind
+    # an off-thread build and is honoured when it lands; asking
+    # whether one SUCCEEDED would defer for ever on a design that has
+    # no topology at all. None means nothing has been attempted, which
+    # is the honest starting state.
+    self._topology_built_for = None
     # WHICH DESIGN A BUILD HAS ALREADY ANSWERED "NOTHING TO RESTORE"
     # ABOUT, keyed exactly as `_edited_unit_for` is so the two can be
     # compared against one question. It is what stops `_generate`'s
@@ -19300,6 +19307,40 @@ class WeavingSpaceDialog(QDialog):
     mine_from_the_start = self._file_was_ours_when_met.setdefault(
       self._gpkg_key(path), (not existed) or ours)
 
+    # A TOPOLOGY THIS FILE IS OWED IS BUILT OFF THE MAIN THREAD, AND
+    # THE PRESS WAITS FOR IT. (Maintainer's decision, 2026-09-01.)
+    # `_write_or_drop_the_topology` used to build one SYNCHRONOUSLY
+    # here, arguing from "a build is 0.75-4.4s" and from the save
+    # already turning the event loop behind a determinate bar. The
+    # second half held; the figure did not. MEASURED THAT DAY, both
+    # arms in one run: on `hex-colouring 7` the save took 27.53s of
+    # which the build was 27.22, and a 50 ms heartbeat recorded its
+    # LONGEST GAP at 27.29s -- twenty-seven seconds in which the window
+    # did not repaint, with Save and Generate down and the bar frozen
+    # on whatever it last said. The control, `laves 3.3.4.3.4`, froze
+    # for 1.05s. That is the hang decision 3 of 2026-08-29 exists to
+    # prevent, arriving through the door that decision opened.
+    # SO THE PRESS IS DEFERRED RATHER THAN THE WINDOW FROZEN, which is
+    # the third deferred kind doing exactly what it was built for: the
+    # build is queued, the person is told, and `_honour_a_queued_save`
+    # writes the file when it lands. The maintainer's ruling of
+    # 2026-08-29 is the reason it is a deferral and not a refusal --
+    # most people will not read a refusal, and a save that quietly did
+    # not happen is somebody closing QGIS believing their map is on
+    # disk.
+    # IT CANNOT DEFER TWICE, because the predicate asks whether a build
+    # has been ATTEMPTED for this design rather than whether one
+    # SUCCEEDED. A design with no topology at all -- an inset opens
+    # gaps, and a design with gaps has none -- would otherwise defer,
+    # come back empty, and defer again for ever.
+    if self._a_topology_is_owed(path, mine_from_the_start):
+      self._save_pending = True
+      self._queue_topology(even_if_unasked=True)
+      self._report_quietly(
+        "The design's structure is being worked out, and the map "
+        "will be saved once it is ready.")
+      return False
+
     # WHAT EACH ELEMENT'S TABLE IS CALLED is decided when the map is
     # DRAWN, not here, so that two saves of one map cannot disagree
     # about it and so that the name follows the variable the element
@@ -21033,48 +21074,33 @@ class WeavingSpaceDialog(QDialog):
         held_dual is None or held_dual[0] != self._topology_stamp()):
       _dump("TOPO-WRITE", "held-topology-is-of-another-design")
       topology = None
-    if topology is None and path and ours and self._unit is not None:
-      try:
-        holds = bridge.gpkg_tables(path)
-      except Exception as problem:                      # noqa: BLE001
-        _dump("TOPO-WRITE", "could-not-read-the-file", problem)
-        holds = ()
-      _dump("TOPO-WRITE", "file-holds-our-unit=",
-            bridge.UNIT_TABLE_NAME in holds)
-      if bridge.UNIT_TABLE_NAME in holds:
-        # FROM THE PLAIN UNIT AND A COPY OF IT, exactly as
-        # `_queue_topology` does and for the same two reasons:
-        # `self._unit` may already carry the edits, so building from it
-        # would replay them twice; and the CRS is stripped because the
-        # motif lives in unit space and `Topology` is asked about
-        # shapes rather than about ground.
-        import copy
-        source = copy.deepcopy(
-          getattr(self, "_unit_before_topology", None) or self._unit)
-        source.crs = None
-        for attribute in ("tiles", "prototile", "regularised_prototile"):
-          part = getattr(source, attribute, None)
-          if part is not None:
-            part.crs = None
-        built, why = topology_edits.build(source)
-        _dump("TOPO-WRITE", "rebuilt=", built is not None, "why=", why)
-        if built is not None:
-          topology = built
-          # AND THE DUAL IS BUILT AND STAMPED BESIDE IT, because the
-          # write below refuses a unit without one -- both or neither,
-          # and the pair must be of ONE design. Leaving this out is
-          # what made the first version of this repair look like it did
-          # nothing: the build succeeded, `wanted` went true, the
-          # both-or-neither test found `_topology_dual` empty, declined
-          # the write, and a wanted write that fails still clears. So
-          # the tables went exactly as before and the only evidence was
-          # a dump line. That is this project's own rule about copying
-          # a call without the reasoning at its twin, met inside a
-          # repair for the same method's fifth fault.
-          self._topology_dual = (
-            self._topology_stamp(), topology_edits.dual_frame(built))
-          if panel is not None:
-            panel.set_unit(source, built)
+    # THE BUILD THAT STOOD HERE IS GONE, AND THE PRESS WAITS FOR ONE
+    # INSTEAD. (Maintainer's decision, 2026-09-01.) It was
+    # synchronous, on the main thread, inside a method the save calls
+    # after it has turned the event loop for the last time -- so the
+    # window stopped repainting for the whole of it. Measured that day
+    # on `hex-colouring 7`: 27.22s of build inside a 27.53s save, with
+    # the longest gap between 50 ms heartbeats at 27.29s, against 1.05s
+    # on `laves 3.3.4.3.4`. The comment that justified it reasoned from
+    # "a build is 0.75-4.4s", which
+    # `docs/process/wallpaper-groups-and-what-we-do.md` had already
+    # measured at 19.08s for that design, re-measured at 21.0 and 21.2.
+    # `_save_the_map` now asks `_a_topology_is_owed` BEFORE it writes
+    # anything and defers the press behind `_queue_topology`, so by the
+    # time this runs a build has either landed or been attempted and
+    # come back empty. Where it came back empty the design genuinely
+    # has none -- an inset opens gaps and `Topology` needs a gap-free
+    # tiling -- and the drop below is the right answer rather than a
+    # missing one.
+    # WHAT THE DELETED BUILD DID, kept in words because the pair it
+    # maintained is the thing a later reader must not lose: it built
+    # from a COPY of the plain unit with the CRS stripped, and it
+    # stamped `_topology_dual` beside the result, because the write
+    # below refuses a unit without a dual and demands the two be of
+    # one design. `_queue_topology` does both, on the worker, and its
+    # landing keeps the same pair -- so the invariant now has one
+    # owner instead of two, which is the repair this method has needed
+    # since its fifth fault.
     # THE BOX GATES THE TAB, NOT THE MAP'S CONTENT -- and this is the
     # SECOND site to learn it. `_queue_topology` was freed from
     # `opt_experimental` at 8107b88 on the reasoning that somebody who
@@ -22179,6 +22205,14 @@ class WeavingSpaceDialog(QDialog):
     # this refuses to do is strand somebody's work behind a preference.
     holding_work = bool(self._topology_edit_key())
     topology_index = getattr(self, "_topology_tab_index", None)
+    # A BUILD IN FLIGHT DOES NOT GREY THIS TAB, and that was decided
+    # after trying it. (Maintainer, 2026-09-01: "it doesn't have to
+    # grey, that seems to make trouble. just have an indication in the
+    # tab itself that it's building.") Greying costs more than it
+    # buys: it takes the tab away from somebody mid-edit for seconds
+    # at a time, and it retires a contract several tests state
+    # outright -- that ticking the box makes these tabs usable. The
+    # tab SAYS it is working instead; see `_say_the_topology_is_coming`.
     for index in getattr(self, "_experimental_tabs", ()):
       if index < tabs.count():
         keep = allowed or (holding_work and index == topology_index)
@@ -22187,8 +22221,60 @@ class WeavingSpaceDialog(QDialog):
         self, "_experimental_tabs", ()):
       tabs.setCurrentIndex(0)
 
-  def _queue_topology(self) -> None:
+  def _a_topology_is_owed(self, path: str, ours: bool) -> bool:
+    """Would saving into this file need a topology we have not built?
+
+    Args:
+      path: the GeoPackage the press is aimed at.
+      ours: whether this file was THIS map's before the save began.
+        A stranger's file gets nothing written into it and nothing
+        removed from it, so it is owed nothing either.
+
+    Returns:
+      True where the press should be deferred behind an off-thread
+      build. False where the file carries no motif of ours to keep
+      current, where one is already in hand for this design, or where
+      a build for this design has already been attempted and come
+      back empty -- which is what stops a design with no topology
+      deferring for ever.
+
+    IT ASKS THE FILE, not the box. Somebody who has never opened the
+    Topology tab has no unit table in their GeoPackage and is owed
+    nothing, which is the whole of the cost ruling of 2026-08-30; a
+    file that already carries one must not be left describing a motif
+    its own tiles are no longer made of, which is the ruling of
+    2026-08-26 that a file shows the limit of what it contains.
+    """
+    if not path or not ours or self._unit is None:
+      return False
+    stamp = self._topology_stamp()
+    if getattr(self, "_topology_built_for", None) == stamp:
+      return False
+    panel = getattr(self, "topology_panel", None)
+    held = getattr(panel, "_topology", None) if panel else None
+    held_dual = getattr(self, "_topology_dual", None)
+    if held is not None and held_dual is not None and held_dual[0] == stamp:
+      return False
+    try:
+      holds = bridge.gpkg_tables(path)
+    except Exception:                                   # noqa: BLE001
+      # A FILE WE CANNOT READ IS OWED NOTHING. The save below will
+      # meet the same trouble and say so in its own words; deferring
+      # a press behind a build for a file that will not open would
+      # spend seconds to arrive at the same sentence.
+      return False
+    return bridge.UNIT_TABLE_NAME in holds
+
+  def _queue_topology(self, even_if_unasked: bool = False) -> None:
     """Work out the current design's topology, off the main thread.
+
+    Args:
+      even_if_unasked: build even where the experimental box is off
+        and no edits stand. The save passes True: a file that already
+        carries a motif is owed a current one whatever this dialog's
+        preferences say, and the alternative was building it on the
+        main thread, which froze the window for 27 seconds on
+        `hex-colouring 7`.
 
     Returns:
       None. Does nothing at all unless the experimental box is ticked,
@@ -22228,7 +22314,8 @@ class WeavingSpaceDialog(QDialog):
     # feature should quietly revert.
     wanted_by_the_box = bool(getattr(self, "opt_experimental", None)) and \
       self.opt_experimental.isChecked()
-    if not wanted_by_the_box and not self._topology_edit_key():
+    if (not wanted_by_the_box and not self._topology_edit_key()
+        and not even_if_unasked):
       return
     panel = getattr(self, "topology_panel", None)
     if panel is None or self._unit is None:
@@ -22351,6 +22438,16 @@ class WeavingSpaceDialog(QDialog):
         return
       self = dialog
       self._topology_task = None
+      # WHAT DESIGN A BUILD HAS BEEN ATTEMPTED FOR, recorded whatever
+      # came back. (2026-09-01, with the deferred save.) A press that
+      # waits for a topology asks `_a_topology_is_owed`, and asking
+      # whether one SUCCEEDED would defer for ever on a design that
+      # has none -- a tile inset opens gaps and `Topology` needs a
+      # gap-free tiling, so the honest answer for those designs is an
+      # empty one, arrived at once. It is set before every branch
+      # below, including the superseded one, because the claim is
+      # about the build having HAPPENED and that is true either way.
+      self._topology_built_for = stamp
       if error is not None:
         panel.set_unit(None, None, "The topology could not be worked out.")
       elif stamp != self._topology_stamp():
@@ -22529,6 +22626,11 @@ class WeavingSpaceDialog(QDialog):
 
     self._topology_task = TilingTask("WeavingSpace topology", work, done)
     QgsApplication.taskManager().addTask(self._topology_task)
+    # AND THE TAB SAYS SO, from the moment the work is queued rather
+    # than when the worker picks it up: between the queueing and the
+    # landing the panel still holds the PREVIOUS design's topology,
+    # and that interval is what the sentence is for.
+    panel.say_a_build_is_coming()
 
   def _adopt_edited_unit(self, edited, result_crs) -> None:
     """Make the topology-edited unit the one the plugin draws from.

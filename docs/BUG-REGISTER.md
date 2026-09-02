@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-484 defect(s) with a regression test.
+486 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -492,6 +492,8 @@ there is no separate list to remember.
   guarded by `test_a_retired_dialogs_landing_is_discarded`
 - **saving twice into a GeoPackage holding a colleague's map deleted the tables whose element ids ours happened to share, under the word "Saved".**  
   guarded by `test_a_save_never_removes_a_layer_this_map_did_not_write`
+- **`_write_or_drop_the_topology` built the topology SYNCHRONOUSLY inside the write until 2026-09-01. Measured on `hex-colouring 7`, both arms in one run: a save took 27.53s of which the build was 27.22, and a 50 ms heartbeat's longest gap was 27.29s -- the window went twenty-seven seconds without repainting, with Save and Generate down and the bar frozen on whatever it last said. The control, `laves 3.3.4.3.4`, froze for 1.05s.**  
+  guarded by `test_a_save_owed_a_topology_waits_for_it`
 - **a save made between a topology edit and its Generate wrote a motif the record named another design for, and the next reopen deleted it.**  
   guarded by `test_a_save_with_an_edit_outstanding_leaves_the_motif_alone`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
@@ -642,6 +644,8 @@ there is no separate list to remember.
   guarded by `test_the_switch_notice_owns_every_element`
 - **a manipulation that took a click and did nothing at all, on designs where it cannot apply.**  
   guarded by `test_the_topology_matrix`
+- **greying the tab was tried on 2026-09-01 and taken out the same hour -- it takes the tab from somebody mid-edit and two registered tests went red. The sentence then went into `note`, which already means "the answer, or the reason there is none", so `_settle_topology` read it as an answer having ARRIVED and returned before the build landed. One store, two meanings.**  
+  guarded by `test_the_topology_tab_says_when_it_is_working`
 - **nothing bounded the dialog's height, so a tall design on a small display put its own buttons off the screen.**  
   guarded by `test_the_window_never_grows_past_the_screen`
 - **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
@@ -1022,7 +1026,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 157
+- the mutation campaign: 159
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

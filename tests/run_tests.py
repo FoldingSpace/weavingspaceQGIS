@@ -2149,7 +2149,23 @@ def press_save(dlg, path=None, expect=True, settle=True):
   # the DEFAULT, and the setting a whole test family was found holding
   # wrongly) know about the deferral. Only a test whose subject IS the
   # deferral passes `settle=False`, and it says so where it does.
-  if settle and not written and "will be saved afterwards" in spoken:
+  # IT ASKS THE STATE, NOT THE SENTENCE. This read
+  # `"will be saved afterwards" in spoken` until 2026-09-01, which is
+  # a phrase copied out of the product -- the fault this suite already
+  # records, where the maintainer rewording a notice retunes a filter
+  # nobody thinks of as a test. It was retuned that day by a SECOND
+  # kind of deferral rather than by a rewording: a save owed a
+  # topology says "will be saved once it is ready", matched nothing,
+  # and `test_a_file_that_holds_a_motif_gets_a_fresh_one` failed with
+  # the plugin behaving exactly as ruled. `_save_pending` is the
+  # promise itself and is set by every kind, so a fourth cannot slip
+  # past this either.
+  if settle and not written and getattr(dlg, "_save_pending", False):
+    # THE TOPOLOGY BUILD IS WAITED FOR TOO, because `_settle` knows
+    # about the tiling task and the two debounces and not about this
+    # one -- and a press deferred behind a build is not honoured until
+    # it lands.
+    _settle_topology(dlg, seconds=90)
     _settle(dlg, seconds=90)
     _tick(2500)
     spoken = " ".join(text for _kind, text in BAR_MESSAGES)
@@ -7357,6 +7373,129 @@ def test_a_design_without_a_topology_leaves_none_in_the_file():
         f"the motif of a design it no longer has")
   finally:
     holder.__exit__(None, None, None)
+
+
+def test_a_save_owed_a_topology_waits_for_it():
+  """A save owed a motif queues the build and keeps the press.
+
+  Both answers are asserted, because a reader meeting either alone
+  would take it for the whole rule: a file that already carries our
+  unit table DEFERS the press behind an off-thread build, and a file
+  that carries none writes at once.
+
+  Regression: `_write_or_drop_the_topology` built the topology
+  SYNCHRONOUSLY inside the write until 2026-09-01. Measured on
+  `hex-colouring 7`, both arms in one run: a save took 27.53s of which
+  the build was 27.22, and a 50 ms heartbeat's longest gap was 27.29s
+  -- the window went twenty-seven seconds without repainting, with
+  Save and Generate down and the bar frozen on whatever it last said.
+  The control, `laves 3.3.4.3.4`, froze for 1.05s. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  holder = _temp_dir()
+  td = holder.__enter__()
+  path = os.path.join(td, "save-needs-a-topology.gpkg")
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    _tick(100)
+    dlg.n_spin.setValue(4)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(200)
+    assert _wait_for_the_topology(dlg), "PREMISE: no topology to save"
+    _generate_and_wait(dlg)
+    dlg.gpkg_widget.setFilePath(path)
+    assert press_save(dlg, path), "PREMISE: the first save wrote nothing"
+    assert bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(path), (
+      "PREMISE: the file carries no unit table, so nothing below is "
+      "about a save that is owed a motif")
+
+    # THE STATE THE DEFERRAL IS FOR: the box off, so no build runs of
+    # its own accord, and the design moved, so the file's key no
+    # longer describes its tiles.
+    dlg.opt_experimental.setChecked(False)
+    before = dlg._topology_description_key()
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 1.7)
+    _generate_and_wait(dlg)
+    assert dlg._topology_description_key() != before, (
+      "PREMISE: the design key did not move, so the save is owed "
+      "nothing and this test is about a journey that cannot arise")
+
+    # THE PRESS IS KEPT, NOT SPENT. `settle=False` because the subject
+    # IS the deferral: this reads the promise before it is kept.
+    wrote = press_save(dlg, path, expect=False, settle=False)
+    assert not wrote, "the press wrote before the topology was built"
+    assert dlg._save_pending, (
+      "the press was neither written nor remembered, which is a save "
+      "that quietly did not happen")
+    assert (dlg._topology_task is not None or dlg._topology_wanted), (
+      "nothing was queued, so the promise has no consumer")
+    said = " ".join(str(t) for _k, t in BAR_MESSAGES)
+    assert "structure" in said, (
+      f"the person was told {said!r}, which does not say the map is "
+      f"waiting on anything")
+
+    # AND IT IS HONOURED when the build lands.
+    _settle_topology(dlg, seconds=60)
+    _tick(400)
+    _settle(dlg)
+    assert not dlg._save_pending, "the promise was never kept"
+    assert dlg._topology_description_key() == \
+      bridge.read_working_state(path).get("topology_design"), (
+        "the file came back describing a design other than the one on "
+        "screen, so the deferred save wrote the wrong motif")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+    holder.__exit__(None, None, None)
+
+
+def test_the_topology_tab_says_when_it_is_working():
+  """The tab says a build is coming, in its own label.
+
+  Regression: greying the tab was tried on 2026-09-01 and taken out
+  the same hour -- it takes the tab from somebody mid-edit and two
+  registered tests went red. The sentence then went into `note`, which
+  already means "the answer, or the reason there is none", so
+  `_settle_topology` read it as an answer having ARRIVED and returned
+  before the build landed. One store, two meanings. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    _tick(100)
+    dlg.n_spin.setValue(4)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    panel = dlg.topology_panel
+    # QUEUED, NOT LANDED: read it in the same breath as the request.
+    dlg._queue_topology()
+    assert panel.working.text().strip(), (
+      "the tab says nothing while a build is outstanding, so somebody "
+      "aiming an edit at the previous design's classes has no way to "
+      "know why the drawing has not moved")
+    assert not panel.note.text().strip(), (
+      "the working sentence reached `note`, which every waiter here "
+      "reads as an answer having arrived")
+    assert _wait_for_the_topology(dlg), "PREMISE: no topology was built"
+    _tick(200)
+    assert not panel.working.text().strip(), (
+      "the tab still says it is working after the build landed")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
 
 
 def test_topology_edits_survive_the_working_state():
@@ -36487,24 +36626,20 @@ def test_a_save_and_a_load_count_their_layers_on_the_bar():
       f"which counts layers: `%v of %m` is what turns 'busy' into "
       f"'layer 12 of 48'")
     # EVERY STRETCH NAMES ITSELF, not merely one of them. A save is
-    # three unequal pieces of work -- writing the tables, linking the
-    # layers to them, embedding the styles -- and a bar that counted
-    # layers through one of the three would sit still through the
-    # other two while this assertion went on passing, because a
-    # sibling was still doing the work.
-    wanted = 3 if which == "save" else 1
-    assert len(counting) >= wanted, (
-      f"the {which} showed {len(counting)} counting format(s) "
-      f"({sorted(counting)!r}) where it has {wanted} stretch(es) of "
-      f"work to name, so at least one of them says nothing about how "
-      f"far through it is")
-    # EVERY STRETCH NAMES ITSELF, not merely one of them. A save is
-    # three unequal pieces of work -- writing the tables, linking the
-    # layers to them, embedding the styles -- and a bar that counted
-    # layers through one of the three would sit still through the
-    # other two while this assertion went on passing, because a
-    # sibling was still doing the work.
-    wanted = 3 if which == "save" else 1
+    # FOUR unequal pieces of work -- deciding what to write, writing
+    # the tables, linking the layers to them, embedding the styles --
+    # and a bar that counted layers through some of them would sit
+    # still through the rest while this assertion went on passing,
+    # because a sibling was still doing the work.
+    # THE NUMBER WAS THREE UNTIL 2026-09-01 AND THAT IS WHY THE ENTRY
+    # SURVIVED. `a-save-counts-layers-through-every-stretch` mutates
+    # ONE format away; with three demanded of four present, the
+    # remaining three satisfied it and the guard could not fail. The
+    # count is a pinned constant and therefore regression cover
+    # rather than a proof -- what it holds is that no stretch loses
+    # its count silently, and a fifth stretch added later goes
+    # unwatched until somebody raises this number.
+    wanted = 4 if which == "save" else 1
     assert len(counting) >= wanted, (
       f"the {which} showed {len(counting)} counting format(s) "
       f"({sorted(counting)!r}) where it has {wanted} stretch(es) of "
@@ -80997,6 +81132,10 @@ def main():
         test_a_topology_that_lands_late_is_discarded)
   check("a design without a topology leaves none in the file",
         test_a_design_without_a_topology_leaves_none_in_the_file)
+  check("a save that needs a topology waits for it off the main thread",
+        test_a_save_owed_a_topology_waits_for_it)
+  check("the topology tab says when it is working",
+        test_the_topology_tab_says_when_it_is_working)
   check("the experimental box gates its tabs",
         test_the_experimental_box_gates_its_tabs)
   check("the messages tab records what the plugin said",

@@ -1534,6 +1534,18 @@ class TopologyPanel(QWidget):
     self.note = QLabel("")
     self.note.setWordWrap(True)
     side.addWidget(self.note)
+    # A SECOND LABEL, AND THAT IS THE POINT OF IT. (2026-09-01.) The
+    # working sentence went into `note` first, and `note` already
+    # means "the answer, or the reason there is none" -- so the
+    # suite's own waiter, which treats a non-empty note as an answer
+    # having arrived, returned before the build landed and a test read
+    # a class list that did not exist yet. One store with two meanings
+    # is this project's commonest defect wearing a QLabel, and the
+    # repair belongs to the store rather than to the waiter that
+    # trusted it.
+    self.working = QLabel("")
+    self.working.setWordWrap(True)
+    side.addWidget(self.working)
     self._rebuild_arguments()
 
   # ------------------------------------------------------- the record
@@ -1587,6 +1599,30 @@ class TopologyPanel(QWidget):
       bar = self._side_scroll.verticalScrollBar().sizeHint().width()
       self._side_scroll.setMinimumWidth(wanted + bar)
       self._floored = True
+
+  def say_a_build_is_coming(self) -> None:
+    """Say that this tab's answer is still being worked out.
+
+    Returns:
+      None. Writes into the same note `set_unit` uses for the reason a
+      design carries no topology, so the landing clears it by writing
+      its own answer there and nothing has to remember to.
+
+    THE TAB SAYS IT RATHER THAN GOING GREY. (Maintainer, 2026-09-01.)
+    Greying was tried first and taken out the same hour: it takes the
+    tab away from somebody mid-edit for as long as a build lasts,
+    which is 0.79s on `laves 3.3.4.3.4` and 19.08s on `hex-colouring
+    7`, and two registered tests went red because ticking the box no
+    longer made the tab usable. What the interval needs is not a
+    closed door but a sentence, because the drawing behind it is still
+    the PREVIOUS design's until the build lands.
+
+    AND IT IS ITS OWN LABEL, NOT THE NOTE. See the comment where
+    `working` is built: the note means "the answer, or why there is
+    none", and writing a third meaning into it made every waiter that
+    reads it return early.
+    """
+    self.working.setText("Working out the design's structure…")
 
   def set_unit(self, unit, topology, message: str = "", ghost=None):
     """Show a new design's topology.
@@ -1648,6 +1684,10 @@ class TopologyPanel(QWidget):
     self._say_what_the_symmetry_is(unit, topology)
     self._refresh_classes()
     self.note.setText(message if topology is None else "")
+    # AND THE WORKING SENTENCE COMES DOWN HERE, wherever a build
+    # lands: this is the one place every route to an answer passes
+    # through, so nothing else has to remember to clear it.
+    self.working.setText("")
     for widget in (self.class_combo, self.how_combo, self.apply_button):
       widget.setEnabled(topology is not None)
 

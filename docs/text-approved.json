@@ -144,6 +144,11 @@
   "excerpt": "Missing or too old: {} If you approve, WeavingSpace will: \u2022 ",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "0eb4b2a70eb327ed": {
+  "approved": "2026-09-01",
+  "excerpt": "could not create the column {}",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "0ee3b73cb9eb417a": {
   "approved": "2026-08-27",
   "excerpt": "Carry on with the map in that file.",
@@ -444,6 +449,11 @@
   "excerpt": "WeavingSpace draws its maps with three well-known Python lib",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "3035585d841d2851": {
+  "approved": "2026-09-01",
+  "excerpt": "could not write a feature into {}",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "317adade2c6fccd8": {
   "approved": "2026-08-18",
   "excerpt": "The Data & colours tab gives each element layer its initial\n",
@@ -644,6 +654,11 @@
   "excerpt": "Stretch the pattern right-left; negative mirrors it.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "45209960379ae74b": {
+  "approved": "2026-09-01",
+  "excerpt": "saving \u2014 styling layer %v of %m",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "464ab6d445ede40f": {
   "approved": "2026-08-15",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
@@ -804,6 +819,11 @@
   "excerpt": "Use tileable as icon (one per map unit)",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "5183f5bcc4fbfea4": {
+  "approved": "2026-09-01",
+  "excerpt": "opening the map \u2014 layer %v of %m",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "5293ccc139a3183e": {
   "approved": "2026-08-19",
   "excerpt": "hold no values inside the range {}, so they were left out.",
@@ -934,6 +954,11 @@
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
  },
+ "6205292528cb9397": {
+  "approved": "2026-09-01",
+  "excerpt": "saving \u2014 linking layer %v of %m",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "62168247db803938": {
   "approved": "2026-08-18",
   "excerpt": "No ramp knows that forest should be green. An \"Edit colours\"",
@@ -942,6 +967,11 @@
  "625a23dbf8a12b8d": {
   "approved": "2026-08-20",
   "excerpt": "Element '{}' left {} in QGIS alone, because it cannot tell y",
+  "where": "weavingspace_qgis/bridge.py"
+ },
+ "62abc1277aeded56": {
+  "approved": "2026-09-01",
+  "excerpt": "UPDATE layer_styles SET useAsDefault = 0 WHERE f_table_name ",
   "where": "weavingspace_qgis/bridge.py"
  },
  "62e00e685a865900": {
@@ -958,6 +988,11 @@
   "approved": "2026-08-12",
   "excerpt": "no candidate versions for {}",
   "where": "weavingspace_qgis/deps.py"
+ },
+ "646f21c6aace5d66": {
+  "approved": "2026-09-01",
+  "excerpt": "could not create the table {}",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "648fb4189a6b6bad": {
   "approved": "2026-08-08",
@@ -1509,6 +1544,11 @@
   "excerpt": "Create as new group (keep the previous result)",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "9ac3f5f4b89e9112": {
+  "approved": "2026-09-01",
+  "excerpt": "the file's transaction could not be committed",
+  "where": "weavingspace_qgis/bridge.py"
+ },
  "9b7bbdde0c0842f7": {
   "approved": "2026-08-16",
   "excerpt": "The class bound you set on '{}' cannot be drawn from the val",
@@ -2019,6 +2059,11 @@
   "excerpt": "{} is already open here, so its map is the one being worked on.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "d5dbbc4fdff7d6ac": {
+  "approved": "2026-09-01",
+  "excerpt": "preparing to save \u2014 element %v of %m",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "d65d9a0cb1afdac9": {
   "approved": "2026-08-26",
   "excerpt": "None of that GeoPackage's layers would open, so the map could not be brought back.",
@@ -2082,6 +2127,11 @@
  "da78c8551b2e5967": {
   "approved": "2026-08-08",
   "excerpt": "Assign at least one variable in the Data & colours tab.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "daf5f289dcac206b": {
+  "approved": "2026-09-01",
+  "excerpt": "saving \u2014 writing layer %v of %m",
   "where": "weavingspace_qgis/dialog.py"
  },
  "db2c5a2f58248a1b": {
@@ -2293,6 +2343,11 @@
   "approved": "2026-08-09",
   "excerpt": "Load a polygon layer in a projected CRS, rough in a design w",
   "where": "README.md"
+ },
+ "f0376ef27ec2e2c6": {
+  "approved": "2026-09-01",
+  "excerpt": "DELETE FROM layer_styles WHERE f_table_name = %s AND styleNa",
+  "where": "weavingspace_qgis/bridge.py"
  },
  "f0bc4d1f2555332a": {
   "approved": "2026-08-09",
