@@ -22,6 +22,7 @@ Four arms, at six file sizes, all in one run: a fresh layer and a
 on the same file held open.
 """
 
+import contextlib
 import os
 import sys
 import tempfile
@@ -45,7 +46,13 @@ def build(path: str, layers: int) -> None:
     layers costs, and real geometry would measure the data instead.
   """
   from osgeo import ogr, osr
-  if os.path.exists(path):
+  # ASKED FOR, NOT ASKED ABOUT. Two of these processes running at
+  # once both see the file, both remove it, and the second dies with
+  # FileNotFoundError before measuring anything -- which is the shape
+  # `test_nothing_asks_whether_a_file_exists_before_removing_it`
+  # scans this tree for, and which cost a coverage shard its whole run
+  # on 2026-08-28. Not caring is the only thing that fixes it.
+  with contextlib.suppress(FileNotFoundError):
     os.remove(path)
   data = ogr.GetDriverByName("GPKG").CreateDataSource(path)
   crs = osr.SpatialReference()

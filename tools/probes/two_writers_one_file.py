@@ -22,6 +22,7 @@ than in it. This project has already measured a file growing from
 the file HOLDS.
 """
 
+import contextlib
 import os
 import sys
 import time
@@ -60,7 +61,13 @@ def a_region_with_gaps(probe):
   from osgeo import ogr, osr
   from qgis.core import QgsProject, QgsVectorLayer
   path = probe.path("gappy_region.gpkg")
-  if os.path.exists(path):
+  # ASKED FOR, NOT ASKED ABOUT. Two of these processes running at
+  # once both see the file, both remove it, and the second dies with
+  # FileNotFoundError before measuring anything -- which is the shape
+  # `test_nothing_asks_whether_a_file_exists_before_removing_it`
+  # scans this tree for, and which cost a coverage shard its whole run
+  # on 2026-08-28. Not caring is the only thing that fixes it.
+  with contextlib.suppress(FileNotFoundError):
     os.remove(path)
   data = ogr.GetDriverByName("GPKG").CreateDataSource(path)
   crs = osr.SpatialReference()
