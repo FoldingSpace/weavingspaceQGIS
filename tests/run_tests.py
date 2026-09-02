@@ -7546,11 +7546,20 @@ def test_the_topology_tab_says_when_it_is_working():
     _settle(dlg)
     assert _wait_for_the_topology(dlg), \
       "PREMISE: the design built no topology at all"
-    _tick(200)
+    # STAGED, NOT ASSERTED, which this repair's own first draft got
+    # wrong: a queue made while a build runs is DEFERRED and re-queued
+    # at the landing, so waiting for an answer and then demanding
+    # quiet on the next line is a bet -- red twice in three runs of one
+    # process, on the premise rather than the subject. Waiting for the
+    # tab to actually go quiet closes the window; the assertion then
+    # names a genuine failure to settle rather than a race.
+    quiet_by = time.monotonic() + 90.0
+    while time.monotonic() < quiet_by and (
+        dlg._topology_task is not None or panel.working.text().strip()):
+      _tick(100)
     assert dlg._topology_task is None and not panel.working.text().strip(), (
-      "PREMISE: a build is still outstanding before this test has "
-      "asked for one, so the sentence it is about to read is somebody "
-      "else's")
+      "PREMISE: a build was still outstanding after ninety seconds, so "
+      "the sentence this test is about to read is somebody else's")
     # QUEUED, NOT LANDED: read it in the same breath as the request.
     dlg._queue_topology()
     assert panel.working.text().strip(), (
@@ -50906,6 +50915,39 @@ def test_the_documents_numbers_match_the_code():
     assert stated == ceiling, (
       f"the user guide says the catalogue runs to {said} ({stated}) "
       f"for a {family} and the code says {ceiling}")
+
+  # AND THE CHANGELOG IS THE SECOND DOCUMENT THAT STATES THIS FACT.
+  # (2026-09-01, closing what ROADMAP.md recorded rather than did.)
+  # One fact, two documents, one of them checked is exactly why the
+  # changelog went on saying a weave holds twenty-six after the guide
+  # had been corrected -- and `metadata.txt` is the most-read prose
+  # this project ships, being what QGIS's plugin manager displays and
+  # what the release page opens with.
+  # IT IS CHECKED WHERE IT SPEAKS AND NOT REQUIRED TO SPEAK, which is
+  # the difference between a gate and a demand for prose nobody wrote:
+  # the changelog is APPROVED text, approving it is the maintainer's
+  # act alone, and a check insisting on a sentence would be this suite
+  # dictating one. So a ceiling stated there must AGREE; a ceiling not
+  # stated there is not a fault.
+  # AND THE COUNT IS ASSERTED, because a check that examines nothing
+  # and a check that examines everything are the same green -- the
+  # guide's two are required above, so this can never fall to zero
+  # without the assertions there firing first.
+  examined = len(found)
+  changelog = read(os.path.join("weavingspace_qgis", "metadata.txt"))
+  for family, ceiling in (("weave", weave_ceiling),
+                          ("tiling", catalog.MAX_ELEMENTS_TILING)):
+    for said in re.findall(
+        rf"({spelled})(?:\s+elements)?\s+for\s+a\s+{family}", changelog):
+      stated = words.get(" ".join(said.split()))
+      examined += 1
+      assert stated == ceiling, (
+        f"the changelog says {said!r} ({stated}) for a {family} and "
+        f"the code says {ceiling}; that entry is what the plugin "
+        f"manager shows and what the release page opens with")
+  assert examined >= 2, (
+    f"only {examined} ceiling claim(s) were compared, so this check "
+    f"has stopped reaching the prose it names")
 
   # THE VENDORED COMMIT, and the gate that is supposed to compare it.
   with open(os.path.join(root, "weavingspace_qgis", "vendor",

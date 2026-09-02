@@ -2529,6 +2529,25 @@ MUTATIONS = [
        # mismatched pair, and the drop took both tables with nothing
        # put back. Restoring the old guard is the defect as it
        # shipped.
+       # IT SURVIVES SINCE 2026-09-01, AND THE THIRD READING IS THE
+       # RIGHT ONE. The axis is not weak and the mutation is not inert:
+       # the test has stopped REACHING this branch, because the same
+       # day's deferral gave the fact a second writer. A save owed a
+       # motif now queues an off-thread build and waits for it, so by
+       # the time the write runs the panel holds a FRESH topology and
+       # the staleness this test stages by hand has been replaced.
+       # MEASURED RATHER THAN REASONED: run the test unmutated with
+       # WEAVINGSPACE_ADOPT_DUMP=1 and the guard's own line,
+       # `TOPO-WRITE held-topology-is-of-another-design`, never
+       # appears -- while `TOPO-WRITE topology= True ...` appears four
+       # times, so the write is reached and this branch is not.
+       # WHAT IS OWED IS A RE-AIM, NOT A RETIREMENT, and the journey
+       # that still reaches it is nameable: a file carrying no unit
+       # table of ours is owed nothing, so no deferral runs and a stale
+       # pair can still arrive at the write. Staging that is the work,
+       # and it is on the owed list rather than done in a hurry --
+       # which is this project's own rule about deciding a survivor
+       # after the measurement rather than during it.
        old="""    if topology is not None and (
         held_dual is None or held_dual[0] != self._topology_stamp()):
       _dump("TOPO-WRITE", "held-topology-is-of-another-design")
