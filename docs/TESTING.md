@@ -4490,9 +4490,29 @@ THE PRODUCT WAS INNOCENT AND THE MECHANISM IS ORDINARY.
 already selected and are the smaller target -- and takes the NEAREST
 thing otherwise. So a point drawn on the class you want can land on
 the previous selection's own handle, or nearer a neighbour, and select
-nothing at all. Which vertex that is true of is decided by the drawn
-layout, and so by the fonts, which is why one runner sees it and one
-machine does not.
+nothing at all.
+
+**AND THE FONTS ARE NOT THE VARIABLE, WHICH THE PROBE MEASURED AND
+THIS PARAGRAPH USED TO GET WRONG.** It said which vertex that is true
+of "is decided by the drawn layout, and so by the fonts, which is why
+one runner sees it and one machine does not". Read off
+`tools/ci_probe_the_topology_aim.py` on 2026-09-02, across Linux
+4.0.0, Linux 4.0.3, Linux stable and macOS, every leg reports the SAME
+drawing at 420x462, the same `Sans Serif` at 9pt, class A with four
+vertices drawn and THREE a click would reach, and class B with eight
+of eight. Nothing about the layout varies -- offscreen supplies one
+font everywhere and the window's own minimum pins the drawing, which
+MAINTAINING.md already records at 1025x450.
+
+WHAT DOES VARY IS THE SELECTION AT THE MOMENT OF THE CLICK. The one
+unreachable seat is unreachable because a HANDLE sits over it, and
+handles sit on whatever is ALREADY SELECTED -- so the aim depends on
+what the panel was holding when the press arrived, which a build
+landing between the aim and the click changes. That is timing, and it
+is the mechanism the same day's other repairs closed. A uniform
+verdict across four platforms is usually the instrument; here it is
+the answer, and it says the explanation to keep is the one about
+handles rather than the one about fonts.
 
 **SO ASK THE VIEW'S OWN HIT TEST BEFORE CLICKING.** The aimer offers
 every candidate and keeps the first the product agrees about -- no

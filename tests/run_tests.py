@@ -5382,8 +5382,10 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
         than the nearest alone. A click on the class that is already
         selected moves no store, so a caller asking "does clicking a
         vertex select" has to be free to try more than the one that
-        happens to sit nearest the middle -- which is decided by the
-        drawn layout, and so by the fonts.
+        happens to sit nearest the middle -- which is decided by
+        WHATEVER IS ALREADY SELECTED, since handles are hit-tested
+        first and sit on the selection. Measured across four platforms
+        on 2026-09-02, the drawn layout itself does not vary at all.
 
     Returns:
       A QPoint, or None where the topology offers no such thing inside
@@ -5906,8 +5908,11 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     # topology matrix.
     # ...AND THE SEAT IS ONE THE PRODUCT AGREES OFFERS A HANDLE.
     # Taking the vertex nearest the middle is a guess about the drawn
-    # layout, and the layout depends on the fonts: the coverage leg
-    # failed this premise on 2026-09-02 with the selection intact --
+    # layout -- and the layout is the SAME on every platform, measured
+    # 2026-09-02 at 420x462 with the same reachability on all four
+    # legs, so what varies is the SELECTION a handle sits on. The
+    # coverage leg failed this premise on 2026-09-02 with the
+    # selection intact --
     # `('vertex', 'A')`, no build running -- and no handle under it,
     # while this machine passes every time. A vertex carries a nudge
     # handle and, where the design gives a push somewhere to go, a
@@ -10412,14 +10417,23 @@ def test_several_classes_can_be_moved_together():
     on whatever is already selected and are the smaller target -- and
     then takes the NEAREST thing, so a point drawn on this class can
     land on the previous selection's handle, or nearer a neighbour,
-    and select nothing at all. Which of a class's vertices that
-    happens to be true of is decided by the drawn layout, and so by
-    the fonts: measured 2026-09-01, this test passed on this Mac every
-    time and failed on one Linux runner with the selection left where
-    the first click put it. The candidates are offered in turn and the
-    first one the view agrees about is returned, so a fixture that
-    cannot aim says so through its caller's premise rather than
-    reporting the product as broken.
+    and select nothing at all. Measured 2026-09-01, this test passed
+    on this Mac every time and failed on one Linux runner with the
+    selection left where the first click put it. The candidates are
+    offered in turn and the first one the view agrees about is
+    returned, so a fixture that cannot aim says so through its
+    caller's premise rather than reporting the product as broken.
+
+    AND THE FONTS ARE NOT THE VARIABLE, which this docstring asserted
+    until the CI probe answered. `tools/ci_probe_the_topology_aim.py`
+    reports the SAME drawing on Linux 4.0.0, Linux 4.0.3, Linux stable
+    and macOS -- 420x462, `Sans Serif` at 9pt, class A four drawn and
+    THREE reachable, class B eight of eight, both classes held. The
+    one unreachable seat has a HANDLE over it, and handles sit on
+    whatever is already selected, so what differs between runs is the
+    SELECTION at the moment of the press rather than where anything is
+    drawn. A cause named by reading reads exactly like one somebody
+    proved, and this one had reached three documents.
     """
     topology = view._drawn()
     if topology is None:
