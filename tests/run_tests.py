@@ -39377,6 +39377,133 @@ def test_the_saves_count_is_asked_of_the_file():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_records_region_and_its_crs_name_one_dataset():
+  """The system a record names belongs to the region it names.
+
+  `WORKING_STATE_EDGES`' own comment says `region_crs` "is carried
+  wherever `region` is carried and asked for nowhere else". It was
+  not: `_stamp_working_state` carried the design and the two edges,
+  and `region_crs` fell through to the live reading. The switch-out
+  stamp hands over the OUTGOING dataset's source, precisely because
+  the chooser already holds the incoming one, so that writer took
+  `region` from the dataset being left and `region_crs` from the one
+  being arrived at.
+
+  WHAT IT COST. Glance at another layer in another system and come
+  back to your map through the group chooser: the group's record then
+  says alpha's source beside beta's authid, the Save carries both into
+  the file, and `_wear_the_recorded_crs` FORCES that system onto a
+  region which declares its own correctly -- so the recipient's region
+  lands a long way from its own tiles. Found 2026-09-02 by two hunts
+  independently, from opposite directions, and measured here by
+  reading the group's own record at each step of the journey.
+
+  BOTH ANSWERS ARE ASSERTED, and the second is what stops a lazy
+  repair. Simply not writing `region_crs` would satisfy the first arm
+  and destroy the reason the key exists: a CRS a person ASSIGNED lives
+  on the layer and not in its source string, so a recovery rebuilt
+  from the string alone brings the region back in the file's own
+  coordinates. The second arm assigns one and requires it to travel.
+
+  Regression: a record could name one dataset's region beside another
+  dataset's coordinate system, and the file inherited both. [mutation]
+  """
+  from qgis.core import QgsCoordinateReferenceSystem
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog, NEW_GROUP_LABEL
+  folder = tempfile.mkdtemp(prefix="ws_region_crs_")
+  other = "EPSG:2193"
+
+  def drive(name, assign_to_alpha, glance):
+    """Save a map, optionally after a look at a second dataset.
+
+    Args:
+      name: names the arm and its own file.
+      assign_to_alpha: an authid to assign to the map's OWN region
+        before anything is drawn, or None to leave it declaring its
+        own; this is the ordinary act `region_crs` exists for.
+      glance: True to point the region chooser at a second dataset in
+        another system and come back through the GROUP chooser, which
+        is the control a person uses to return to a map.
+
+    Returns:
+      (the file's `region`, the file's `region_crs`).
+    """
+    path = os.path.join(folder, f"{name}.gpkg")
+    alpha = make_region_layer()
+    alpha.setName("alpha")
+    if assign_to_alpha:
+      alpha.setCrs(QgsCoordinateReferenceSystem(assign_to_alpha))
+    QgsProject.instance().addMapLayer(alpha)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(alpha)
+      _tick(300)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+      if glance:
+        beta = make_region_layer(origin=(500000, 500000))
+        beta.setName("beta")
+        beta.setCrs(QgsCoordinateReferenceSystem(other))
+        QgsProject.instance().addMapLayer(beta)
+        assert beta.crs().authid() == other, \
+          "PREMISE: the second dataset did not take the assigned system"
+        assert beta.crs().authid() != alpha.crs().authid(), \
+          "PREMISE: the two datasets share a system, so a record "\
+          "carrying the wrong one would be indistinguishable"
+        dlg.layer_combo.setLayer(beta)
+        _tick(400)
+        chosen = False
+        for index in range(dlg.group_combo.count()):
+          if dlg.group_combo.itemText(index) != NEW_GROUP_LABEL:
+            dlg.group_combo.setCurrentIndex(index)
+            dlg.group_combo.activated.emit(index)
+            chosen = True
+            break
+        assert chosen, \
+          "PREMISE: the chooser offers no group to come back to"
+        _tick(400)
+      assert press_save(dlg, path), "the second save was refused"
+      record = bridge.read_working_state(path) or {}
+      return record.get("region"), record.get("region_crs")
+    finally:
+      dlg.close()
+      QgsProject.instance().clear()
+      _tick(200)
+
+  try:
+    # ---- THE JOURNEY: a look at another dataset, and back.
+    region, crs = drive("returned", assign_to_alpha=None, glance=True)
+    assert region and "3857" in str(region), (
+      f"PREMISE: the file does not name alpha's own source, so this "
+      f"says nothing about which dataset's system travelled: {region!r}")
+    assert crs != other, (
+      f"the file's record names alpha's region beside {crs}, which is "
+      f"the system of the dataset merely glanced at -- and "
+      f"_wear_the_recorded_crs forces it onto a region that declares "
+      f"its own correctly")
+    assert crs == "EPSG:3857", (
+      f"the file's record names alpha's region beside {crs!r} rather "
+      f"than alpha's own system")
+    # ---- AND THE REASON THE KEY EXISTS: a system somebody ASSIGNED
+    # lives on the layer and not in the source string, so it must
+    # still travel. A repair that stopped writing the key would pass
+    # the arm above and lose this.
+    _region, assigned = drive("assigned", assign_to_alpha=other,
+                              glance=False)
+    assert assigned == other, (
+      f"a system the person assigned to their own region did not "
+      f"reach the file: the record says {assigned!r} where the layer "
+      f"said {other}, so a recovery rebuilt from the source string "
+      f"brings the region back in the file's own coordinates")
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_the_overwrite_question_is_about_what_a_file_holds():
   """A file with no map in it is nobody's, and is not asked about.
 
@@ -83825,6 +83952,8 @@ def main():
         test_the_saves_count_is_asked_of_the_file)
   check("the overwrite question is about what a file holds",
         test_the_overwrite_question_is_about_what_a_file_holds)
+  check("a record's region and its crs name one dataset",
+        test_a_records_region_and_its_crs_name_one_dataset)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

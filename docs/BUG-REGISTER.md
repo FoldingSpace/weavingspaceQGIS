@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-504 defect(s) with a regression test.
+505 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -482,6 +482,8 @@ there is no separate list to remember.
   guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
 - **a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26.**  
   guarded by `test_a_recoded_category_reaches_the_legend`
+- **a record could name one dataset's region beside another dataset's coordinate system, and the file inherited both.**  
+  guarded by `test_a_records_region_and_its_crs_name_one_dataset`
 - **opening a saved map and pressing Save deleted the motif and dual it was written with.**  
   guarded by `test_a_reopen_does_not_take_the_motif_out_of_the_file`
 - **closing the plugin window and opening it again (or reopening a saved project) reverted every hand-chosen variable, style, ramp and class count to the plugin's default cycle while the layers still drew the chosen design, and the next Generate then repainted the map to the wrong variables -- a categorical element re-tiled as a quantitative one. Found 2026-08-26 by the consistency sweep's boundary-crossing oracle.**  
@@ -1062,7 +1064,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 177
+- the mutation campaign: 178
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

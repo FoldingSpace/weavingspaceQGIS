@@ -7718,8 +7718,15 @@ MUTATIONS = [
   dict(name="the-record-describes-the-map-that-was-tiled", file=DIALOG,
        # RE-ANCHORED 2026-08-27: the three keys are named by
        # WORKING_STATE_EDGES now, so the literal they were spelled
-       # with no longer appears here.
-       old="""      for key in ("design",) + WORKING_STATE_EDGES:""",
+       # with no longer appears here. RE-ANCHORED AGAIN 2026-09-02,
+       # when `region_crs` joined the list, and its sibling
+       # `a-regions-system-travels-with-the-region` now stands on the
+       # same line for a different claim: this one says the carry
+       # happens at all, that one says the system travels with the
+       # region it belongs to. One entry per axis, as this catalogue
+       # asks, rather than one mutation proving whichever assertion
+       # fires first.
+       old="""      for key in ("design", "region_crs") + WORKING_STATE_EDGES:""",
        new="""      for key in ():  # mutation: the record follows the live controls""",
        test="test_an_output_group_carries_the_whole_working_state",
        why="the design half must come from the launch snapshot. Read "
@@ -9200,6 +9207,26 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="a-regions-system-travels-with-the-region", file=DIALOG,
+       # ANCHORED ON THE CARRY LIST rather than on the switch-out
+       # stamp's launch state, because this line is where "which
+       # moment is this key about" is DECIDED for every writer that
+       # stands away from a landing. The launch state covers the first
+       # stamp, where there is nothing to carry, and is kept beside it
+       # as the other half rather than as a second answer.
+       old="""      for key in ("design", "region_crs") + WORKING_STATE_EDGES:""",
+       new="""      for key in ("design",) + WORKING_STATE_EDGES:  # mutation""",
+       test="test_a_records_region_and_its_crs_name_one_dataset",
+       why="a record naming one dataset's region beside ANOTHER "
+           "dataset's coordinate system, and the file inheriting both. "
+           "The switch-out stamp hands over the outgoing dataset's "
+           "source precisely because the chooser already holds the "
+           "incoming one, so leaving `region_crs` to the live reading "
+           "takes it from the dataset being arrived at -- and "
+           "`_wear_the_recorded_crs` then forces that system onto a "
+           "region which declares its own correctly, landing it a "
+           "long way from its own tiles. Found 2026-09-02 by two "
+           "hunts independently, from opposite directions"),
   dict(name="an-empty-shell-is-not-somebody-elses-file", file=DIALOG,
        old="""    if bridge.gpkg_holds_nothing(path):
       return True""",

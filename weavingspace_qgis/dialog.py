@@ -331,6 +331,13 @@ WORKING_STATE_ELEMENT = (
 # The preview's context shells are out for the same reason.
 WORKING_STATE_EDGES = ("output_path", "region")
 # `region_crs` rides beside `region` and is deliberately NOT an edge.
+# THAT SENTENCE WAS A CLAIM RATHER THAN A DESCRIPTION UNTIL 2026-09-02,
+# which is why it is the first thing said here. Not being an edge is
+# right; what did not follow is that anything carried it. Every writer
+# standing away from a landing carried the edges and left this to the
+# live reading, so a record could name one dataset's region beside
+# another's system. `_stamp_working_state` carries it now, explicitly,
+# and the switch-out stamp hands it over from the outgoing layer.
 # The edges are the two facts a LANDING alone may move; the system the
 # region was drawn in is a property OF that region rather than a third
 # thing to decide, so it is carried wherever `region` is carried and
@@ -4449,8 +4456,15 @@ class WeavingSpaceDialog(QDialog):
                                 for mark in stamps):
           _dump("SWITCH", "no-stamp-that-group-is-another-datasets")
         else:
+          # BOTH HALVES OF ONE FACT, from the layer that has them. The
+          # carry in `_stamp_working_state` covers every group that
+          # already has a record; this covers the first stamp, where
+          # there is nothing to carry and `region_crs` would otherwise
+          # be read live -- from the dataset being arrived at, while
+          # `region` names the one being left.
           self._stamp_working_state(
-            group, launch_state={"region": outgoing.source()})
+            group, launch_state={"region": outgoing.source(),
+                                 "region_crs": outgoing.crs().authid()})
       except Exception:
         _dump("STATE", "switch-stamp-failed",
               traceback.format_exc(limit=3))
@@ -19186,7 +19200,30 @@ class WeavingSpaceDialog(QDialog):
       carried = self._read_working_state(group) or {}
       if isinstance(launch_state, dict):
         carried = {**carried, **launch_state}
-      for key in ("design",) + WORKING_STATE_EDGES:
+      # `region_crs` TRAVELS WITH `region`, and until 2026-09-02 it
+      # said so and did not. It is not an edge -- the constant's own
+      # comment is right about that, since it is a property OF the
+      # region rather than a third thing a landing decides -- but that
+      # is an argument for carrying it BESIDE `region` here, not for
+      # leaving it to fall through to the live reading in
+      # `_capture_working_state`.
+      # WHAT IT COST: the switch-out stamp hands over the OUTGOING
+      # dataset's source, precisely because the chooser already holds
+      # the incoming one, so that writer took `region` from the
+      # dataset being left and `region_crs` from the dataset being
+      # arrived at. Glance at another layer in another system and come
+      # back to your map through the group chooser, and the record
+      # says alpha's source beside beta's authid; the Save carries
+      # both into the file, and `_wear_the_recorded_crs` then FORCES
+      # that system onto a region that declares its own correctly.
+      # Measured 2026-09-02 by reading the group's own record at each
+      # step of that journey -- EPSG:3857 after the first save,
+      # EPSG:2193 after coming back -- and found the same day by two
+      # hunts independently, from opposite directions.
+      # OF ONE FACT WRITTEN TWICE, WHICH WRITER HAD A REASON: `region`
+      # is handed over deliberately, with the reason at its own call
+      # site; `region_crs` was whatever the chooser happened to hold.
+      for key in ("design", "region_crs") + WORKING_STATE_EDGES:
         if key in carried:
           record[key] = carried[key]
       # WHICH DATASET THIS RECORD NOW CLAIMS, and where that claim

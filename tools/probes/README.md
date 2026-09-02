@@ -71,3 +71,11 @@ else's map and a file that is not a GeoPackage at all must both still
 be. It is also where the obvious composition was measured wrong --
 GDAL returns None for a zero-layer GeoPackage exactly as it does for a
 text file, so "it opens and holds no tables" cannot separate them.
+
+**`which_crs_the_record_carries.py`** reads the GROUP'S OWN record at
+each step of a journey rather than the file at the end of it, which is
+where a region and its coordinate system first come to name two
+different datasets. Two arms: draw and save, against draw, save,
+glance at a second dataset in another system through the region
+chooser, and come back through the GROUP chooser. Run it after any
+change to what `_stamp_working_state` carries.
