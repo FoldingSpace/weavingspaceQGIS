@@ -9432,6 +9432,80 @@ MUTATIONS = [
            "carries the filter onto the new layer deliberately -- the "
            "same table went to ZERO, the filter selecting nothing "
            "among tiles it was never written for"),
+  dict(name="an-edits-arguments-reach-the-library", file=TOPOLOGY_EDITS,
+       # THIS MODULE'S OWN RECORDED FAILURE MODE, which is why the
+       # mutation is a dropped `**args` rather than a changed number:
+       # the library FILTERS supplied kwargs to the ones its function
+       # accepts, so a name it does not know is DROPPED rather than
+       # refused, and the unchanged unit draws perfectly -- reading
+       # exactly like a manipulation that worked.
+       old="""      moved = current.transform_geometry(True, True, selector, how, **args)""",
+       new="""      moved = current.transform_geometry(True, True, selector, how)""",
+       test="test_the_symmetries_are_drawn_and_gate_what_cannot_move",
+       why="every manipulation silently doing nothing, while the "
+           "symmetry gate goes on agreeing with it -- because the "
+           "gate's own guard runs ONE WAY, requiring only that a class "
+           "the symmetry holds does not move. A push dead everywhere "
+           "satisfies that at every class. Measured 2026-09-02: laves "
+           "A, laves B and archimedean A all 0.0000 of the unit "
+           "against the control's 0.1027, with every assertion in the "
+           "test still passing"),
+  dict(name="a-committed-gesture-discards-the-held-landing",
+       file=TOPOLOGY_TAB,
+       old="""    if held is None or len(self._edits) != edits_before:""",
+       new="""    if held is None:  # mutation: apply it even where an edit committed""",
+       test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
+       why="a build held through a gesture being applied even where "
+           "the drop COMMITTED an edit. That edit makes the dialog "
+           "chain and land again within the tick, so the held landing "
+           "draws the older design for a moment first -- a flicker, "
+           "and a tab briefly showing a design the person's own edit "
+           "has already replaced. Its sibling half, applying the "
+           "landing where the gesture asked for nothing, is asserted "
+           "in the same test. Measured 2026-09-02 with a dump inside "
+           "the settler: the mutated arm printed 'applying the held "
+           "landing' where the control printed none, and every "
+           "assertion the test then had still passed, because "
+           "applying a held landing does not move the edit count"),
+  dict(name="a-pumping-load-takes-its-buttons-down-too", file=DIALOG,
+       # THE LOAD HALF, WHICH HAD NOTHING. Its sibling
+       # `a-pumping-save-takes-its-buttons-down` was NARROWED on
+       # 2026-09-01 with the note that "the RESUME was given the same
+       # pair for the same reason -- so the bare two lines match
+       # twice", and nothing was written for the resume when that
+       # happened. Anchored with the line below, since the take-down
+       # call now reads identically at both acts.
+       old="""    was_enabled = self._take_the_acting_controls_down()
+    self._resuming_now = True""",
+       new="""    was_enabled = {}  # mutation: leave the buttons live while it opens
+    self._resuming_now = True""",
+       test="test_a_save_and_a_load_count_their_layers_on_the_bar",
+       why="Save, Generate and Load staying live for the whole of a "
+           "resume, which turns the event loop once per layer and is "
+           "over a hundred seconds at 128 elements. A press delivered "
+           "by the resume's own pump lands in a half-opened map. "
+           "Measured 2026-09-02 by deleting the disabling: six "
+           "samples, every one with the controls live, and the guard "
+           "went on passing because it asserted only that they came "
+           "BACK where they were found -- which a load that never "
+           "took them down satisfies trivially"),
+  dict(name="tiling-with-the-dual-is-a-different-map", file=DIALOG,
+       old="""      self.opt_map_dual.isChecked(),
+      self.gpkg_widget.filePath().strip() or None,""",
+       new="""      self.gpkg_widget.filePath().strip() or None,""",
+       test="test_the_dual_can_be_the_design_the_map_is_tiled_with",
+       why="ticking 'tile with the dual' on a map already drawn "
+           "leaving that map exactly as it was, with nothing said. "
+           "Without the term the signature does not move, the run "
+           "takes the restyle fast path, and a restyle re-seeds "
+           "renderers over the tiles that are already there -- so the "
+           "control claims one map and the canvas holds another. "
+           "Measured 2026-09-02: 312 features over 19,500,000 map "
+           "units before and after, against 298 over 14,075,687 when "
+           "the term is there. The term's own comment predicted "
+           "exactly this and nothing in the suite or the catalogue "
+           "asked it, because the only test naming the control ticked "
+           "it BEFORE its single Generate"),
   dict(name="a-filter-taken-off-for-the-write-goes-back", file=DIALOG,
        # THE OTHER HALF OF THE SAME PROMISE, and it needs its own
        # entry because the entry above proves only that the filter

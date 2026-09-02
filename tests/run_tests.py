@@ -6009,6 +6009,19 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     assert len(panel.edits()) == edits_before + 1, (
       f"the drag committed no edit: {edits_before} before and "
       f"{len(panel.edits())} after, so this arm measured nothing")
+    # ...AND THE HELD LANDING IS DISCARDED, which is the half of the
+    # ruling this arm exists for and which nothing here asked until
+    # 2026-09-02. An edit makes the dialog chain and land again within
+    # the tick, so drawing the older design first is a flicker -- and
+    # applying a held landing does NOT change the edit count, so the
+    # assertion above cannot see it. Measured by mutating the discard
+    # to `if held is None:` and dumping inside the settler: arm 1
+    # printed "applying the held landing" where the control printed
+    # none, and every assertion in this test still passed.
+    assert panel._topology is not other_topology, (
+      "a gesture that COMMITTED an edit had the held landing applied "
+      "anyway, so the tab drew the design the build carried rather "
+      "than the one the person's own edit just chained from")
 
     # ---- THE ARM THAT COMMITS NOTHING: the held landing is what draws.
     _settle_topology(dlg, seconds=40)
@@ -10007,6 +10020,47 @@ def test_the_dual_can_be_the_design_the_map_is_tiled_with():
 
     plain = dlg._build_unit()
     assert plain is not None, "PREMISE: the design itself did not build"
+
+    def drawn_now():
+      """What the map holds right now, as a count and as ground.
+
+      Returns:
+        `(features, area)` summed over every element layer in force.
+        BOTH, because either alone can coincide across two designs
+        while the other moves -- and the pair is what the harm was
+        measured in.
+      """
+      features, area = 0, 0.0
+      for layer_id in dlg._element_layer_ids.values():
+        element = QgsProject.instance().mapLayer(layer_id)
+        if element is None:
+          continue
+        features += element.featureCount()
+        for feature in element.getFeatures():
+          shape = feature.geometry()
+          if shape is not None and not shape.isNull():
+            area += shape.area()
+      return features, round(area, 3)
+
+    # ---- A MAP ALREADY DRAWN IS RE-TILED WHEN THE DUAL IS TICKED
+    # THE ORDER IS THE WHOLE OF THIS ARM. Ticking the dual before the
+    # only Generate never asks `_geometry_signature` to notice a
+    # change, so the term whose own comment says "without this term,
+    # ticking the box would take the restyle fast path and every
+    # element layer would come back byte for byte as it was" was
+    # covered by nothing at all -- no test named the control and no
+    # catalogue entry stood on the term. Measured 2026-09-02: with the
+    # term deleted the signature did not move and the map held 312
+    # features over 19,500,000 map units before and after, so the
+    # control claimed one map while the canvas held another.
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, \
+      "PREMISE: the plain design drew nothing, so there is no map for " \
+      "ticking the dual to change"
+    before_map = drawn_now()
+    assert before_map[0] > 0, \
+      "PREMISE: the plain design drew no tiles at all"
+
     dlg.opt_map_dual.setChecked(True)
     _tick(200)
     duals = dlg._build_unit()
@@ -10035,6 +10089,15 @@ def test_the_dual_can_be_the_design_the_map_is_tiled_with():
     assert drawn > 0, (
       "the map was tiled with the dual and holds no tiles: a design "
       "that cannot cover a region is not a design")
+    after_map = drawn_now()
+    assert after_map != before_map, (
+      f"a map already on screen did not move when the dual was ticked "
+      f"and Generate pressed: {after_map[0]} features over "
+      f"{after_map[1]} map units, both times. Ticking the box takes "
+      f"the restyle fast path unless `_geometry_signature` carries it, "
+      f"and a restyle re-seeds renderers over the tiles that are "
+      f"already there -- so the control says one map and the canvas "
+      f"holds another, with nothing said")
 
     # ---- AND THE RECORD SAYS SO
     record = dlg._capture_working_state()
@@ -10134,6 +10197,17 @@ def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
   # rather than of the dialog, because this is a claim about the
   # mathematics and not about a widget.
   held = []
+  # ...AND THE CLASSES IT REALLY MOVES, which is the control this
+  # sweep needs and did not have. The assertion below runs ONE WAY --
+  # a held class must not move -- so a push that moves nothing
+  # ANYWHERE satisfies it at every class, and gate and manipulation
+  # agree about a dead control. Measured 2026-09-02 by dropping
+  # `**args` from the library call in `topology_edits.apply`, which is
+  # that module's own recorded failure mode since the library filters
+  # supplied kwargs and DROPS a name it does not accept rather than
+  # refusing it: laves A 0.0000, laves B 0.0000, archimedean A 0.0000
+  # against the control's 0.1027, and every assertion here passed.
+  moving = []
   for family, n, in (("laves 3.3.4.3.4", 4), ("archimedean 4.8.8", 2)):
     named = [k for k in catalog.TILINGS_BY_N.get(n, {})
              if k.startswith(family)]
@@ -10154,13 +10228,23 @@ def test_the_symmetries_are_drawn_and_gate_what_cannot_move():
           f"it, and a push moved {moved:.4f} of the unit -- so greying "
           f"the control would take away one that works")
         held.append((family, label))
-      # THE OTHER DIRECTION IS NOT ASSERTED, deliberately: a free
-      # direction does not promise this construction will use it, and
-      # `laves 3.3.4.3.4` class B has one and still yields nothing.
+      elif moved > 1e-6:
+        moving.append((family, label, round(moved, 4)))
+      # THE OTHER DIRECTION IS NOT ASSERTED PER CLASS, deliberately: a
+      # free direction does not promise this construction will use it,
+      # and `laves 3.3.4.3.4` class B has one and still yields
+      # nothing. What IS asserted is that SOMETHING moves, below.
   assert held, (
     "PREMISE: no class in either design is held by its symmetry, so "
     "the gate below has no case to act on and this test would pass "
     "whatever it did")
+  assert moving, (
+    f"the push moved nothing on any class of either design, so the "
+    f"agreement asserted above is between a gate and a control that "
+    f"does nothing at all -- which satisfies every 'held class does "
+    f"not move' assertion by construction. Held: {held!r}. The figure "
+    f"this test was written against is 0.1027 of the unit on "
+    f"`archimedean 4.8.8` class A")
 
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -39047,14 +39131,54 @@ def test_a_save_and_a_load_count_their_layers_on_the_bar():
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   seen = {"save": [], "load": []}
+  # ...AND WHAT A PERSON COULD PRESS WHILE IT RAN, sampled by the same
+  # ticker in the same window. Both acts turn the event loop, which is
+  # exactly what would otherwise let somebody press into a half-written
+  # or half-opened map, so the disabling and the pump are one decision
+  # (maintainer's decision 3, 2026-08-29).
+  # IT IS A SEPARATE STORE RATHER THAN A WIDER TUPLE, because the bar's
+  # samples are unpacked as a triple in three places below.
+  live = {"save": [], "load": []}
 
   def watch(which):
-    """Record the bar's text and range while an act is running."""
+    """Record the bar's text and range while an act is running.
+
+    Args:
+      which: "save" or "load", naming both the act and which dialog to
+        read -- the save runs in `dlg` and the load in `opener`.
+
+    Returns:
+      A callable for the ticker. It reads the acting controls beside
+      the bar because ASSERTING THEY COME BACK IS NOT ASSERTING THEY
+      WENT DOWN: a load that never touched them satisfies "back where
+      they were found" trivially, which is how the load half of that
+      promise came to be guarded by nothing. Measured 2026-09-02 by
+      deleting the resume's own disabling: six samples, every one with
+      Save and Generate LIVE, and the test went on passing.
+    """
     def look():
-      bar = dlg.progress if which == "save" else opener.progress
+      window = dlg if which == "save" else opener
+      bar = window.progress
       if bar.isVisible() or not bar.isHidden():
         seen[which].append((bar.format(), bar.maximum(), bar.value()))
+        live[which].append((window.save_button.isEnabled(),
+                            window.generate_btn.isEnabled(),
+                            window.load_button.isEnabled()))
     return look
+
+  def nothing_was_pressable(which):
+    """Say which acting controls were live while an act ran.
+
+    Args:
+      which: "save" or "load".
+
+    Returns:
+      A list of the samples in which any acting control was still
+      enabled, empty where none was. Named as its own inverse -- show
+      me anything still pressable -- because a count of samples taken
+      says nothing about what they held.
+    """
+    return [state for state in live[which] if any(state)]
 
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -39069,7 +39193,8 @@ def test_a_save_and_a_load_count_their_layers_on_the_bar():
       _tick(400)
       _generate_and_wait(dlg)
       assert dlg._element_layer_ids, "PREMISE: the run drew nothing"
-      before = (dlg.save_button.isEnabled(), dlg.generate_btn.isEnabled())
+      before = (dlg.save_button.isEnabled(), dlg.generate_btn.isEnabled(),
+                dlg.load_button.isEnabled())
       ticker = QTimer()
       ticker.setInterval(0)
       ticker.timeout.connect(watch("save"))
@@ -39077,8 +39202,17 @@ def test_a_save_and_a_load_count_their_layers_on_the_bar():
       dlg.gpkg_widget.setFilePath(path)
       assert press_save(dlg), "PREMISE: the save wrote nothing"
       ticker.stop()
+      assert live["save"], (
+        "PREMISE: the acting controls were never sampled during the "
+        "save, so nothing below is about what a person could press")
+      assert not nothing_was_pressable("save"), (
+        f"the save turned the event loop with an acting control still "
+        f"live: {nothing_was_pressable('save')[:3]} as "
+        f"(save, generate, load). A click delivered by the write's own "
+        f"pump lands in a half-written file")
       assert (dlg.save_button.isEnabled(),
-              dlg.generate_btn.isEnabled()) == before, (
+              dlg.generate_btn.isEnabled(),
+              dlg.load_button.isEnabled()) == before, (
         "the save left its buttons somewhere other than where it "
         "found them")
     finally:
@@ -39091,7 +39225,8 @@ def test_a_save_and_a_load_count_their_layers_on_the_bar():
     try:
       opener.live_check.setChecked(False)
       before = (opener.save_button.isEnabled(),
-                opener.generate_btn.isEnabled())
+                opener.generate_btn.isEnabled(),
+                opener.load_button.isEnabled())
       ticker = QTimer()
       ticker.setInterval(0)
       ticker.timeout.connect(watch("load"))
@@ -39101,8 +39236,18 @@ def test_a_save_and_a_load_count_their_layers_on_the_bar():
       _settle(opener, seconds=60)
       ticker.stop()
       assert opener._element_layer_ids, "PREMISE: nothing came back"
+      assert live["load"], (
+        "PREMISE: the acting controls were never sampled during the "
+        "load, so nothing below is about what a person could press")
+      assert not nothing_was_pressable("load"), (
+        f"the load turned the event loop with an acting control still "
+        f"live: {nothing_was_pressable('load')[:3]} as "
+        f"(save, generate, load). Opening a map is over a hundred "
+        f"seconds at 128 elements, and a press landing in a half-opened "
+        f"map is what the disabling exists for")
       assert (opener.save_button.isEnabled(),
-              opener.generate_btn.isEnabled()) == before, (
+              opener.generate_btn.isEnabled(),
+              opener.load_button.isEnabled()) == before, (
         "the load left its buttons somewhere other than where it "
         "found them")
     finally:
