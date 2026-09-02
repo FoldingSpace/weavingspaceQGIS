@@ -6472,3 +6472,61 @@ here, and the decision to add one is the maintainer's. Recorded
   probe had segfaulted: the status belonged to `tail`. That is the
   gate-behind-a-pipe fault arriving at a PROBE rather than a gate, and
   the sentinel is what tells the two apart when the status cannot.
+- **A DEPENDENCY THAT ANSWERS BY RETURN VALUE CANNOT BE CAUGHT BY
+  `except`.** (2026-09-02, and it was the sharpest defect of the
+  campaign's first day.) `write_gpkg_layers` wrapped its commit in a
+  `try`, with a comment explaining that a commit which will not go
+  through leaves the file as it was. OGR does not raise there: it
+  returns an `OGRErr`, and the code took the answer on trust. So with
+  a shared read transaction open on the file -- a colleague, a script,
+  a sync client, or QGIS itself elsewhere -- every table went in, the
+  COMMIT was refused, `written` still named all of them, and the
+  caller repointed every element layer at a table that had never been
+  created. The person was told "Saved" and the map on screen emptied.
+  THE ROLLBACK BRANCH BESIDE IT ALREADY KNEW, which is the tell worth
+  copying: it clears `written` and says at the line that otherwise
+  "the caller would repoint layers at tables that went away". When one
+  arm of a pair carries that sentence and the other does not, the
+  other is the defect.
+  AND THE TWO WAYS A LOCK CAN BITE ARE NOT THE SAME. A WRITE lock held
+  by another process fails at the first feature, which this code
+  reports correctly; only a SHARED READ transaction lets every table
+  through and refuses the commit. The first route measured came back
+  honest, and stopping there would have filed the claim as not
+  reproducing.
+- **A WAIT ONLY AN OUTER FRAME CAN END IS NOT A WAIT.** (Same day.)
+  `_save_the_map` turns the event loop once per element behind its
+  progress bar, so a close or a quit arriving during a write is
+  delivered by THAT WRITE'S OWN PUMP -- and the hold it reaches then
+  runs NESTED INSIDE the write, spinning until `_saving_now` clears,
+  which only the suspended frame beneath it can do. The window sat
+  frozen for the whole 180-second ceiling with its bar on "preparing
+  to save", and its only control threw the map away. Measured through
+  both doors with the ceiling shortened and said so: 5.1s against a
+  control's 0.16s.
+  THE QUESTION TO ASK OF ANY WAIT: which frame clears the thing I am
+  waiting for, and can it run while I spin? Where the answer is no,
+  the honest exit is the one the stack already guarantees -- here the
+  save lands the moment the hold returns, so the act is let through
+  and the map is written.
+- **AN "EMPTY" FILE IS A QUESTION ABOUT CONTENT, NOT ABOUT BYTES.**
+  (Same day.) The ownership question decided whether a GeoPackage was
+  somebody else's with `os.path.getsize(path) > 0`, and a data source
+  OGR has created and nothing has written to is 65,536 bytes of header
+  holding no layer. So a stub left by a cancelled or failed first save
+  read as a stranger's work -- and the answer is CACHED for the
+  session, so every remover scoped to our own files stayed off.
+  Measured with a control: after the stub, shrinking a four-element
+  design to two left two elements' tables, columns and VALUES in the
+  file a colleague receives. It asks `bridge.gpkg_tables` now.
+- **A TABLE KEYED BY A FAMILY DOES NOT GROW WITH THE FAMILY.** (Same
+  day.) `_drag_moved` answers "did this gesture ask for anything" per
+  manipulation, because each has its own idea of nothing -- zero
+  travel for a nudge, half a degree for a rotation, one per cent for a
+  scale. It was written when a vertex carried ONE handle; the push
+  rail arrived the next day under the ruling that every manipulation
+  is reachable on the drawing, and the fall-through answered False for
+  it. A drag somebody watched move under their hand was thrown away in
+  silence. WHEN A HANDLE LIST, A VERB LIST OR A MODE LIST GAINS A
+  MEMBER, GREP EVERY TABLE KEYED BY THAT LIST -- and guard the SHAPE,
+  so the next member is covered by whoever adds it.

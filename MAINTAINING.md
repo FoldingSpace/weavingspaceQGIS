@@ -777,6 +777,70 @@ save can be pressed while Generate is already refusing for its own
 reasons. The bar comes down in a `finally`, the write raising
 included.
 
+## The save's three doors, after 2026-09-02
+
+Seven defects were repaired in one campaign day and five of them were
+in the save. What follows is what a maintainer needs to hold in their
+head about it, because the pieces only make sense together.
+
+**A CANCEL HAS THREE MOMENTS AND THEY ARE ANSWERED DIFFERENTLY.**
+Before the write opens the file, dropping the intent IS the rollback.
+Between tables, `write_gpkg_layers` reads `_save_cancelled` and undoes
+the transaction. AFTER the last table -- during the repointing or the
+styling, which is 13.0s of a 256-element save -- nothing reads it at
+all, so what matters there is that the flag does not survive: it is
+cleared where the act ENDS, in the same `finally` as `_saving_now`.
+
+**AND THE HOLD DECLINES WHERE IT CANNOT BE SERVED.** The write turns
+the event loop once per element, so a close or a quit arriving during
+one is delivered by THAT WRITE'S OWN PUMP and the hold would run
+nested inside it -- waiting for `_saving_now`, which only the
+suspended frame beneath can clear. It returned at the ceiling rather
+than at the save, with the bar frozen and the only button on the
+window throwing the map away. `_hold_until_the_save_lands` returns
+True at once where `_saving_now` is set: the save is running, nothing
+is lost, and it lands the moment the hold returns.
+WHAT THAT MOVES rather than removes is where a mid-write cancel is
+reachable. A save that is merely PROMISED still opens the window, the
+run lands inside that window's own pump, and the write happens there
+-- so the button is live exactly where the writer can still read it.
+The guard for the mid-write cancel is staged on that journey for the
+same reason.
+
+**AND A REFUSED COMMIT IS NOT A SAVE.** OGR answers by RETURN VALUE
+rather than by raising, so the `except` around `CommitTransaction`
+could not fire and its answer went unread. With a shared read
+transaction open on the file, every table goes in, the commit is
+refused, and `written` still named all of them -- so every element
+layer was repointed at a table that had never been created, the map on
+screen emptied, and the person was told "Saved". The answer is read
+now and `written` is cleared, which is the same sentence the rollback
+branch beside it has always carried.
+THE TWO WAYS A LOCK BITES ARE NOT THE SAME, and it matters when you
+reproduce this: a WRITE lock held by another process fails at the
+first feature and is reported correctly; only a SHARED READ
+transaction reaches the commit.
+
+**AND OWNERSHIP IS ABOUT WHAT A FILE HOLDS.** `existed` asked the
+file's SIZE, and a data source OGR created and nothing wrote to is
+65,536 bytes holding no layer -- so a stub left by a cancelled or
+failed first save read as somebody else's work, and the answer is
+cached for the session. Every remover scoped to our own files stayed
+off, and shrinking a design then left the dropped elements' tables,
+columns and values in the file a colleague receives. It asks
+`bridge.gpkg_tables` now, and the guard asserts BOTH directions,
+because a repair that made every file ours would destroy somebody's
+work.
+
+**AND A PRESS WAITS FOR A BUILD ALREADY COMING.** `_a_topology_is_owed`
+asks THE FILE, which is the cost ruling of 2026-08-30 and is right
+about whether to START a build. It was the wrong question about one
+already running: a Save pressed while a topology build was in flight
+wrote no motif and recorded `topology_written: False`, where the same
+press a second later wrote the unit and its dual. It now answers True
+while a build is running or queued -- it still starts none, so nobody
+who has not opened the tab pays anything.
+
 ## Nothing ends while a save is outstanding
 
 (Maintainer's ruling, 2026-09-01: when a save is outstanding and QGIS

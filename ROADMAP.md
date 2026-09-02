@@ -382,6 +382,44 @@ and with them taken in one breath it holds. The test waits for
 rc10's repair -- and reads the verdict and its oracle together, so
 quiet arriving late cannot make it compare two designs.
 
+**AND THE 24-BUG CAMPAIGN IS RUNNING, WITH SEVEN CLOSED ON ITS FIRST
+DAY.** (Maintainer's instruction, 2026-09-01: keep eight hunts going
+on temporary worktrees, replenishing after each bug is fixed and
+committed, until twenty-four are repaired and tested.) The plan is in
+`docs/process/HUNT-RECORD.md`, the watcher is
+`tools/hunt_campaign_watch.sh`, and the ledger is
+`docs/process/defects-2026-09-02.md`. Every one of the seven was
+reproduced by a route its hunt did not use, repaired, guarded by a
+registered test and proved by a catalogue entry judged `caught`.
+
+FIVE OF THE SEVEN ARE IN THE SAVE, which is the version's newest
+machinery: a Cancel during the write that did nothing while the map
+was written anyway and reported "Saved"; a cancel arriving after the
+last table that poisoned the person's NEXT save; a stub from a stopped
+save that made the file nobody's, so a later shrink left two elements'
+tables and values in a colleague's copy; a Save that outran its own
+topology build and wrote no motif; a close or quit during a write that
+froze the waiting window for the whole 180-second ceiling and then
+lost the map; and a REFUSED COMMIT reported as a save, which repointed
+every element layer at tables that were never created and emptied the
+map on screen. The seventh is the Topology tab's push rail, whose drag
+previewed under the pointer and was thrown away on release.
+
+THREE OF THE SEVEN WERE IN THE ROUND'S OWN REPAIRS, which is that
+direction's tenth outing for ten, and one of those put two of the same
+day's catalogue entries to sleep -- both retired with their
+measurements, both lines kept as defence in depth.
+
+WHAT IS OWED BEFORE A CANDIDATE: the queue is not empty, so rc12 is
+cut when it is. Two claims are verified and unrepaired (the group's
+record carrying a live variable into the file's, and the drawing's
+handles staying on the previous class when one is chosen from the
+list); four findings are the SUITE'S rather than the product's -- three
+dead axes in the guards written 2026-09-01 and a geometry-signature
+term no test covers -- and one workaround has gone dead, since
+upstream now cleans the doubled zigzag vertices itself and
+`topology_edits._make_drawable`'s repair stage no longer fires.
+
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
 work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and

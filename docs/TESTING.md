@@ -4563,3 +4563,74 @@ Linux legs went red on ONE TEST EACH, and they were DIFFERENT tests,
 with stable, macOS and Windows green. One test failing on three legs
 is a claim about the code; different tests failing on one leg apiece
 is a claim about timing.
+
+## A REPAIR CAN MOVE THE JOURNEY ITS OWN GUARD DRIVES
+
+2026-09-02, three times in one campaign day, and it is the most
+expensive shape of the round because every instance looks like a
+passing test.
+
+**A GUARD IS STAGED ON A JOURNEY, AND A REPAIR CAN CLOSE THAT
+JOURNEY.** A cancel pressed during a write was guarded by delivering a
+close from the write's own pump, which opened the waiting window. The
+freeze repair later made the hold DECLINE there -- correctly -- so the
+window no longer appears on that route and the guard's premise could
+no longer be met. The behaviour it names is still reachable, through
+the DEFERRED press, where the write runs inside the hold's own pump;
+the test was re-staged there and still catches. THE TELL IS A PREMISE
+FAILING WHILE THE PRODUCT IS RIGHT, and the answer is to ask which
+journeys still reach the behaviour rather than to weaken the premise.
+
+**AND TWO ENTRIES WERE PUT TO SLEEP BY THE SAME REPAIR.** Both
+conditions that the earlier repairs added became REDUNDANT once the
+hold could not run beneath a writer: with the nesting gone, the hold's
+branch always executes after the act has ended, so mutating either
+condition changed nothing any test could see. Both were retired with
+their measurements, both lines kept as defence in depth, and what
+would reopen each written where it stood. This project already records
+that a ruling which gives a fact a second writer puts an older entry
+to sleep; what this adds is that YOUR OWN REPAIR, hours old, is such a
+ruling.
+
+**A SURVIVING ENTRY IS A QUESTION ABOUT THE JOURNEY BEFORE IT IS A
+QUESTION ABOUT THE ASSERTION.** The flag-lifetime entry survived twice
+before it caught: first because the guard cancelled between tables,
+where the writer clears the flag itself, and then because the press
+landed a moment too late, after the act had ended. What made it bite
+was staging the press SYNCHRONOUSLY at the seam -- a wrapper that
+calls the real writer and then presses -- rather than from a timer,
+which measures how fast the machine is.
+
+## A PROBE'S OWN SUBPROCESS INHERITS THE QGIS ENVIRONMENT
+
+2026-09-02. A probe needed a second PROCESS to hold a lock, because a
+running QGIS serves its own cached pages and this project's rule is
+that the second writer must be one. It launched `/usr/bin/python3`
+without an environment, which inherited `PYTHONHOME` from the QGIS
+interpreter it was running under and died at "No module named
+'encodings'" -- the two-interpreters trap this project has recorded
+twice, arriving inside an instrument.
+
+WHAT MADE IT SURVIVABLE was the premise. The probe asked, separately,
+whether the lock was actually held; it reported that another writer
+had got in, so the arm was INCONCLUSIVE rather than clean. Without
+that line the run would have read as "the claim does not reproduce",
+which is the most expensive answer a probe can give.
+
+**SO PASS A CHOSEN ENVIRONMENT TO ANY CHILD** -- `env={"PATH":
+"/usr/bin:/bin"}` is enough -- and assert the condition the child was
+launched to create, rather than assuming the launch worked.
+
+## THE SHAPE OF A LOCK DECIDES WHICH FAILURE YOU MEET
+
+Same day, and it nearly cost a real defect. Asked to reproduce "the
+commit fails", the obvious staging is to lock the file -- and a WRITE
+lock held by another process makes the FIRST FEATURE fail, which the
+code already reports correctly and honestly. Only a SHARED READ
+transaction lets every table through and refuses the commit itself.
+
+Both are "the file is locked" in ordinary speech and they exercise
+different halves of the code. When a claim names a failure at a
+particular STEP, stage the failure at that step: ask what the step
+needs that the others do not -- here, the exclusive lock a commit
+takes and a write does not.

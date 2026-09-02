@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-01, after ROUND SIX -- ten hunts, eight defects
+Last updated 2026-09-02, after DAY ONE of the 24-bug campaign -- eight hunts, seven bugs closed, and the section immediately below. Before that, 2026-09-01, after ROUND SIX -- ten hunts, eight defects
 closed, and the first round in which two hunts converged on one defect
 from opposite directions TWICE. See the section immediately below;
 before that, 2026-08-31 (late), after ROUND FIVE and the day the
@@ -1744,6 +1744,56 @@ THE INSTRUMENT WAS A STACK PRINTED FROM A PATCHED METHOD, not more
 runs. Recording who called `show_topology` between the press and the
 reading named the caller on the first failing attempt; counting how
 often the race is lost would have measured the machine.
+
+## THE 24-BUG CAMPAIGN, DAY ONE: 2026-09-02, SEVEN CLOSED
+
+Eight hunts launched at once on temporary worktrees under
+`dev/hunts/`, with the consistency sweep among them per the standing
+rule, and replenishment triggered by a CLOSED bug rather than by a
+report. Seven bugs are closed -- reproduced here by a route the hunt
+did not use, repaired, guarded by a registered test, proved by a
+catalogue entry judged `caught`, committed, and written into
+`defects-2026-09-02.md`.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the waiting window (one-boundary) | 1 | a flag set by a nested frame is read by whoever runs NEXT, not by whoever set it: the cancel's own clearing ran while the writer it was meant to stop was suspended above it |
+| write_gpkg_layers' rollback (asymmetry) | 1 | when a rollback is offered as "the file is left as it was", ask what the act did OUTSIDE the transaction -- here the file's own existence, and the harm was two hops away in a guard that recognises our files by a record the rollback never wrote |
+| the symmetry gate and multi-class (write-only) | 1 | the write-only question found it from the other end: the probe aimed at the SELECTION failed because the DRAG recorded nothing at all, and a table keyed by manipulation is exactly where a family that gained a fifth member goes stale |
+| the topology deferral (unreachable) | 1 | a guard that asks the FILE as a proxy for "has this person asked" is unreachable on the file's first write, and the tell was a two-arm probe differing only by a pause |
+| the round's own repairs (10th) | 1 | when a repair narrows a clearing to the moment its consumer reads the flag, enumerate every LATER moment in the same frame where that consumer has already stopped reading |
+| backwards from harm (8th) | 1 | the ranked list paid only when it was distrusted: the finding came at iteration seven, after the top of the list had been driven and cleared twice, and the winning move was the twin that clears against the twin that does not |
+| the day's repairs, second pass (two-stores) | 1 | when a repair adds a flag read by a NESTED frame, ask which frame is entitled to clear it -- a wait entered through the very pump of the thing it waits for can never be satisfied |
+| the consistency sweep (3rd) | 0 | 19 acts, 3,903 comparisons, 0 disagreements, with all five negative controls firing and naming what each saboteur broke -- ground the next round need not walk |
+| the re-vendor through the product (1st) | 0 | 56 designs with identical class labels and identical ground per label, so no stored edit lands on a different edge; and it named a workaround gone dead, since upstream now cleans the doubled zigzag vertices itself |
+| tests that cannot fail (5th) | 0 products, 4 dead axes | mutating per assertion over the guards written the day before, with every control run first: three dead axes and one geometry-signature term no test or entry covers |
+
+**WHAT DAY ONE SETTLES.**
+
+**THE VERIFICATION QUEUE WAS THE WHOLE COST, for the fourth round
+running, and this time it was measured against a maintainer's
+instruction to keep eight hunts going.** Eight reported within two
+hours; closing seven took the rest of the day, because each needs an
+independent reproduction, a repair, a registered test, a catalogue
+entry proved `caught`, and a ledger row. Slots were held empty while
+the queue stood and refilled as bugs closed, which is what the
+campaign's own rule asks and what this record has recommended since
+August.
+
+**AND THREE OF THE SEVEN WERE IN THE ROUND'S OWN REPAIRS**, which is
+this direction's tenth outing for ten. One was found ninety minutes
+after the repair it read; one was a repair whose own repair moved the
+journey its guard drove; and one put two of the day's entries to
+sleep, both retired with their measurements. A repair is new code and
+the rate does not improve with practice.
+
+**AND THE FIRST ROUTE TO A CLAIM CAN COME BACK HONEST.** The
+refused-commit defect was verified through a WRITE lock held by a
+second process, which fails at the first feature and reports itself
+correctly -- so the claim read as not reproducing. Only a SHARED READ
+transaction reaches the commit. Two locks, one word, different halves
+of the code: when a claim names a failure at a particular STEP, stage
+it at that step.
 
 ## THE 24-BUG CAMPAIGN, PLANNED 2026-09-01
 
