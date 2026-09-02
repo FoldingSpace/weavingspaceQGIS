@@ -20269,6 +20269,64 @@ class WeavingSpaceDialog(QDialog):
       QMessageBox.StandardButton.No)
     return answer == QMessageBox.StandardButton.Yes
 
+  def _tell_the_layers_which_region_we_landed_on(self, region) -> int:
+    """Stamp a resumed map's own layers with the region in force.
+
+    Args:
+      region: the source `_recover_the_source` LANDED ON, or anything
+        falsy where it landed on nothing -- in which case nothing is
+        stamped, because writing the record's own region would put a
+        path from the sender's machine onto the recipient's layers and
+        change a fiction into a stamped fiction.
+
+    Returns:
+      How many layers were stamped, so a caller or a guard can tell
+      "there was nothing to do" from "it did nothing".
+
+    (2026-09-02, found by a hunt aimed at the same day's repairs and
+    reproduced at BOTH doors, which is what says the defect is older
+    than either of them.)
+
+    ONE FACT, TWO STORES, AND ONLY ONE OF THEM WAS MENDED. A resume
+    stamps the GROUP's record with the region it landed on, and it has
+    to: a self-contained file records the SENDER'S own path, and
+    nothing on the recipient's machine answers to it, so the record
+    alone would file the resumed group under a dataset that does not
+    exist here. But `_our_groups` asks the LAYERS, through their own
+    `weavingspace_region` property, and those still carry what the
+    sender's machine wrote. So the two disagreed, `theirs` came back
+    empty, and `_bind_group_to_dataset` let go of the group the person
+    had just opened -- after which the next Generate built a RIVAL
+    beside it and the next Save wrote that rival into the same tables.
+
+    MEASURED AT BOTH DOORS, one process, each on its own file
+    (`tools/probes/what_a_resumed_map_stamps_on_its_layers.py`): the
+    layers saying `MultiPolygon?crs=EPSG:3857&uid={...}` against a
+    chooser holding `<file>|layername=weavingspace_region`, the
+    binding answering False, and TWO groups of four layers each after
+    one Generate. The fresh branch does it too, which is why this is a
+    stamp's defect rather than a flag's -- `_landed_this_session` only
+    decides whether the binding is reached at all.
+
+    AND THE PREMISE IS THE FIXTURE: the sender's own layer has to be
+    out of the project, or `_recover_the_source` takes its first route
+    and lands on a layer already open, the stamps agree, and a probe
+    reports health about a journey it never drove. Mine did exactly
+    that on its first run.
+    """
+    if not region:
+      return 0
+    project = QgsProject.instance()
+    stamped = 0
+    for record in (self._element_layer_ids, self._no_data_layer_ids):
+      for layer_id in (record or {}).values():
+        layer = project.mapLayer(layer_id) if layer_id else None
+        if layer is None:
+          continue
+        layer.setCustomProperty("weavingspace_region", region)
+        stamped += 1
+    return stamped
+
   def _resume_from_gpkg(self, path) -> bool:
     """Carry on with a map saved to a GeoPackage.
 
@@ -20524,6 +20582,10 @@ class WeavingSpaceDialog(QDialog):
           (("region", landed_on or record.get("region")),
            ("output_path", path))
           if value})
+        # AND THE LAYERS ARE TOLD THE SAME THING, or the group's own
+        # record and the layers it holds disagree about which dataset
+        # this map came from -- and `_our_groups` asks the layers.
+        self._tell_the_layers_which_region_we_landed_on(landed_on)
         # AND THE PLUGIN MUST NOT OFFER ITS OWN OUTPUT AS A REGION.
         # Construction, project-read and the run landing all update
         # the exclusions; this path registered element layers and did
@@ -20812,6 +20874,10 @@ class WeavingSpaceDialog(QDialog):
         launch_state={key: value for key, value in
                       (("region", landed_on or record.get("region")),
                        ("output_path", path)) if value})
+      # AND THE LAYERS TOO, for the reason written at the twin: the
+      # group's record and the layers it holds must not disagree about
+      # which dataset this map came from.
+      self._tell_the_layers_which_region_we_landed_on(landed_on)
       # THE SAME EXCLUSION THE OTHER BRANCH NEEDS, and for the same
       # reason: this path has just registered element layers, and
       # every other place that does so -- construction, project-read,

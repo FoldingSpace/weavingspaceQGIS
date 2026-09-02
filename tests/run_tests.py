@@ -8344,6 +8344,142 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_resumed_map_tells_its_layers_which_region_it_found():
+  """A group's record and its layers must agree about the dataset.
+
+  A resume stamps the GROUP's record with the region the recovery
+  LANDED ON, and it has to: a self-contained file records the SENDER'S
+  own path, and nothing on the recipient's machine answers to it. It
+  did not re-stamp the LAYERS, and `_our_groups` asks the layers -- so
+  the two stores disagreed, `theirs` came back empty, and
+  `_bind_group_to_dataset` let go of the map the person had just
+  opened. The next Generate then built a RIVAL group beside it, and
+  the next Save wrote that rival into the same tables.
+
+  MEASURED AT BOTH DOORS, one process, each on its own file
+  (`tools/probes/what_a_resumed_map_stamps_on_its_layers.py`): the
+  layers saying `MultiPolygon?...&uid={...}` against a chooser holding
+  `<file>|layername=weavingspace_region`, and TWO groups of four
+  layers each after one Generate. The fresh branch does it too, which
+  is what says this is the stamp's defect rather than the flag's --
+  `_landed_this_session` decides only whether the binding is reached.
+
+  THE FIXTURE IS THE PREMISE. `_recover_the_source` has three routes
+  and the first is a layer already open, so with the sender's own
+  region layer still in the project it lands there, the stamps agree,
+  and the journey is never driven. A recipient does not have that
+  layer, which is what the copy inside the file is FOR. The probe's
+  own first run missed exactly this and reported both doors sound.
+
+  Regression: opening a self-contained map left its layers stamped
+  with the sender's region, so the dialog let go of the group and the
+  next Generate built a rival beside it. [mutation]
+  """
+  import os
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def drive(out, already_open):
+    """Send a self-contained map through one door and count groups.
+
+    Args:
+      out: the GeoPackage to write and open back.
+      already_open: True to press Load while the map's own layers are
+        still in the project.
+
+    Returns:
+      (the layers' region stamps, the source in force, how many output
+      groups the layer tree holds after a Generate).
+    """
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    first = WeavingSpaceDialog(iface=_Iface())
+    second = None
+    try:
+      first.live_check.setChecked(False)
+      first.show()
+      first.opt_embed_source.setChecked(True)
+      first.gpkg_widget.setFilePath(out)
+      _tick(200)
+      first._generate()
+      _settle(first)
+      assert press_save(first, out), "PREMISE: the map was never saved"
+
+      # THE SENDER'S OWN LAYER GOES, which is what a recipient has --
+      # and what makes the recovery use the copy inside the file.
+      for found in list(QgsProject.instance().mapLayers().values()):
+        if found.customProperty("weavingspace_tile_id"):
+          continue
+        if found.customProperty("weavingspace_output"):
+          continue
+        QgsProject.instance().removeMapLayer(found.id())
+      _tick(100)
+      if not already_open:
+        for layer_id in list(first._element_layer_ids.values()):
+          QgsProject.instance().removeMapLayer(layer_id)
+        _tick(100)
+      first.close()
+      _tick(100)
+
+      second = WeavingSpaceDialog(iface=_Iface())
+      second.live_check.setChecked(False)
+      second.show()
+      _tick(200)
+      second.resume_widget.setFilePath(out)
+      second.load_button.click()
+      _settle(second)
+      _tick(200)
+
+      chosen = second.layer_combo.currentLayer()
+      in_force = chosen.source() if chosen is not None else ""
+      assert out in str(in_force), (
+        f"PREMISE: the recovery landed on {in_force!r} rather than on "
+        f"the copy inside the file, so the two stores cannot disagree "
+        f"and this arm measures nothing")
+
+      stamps = set()
+      for layer_id in second._element_layer_ids.values():
+        found = QgsProject.instance().mapLayer(layer_id)
+        if found is not None:
+          stamps.add(found.customProperty("weavingspace_region"))
+
+      second._generate()
+      _settle(second)
+      root = QgsProject.instance().layerTreeRoot()
+      groups = []
+      for node in root.children():
+        if not hasattr(node, "children"):
+          continue
+        ours = sum(
+          1 for child in node.children()
+          if getattr(child, "layer", lambda: None)() is not None
+          and getattr(child, "layer")().customProperty(
+            "weavingspace_tile_id"))
+        if ours:
+          groups.append(node.name())
+      return stamps, str(in_force), groups
+    finally:
+      for dlg in (second, first):
+        if dlg is not None:
+          dlg.close()
+          dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  with _temp_dir() as td:
+    for door in ("already", "fresh"):
+      stamps, in_force, groups = drive(
+        os.path.join(td, f"{door}.gpkg"), door == "already")
+      assert stamps == {in_force}, (
+        f"the {door} door left its layers stamped {sorted(stamps)} "
+        f"while the region in force is {in_force!r}: the group's "
+        f"record and the layers it holds disagree about which dataset "
+        f"this map came from, and `_our_groups` asks the layers")
+      assert len(groups) == 1, (
+        f"the {door} door built a rival group: {groups}. The dialog "
+        f"let go of the map that was just opened, so a Save now "
+        f"writes the rival into the opened map's own tables")
+
+
 def test_a_filter_is_a_view_and_is_never_written_into_the_file():
   """A filter says which features to DRAW, not which tiles the map has.
 
@@ -83217,6 +83353,8 @@ def main():
         test_a_close_during_a_write_does_not_wait_for_the_write)
   check("a close that declines the save stops the write",
         test_a_close_that_declines_the_save_stops_the_write)
+  check("a resumed map tells its layers which region it found",
+        test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",
         test_a_filter_is_a_view_and_is_never_written_into_the_file)
   check("both load doors count the map as this session's work",

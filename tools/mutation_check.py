@@ -9179,6 +9179,25 @@ MUTATIONS = [
            "write's own pump: 4 of 4 element layers left reading from "
            "that file, and a sentence reporting the save said "
            "immediately after the one promising the opposite"),
+  dict(name="a-resumed-map-stamps-its-own-layers", file=DIALOG,
+       # ANCHORED ON THE HELPER rather than on either call site, which
+       # is what this project's own rule asks: two branches call it,
+       # either alone would leave the other answering, and a helper
+       # anchor cannot be split again by a third door.
+       old="""    for record in (self._element_layer_ids, self._no_data_layer_ids):
+      for layer_id in (record or {}).values():""",
+       new="""    for record in ():  # mutation: leave the layers saying the sender's
+      for layer_id in (record or {}).values():""",
+       test="test_a_resumed_map_tells_its_layers_which_region_it_found",
+       why="a self-contained map opened here leaving its layers "
+           "stamped with the SENDER's region, so the group's record "
+           "and the layers it holds disagree about which dataset the "
+           "map came from. `_our_groups` asks the layers, so `theirs` "
+           "comes back empty and `_bind_group_to_dataset` lets go of "
+           "the map just opened -- after which a Generate builds a "
+           "rival group beside it and a Save writes that rival into "
+           "the opened map's own tables. Measured 2026-09-02 at BOTH "
+           "doors: two groups of four layers each after one Generate"),
   dict(name="a-filter-is-a-view-not-the-map", file=DIALOG,
        # ONE ENTRY FOR TWO HALVES, and the reason is measured rather
        # than assumed. The repair has two limbs: the write takes a

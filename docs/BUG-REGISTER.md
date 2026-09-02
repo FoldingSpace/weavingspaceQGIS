@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-500 defect(s) with a regression test.
+501 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -502,6 +502,8 @@ there is no separate list to remember.
   guarded by `test_a_resumed_group_is_named_for_its_dataset`
 - **layers loaded by resuming a GeoPackage were named for their internal tables rather than for their element and variable. Found by the paired-layer hunt, 2026-08-27.**  
   guarded by `test_a_resumed_layer_is_named_as_a_fresh_one_is`
+- **opening a self-contained map left its layers stamped with the sender's region, so the dialog let go of the group and the next Generate built a rival beside it.**  
+  guarded by `test_a_resumed_map_tells_its_layers_which_region_it_found`
 - **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
   guarded by `test_a_retired_dialogs_landing_is_discarded`
 - **saving twice into a GeoPackage holding a colleague's map deleted the tables whose element ids ours happened to share, under the word "Saved".**  
@@ -1054,7 +1056,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 173
+- the mutation campaign: 174
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40
