@@ -9250,6 +9250,18 @@ MUTATIONS = [
            "clear. Measured 2026-09-02 through both doors with the "
            "ceiling shortened: 5.1s against a control's 0.16s, and no "
            "tables at all once the escape pressed Cancel"),
+  dict(name="a-refused-commit-is-not-a-save", file=BRIDGE,
+       old="""            if data.CommitTransaction() != ogr.OGRERR_NONE:""",
+       new="""            if False:  # mutation: take the commit on trust""",
+       test="test_a_save_whose_commit_fails_says_so_and_keeps_the_map",
+       why="a commit the file refuses being reported as a save, with "
+           "every element layer repointed at a table it never "
+           "created -- so the map on screen empties and the tiles in "
+           "memory go with it. OGR answers by RETURN VALUE rather "
+           "than by raising, which is why the `except` beside it "
+           "could not fire. Measured 2026-09-02 with a shared read "
+           "transaction open on the file: no tiles written, four "
+           "layers invalid, and the person told it was saved"),
   dict(name="the-close-question-holds-the-close", file=DIALOG,
        old="""        self._hold_until_the_save_lands("close")""",
        new="""        pass  # mutation: close without waiting for the save""",

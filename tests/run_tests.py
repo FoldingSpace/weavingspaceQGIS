@@ -8344,6 +8344,106 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_save_whose_commit_fails_says_so_and_keeps_the_map():
+  """A commit that will not go through must not be reported as a save.
+
+  OGR ANSWERS BY RETURN VALUE, NOT BY RAISING, which is what made the
+  `except` around the commit unable to fire. With a shared READ
+  transaction open on the file -- a colleague, a script, a sync
+  client, or QGIS itself elsewhere -- every table goes in and the
+  commit is refused, returning non-zero and raising nothing.
+
+  WHAT IT COST while that answer went unread: `written` still named
+  every table, so the caller repointed each element layer at a table
+  the failed commit never created, and the person was told "Saved".
+  Measured 2026-09-02: no tiles in the file, all four layers invalid
+  and yielding nothing, and the tiles that had been in memory gone
+  with them -- a save that destroys the map it was saving.
+
+  THE THREE THINGS ASSERTED ARE THE THREE HALVES OF THE HARM: the
+  plugin does not claim a save, the file holds no tiles, and THE MAP
+  ON SCREEN SURVIVES. The last is the one a repair can pass the others
+  without: clearing `written` is what stops the repointing, and
+  reporting the trouble is what stops the sentence.
+
+  Regression: a failed commit reported "Saved" and emptied every layer
+  of the map it had just been asked to save. [mutation]
+  """
+  import os
+  import sqlite3
+  from osgeo import ogr
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis import bridge as bridge_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as td:
+    out = os.path.join(td, "commit-refused.gpkg")
+    # THE FILE EXISTS FIRST, because a lock is held on a file rather
+    # than on a name, and because this is the ordinary case: your own
+    # GeoPackage from an earlier session, or somebody else's.
+    made = ogr.GetDriverByName("GPKG").CreateDataSource(out)
+    made.CreateLayer("notes")
+    made = None
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    reader = None
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      before = {}
+      for tile_id, layer_id in dlg._element_layer_ids.items():
+        held = QgsProject.instance().mapLayer(layer_id)
+        before[tile_id] = sum(1 for _f in held.getFeatures())
+      assert before and all(before.values()), (
+        f"PREMISE: the map was drawn with no features to lose: {before}")
+
+      # A SHARED READ TRANSACTION lets the writes through and refuses
+      # the exclusive lock a COMMIT needs, which is the state this
+      # test is about. A WRITE lock would fail earlier, at the first
+      # feature, which the plugin already reports correctly.
+      reader = sqlite3.connect(out, isolation_level=None)
+      reader.execute("BEGIN")
+      reader.execute("SELECT count(*) FROM sqlite_master").fetchone()
+
+      dlg.gpkg_widget.setFilePath(out)
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Yes
+      BAR_MESSAGES.clear()
+      press_save(dlg, expect=False)
+      said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+
+      assert "saved to" not in said, (
+        f"the commit was refused and the plugin still reported a save: "
+        f"{said!r}")
+      assert "could not be" in said or "not written" in said, (
+        f"a save that did not happen said {said!r}, so nobody would "
+        f"know their map is not on disk")
+
+      after = {}
+      for tile_id, layer_id in dlg._element_layer_ids.items():
+        held = QgsProject.instance().mapLayer(layer_id)
+        after[tile_id] = 0 if held is None else sum(
+          1 for _f in held.getFeatures())
+      assert after == before, (
+        f"the map on screen was destroyed by a save that failed: "
+        f"{before} became {after}. The layers were repointed at tables "
+        f"the refused commit never created")
+    finally:
+      if reader is not None:
+        try:
+          reader.execute("ROLLBACK")
+        except Exception:                               # noqa: BLE001
+          pass
+        reader.close()
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+      assert bridge_module is not None
+
+
 def test_a_stub_from_a_stopped_save_is_not_somebody_elses_file():
   """A GeoPackage holding nothing is nobody's, whatever it weighs.
 
@@ -82511,6 +82611,8 @@ def main():
         test_a_save_waits_for_a_build_already_coming)
   check("a close during a write does not wait for the write",
         test_a_close_during_a_write_does_not_wait_for_the_write)
+  check("a save whose commit fails says so and keeps the map",
+        test_a_save_whose_commit_fails_says_so_and_keeps_the_map)
   check("closing the window over an unsaved map asks first",
         test_closing_the_window_over_an_unsaved_map_asks_first)
   check("the experimental box gates its tabs",

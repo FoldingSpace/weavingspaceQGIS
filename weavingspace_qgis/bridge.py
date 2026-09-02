@@ -4669,11 +4669,33 @@ def write_gpkg_layers(jobs, path: str, recreate: bool, on_table=None,
             written.clear()
             trouble.append("the save was stopped and nothing was kept")
           else:
-            data.CommitTransaction()
+            # OGR ANSWERS BY RETURN VALUE, NOT BY RAISING, which is
+            # what made the `except` below unable to fire. (2026-09-02,
+            # found by a hunt working backwards from harm and measured
+            # three ways.) With a shared read transaction open on the
+            # file -- a colleague, a script, a sync client, or QGIS
+            # itself elsewhere -- every table goes in and the COMMIT is
+            # refused; `CommitTransaction` then returns non-zero and
+            # raises nothing at all.
+            # WHAT THAT COST while the answer went unread: `written`
+            # named every table, so the caller repointed each element
+            # layer at a table the failed commit never created, and
+            # the person was told "Saved". Measured: no tiles in the
+            # file, four layers invalid and yielding nothing, and the
+            # tiles that had been in memory gone with them.
+            # THE ROLLBACK BRANCH ABOVE ALREADY KNEW THIS -- it clears
+            # `written` so the caller cannot repoint at tables that
+            # went away -- and this is the same sentence for the other
+            # way a transaction can end.
+            if data.CommitTransaction() != ogr.OGRERR_NONE:
+              written.clear()
+              trouble.append(
+                "the file's transaction could not be committed")
         except Exception:                               # noqa: BLE001
           # A commit that will not go through leaves the file as it
           # was, which is the right way for this to fail: a half
           # written map is worse than an unwritten one.
+          written.clear()
           trouble.append("the file's transaction could not be committed")
   except Exception as e:                                # noqa: BLE001
     trouble.append(f"{path}: {e}")

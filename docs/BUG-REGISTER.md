@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-495 defect(s) with a regression test.
+496 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -504,6 +504,8 @@ there is no separate list to remember.
   guarded by `test_a_save_owed_a_topology_waits_for_it`
 - **a Save pressed while the topology build was still coming wrote no motif at all.**  
   guarded by `test_a_save_waits_for_a_build_already_coming`
+- **a failed commit reported "Saved" and emptied every layer of the map it had just been asked to save.**  
+  guarded by `test_a_save_whose_commit_fails_says_so_and_keeps_the_map`
 - **a save made between a topology edit and its Generate wrote a motif the record named another design for, and the next reopen deleted it.**  
   guarded by `test_a_save_with_an_edit_outstanding_leaves_the_motif_alone`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
@@ -1044,7 +1046,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 168
+- the mutation campaign: 169
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40
