@@ -448,28 +448,37 @@ direction's tenth outing for ten, and one of those put two of the same
 day's catalogue entries to sleep -- both retired with their
 measurements, both lines kept as defence in depth.
 
-WHAT IS OWED BEFORE A CANDIDATE: the queue is not empty, so rc12 is
-cut when it is. FIVE CLAIMS are verified or reported and unrepaired --
-the save's success sentence counting elements it never wrote
-(`vanished` is never subtracted from `kept`); `_may_overwrite` asking
-a file's BYTE SIZE where the stub repair of this morning taught its
-sibling to ask what the file holds; an Apply pressed while the next
-design's topology is building landing on the like-named class of the
-NEW design, reshaping the map and the saved file; the group's record
-carrying a live variable into the file's; and the drawing's handles
-staying on the previous class when one is chosen from the list rather
-than clicked.
+AND THE QUEUE IS EMPTY, WHICH IS WHAT CUTS rc12. Twenty-one bugs are
+closed across three rounds -- rows 1 to 21 of the ledger -- each
+reproduced here by a route its hunt did not use, repaired, guarded by
+a registered test, proved by a catalogue entry judged `caught` and
+committed. The five claims that stood here are all accounted for:
+three became ledger rows 14, 15 and 16, one became row 21, and the
+Apply-during-a-build claim was JUDGED AND NOT REPRODUCED, its
+mechanism real and its harm measured away -- a label is a string and
+is replayed against the design in force, and a class the new design
+lacks is refused by name.
 
-FOUR FINDINGS ARE THE SUITE'S rather than the product's -- three dead
-axes in the guards written 2026-09-01 and a geometry-signature term no
-test covers -- and one workaround has gone dead, since upstream now
-cleans the doubled zigzag vertices itself and
-`topology_edits._make_drawable`'s repair stage no longer fires.
+THE SUITE'S OWN FINDINGS ARE CLOSED TOO, and they were the thing
+keeping this branch from a green candidate. Six of them: the quiet
+premise that could not see a pending rebuild, the filter-restored
+assertion that only a CANCELLED save can judge, and the four dead axes
+the trigger hunt named in the 2026-09-01 batch -- the held landing's
+discard, the symmetry gate's missing positive control, the dual's
+geometry-signature term, and the load half of "the buttons go down".
+Each carries an entry proved `caught` except the first, which is a
+repair in the suite and says so where it stands.
 
-AND ONE FAILURE IS REMOTE-ONLY AND STILL OPEN: `several classes can be
-moved together` on one Linux leg. Three causes are ruled out here and
-the CI probe above now measures the fourth on the machine that has it,
-which is the honest instrument for a session nobody here can drive.
+AND THE REMOTE-ONLY FAILURE IS ANSWERED BY ITS OWN PROBE, which is
+what that probe was added for. Read on `a800cce` across Linux 4.0.0,
+Linux 4.0.3, Linux stable and macOS: the same drawing at 420x462, the
+same font, class A four drawn and THREE reachable, class B eight of
+eight, and both classes held on every leg. So the drawn layout does
+not vary and the fonts explanation three documents carried is wrong --
+the unreachable seat has a HANDLE over it, handles sit on whatever is
+already selected, and what differs between runs is the selection at
+the press. That is timing, and it is what the same day's other repairs
+closed. All three suite legs and macOS are green on that commit.
 
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
