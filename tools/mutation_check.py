@@ -4182,32 +4182,31 @@ MUTATIONS = [
            "went with them, and the layers on screen were left "
            "pointing at tables that no longer existed. One press on "
            "the ordinary journey of opening a finished map"),
-  dict(name="a-second-save-is-not-a-write-in-place", file=DIALOG,
-       # RE-ANCHORED 2026-08-29, when the loop began gathering which
-       # style to keep on each table so the removals could be done in
-       # one open. The decision under test is the `if` itself and is
-       # untouched.
-       # RE-ANCHORED 2026-09-01: the skip records the layer for the
-       # style pass instead of embedding on the spot, but the
-       # DECISION under test is the `if` itself and is untouched.
-       old="""          if same_source(layer.source(), f"{path}|layername={table}"):
-            already.append((layer, table))
-            continue""",
-       new="""          if False:  # mutation: write every layer back over itself
-            already.append((layer, table))
-            continue""",
-       test="test_saving_holds_on_every_route",
-       why="a map could be SAVED ONCE AND NEVER AGAIN. The first "
-           "press repoints every element layer at the file it wrote, "
-           "which is what keeps the map alive in a reopened project, "
-           "so the second press asks OGR to write a layer into the "
-           "table it is reading from -- and OGR refuses: 'Cannot "
-           "overwrite an OGR layer in place'. The save reports the "
-           "first element's failure and returns BEFORE the styles, "
-           "the stale-table drop and the record, so save-change-save "
-           "was unreachable and the untick of ruling 2 could never "
-           "fire. Found by the save matrix on its first run, "
-           "2026-08-27"),
+  # `a-second-save-is-not-a-write-in-place` STOOD HERE AND WAS RETIRED
+  # ON 2026-09-02, WITH ITS MEASUREMENT. What it guarded was a skip
+  # justified by a REFUSAL: "asking OGR to write a layer into the table
+  # it is reading from is asking it to overwrite a layer with itself,
+  # which it refuses". That refusal was `QgsVectorFileWriter`'s, and it
+  # did not survive the single-OGR-session rewrite of 2026-09-01.
+  # MEASURED WITH THE PLUGIN OUT OF THE WAY by the specification hunt
+  # the same day: a layer on `path|layername=tiles_b_v1` copied into
+  # `tiles_b_v1` through an open update transaction, the way
+  # `bridge._write_one_layer` does it, wrote 40 of 40 features, raised
+  # nothing, and committed OGRERR_NONE. So disabling the skip no longer
+  # breaks anything a test can see -- the second save simply writes the
+  # same rows back -- and the entry reported SURVIVED against a test
+  # that is not weak.
+  # THE LINE STAYS, and its remaining job is cost rather than
+  # correctness: the data is already there, so writing it again buys
+  # nothing and opens the file for every layer. Its other half is now
+  # guarded elsewhere -- since a filter lives in a source's tail, the
+  # question is asked without the subset, and
+  # `a-filter-is-a-view-not-the-map` stands on the loss that made that
+  # matter.
+  # WHAT WOULD REOPEN IT: a writer that again refuses, or a test
+  # asserting the second press does no WORK rather than that it
+  # succeeds -- a call count rather than an outcome, which is the
+  # shape this project uses when the harm is cost.
   dict(name="a-save-mid-run-says-the-map-is-drawing", file=DIALOG,
        # ANCHORED ON THE PAIR, because the ORDER is the behaviour: the
        # no-map answer comes second so that a press during the FIRST
@@ -9180,6 +9179,34 @@ MUTATIONS = [
            "write's own pump: 4 of 4 element layers left reading from "
            "that file, and a sentence reporting the save said "
            "immediately after the one promising the opposite"),
+  dict(name="a-filter-is-a-view-not-the-map", file=DIALOG,
+       # ONE ENTRY FOR TWO HALVES, and the reason is measured rather
+       # than assumed. The repair has two limbs: the write takes a
+       # filter off, and the already-saved question stops reading one
+       # as part of a layer's identity. Only the FIRST can be made to
+       # fail here -- with the subset cleared, a filtered second save
+       # writes the whole map back into its own table and loses
+       # nothing, so mutating the identity half changes no count any
+       # test can see. Its job is to keep the second press on any map
+       # from rewriting what is already there, which is a cost rather
+       # than a loss, and the spec hunt of the same day measured that
+       # OGR no longer refuses such a write at all. So it is held
+       # redundantly for the harm, and that is written here rather
+       # than carried as an entry that could only ever be red.
+       old="""      for layer, subset in self._filters_taken_off_for_the_write:
+        layer.setSubsetString("")""",
+       new="""      for layer, subset in self._filters_taken_off_for_the_write:
+        pass  # mutation: write the view rather than the map""",
+       test="test_a_filter_is_a_view_and_is_never_written_into_the_file",
+       why="a filter set on an element layer in QGIS deleting every "
+           "tile it hides from the saved GeoPackage, permanently, "
+           "under the word Saved. The writer iterates `getFeatures()`, "
+           "which honours a subset. Measured 2026-09-02 on three arms "
+           "in one run: a filter between two saves took a table from "
+           "41 rows to 3, and across a re-tile -- where the plugin "
+           "carries the filter onto the new layer deliberately -- the "
+           "same table went to ZERO, the filter selecting nothing "
+           "among tiles it was never written for"),
   dict(name="both-load-doors-count-the-map-as-work", file=DIALOG,
        old="""        self._landed_this_session = bool(landed_on)""",
        new="""        pass  # mutation: leave the already-open door unarmed""",

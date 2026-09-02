@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-499 defect(s) with a regression test.
+500 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -422,6 +422,8 @@ there is no separate list to remember.
   guarded by `test_a_fields_return_wears_its_own_style_and_keeps_its_picks`
 - **resuming a GeoPackage whose layers were already in the project took the group over without stamping the working state onto it or recovering the source, so the design was lost at the next reopen and the region chooser was left pointing at another dataset.**  
   guarded by `test_a_file_already_open_resumes_completely`
+- **a filter set in QGIS deleted every tile it hid from the saved file, and emptied the table outright after a re-tile.**  
+  guarded by `test_a_filter_is_a_view_and_is_never_written_into_the_file`
 - **a dialog built at one font and met at a larger one kept its old field width, and the Pattern chooser could not tell two weaves apart.**  
   guarded by `test_a_font_change_moves_the_design_tab_s_fields`
 - **setting an output path made every Generate write the GeoPackage, so a file chosen for later was written to at once and a live update rewrote somebody's file on every keystroke.**  
@@ -1052,7 +1054,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 172
+- the mutation campaign: 173
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

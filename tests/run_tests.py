@@ -8344,6 +8344,120 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_filter_is_a_view_and_is_never_written_into_the_file():
+  """A filter says which features to DRAW, not which tiles the map has.
+
+  `write_gpkg_layers` iterates `getFeatures()`, which honours a
+  layer's subset string. So a person who filters an element layer in
+  QGIS -- the Query Builder in Layer Properties -- had every tile that
+  filter hides written OUT of the saved GeoPackage at the next Save,
+  permanently, under the word "Saved".
+
+  TWO ROUTES REACH IT AND ONLY ONE NEEDS THE SKIP. A layer already
+  reading from its table is treated as saved already, and identity was
+  `same_source` over the WHOLE tail of a source string -- which a
+  subset lives in, so a filtered layer failed to match the table it is
+  plainly reading from and went down the write path into that table.
+  But a RE-TILE gives every element a new memory layer and carries the
+  person's filter onto it deliberately, and no skip can fire there at
+  all. Measured 2026-09-02, three arms in one run
+  (`tools/probes/what_a_filter_does_to_a_save.py`): between two saves
+  a table went from 41 rows to 3; across a re-tile the same table went
+  to ZERO, the filter selecting nothing among the new tiles' ids; the
+  unfiltered control did not move.
+
+  THE PLUGIN'S OWN WORDS SETTLE WHICH OF THE TWO A FILTER IS: the line
+  that carries a subset across a re-tile says it says which features
+  to draw. So it comes off for the write and goes back afterwards.
+
+  THREE THINGS ARE ASSERTED, because a repair to any one of them alone
+  is satisfiable while the other two stay broken: the file keeps every
+  tile across a filtered second save; it takes the WHOLE new map
+  across a filtered re-tile; and the person's filter is still on the
+  layer when the save is done, since a save that silently cleared it
+  would trade one loss for another.
+
+  Regression: a filter set in QGIS deleted every tile it hid from the
+  saved file, and emptied the table outright after a re-tile.
+  [mutation]
+  """
+  import os
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  with _temp_dir() as td:
+    out = os.path.join(td, "filtered.gpkg")
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.show()
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      assert press_save(dlg, out), "PREMISE: the first save wrote nothing"
+      before = {name: count
+                for name, count in gpkg_contents(out)["tables"].items()
+                if name.startswith("tiles_")}
+      assert before, "PREMISE: the file holds no element tables to lose"
+
+      first = None
+      for layer_id in dlg._element_layer_ids.values():
+        found = QgsProject.instance().mapLayer(layer_id)
+        if found is not None:
+          first = found
+          break
+      assert first is not None, "PREMISE: no element layer to filter"
+      # THE FILTER IS SET ON THE LAYER, which is what QGIS's own Query
+      # Builder does; the plugin hears it through `subsetStringChanged`.
+      wanted = '"weavingspace_fid" <= 3'
+      first.setSubsetString(wanted)
+      _tick(150)
+      assert first.subsetString() == wanted, (
+        "PREMISE: the filter did not take, so nothing below is about "
+        "a filtered layer")
+
+      # ---- A FILTERED SECOND SAVE KEEPS EVERY TILE
+      press_save(dlg, out)
+      _tick(200)
+      after = {name: count
+               for name, count in gpkg_contents(out)["tables"].items()
+               if name.startswith("tiles_")}
+      lost = {name: (before[name], after.get(name))
+              for name in before if after.get(name, 0) < before[name]}
+      assert not lost, (
+        f"a filter set in QGIS was written into the file as though it "
+        f"were the map: {lost}")
+      assert first.subsetString() == wanted, (
+        f"the save cleared the person's own filter and did not put it "
+        f"back: the layer now reads {first.subsetString()!r}")
+
+      # ---- AND A FILTERED RE-TILE WRITES THE WHOLE NEW MAP
+      was = dlg.spacing_spin.value()
+      dlg.spacing_spin.setValue(was * 0.9)
+      _tick(100)
+      assert dlg.spacing_spin.value() != was, (
+        "PREMISE: the spacing did not move, so no re-tile follows")
+      dlg._generate()
+      _settle(dlg)
+      press_save(dlg, out)
+      _tick(200)
+      retiled = {name: count
+                 for name, count in gpkg_contents(out)["tables"].items()
+                 if name.startswith("tiles_")}
+      empty = [name for name, count in retiled.items() if not count]
+      assert not empty, (
+        f"a re-tile carries the filter onto the new layers, so the "
+        f"save emptied {empty} outright: the filter selects nothing "
+        f"among tiles it was never written for")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
 def test_both_load_doors_count_the_map_as_this_sessions_work():
   """A map OPENED is this session's work, through either branch.
 
@@ -83103,6 +83217,8 @@ def main():
         test_a_close_during_a_write_does_not_wait_for_the_write)
   check("a close that declines the save stops the write",
         test_a_close_that_declines_the_save_stops_the_write)
+  check("a filter is a view and is never written into the file",
+        test_a_filter_is_a_view_and_is_never_written_into_the_file)
   check("both load doors count the map as this session's work",
         test_both_load_doors_count_the_map_as_this_sessions_work)
   check("a cancel the writer could not serve says nothing",

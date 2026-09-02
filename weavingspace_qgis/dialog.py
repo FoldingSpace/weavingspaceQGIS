@@ -19648,7 +19648,22 @@ class WeavingSpaceDialog(QDialog):
           # edits to the file itself. What still has to happen is
           # everything AFTER the write -- the style, the name counted as
           # current so the stale-table drop spares it, and the record.
-          if same_source(layer.source(), f"{path}|layername={table}"):
+          # AND A FILTER IS NOT PART OF THAT IDENTITY. `same_source`
+          # compares the whole tail of a source string -- rightly, for
+          # every other question it answers -- and a subset lives in
+          # that tail, so a filtered layer failed to match the table it
+          # is plainly reading from and went down the write path into
+          # its own table. Asked without the subset, a filtered layer
+          # is recognised exactly as an unfiltered one, which is what
+          # keeps the second press on any map from rewriting what is
+          # already there. `same_source` itself is left alone: it also
+          # decides which group a dataset owns, whether a landing may
+          # write over a group, and whether a resume finds a layer
+          # already open, and this is a question about one of them.
+          reads_from = "|".join(
+            piece for piece in str(layer.source()).split("|")
+            if not piece.strip().lower().startswith("subset="))
+          if same_source(reads_from, f"{path}|layername={table}"):
             already.append((layer, table))
             continue
           # DECIDED HERE AND WRITTEN BELOW, IN ONE SESSION. The write
@@ -19701,6 +19716,30 @@ class WeavingSpaceDialog(QDialog):
         self.progress.setValue(done)
         QApplication.processEvents()
 
+      # A FILTER SAYS WHICH FEATURES TO DRAW, NOT WHICH TILES THE MAP
+      # HAS, and the writer iterates `getFeatures()`, which honours
+      # one. (2026-09-02, found by the specification hunt and measured
+      # on both of its routes.) So a person who sets a filter on an
+      # element layer in QGIS -- the Query Builder in Layer Properties
+      # -- had every tile it hides written OUT of the file at the next
+      # Save, permanently, under the word "Saved". Measured on three
+      # arms in one run
+      # (`tools/probes/what_a_filter_does_to_a_save.py`): with the
+      # filter set between two saves, `tiles_a_v1` went from 41 rows
+      # to 3; with the design changed first, so the plugin carries the
+      # filter onto the new memory layer as it is meant to, the same
+      # table went to ZERO, because the filter selects nothing among
+      # the new tiles' ids. The control's counts did not move.
+      # THE PLUGIN'S OWN WORDS DECIDE WHICH OF THE TWO A FILTER IS:
+      # the line that carries a subset across a re-tile says it "says
+      # which features to draw". A view, then. So it comes off for the
+      # write and goes back on afterwards -- in the `finally` below
+      # rather than here, because the cancel branch returns between
+      # the two and an exception may leave by neither door.
+      self._filters_taken_off_for_the_write = [
+        (layer, subset) for layer, _table, subset in to_write if subset]
+      for layer, subset in self._filters_taken_off_for_the_write:
+        layer.setSubsetString("")
       written, write_trouble = bridge.write_gpkg_layers(
         [(layer, table) for layer, table, _subset in to_write],
         path, recreate=fresh, on_table=a_table_landed,
@@ -19813,6 +19852,22 @@ class WeavingSpaceDialog(QDialog):
       # told them it was stopped. The flag belongs to this act, and
       # this is where the act ends, whichever way it went.
       self._save_cancelled = False
+      # ...AND SO DOES ANY FILTER THIS ACT TOOK OFF. A subset removed
+      # for the write must go back whatever happened, or a save that
+      # was cancelled or raised leaves somebody's Layer Properties
+      # filter silently cleared -- the workaround failure mode this
+      # project's dependency procedure warns about, arriving in our
+      # own code. The repointing puts each one back as it goes, since
+      # `point_layer_at` rebuilds the source; this covers the layers
+      # it never reached.
+      for layer, subset in getattr(
+          self, "_filters_taken_off_for_the_write", []):
+        try:
+          if layer.subsetString() != subset:
+            layer.setSubsetString(subset)
+        except RuntimeError:
+          pass                  # the layer went with the project
+      self._filters_taken_off_for_the_write = []
     # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.
     # Deferring it to here changes nothing about the result -- the same
     # rows are removed, scoped by this plugin's own description as they
