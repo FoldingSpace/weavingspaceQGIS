@@ -9220,6 +9220,38 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="a-new-project-empties-the-topology-shelf", file=DIALOG,
+       # TWO ENTRIES RATHER THAN ONE, because emptying the shelf and
+       # emptying the PANEL are two claims and either alone leaves the
+       # outgoing project's edits reachable. This one stands on the
+       # shelf's place in the clear list; its sibling below stands on
+       # the panel.
+       old="""                   self._topology_shelf,
+                   self._custom_swatch_cache):""",
+       new="""                   self._custom_swatch_cache):  # mutation""",
+       test="test_a_new_project_leaves_no_topology_edits_behind",
+       why="a topology edit made in the project you CLOSED being "
+           "replayed onto the same design in the project you OPENED, "
+           "reshaping its map and riding into its GeoPackage. Edits "
+           "are shelved by family and element count, and a key names "
+           "the same design in every project. Measured 2026-09-02 "
+           "with the scheme memory beside it as the control: shelf "
+           "and panel survived where the scheme did not, and the next "
+           "project's unit came out at 246,109.968 against a "
+           "control's 250,000.0"),
+  dict(name="a-new-project-empties-the-tab-as-well", file=DIALOG,
+       old="""    panel = getattr(self, "topology_panel", None)
+    if panel is not None:
+      panel.set_edits([])""",
+       new="""    panel = None  # mutation: the tab keeps the old project's edits""",
+       test="test_a_new_project_leaves_no_topology_edits_behind",
+       why="the tab going on listing the outgoing project's edits "
+           "after File > New. Emptying the shelf is not enough: "
+           "`_restore_topology_edits` is what puts it back into the "
+           "panel and nothing calls that unless the design MOVES, so "
+           "somebody who opens a new project and leaves the design "
+           "alone keeps the old edits in front of them and "
+           "`_topology_edit_key` goes on answering with them"),
   dict(name="adoption-remembers-what-the-file-arrived-with", file=DIALOG,
        # ANCHORED AT THE ADOPTION DOOR rather than at the owner, and
        # deliberately: the owner is shared with the resume, which

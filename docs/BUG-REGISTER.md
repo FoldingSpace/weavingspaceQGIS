@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-507 defect(s) with a regression test.
+508 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -458,6 +458,8 @@ there is no separate list to remember.
   guarded by `test_a_map_is_filed_under_the_dataset_it_was_drawn_from`
 - **on a mixed-magnitude column the legend printed "0 - 0" for a class of real width -- the label precision was derived from the whole span divided by k, which mixed magnitudes defeat. The 2026-08-10 fix covered uniformly tiny columns and left mixed ones behind. Found by the classification-churn hunt of 2026-08-26.**  
   guarded by `test_a_mixed_magnitude_legend_prints_real_bounds`
+- **a topology edit made in one project reshaped the next project's map and was written into its GeoPackage.**  
+  guarded by `test_a_new_project_leaves_no_topology_edits_behind`
 - **pointing the region chooser at a dataset without an element's column left that element wearing the scheme cut for the column that had gone.**  
   guarded by `test_a_new_region_drops_a_setup_whose_column_has_gone`
 - **paired no-data layers carried no record of which dataset they were made from, so a group holding only twins would tell the landing's refusal nothing. Found by the paired-layer hunt, 2026-08-27.**  
@@ -1068,7 +1070,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 180
+- the mutation campaign: 181
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

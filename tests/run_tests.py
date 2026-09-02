@@ -5904,14 +5904,48 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     # mid-gesture. A step inserted into a sequence is a step that
     # resets it, which this project has already paid for once in the
     # topology matrix.
-    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
-                     QtNamespace.KeyboardModifier.NoModifier, seat[1])
-    _tick(150)
-    handles = view.handles()
+    # ...AND THE SEAT IS ONE THE PRODUCT AGREES OFFERS A HANDLE.
+    # Taking the vertex nearest the middle is a guess about the drawn
+    # layout, and the layout depends on the fonts: the coverage leg
+    # failed this premise on 2026-09-02 with the selection intact --
+    # `('vertex', 'A')`, no build running -- and no handle under it,
+    # while this machine passes every time. A vertex carries a nudge
+    # handle and, where the design gives a push somewhere to go, a
+    # rail; on `laves 3.3.4.3.4` the incident unit vectors cancel, so
+    # the rail is absent BY DESIGN and only the nudge is there to
+    # find. This is the aiming repair `test_several_classes_can_be_
+    # moved_together` took a day earlier, in its own words: computing
+    # where a thing is drawn is not the same question as whether a
+    # click there reaches it.
+    seats = []
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      seats.append((away, QPoint(int(round(point.x())),
+                                 int(round(point.y())))))
+    seats.sort(key=lambda pair: pair[0])
+    handles = []
+    tried = []
+    for _away, candidate in seats:
+      QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, candidate)
+      _tick(150)
+      handles = view.handles()
+      tried.append((candidate.x(), candidate.y(), len(handles),
+                    panel._selection))
+      if handles:
+        break
+    running = dlg._topology_task is not None
     assert handles, (
-      "PREMISE: the chosen vertex offers no handle to drag; the panel "
-      f"holds {panel._selection!r} and a build is "
-      f"{'outstanding' if dlg._topology_task is not None else 'not running'}")
+      "PREMISE: no vertex drawn inside the widget offers a handle to "
+      "drag, so this fixture cannot aim. The view is "
+      f"{view.width()}x{view.height()}, a build is "
+      f"{'outstanding' if running else 'not running'}, and each "
+      f"candidate clicked gave (x, y, handles, selection): {tried}")
     grab_at = QPoint(int(round(handles[0][1].x())),
                      int(round(handles[0][1].y())))
     QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
@@ -6736,8 +6770,21 @@ def test_topology_edits_come_back_from_the_file():
       _tick(200)
       _choose_family(dlg, "laves 3.3.4.3.4")
       _tick(300)
-      assert _wait_for_the_topology(dlg), "PREMISE: no topology built"
+      # ASKED FOR QUIET RATHER THAN FOR AN ANSWER, which is the sixth
+      # site of a mechanism this suite has now named five times.
+      # `_wait_for_the_topology` returns as soon as the panel holds an
+      # ANSWER, and an answer left over from the design before this
+      # one is an answer -- so a test that reads the panel immediately
+      # afterwards may be aiming an edit with another design's labels,
+      # and a queue made while a build is RUNNING is deferred and
+      # re-queued at the landing.
+      assert _the_topology_tab_is_quiet(dlg), \
+        "PREMISE: the topology tab never went quiet, so no build ever "\
+        "answered for this design"
       panel = dlg.topology_panel
+      assert panel._topology is not None, (
+        "PREMISE: the tab went quiet holding no topology at all, so "
+        "there are no labels to aim an edit with")
       plain = ground(dlg._unit)
 
       # THE GAP-OPENER GOES FIRST, and the order is the whole of what
@@ -6771,11 +6818,33 @@ def test_topology_edits_come_back_from_the_file():
         after_one = ground(dlg._unit)
         if after_one != plain:
           break
+      # ...AND THE PREMISE CARRIES WHAT IT FOUND, not what it wanted.
+      # This failed on the stable leg on 2026-09-02 saying the edit was
+      # refused, and the diagnosis stopped there: nothing in the
+      # message said what the panel was HOLDING at the moment of the
+      # record, which is the one fact that separates "aimed with
+      # another design's labels" from "the library declined". It could
+      # not be reproduced here -- a staged race reached the design on
+      # both arms -- so the next occurrence is made to answer rather
+      # than guessed at, which is this project's own rule about
+      # instrumenting before you need it, arriving at a runner nobody
+      # here can drive.
+      held = getattr(panel, "_topology", None)
+      labels = (sorted(getattr(held, "edge_transitivity_classes", []) or [])
+                if held is not None else None)
+      outstanding = (getattr(dlg, "_topology_task", None) is not None
+                     or bool(getattr(dlg, "_topology_wanted", False)))
+      working = getattr(panel, "working", None)
+      saying = working.text() if working is not None else ""
       assert after_one != plain, (
         f"PREMISE: the rotation has not reached the dialog's unit "
         f"after ten seconds of waiting -- the ground is still {plain}, "
         f"which is the un-edited design, so the edit was refused "
-        f"rather than merely slow to arrive")
+        f"rather than merely slow to arrive. The panel held "
+        f"{'no topology' if held is None else f'edge classes {labels}'}, "
+        f"the edit named 'a', a build was "
+        f"{'outstanding' if outstanding else 'not outstanding'}, and "
+        f"the tab said {saying!r}")
       assert not topology_edits.still_has_a_topology(dlg._unit), (
         "PREMISE: the rotation left a design that still carries a "
         "topology, so the edit after it is not the case this test is "
@@ -39375,6 +39444,143 @@ def test_the_saves_count_is_asked_of_the_file():
   finally:
     QgsProject.instance().clear()
     shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_new_project_leaves_no_topology_edits_behind():
+  """Edits belong to the project they were made in.
+
+  `_forget_the_last_project` empties every record keyed by tile id
+  when QgsProject says `cleared`, which fires on File > New and
+  immediately before File > Open. `_scheme_memory` joined that list on
+  2026-08-25, after a scheme shelved in the project you CLOSED redrew
+  a column in the project you OPENED. `_topology_shelf` was not in it,
+  and nothing cleared the panel's own list -- so an edit made in one
+  project was replayed onto the same design in the next, reshaping its
+  map and riding into its GeoPackage.
+
+  THE SHELF ALONE IS NOT ENOUGH, which is the half worth remembering:
+  `_restore_topology_edits` is what puts the shelf back into the tab,
+  and nothing calls it unless the design MOVES. Somebody who opens a
+  new project and leaves the design alone would keep the outgoing
+  project's edits in front of them whatever the shelf held.
+
+  BOTH ANSWERS ARE ASSERTED. Emptying the shelf on every excursion
+  would pass the first half and destroy the feature: edits are shelved
+  by family and element count precisely so that leaving a design puts
+  them idle and coming back brings them home. So the second arm leaves
+  the design and returns WITHIN one project and requires them back.
+
+  AND THE PREMISE IS STAGED RATHER THAN TAKEN. The first index of each
+  chooser is a vertex class and `push_vertex`, whose displacement is
+  exactly zero on this design -- the incident unit vectors cancel --
+  so a fixture aimed there records an edit and changes nothing, and
+  the journey afterwards can show nothing being carried. An EDGE
+  manipulation is chosen, and the ground is required to have moved.
+
+  Regression: a topology edit made in one project reshaped the next
+  project's map and was written into its GeoPackage. [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  design = "laves 3.3.4.3.4"
+
+  def ground(unit):
+    """The unit's own area and perimeter, rounded.
+
+    Args:
+      unit: the tileable the dialog draws from, or None.
+
+    Returns:
+      (area, perimeter) rounded to three places, or None.
+    """
+    if unit is None or getattr(unit, "tiles", None) is None:
+      return None
+    shapes = unit.tiles.geometry
+    return (round(float(shapes.area.sum()), 3),
+            round(float(shapes.length.sum()), 3))
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    _choose_family(dlg, design)
+    _tick(300)
+    dlg.opt_experimental.setChecked(True)
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: no topology was built, so there is nothing to edit"
+    panel = dlg.topology_panel
+    assert panel.class_combo.count(), \
+      "PREMISE: the tab offers no class, so an edit cannot be aimed"
+    plain = ground(dlg._unit)
+    aimed = None
+    for index in range(panel.class_combo.count()):
+      panel.class_combo.setCurrentIndex(index)
+      _tick(120)
+      for how in range(panel.how_combo.count()):
+        if str(panel.how_combo.itemData(how)) in ("zigzag_edge",
+                                                  "rotate_edge",
+                                                  "scale_edge"):
+          panel.how_combo.setCurrentIndex(how)
+          _tick(120)
+          aimed = panel.how_combo.itemData(how)
+          break
+      if aimed:
+        break
+    assert aimed, \
+      "PREMISE: no edge manipulation is offered on this design"
+    panel.apply_button.click()
+    _tick(400)
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: the edit's own rebuild never settled"
+    edited = ground(dlg._unit)
+    assert edited != plain, (
+      f"PREMISE: {aimed} changed nothing about the design "
+      f"({plain} -> {edited}), so nothing can be seen to be carried")
+    assert dlg.topology_panel.edits(), "PREMISE: no edit was recorded"
+
+    # ---- THE SHELF DOES ITS JOB WITHIN ONE PROJECT: leave the design
+    # and come back, and the edits are home again.
+    _choose_family(dlg, "hex-slice 4")
+    _tick(400)
+    assert not dlg.topology_panel.edits(), (
+      "PREMISE: another design still shows this one's edits, so the "
+      "shelf is not keying them and the return proves nothing")
+    _choose_family(dlg, design)
+    _tick(400)
+    assert dlg.topology_panel.edits(), (
+      "leaving a design and coming back lost its edits: they are "
+      "shelved by family and element count precisely so that an "
+      "excursion puts them idle rather than throwing them away")
+
+    # ---- AND FILE > NEW DOES NOT, which QGIS reports by clearing.
+    QgsProject.instance().clear()
+    _tick(600)
+    assert not dlg._topology_shelf, (
+      f"the topology shelf survived a new project holding "
+      f"{sorted(dlg._topology_shelf)}, so an edit made in the project "
+      f"just closed will be replayed onto the same design in the one "
+      f"just opened")
+    assert not dlg.topology_panel.edits(), (
+      "the panel still lists the outgoing project's edits: emptying "
+      "the shelf is not enough, since nothing puts it back into the "
+      "tab unless the design moves")
+
+    # ---- AND THE NEXT PROJECT'S MAP IS ITS OWN.
+    fresh = make_region_layer()
+    QgsProject.instance().addMapLayer(fresh)
+    dlg.layer_combo.setLayer(fresh)
+    _tick(400)
+    _choose_family(dlg, design)
+    _tick(600)
+    assert ground(dlg._unit) == plain, (
+      f"the new project's design came out at {ground(dlg._unit)} where "
+      f"an unedited one is {plain}: the outgoing project's edit was "
+      f"replayed onto it")
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
 
 
 def test_both_doors_remember_the_file_carried_the_data():
@@ -84222,6 +84428,8 @@ def main():
         test_no_acting_control_is_live_while_a_save_writes)
   check("both doors remember the file carried the data",
         test_both_doors_remember_the_file_carried_the_data)
+  check("a new project leaves no topology edits behind",
+        test_a_new_project_leaves_no_topology_edits_behind)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

@@ -9393,8 +9393,39 @@ class WeavingSpaceDialog(QDialog):
                    # would release colours in the INCOMING project
                    # that were kept for a file the outgoing one named.
                    self._kept_for_unreadable,
+                   # ...AND THE TOPOLOGY SHELF, joining this list on
+                   # 2026-09-02 for exactly the reason the scheme
+                   # memory joined it on 2026-08-25, seven lines above.
+                   # Edits are shelved by family and element count, and
+                   # a key names the same design in every project -- so
+                   # an edit made in the project you CLOSED was
+                   # replayed onto the design in the project you
+                   # OPENED, reshaping its map and riding into its
+                   # GeoPackage. Measured 2026-09-02 with the scheme
+                   # memory beside it as the control, which is what
+                   # says the clear ran at all: shelf and panel both
+                   # survived where the scheme did not, and the next
+                   # project's unit came out at 246,109.968 against a
+                   # control's 250,000.0.
+                   # THE PREMISE HAD TO BE STAGED RATHER THAN TAKEN.
+                   # The first index of each chooser is a vertex class
+                   # and `push_vertex`, whose displacement is exactly
+                   # zero on this design, so a probe aimed there
+                   # records an edit and changes nothing -- the
+                   # fixture-that-cannot-exhibit-its-case trap, met
+                   # through the catalogue rather than through data.
+                   self._topology_shelf,
                    self._custom_swatch_cache):
       record.clear()
+    # AND THE PANEL'S OWN LIST WITH IT, because emptying the shelf is
+    # not enough: `_restore_topology_edits` is what puts the shelf back
+    # into the tab, and nothing calls it unless the design MOVES. A
+    # person who opens a new project and leaves the design alone would
+    # otherwise keep the outgoing project's edits in front of them, and
+    # `_topology_edit_key` would go on answering with them.
+    panel = getattr(self, "topology_panel", None)
+    if panel is not None:
+      panel.set_edits([])
     self._dataset_memory.clear()
     self._memory_layer_id = None
     self._pending_outgoing_shelf = None
