@@ -4936,3 +4936,50 @@ measure rather than as plumbing. Redirect to a FILE and read the file;
 where the harness reports a background job's output, remember that a
 pipe flushes when the job EXITS, which for a watcher is exactly too
 late to be a watcher.
+
+
+## A READING TAKEN BEFORE THE AIMING IS A BET ON THE MACHINE
+
+2026-09-02, found by CI's coverage leg on rc13's own commit and by
+nothing here. `a build that lands mid drag does not wipe the gesture`
+failed on its MAIN assertion this time rather than on a premise --
+"the panel adopted a new topology mid-gesture" -- 256 passed and 1
+failed on one shard of three, each shard naming the same total of 772,
+while the same test passed in that candidate's own local suite at 4.8s
+against the runner's 11.7s.
+
+THE PRODUCT WAS INNOCENT AND THAT WAS STAGED RATHER THAN ARGUED. The
+test captured its subject -- the topology the panel holds -- BEFORE the
+clicks that find a handle to drag, and those clicks tick the event
+loop, while this test deliberately does not drain the queued build
+first, its whole subject being a landing that arrives under a pointer.
+A landing in the clicking window is adopted CORRECTLY, no gesture being
+in progress yet; the captured value then goes stale and the assertion
+reports correct behaviour as the defect, in a sentence that says
+"mid-gesture" about a landing that happened before the gesture.
+Measured both arms in one run by
+`tools/probes/which_moment_the_drag_guard_reads.py`, each clearing the
+project first: with a landing delivered before the press the old
+reading FAILS and a reading taken at the press HOLDS, and in BOTH arms
+the mid-gesture landing is refused, so the hold was never at fault.
+
+THE REPAIR IS A MOMENT, NOT A WAIT. The subject is read inside the
+helper that performs the press, so nothing can move it between the two
+-- a landing arriving while the pointer is down is held rather than
+applied, which is the behaviour under test. Adding a settle instead
+would have been the obvious repair and is the wrong one: this test's
+siblings drain the queue and it must not, measured 2026-09-01 at three
+runs of three.
+
+AND THE GUARD WAS RE-PROVED RATHER THAN ASSUMED. All three catalogue
+entries standing on it -- the hold, the held landing being applied, and
+its discard where the gesture committed -- came back `caught` after the
+repair. A repair to a test is exactly where a guard quietly stops
+being able to fail.
+
+THE TELL FOR THE FAMILY: an assertion whose message names a MOMENT
+("mid-gesture", "after the landing", "once the run had finished") is
+making a claim about when its own reading was taken. Ask what could
+have moved that value between the reading and the act, and where the
+answer is "anything the event loop delivers", take the reading at the
+act.

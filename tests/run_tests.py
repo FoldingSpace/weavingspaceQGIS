@@ -5881,8 +5881,30 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
         and commits nothing.
 
     Returns:
-      (grab_at, moved_to) -- where the press went and where the
-      pointer now is, so the caller can release where it left off.
+      (grab_at, moved_to, held_at_the_press) -- where the press went,
+      where the pointer now is so the caller can release where it left
+      off, and THE TOPOLOGY THE PANEL HELD ONCE THE GESTURE HAD BEGUN.
+
+    THAT THIRD VALUE IS THE SUBJECT, AND READING IT EARLIER IS A BET ON
+    THE MACHINE. Both arms used to capture it before calling this, and
+    the aiming clicks below tick the event loop -- while this test
+    deliberately does not drain the queued build first, its subject
+    being a landing that arrives under a pointer. A build landing in
+    the clicking window is adopted CORRECTLY, no gesture being in
+    progress yet, so the earlier reading went stale and the assertion
+    reported correct behaviour as the defect, in a sentence saying
+    "mid-gesture" about a landing that happened before the gesture.
+    CI's coverage leg failed exactly that way on 2026-09-02 at
+    `6e40574` -- 256 passed and 1 failed of one shard of three, each
+    naming the same total of 772 -- while the same test passed in that
+    candidate's own suite. Staged rather than raced by
+    `tools/probes/which_moment_the_drag_guard_reads.py`, both arms in
+    one run: with a landing delivered before the press the old reading
+    FAILS and this one HOLDS, and the mid-gesture landing is refused in
+    both arms, so the hold was never the thing at fault. Nothing can
+    move it between the press and this return, since a landing arriving
+    while the pointer is down is held rather than applied -- which is
+    the behaviour under test.
     """
     topology = view._drawn()
     middle = (view.width() / 2, view.height() / 2)
@@ -5956,10 +5978,11 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
                      QtNamespace.KeyboardModifier.NoModifier, grab_at)
     _tick(50)
+    held_at_the_press = panel._topology
     moved_to = grab_at + QPoint(travel, 0)
     QTest.mouseMove(view, moved_to)
     _tick(150)
-    return grab_at, moved_to
+    return grab_at, moved_to, held_at_the_press
 
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -5982,8 +6005,7 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     other_unit, other_topology = a_second_design()
 
     # ---- THE ARM THAT COMMITS: a real drag, a landing under it.
-    aimed_at = panel._topology
-    _grab, moved_to = drag_to(view, panel, 60)
+    _grab, moved_to, aimed_at = drag_to(view, panel, 60)
     assert view._preview is not None, \
       "PREMISE: the drag drew no preview, so there is nothing to wipe"
     chosen_before = view._chosen_thing
@@ -6031,14 +6053,13 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
     # ---- THE ARM THAT COMMITS NOTHING: the held landing is what draws.
     _settle_topology(dlg, seconds=40)
     _tick(200)
-    landed = panel._topology
     # A GESTURE THAT ASKS FOR NOTHING IS A PRESS THAT DID NOT TRAVEL,
     # and it has to be exactly that: `_drag_moved` calls a nudge real
     # at a ten-thousandth of the unit, which on this design is four
     # hundredths of a PIXEL, so there is no small-but-nonzero drag that
     # commits nothing. One pixel commits, which is what the first
     # attempt at this arm measured.
-    _grab, moved_to = drag_to(view, panel, 0)
+    _grab, moved_to, landed = drag_to(view, panel, 0)
     assert panel._drag_from is not None, (
       "PREMISE: a press that has not travelled recorded no drag at "
       "all, so this arm is not holding a live gesture")

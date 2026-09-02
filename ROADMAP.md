@@ -408,6 +408,21 @@ threw a promised save away. Each was verified here by a route its hunt
 did not use, repaired, guarded and proved, and the last two were
 settled by the maintainer as rulings rather than patched.
 
+**AND `0.24.4rc13` IS SPENT TOO, ON A SUITE FAULT AND NO PRODUCT
+DEFECT.** Every local gate passed on `6e40574` and CI's coverage leg
+did not: `a build that lands mid drag does not wipe the gesture`,
+256 passed and 1 failed on one shard of three, each naming the same
+total of 772. It failed on its MAIN assertion this time rather than on
+a premise, and the product was innocent -- the test read its subject
+before the clicks that find a handle, and a landing arriving in that
+window is adopted correctly. Staged both arms in one run by
+`tools/probes/which_moment_the_drag_guard_reads.py`; the reading is
+taken at the press now and all three catalogue entries on that test
+were re-proved `caught`. That is the fourth candidate spent on a test
+repair, and the trade is the documented one: `publish_candidate`
+requires CI green on the candidate's OWN commit, so a repair is a new
+commit and the old number can never be published.
+
 **AND `0.24.4rc12` WAS BUILT GREEN AND SPENT WITHIN THE HOUR**, which
 is the documented trade rather than a waste: every stage passed, the
 suite's three shards read 257 each against one total of 771, and the

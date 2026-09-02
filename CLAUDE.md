@@ -6777,3 +6777,29 @@ here, and the decision to add one is the maintainer's. Recorded
   read as though nothing had landed. Ask the product its own question;
   a reimplementation in the instrument is a second definition, which
   is the very fault row 24 is about.
+
+- **AN ASSERTION THAT NAMES A MOMENT IS A CLAIM ABOUT WHEN ITS OWN
+  READING WAS TAKEN.** (2026-09-02, CI's coverage leg on rc13's own
+  commit, and it spent that candidate.) `a build that lands mid drag
+  does not wipe the gesture` failed on its main assertion rather than
+  on a premise -- "the panel adopted a new topology mid-gesture" -- on
+  one shard of three, each naming the same total of 772, while the
+  same test passed in the candidate's own local suite. The product was
+  innocent: the test read the topology the panel holds BEFORE the
+  clicks that find a handle, those clicks turn the event loop, and this
+  test deliberately does not drain the queued build first because its
+  subject IS a landing arriving under a pointer. A landing in that
+  window is adopted correctly, no gesture being in progress, so the
+  captured value went stale and correct behaviour was reported as the
+  defect.
+  STAGED RATHER THAN ARGUED, both arms in one run by
+  `tools/probes/which_moment_the_drag_guard_reads.py`: with a landing
+  delivered before the press the old reading fails and a reading taken
+  at the press holds, and in BOTH arms the mid-gesture landing is
+  refused. The repair is a MOMENT rather than a wait -- the subject is
+  read inside the helper that presses, where nothing can move it,
+  since a landing arriving with the pointer down is held. A settle
+  would have been the obvious repair and is the one this test's own
+  comment forbids.
+  AND ALL THREE CATALOGUE ENTRIES WERE RE-PROVED after it, because a
+  repair to a test is exactly where a guard stops being able to fail.
