@@ -302,6 +302,21 @@ work still owed. What remains outside the software is named under
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.
 
+**AND THE CANDIDATE IS BUILT: `0.24.4rc10`, from `663f77d`.** Every
+gate green -- the roadmap and branches, the standards check, the
+secrets audit, the functional suite at 26 minutes, the visual gallery
+at 13 of 13 and the colourspace comparison at dE means of 0.30 to
+0.42, the published-content audit, the zip and its receipt.
+THE SUITE'S SHARDS ARE READ SEPARATELY AND THE PARTITION IS EXACT:
+250, 249 and 249 tests, each shard naming the same total of 748, and
+none failing. A total climbing healthily is the sum of two shards
+doing fine and one that died at startup, which is why the three
+numbers are written here rather than their sum.
+WHAT PUBLICATION WAITS ON is CI answering for the candidate's OWN
+commit, which `publish_candidate` requires and no later fix can make
+true of an earlier commit. Notes for testers are drafted at
+`dist/CANDIDATE-0.24.4rc10.notes.md`.
+
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
 work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and
@@ -2310,6 +2325,32 @@ redundant in the common case. OURS STAYS AS THE FALLBACK regardless --
 a later re-vendor could rename `get_clean_polygon` and take the repair
 away in silence. Whether to retire our dedupe is a measurement (drive
 the four designs both ways) rather than a decision.
+
+**AND THE NEXT RE-VENDOR HAS A MEASURED PRICE ON IT, WHICH THIS ENTRY
+DID NOT HAVE.** (2026-09-01.) Upstream's `experimental` branch carries
+four commits on top of what we vendor, one of them saying Topology
+construction is "now a bit quicker". Timed under QGIS's OWN python,
+which is the configuration a re-vendor actually gives the plugin, it
+takes the worst design in the catalogue from 18.9s to 9.5s while
+`chavey K` barely moves -- so it halves the wait before an edit can be
+aimed, and it INVERTS the ordering of the two designs, which is what
+closed the open question in docs/TOPOLOGY.md about the library's
+author measuring them the other way round. Five arms, each timing one
+checkout under one set of dependencies, are recorded there.
+IT IS NOT A REASON TO TAKE AN UNMERGED BRANCH. That branch carries a
+revert saying a change to the potential-symmetries listing "broke
+topology construction for some tilings", and its own first commit says
+the plugin can ignore it until it merges; a re-vendor is its own round
+with its own differential besides. It is a reason to take it the day
+it merges, and to re-run those five arms then --
+`tools/probes/what_a_topology_build_costs_upstream.py`, with the two
+checkouts kept under `dev/upstream-timing/`.
+AND THE RESTRUCTURE IS THE PART TO READ FIRST when that day comes:
+`2432972` moves Tile, Vertex and Edge into `elements.py` and the
+plotting into `topology_plot.py`, which removes `topology.py`'s
+matplotlib dependency -- so it would retire part of the only patch
+family left in `tools/vendor_weavingspace.py`, and it moves the module
+the tab, the edit shelf and the manipulations all stand on.
 
 ## Waiting on the upstream project
 

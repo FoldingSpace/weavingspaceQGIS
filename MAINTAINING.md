@@ -1057,8 +1057,15 @@ experimental and behind the box above.
 
 **The topology is built off the main thread**, in `_topology_task`,
 because `Topology.__init__` is eager: eight setup passes and a dual
-graph, measured between 0.75s and 4.4s across the designs in the
-catalogue. It is queued by whatever rebuilds the UNIT and never by a
+graph. THE FIGURE TO USE IS 0.8 TO 21 SECONDS, not the 0.75-4.4 this
+paragraph carried until 2026-09-01: nobody had run the catalogue far
+enough up to meet `hex-colouring 7`, which is seven tiles with
+forty-two corners between them and takes about nineteen. The narrower
+figure is what justified building inside a save, and that decision
+cost twenty-seven seconds of frozen window before it was measured.
+docs/TOPOLOGY.md carries the spread, the decomposition that exonerates
+our wrapper, and the five arms that show the ordering itself belongs
+to the LIBRARY rather than to this machine. It is queued by whatever rebuilds the UNIT and never by a
 colour or a ramp, which is the same boundary `_geometry_signature`
 already draws for re-tiling — a restyle changes no edge, so asking for
 a topology on one would cost seconds for a picture that cannot have
@@ -1424,6 +1431,25 @@ is left alone, which is the line the source copy and the stale-table
 drop both hold. And the key is carried FORWARD unchanged when the
 tables are spared, because the record has to stay true of the TABLES
 rather than of the act that spared them.
+
+**AND ONE GUARD IN THIS METHOD DECIDES NOTHING ANY MORE, WHICH IS
+WORTH KNOWING BEFORE SOMEBODY LEANS ON IT.** The branch discarding a
+topology of another design was load-bearing while the rebuild happened
+HERE; since the build moved off this thread it is not. Measured
+2026-09-01, when its catalogue entry survived and the discriminator
+was run to the end: the deferral rebuilds wherever the file already
+carries our unit table, so the only journey still reaching that line
+is a save into a file that does not -- and there, with the branch
+removed, the unit written is `self._unit`, the dual is refused for
+being another design's, the both-or-neither test declines the write,
+and the drop returns on the absent table. Identical file, identical
+return, one dump line apart. The code stays because it states the
+question where the question is asked and costs one comparison; its
+entry is RETIRED with the measurement, since an entry that can only
+ever be red is worth less than a retirement that says why. What would
+make it load-bearing again is a write taking its unit from the panel's
+topology rather than from `self._unit`, or a dual whose stamp stopped
+being checked.
 
 **AND THE REDESIGN FOUND A DEFECT UNDERNEATH IT.** `_topology_stamp`
 omitted the MODIFIERS. `_queue_topology` builds from `self._unit`,

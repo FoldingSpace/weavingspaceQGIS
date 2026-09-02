@@ -4389,3 +4389,55 @@ identity, and only one of the six was found by the search that found
 the first. What they share is the QUESTION -- which design is this --
 and the sweep that finds them is for every reader of the family
 chooser, not for the string that happened to break.
+
+## STAGING AND ASSERTING ARE NOT THE SAME MOVE, AND I CONFUSED THEM
+
+2026-09-01, an hour after writing the entry above about closing a
+window rather than sampling it. The repair to `the topology tab says
+when it is working` waited for the topology to have an answer and then
+ASSERTED, on the next line, that no build was outstanding. That is a
+bet wearing a premise's clothes: a queue made while a build runs is
+deferred and re-queued at the landing, so whether the tab is quiet at
+that instant depends on the machine. Red twice in three runs of one
+process -- and red on the PREMISE, which reads as the fixture being
+wrong rather than as the repair being.
+
+**THE DISTINCTION IS ONE WORD AND IT IS THE WHOLE OF IT.** To STAGE a
+condition is to make it true and then proceed: wait, bounded, until
+the tab is actually quiet. To ASSERT it is to demand that it already
+be true and fail otherwise. A premise should assert what the test's
+own setup has MADE true, never what the machine happened to arrange --
+and the tell is that the assertion names something with a timer behind
+it.
+
+The repaired version waits until the build has landed and the sentence
+has cleared, with a ceiling that catches a hang rather than budgeting
+the work, and only then asserts. Four runs of four. This file already
+says to close the window rather than measure how often you land in it;
+what this adds is that a premise is exactly where that rule is
+easiest to break, because a premise LOOKS like the safe kind of
+assertion.
+
+## A FAMILY GUARD EARNS ITS KEEP ON FILES THAT DID NOT EXIST YET
+
+2026-09-01. The guard written on 2026-08-28 for `if os.path.exists(x):
+os.remove(x)` -- the race that cost a coverage shard its entire run,
+three processes seeing the file, two removing it, the third dying
+before a single test -- went red on the mutation workflow's coverage
+leg and named THREE probes by file and line. All three were written
+that same morning, for the save-and-load measurements, by somebody who
+had read the entry describing the fault.
+
+**THIS IS THE ARGUMENT FOR GUARDING THE SHAPE RATHER THAN THE SITE,
+stated as a measurement rather than as a principle.** A regression
+test pinned to the reported line would have passed forever while three
+new instances arrived in one morning. The guard scans, so it found
+them; it reads each file WHOLE, because the shape spans two lines and
+no per-line grep can see it; and it counts what it scanned, because a
+walk that finds nothing and a walk that looked at nothing are the same
+green.
+
+AND THE REPAIR WAS MADE AS A FAMILY, not where CI met it. All three
+sites took the same two lines, and the local partial run had never
+reached that test at all -- so mending the one the remote named would
+have left two standing in instruments this project runs by hand.

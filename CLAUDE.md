@@ -6388,3 +6388,29 @@ here, and the decision to add one is the maintainer's. Recorded
   rather than a missing export. The reason lives at the line in the
   session's own helper, because a rule in a binding document does not
   travel into the next throwaway script.
+
+- **A CANDIDATE'S OWN SUITE IS READ SHARD BY SHARD, AND THE PARTITION
+  IS THE PROOF.** (2026-09-01, the rc10 candidate.) The stage line
+  says one number and the log carries three: 250, 249 and 249 tests,
+  each shard naming the SAME total of 748. That agreement is what
+  makes a slice a partition rather than three overlapping runs -- the
+  first sharded run this project ever made read 285, 285 and 286, and
+  slices that disagree about the size of the whole mean something ran
+  twice or not at all. A total climbing healthily is also what a shard
+  dying at startup looks like from outside, which this project has met
+  once. So the three numbers are quoted rather than their sum,
+  wherever a green suite is claimed.
+
+- **A DOCUMENTATION EDIT CANNOT INVALIDATE A CANDIDATE, AND KNOWING
+  THAT IS WHAT MAKES THE HOUR AFTER ONE USABLE.** The receipt digests
+  exactly the files that SHIP, taken with `build.py`'s own
+  `shipped_files()`, and it deliberately ignores tests, tooling and
+  documentation -- because those cannot change what a reviewer
+  installed, and a gate that fired on a comment in the suite is a gate
+  people learn to route around. So the write-up, the roadmap and the
+  lessons can all be finished while CI answers, and the candidate
+  standing in `dist/` is still the artefact its receipt describes.
+  WHAT DOES INVALIDATE IT is any shipped byte, which includes
+  `metadata.txt` -- so a changelog correction after a candidate is a
+  new candidate, which is the trade the approved-prose-goes-stale rule
+  is really about.
