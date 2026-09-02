@@ -2519,43 +2519,34 @@ MUTATIONS = [
        test="test_the_dual_repeats_however_the_lattice_is_keyed",
        why="seeing the dual where the tiles are, on the two thirds of "
            "the catalogue whose lattice is not keyed by pairs"),
-  dict(name="a-stale-topology-is-not-a-topology",
-       file=DIALOG,
-       # The rebuild was guarded on "is there a topology" where the
-       # question is "is the one in hand ABOUT this design" -- which
-       # the dual's own check two hundred lines below already asks.
-       # With the box off the panel keeps the previous design's
-       # object, so the rebuild was skipped, the write declined for a
-       # mismatched pair, and the drop took both tables with nothing
-       # put back. Restoring the old guard is the defect as it
-       # shipped.
-       # IT SURVIVES SINCE 2026-09-01, AND THE THIRD READING IS THE
-       # RIGHT ONE. The axis is not weak and the mutation is not inert:
-       # the test has stopped REACHING this branch, because the same
-       # day's deferral gave the fact a second writer. A save owed a
-       # motif now queues an off-thread build and waits for it, so by
-       # the time the write runs the panel holds a FRESH topology and
-       # the staleness this test stages by hand has been replaced.
-       # MEASURED RATHER THAN REASONED: run the test unmutated with
-       # WEAVINGSPACE_ADOPT_DUMP=1 and the guard's own line,
-       # `TOPO-WRITE held-topology-is-of-another-design`, never
-       # appears -- while `TOPO-WRITE topology= True ...` appears four
-       # times, so the write is reached and this branch is not.
-       # WHAT IS OWED IS A RE-AIM, NOT A RETIREMENT, and the journey
-       # that still reaches it is nameable: a file carrying no unit
-       # table of ours is owed nothing, so no deferral runs and a stale
-       # pair can still arrive at the write. Staging that is the work,
-       # and it is on the owed list rather than done in a hurry --
-       # which is this project's own rule about deciding a survivor
-       # after the measurement rather than during it.
-       old="""    if topology is not None and (
-        held_dual is None or held_dual[0] != self._topology_stamp()):
-      _dump("TOPO-WRITE", "held-topology-is-of-another-design")
-      topology = None""",
-       new="""    pass  # mutation: a topology of another design is kept""",
-       test="test_a_later_save_replaces_a_motif_rather_than_dropping_it",
-       why="a saved file going on describing itself after the design "
-           "moves, rather than losing its motif to a checkbox"),
+  # RETIRED 2026-09-01, axis LIVE and HELD REDUNDANTLY. The entry was
+  # `a-stale-topology-is-not-a-topology`, standing on the guard in
+  # `_write_or_drop_the_topology` that discards a topology of another
+  # design, with
+  # `test_a_later_save_replaces_a_motif_rather_than_dropping_it`.
+  # IT SURVIVED, AND THE THIRD READING IS THE RIGHT ONE. Not a weak
+  # test -- the mutation replaces the whole guard with `pass`. Not
+  # inert in the ordinary sense -- the branch prints its own dump line
+  # when it is entered. The TEST HAS STOPPED REACHING IT, because the
+  # same day's deferral gave the fact a second writer: a save owed a
+  # motif queues an off-thread build and WAITS, so by the time the
+  # write runs the panel holds a fresh topology and the staleness that
+  # test stages by hand has been replaced. Measured with the plugin's
+  # own dump: `TOPO-WRITE held-topology-is-of-another-design` never
+  # appears, while `TOPO-WRITE topology= True` appears four times.
+  # AND WHERE IT CAN STILL FIRE THE OUTCOME IS UNCHANGED, which is
+  # what makes this a retirement rather than a re-aim. The deferral
+  # only runs where the FILE already carries our unit table, so the
+  # remaining journey is a save into a file that does not -- and
+  # there, with the guard gone, `wanted` is True, the unit written is
+  # `self._unit` (the CURRENT design's), the dual is refused for being
+  # another design's, the both-or-neither test declines the write, and
+  # the drop returns on the absent table. Identical file, identical
+  # return, one dump line apart.
+  # WHAT WOULD REOPEN IT: a write that took its unit from the panel's
+  # topology rather than from `self._unit`, or a dual whose stamp
+  # stopped being checked -- either makes the guard load-bearing
+  # again. The reasoning is at the site as well as here.
   dict(name="a-drop-names-only-what-this-map-wrote",
        file=DIALOG,
        # The candidate sweep matched every table in the file whose

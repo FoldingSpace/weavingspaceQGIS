@@ -21145,6 +21145,25 @@ class WeavingSpaceDialog(QDialog):
     # Cleared here, everything below is the path that already exists:
     # rebuild where the file carries our unit, and where the design
     # genuinely has none, the drop is correct.
+    # AND SINCE THE BUILD MOVED OFF THIS THREAD, THIS GUARD DECIDES
+    # NOTHING ON ITS OWN -- measured 2026-09-01 rather than reasoned,
+    # when its catalogue entry SURVIVED and the discriminator was run
+    # to the end. The deferral above rebuilds wherever the FILE already
+    # carries our unit table, so the only journey that still reaches
+    # this line is a save into a file that does not; and there, with
+    # this branch removed, `wanted` is True, the unit written is
+    # `self._unit` -- the CURRENT design's -- the dual below is refused
+    # for being another design's, the both-or-neither test declines the
+    # write, and the drop returns on the absent table. Identical file,
+    # identical return, one dump line apart.
+    # IT STAYS BECAUSE IT STATES THE QUESTION AT THE POINT IT IS ASKED
+    # and costs one comparison, not because anything downstream needs
+    # it today. WHAT WOULD MAKE IT LOAD-BEARING AGAIN: a write taking
+    # its unit from the panel's topology rather than from `self._unit`,
+    # or a dual whose stamp stopped being checked. Its entry is retired
+    # in `tools/mutation_check.py` with the same measurement, since an
+    # entry that can only ever be red is worth less than a retirement
+    # that says why.
     held_dual = getattr(self, "_topology_dual", None)
     if topology is not None and (
         held_dual is None or held_dual[0] != self._topology_stamp()):
