@@ -4877,3 +4877,62 @@ into a PIPE printed nothing at all before its timeout, because printf
 to a pipe is block-buffered; into a FILE it printed twenty-seven
 lines. Hand-run a watcher before arming it -- and hand-run it THE WAY
 IT WILL BE ARMED, or the rehearsal measures the rehearsal.
+
+
+## A RULING THAT IS AN ORDER IS TWO CLAIMS, AND ONE ENTRY CANNOT HOLD IT
+
+(2026-09-02, ledger row 26.) "The save happens first, then the load"
+reads as one sentence and is two behaviours. A repair that defers the
+Load and never performs it satisfies every reading of the first half:
+the promised save lands on the right file, the other map is untouched,
+and the only thing wrong is a button that did nothing.
+
+SO THE GUARD ASSERTS BOTH, and each half carries its OWN catalogue
+entry -- one mutating the deferral so the Load ignores the promise,
+one making the deferred Load never happen. Two entries rather than one
+deliberately, for the reason this file already gives about a record's
+write and its read: an entry a sibling can satisfy reports `caught`
+about nothing.
+
+THE TELL FOR THE FAMILY: when a decision is phrased as an ORDER, or as
+"X, then Y", count the verbs. Each is a promise somebody can break on
+its own.
+
+## A PROBE'S CONTROL MUST MOVE ONE TERM, AND AN INSTRUMENT MUST ASK
+## THE PRODUCT ITS OWN QUESTION
+
+(2026-09-02, verifying the shelf key's blindness to the dual, and both
+faults were in one probe.)
+
+ITS CONTROL CHANGED THE DESIGN IT WAS COMPARING AGAINST. The control
+for "an ordinary design change moves the shelf key" moved the ELEMENT
+COUNT -- which repopulates the family list and lands on whatever that
+count offers, so `hex-slice 4#4` became `square-colouring 5#5` and
+every reading after it was about a design nobody had chosen. A family
+change moves one term and is the honest control. This is the
+select-then-act fault in an instrument: a step that looks like it is
+about one thing resets another.
+
+AND ITS KEY WAS A SECOND IMPLEMENTATION. The probe computed the key
+itself, mirroring the signature as it stood -- so after the repair
+widened that signature the probe went on printing the OLD answer, and
+the repair read as absent. Asking the product's own method is what
+made the picture unambiguous, and it is the same rule the defect
+itself is about: a reimplementation is a second definition, and the
+day one of them moves they disagree.
+
+## A WATCHER IS ARMED AS WELL AS HAND-RUN, AND A PIPE DEFEATS EITHER
+
+(2026-09-02, the twenty-fifth watcher fault here, and the lesson was
+written into this file the same morning.) A watcher hand-run into a
+pipe printed nothing, which is recorded above. Hours later the same
+watcher was ARMED as `script | tail -40`, to keep its output short --
+and `tail` buffers to EOF, so a watcher running perfectly well printed
+nothing at all and the maintainer asked why it did not work.
+
+THE RULE HAD BEEN LEARNED AT ONE MOMENT AND APPLIED THERE. Arming is a
+second moment with its own habits, and the pipe arrived as a tidiness
+measure rather than as plumbing. Redirect to a FILE and read the file;
+where the harness reports a background job's output, remember that a
+pipe flushes when the job EXITS, which for a watcher is exactly too
+late to be a watcher.

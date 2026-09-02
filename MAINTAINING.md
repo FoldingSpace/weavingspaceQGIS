@@ -942,6 +942,24 @@ filter is installed after `_retire_previous_instance` (which takes the
 old dialog's off) and removed in the retirement path, or it is this
 project's retired-dialog family wearing an event filter.
 
+**CLOSING THE PLUGIN WINDOW ASKS TWO DIFFERENT QUESTIONS**, and which
+one it asks is the difference between dropping an intention and
+destroying work. (Maintainer's ruling, 2026-09-02: "a panel's close
+button shouldn't stop a save, it should prompt whether to interrupt
+save".) A WRITE UNDER WAY is asked about in its own words --
+"Interrupt the save when closing?" -- with No as the default, and only
+Yes sets `_save_cancelled`. A PROMISE NOT YET KEPT keeps the older
+question below, because nothing has been opened and there is nothing
+on disk to lose.
+WHAT No DOES is written at the code rather than implied: the write is
+not interrupted and the window closes, the save finishing in the frame
+beneath and reporting for itself. It cannot WAIT there -- the close
+arrives on the write's own pump, so holding would suspend the only
+frame that can clear the flag.
+ONE QUESTION USED TO COVER BOTH, which is ledger row 5's lesson one
+layer up: the predicate was mended for merging a promise with the
+keeping of it, and the question built on it went on merging them.
+
 **CLOSING THE PLUGIN WINDOW** asks first, with Save as the default.
 Before 2026-09-01 `closeEvent` cleared `_save_pending` with nothing
 said, so shutting the panel threw away a promise the plugin had just
@@ -1049,7 +1067,7 @@ where recovery lands on NOTHING the chooser still names another
 dataset, and capturing that would file the resumed group under a
 dataset it was not made from.
 
-## Three queues, because a press, a tick and a save are not one fact
+## Four queues, because a press, a tick, a save and a Load are not one fact
 
 One run at a time is settled, so anything asking for a run while one is
 in flight is REMEMBERED and honoured when that run lands. What was
@@ -1107,6 +1125,32 @@ the write, exactly as the button reads it, so every guard the press
 would have met is met -- the overwrite question, the empty box, the
 map that is no longer in the project. Remembering the path instead
 would write to a file the person had since changed their mind about.
+
+**AND THE FOURTH ARRIVED THE DAY AFTER THAT**, out of the sentence
+above: the chooser being re-read is what makes a promise obey somebody
+who changes their mind, and a LOAD moves that chooser while meaning
+something else entirely -- where the map being OPENED lives. So a Load
+pressed inside a promise's window consumed the promise against the
+other file and the person's own map was never written.
+
+`_load_pending` is a Load deferred behind a promised save (maintainer's
+ruling, 2026-09-02: the save happens first, then the load).
+`_honour_a_queued_load` performs it when the promise ENDS -- kept or
+dropped, since either answers what the deferral asked -- and it is
+connected beside `_honour_a_queued_save` at all three of that one's
+sites, so a promise ending by any route lets the Load through in the
+order the person asked for.
+
+ONLY THE PROMISE IS ASKED ABOUT, and that is what keeps this door away
+from the nested wait that froze the window on the same day: Load is in
+`CONTROLS_A_PUMP_TAKES_DOWN`, so it is disabled for the whole of a
+write and no click can be delivered by the write's own pump.
+
+AND THE ORDER IS TWO CLAIMS, each with its own catalogue entry: the
+save must land on the person's OWN file, and the Load must then
+happen. A repair that protected the first while swallowing the second
+would satisfy any reading of the ruling and leave a button that does
+nothing.
 
 ## Leaving a dataset stamps what you leave
 

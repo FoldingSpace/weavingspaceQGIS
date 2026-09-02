@@ -6665,3 +6665,115 @@ here, and the decision to add one is the maintainer's. Recorded
   across a branch: a verdict whose subject is ambiguous is not a
   measurement, and a watcher that reports twelve jobs under six names
   is reporting half of what it read.
+
+- **A LAUNCH STATE BEATS THE CARRY, SO HANDING A KEY OVER IS NOT THE
+  SAME ACT AS LETTING IT FALL THROUGH.** (2026-09-02, ledger rows 22
+  and 23, and the second is my own repair's defect found within the
+  hour by the hunt replenished onto it.) `_stamp_working_state` merges
+  a launch state OVER the record already on the group, so a resume
+  that hands `region_crs` across unconditionally stamps the FILE's
+  answer onto a group whose own record a LANDING wrote. Row 22 was the
+  key falling through to the live chooser, which put a stranger's
+  system on somebody's region; row 23 was the repair for it taking the
+  carry away, so a file older than the key left the group saying
+  nothing at all and a file carrying the earlier defect's value had
+  that copied back over a record that was right.
+  THREE STORES, IN THE ORDER OF WHAT EACH KNOWS, is the shape that
+  settled it: the RESOLUTION (the layer a recovery landed on), then
+  the GROUP's own record, then the FILE's. Ask of any fact with more
+  than one holder not merely which writer has a reason, but which of
+  them was standing at the moment the fact is about.
+  AND THE DOOR THAT LOOKS HELD IS A COUNTDOWN. The already-open door
+  was held by the carry rather than immune, which is why both doors
+  are written the same way and why the catalogue entry stands on the
+  twin: an entry on a line held by somebody else's mechanism can only
+  ever survive.
+
+- **A KEY THAT ENUMERATES TWO OF A DESIGN'S TERMS IS A SECOND
+  DEFINITION OF THE DESIGN.** (2026-09-02, ledger row 24, and THREE
+  hunts of one round reached it from three directions -- backwards
+  from harm, the specification itself, and the stochastic sessions,
+  which is the strongest confirmation this method produces.)
+  `topology_edits.shelf_key` was the family and the element count, and
+  "Map the dual instead" moves neither -- so a design and its dual
+  shared one shelf, and an edit made on the dual was replayed onto the
+  design's own like-named edge the moment the box came off. This file
+  already carries the rule from the save's staleness guard, where a
+  guard comparing three of twenty-six fields went stale; what row 24
+  adds is that the same fault arrives in a KEY, where nothing reads as
+  a comparison at all.
+  THE TERM IS A SUFFIX so that nothing already saved moves, and the
+  RESTORE takes it from the record rather than from the controls, for
+  the reason the family and the count already do.
+  AND WHAT IS NOT REPAIRED IS RECORDED AS A RULING: every other design
+  term is still outside that key, and a scale modifier was measured
+  turning two edge classes into four, so a named class comes to
+  describe a disjoint set of edges. Widening the key would put
+  somebody's edits away on an ordinary spacing tweak, which is a
+  decision about when edits go quiet rather than a fix to make in
+  passing.
+
+- **A QUESTION BUILT ON A MERGED PREDICATE MERGES THE SAME TWO
+  STATES.** (Maintainer's ruling, 2026-09-02: "a panel's close button
+  shouldn't stop a save, it should prompt whether to interrupt save".)
+  Ledger row 5 mended `_a_save_is_outstanding` for merging a promise
+  with the keeping of it -- right for a WAIT, wrong for a QUESTION --
+  and the repair taught the Close arm to stop a write. The QUESTION
+  above it went on merging them, so somebody answering about a promise
+  they no longer wanted was taken to have said "throw away the write
+  you are half way through".
+  SO A REPAIR AT A PREDICATE IS NOT FINISHED UNTIL THE SENTENCES
+  ABOVE IT ARE READ. There are two questions now, and the write's one
+  has the safe answer as its default on the dependency-consent
+  precedent. What No does is written at the code rather than implied,
+  because the wording leaves it open: the write is not interrupted and
+  the window closes, since a close arriving on the write's own pump
+  cannot wait for the frame beneath it.
+
+- **A CONTROL ONE ACT MOVES AS A SIDE EFFECT IS READ BY ANOTHER ACT AS
+  A DECISION.** (Maintainer's ruling, 2026-09-02: "the save should
+  happen first. then the load".) A Save kept while a re-tile is coming
+  is a promise, and `_honour_a_queued_save` re-reads the output
+  chooser at the moment of the write so that somebody who changes
+  their mind about where the map goes is obeyed. A LOAD moves that
+  same chooser and means nothing of the kind -- it says where the map
+  being OPENED lives -- so a Load inside the promise's window consumed
+  the promise against the other file and the person's own map was
+  never written.
+  THE RULING IS AN ORDER RATHER THAN A QUESTION, which is what makes
+  it cost no new prose: the Load is DEFERRED behind the promise and
+  performed when the promise ends, kept or dropped. That is the FOURTH
+  deferred kind, and it follows the family's rule -- taken and cleared
+  at the point of use, and cleared at the close, since a deferred act
+  belongs to the session that asked for it.
+  AND AN ORDER IS TWO CLAIMS. "The save first, then the load" is
+  satisfied in appearance by a repair that protects the save and
+  swallows the Load, which leaves a button that does nothing, so each
+  half carries its own catalogue entry.
+
+- **THE TWENTY-FIFTH WATCHER FAULT: ARMED THROUGH A PIPE, AND THE
+  LESSON WAS MINE FROM THAT MORNING.** (2026-09-02.) A watcher was
+  launched as its script piped into `tail`, which buffers to EOF -- so
+  a watcher running perfectly well printed NOTHING, and the maintainer
+  said so before any beat arrived. The identical fault is written in
+  docs/TESTING.md the same day, from hand-running one into a pipe.
+  THE HALF THAT IS NEW IS WHERE IT ARRIVED. The rule had been learned
+  at the HAND-RUN and applied there faithfully; arming is a second
+  moment, and the pipe was added in the same breath as a `tail -40`
+  meant to keep the output short. Redirect a watcher to a FILE and
+  read the file -- and where the harness reports a background job's
+  own output, remember that the job's exit is what flushes a pipe.
+
+- **A PROBE'S CONTROL CAN MOVE THE THING BOTH ARMS ARE ABOUT.**
+  (2026-09-02, verifying row 24.) The control for "an ordinary design
+  change moves the shelf key" changed the ELEMENT COUNT -- which
+  repopulates the family list and lands on whatever that count offers,
+  so `hex-slice 4#4` became `square-colouring 5#5` and every later
+  reading was about a design nobody had chosen. A family change is the
+  control that moves one term only.
+  AND A HELPER THAT MIRRORS AN OLD SIGNATURE GOES ON PRINTING THE OLD
+  ANSWER. The same probe computed the key itself rather than asking
+  the product, so after the repair it reported the key unchanged and
+  read as though nothing had landed. Ask the product its own question;
+  a reimplementation in the instrument is a second definition, which
+  is the very fault row 24 is about.

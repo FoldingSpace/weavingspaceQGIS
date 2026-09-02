@@ -12,8 +12,9 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-02 (evening), with ROUND SEVEN IN FLIGHT and the
-campaign at twenty-one of twenty-four. Its slate and its aim are in
+Last updated 2026-09-02 (night), with ROUND SEVEN JUDGED: five
+defects, ledger rows 22 to 26, two of them reached by two hunts and
+one by three. The campaign passed its twenty-four. Its slate and its aim are in
 the section immediately below; its yields are deliberately blank,
 because a direction's number is what SURVIVED verification and none of
 this round's claims has been judged yet. Before it, the campaign's day one ran to THIRTEEN bugs closed across two rounds of hunts -- eight, then three replenished as bugs closed. Both rounds are in the section below that. Before that, 2026-09-01, after ROUND SIX -- ten hunts, eight defects
@@ -1755,13 +1756,17 @@ Launched when the owed list cleared and the campaign stood at
 twenty-one of twenty-four. Worktrees under `dev/hunts/wt-<slug>`, all
 created at the CURRENT head, which is what the campaign's own rule
 asks and what stops a hunt reading a tree that has moved under it.
-Yields are left blank on purpose: a direction's number is what
-SURVIVED an independent reproduction, and it is not the hunt's to
-count.
+YIELDS WERE LEFT BLANK UNTIL EACH CLAIM WAS JUDGED, which is what
+this record means by a number, and they are filled in below now that
+they have been. FIVE DEFECTS came out of the round, and the shape of
+the tally is the interesting part: two of the five were reached by
+TWO hunts independently and one by THREE, so eight hunts produced five
+defects rather than eight, and the convergence is the evidence rather
+than the waste.
 
 | Direction | Confirmed | Aimed at |
 | --- | ---: | --- |
-| the round's own repairs (12th) | (same) | today's rows 14-21 and the acting-controls owner two acts now share. Reached row 22 from the write-only side, independently of the row below |
+| the round's own repairs (12th) | (shared) | today's rows 14-21 and the acting-controls owner two acts now share. Reached row 22 from the write-only side, independently of the row below |
 | the round's own repairs (13th, replenished) | 1 | commit 367248c, the repair for row 22, per assertion. Row 23: that repair's launch state BEATS the carry it said was holding the other door, so a file older or wronger than the group's own record was stamped over it. Also two dead axes in the new guard, counted apart |
 | backwards from harm (10th) | 1 | the last two days, ranked BEFORE any source is opened. Row 24: `map_dual` is a design term the topology keys do not carry, so an edit made on the dual bends the design. Reached from item NINE of a list written before any source was read |
 | stochastic settled sessions (7th) | (same) | the save, the Load doors, the waiting window, the tab. 81 seeded sessions found nothing; the same defect as row 24 came from asking which two stores hold what an edit is about -- an invariant only catches what it measures |
@@ -1809,6 +1814,31 @@ What decides the timing is that it is a MEASUREMENT: eight hunts
 already saturate this machine, contention degrades its settles, and
 its faults then become its own. Its value is unchanged by waiting;
 the hunts' value is highest on the freshest tree.
+
+**WHAT THE ROUND RETURNED, JUDGED.** Five product defects, ledger
+rows 22 to 26, and every one verified here by a route its hunt did not
+use:
+
+- `region_crs` at the resume's two doors (rows 22 and 23), claimed by
+  TWO hunts from opposite directions -- two stores of one fact, and
+  write-only at the day's own repairs. Row 23 is my own repair's
+  defect, found within the hour by the hunt REPLENISHED onto that very
+  commit, which is the strongest argument this campaign has produced
+  for replenishing at the fix rather than at the round;
+- the shelf key's blindness to the dual (row 24), claimed by THREE --
+  backwards from harm, the specification itself, and the stochastic
+  sessions, the last of which ran 81 seeded sessions that could not
+  see it and then found it by asking which two stores hold what an
+  edit is about;
+- the close question and the Load door (rows 25 and 26), both settled
+  by the maintainer as rulings rather than patched as defects.
+
+**AND THE VERIFICATION QUEUE WAS THE WHOLE COST, exactly as this file
+has said since August.** Eight hunts reported in about twenty minutes
+of each other; judging them, repairing, guarding and proving took the
+rest of the evening, and two claims (the deferral machinery, the
+per-assertion trigger) were still unjudged when the candidate went to
+build. Running more hunts would not have helped.
 
 **THE ROUND SHARES ONE AIM FILE.** `dev/hunts/briefs/ROUND-AIM.md`
 names all twenty-one closed defects, the two claims judged and NOT

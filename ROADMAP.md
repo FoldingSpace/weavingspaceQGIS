@@ -398,6 +398,23 @@ and with them taken in one breath it holds. The test waits for
 rc10's repair -- and reads the verdict and its oracle together, so
 quiet arriving late cannot make it compare two designs.
 
+**THE CAMPAIGN REACHED ITS TWENTY-FOUR, AND THE ROUND THAT DID IT
+ADDED TWO RULINGS ON TOP.** Ledger rows 22 to 26 close round seven:
+the resume stamping a stranger's coordinate system onto somebody's
+region and the repair for it overriding the group's own record; the
+edit shelf unable to tell a design from its dual; the close question
+that covered a promise and a write with one sentence; and a Load that
+threw a promised save away. Each was verified here by a route its hunt
+did not use, repaired, guarded and proved, and the last two were
+settled by the maintainer as rulings rather than patched.
+
+**AND `0.24.4rc12` WAS BUILT GREEN AND SPENT WITHIN THE HOUR**, which
+is the documented trade rather than a waste: every stage passed, the
+suite's three shards read 257 each against one total of 771, and the
+tree it measured does not carry the Load ruling that followed. No
+later commit can make an earlier candidate publishable, so `rc13` is
+built from the merged tree instead.
+
 **AND THE 24-BUG CAMPAIGN IS RUNNING, WITH THIRTEEN CLOSED ON ITS
 FIRST DAY.** The seven below were the first round; six more came from
 a second round of three hunts, replenished as bugs closed, and every
