@@ -20418,6 +20418,30 @@ class WeavingSpaceDialog(QDialog):
         # It needs no respelling to bite, though a respelt path reaches
         # it too, which is how the `pathspellings` hunt arrived.
         self._last_run_sig = self._run_signature()
+        # AND A MAP OPENED IS THIS SESSION'S WORK, which is the OTHER
+        # half the repair of 2026-08-28 gave to one door of two. Its
+        # twin sets this and says at length what its absence cost;
+        # this branch did not, and this is the door a person takes
+        # most -- the plugin closed and opened again, or a project
+        # reopened, with the map's own layers still in front of them.
+        # `switched_from_work` then read a change of dataset as a
+        # FIRST choice, so `_begin_new_dataset` never ran, the output
+        # path stayed aimed at the file just opened, and nothing was
+        # said. Measured 2026-09-02 with the two doors driven side by
+        # side on one journey
+        # (`tools/probes/what_each_load_door_arms.py`): fresh cleared
+        # the path and announced it, already-open kept it and stayed
+        # silent, so the next Generate and Save put the other
+        # dataset's tiles into the first map's own file.
+        # THE CONDITION IS THE TWIN'S, asked the shorter way. Its
+        # `recovered` compares the chooser against the record's region
+        # or the file itself; `_recover_the_source` has just answered
+        # that question directly and returns what it landed on, or
+        # None. A recovery that found NOTHING is not a switch -- the
+        # plugin has just asked the person to choose a region to carry
+        # on with, and that choice is the settled clause of
+        # 2026-08-21.
+        self._landed_this_session = bool(landed_on)
         self._note_the_data_this_map_opened_over(record, path)
         # THE GROUP TAKES THE RECORD TOO, for the reason written at
         # the twin: the file carries it and the group did not, so

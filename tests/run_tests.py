@@ -8344,6 +8344,135 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_both_load_doors_count_the_map_as_this_sessions_work():
+  """A map OPENED is this session's work, through either branch.
+
+  `_resume_from_gpkg` has two branches for one button: a FRESH one,
+  taken where the map's layers are not in the project, and an
+  ALREADY-OPEN one, taken where they are -- which is what a person has
+  after reopening the plugin or the project, the journey
+  `_adopt_existing_group`'s own docstring calls something users do
+  constantly. The repair of 2026-08-28 gave `_landed_this_session` to
+  the first and not the second.
+
+  `switched_from_work = switched and self._landed_this_session`, so on
+  that door a change of region dataset read as a FIRST CHOICE:
+  `_begin_new_dataset` never ran, the output path stayed aimed at the
+  file just opened, nothing was said, and the next Generate and Save
+  put the other dataset's tiles into the first map's own file.
+
+  MEASURED 2026-09-02 with the two doors driven side by side on one
+  journey (`tools/probes/what_each_load_door_arms.py`): fresh cleared
+  the path and announced it, already-open kept it and stayed silent.
+
+  THE PLUGIN IS REOPENED BEFORE THE PRESS, and that is the whole of
+  the fixture rather than scenery. `_add_output_layers` sets the flag
+  when a map LANDS, so a test that draws a map and then presses Load
+  in the same window has it set by the drawing and can measure nothing
+  about the press -- which is what the probe's first run did, and the
+  tell was that its control could not fail either.
+
+  BOTH DOORS ARE ASSERTED, because the fresh one is the control: a
+  repair that armed nothing, or one that armed everything regardless
+  of whether the data was found, would satisfy either alone.
+
+  Regression: pressing Load on a map whose layers were still in the
+  project left the output path aimed at that file, so switching
+  dataset and saving replaced it with nothing said. [mutation]
+  """
+  import os
+  from qgis.PyQt.QtWidgets import QApplication
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def drive(out, already_open):
+    """Open a saved map through one door, then switch dataset.
+
+    Args:
+      out: the GeoPackage to save the first map to and open back.
+      already_open: True to press Load while the map's own layers are
+        still in the project.
+
+    Returns:
+      (the flag after the Load, whether the output path survived the
+      switch, what was said about the switch).
+    """
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    first = WeavingSpaceDialog(iface=_Iface())
+    second = None
+    try:
+      first.live_check.setChecked(False)
+      first.show()
+      first.gpkg_widget.setFilePath(out)
+      _tick(200)
+      first._generate()
+      _settle(first)
+      assert press_save(first, out), "PREMISE: the map was never saved"
+      other = make_region_layer(origin=(50000, 50000))
+      other.setName("somewhere else")
+      QgsProject.instance().addMapLayer(other)
+      if not already_open:
+        for layer_id in list(first._element_layer_ids.values()):
+          QgsProject.instance().removeMapLayer(layer_id)
+        _tick(100)
+      first.close()
+      _tick(100)
+
+      second = WeavingSpaceDialog(iface=_Iface())
+      second.live_check.setChecked(False)
+      second.show()
+      _tick(200)
+      assert not getattr(second, "_landed_this_session", False), (
+        "PREMISE: the reopened dialog already counts a landing, so "
+        "the press cannot be what arms anything")
+      second.resume_widget.setFilePath(out)
+      second.load_button.click()
+      _settle(second)
+      flag = bool(getattr(second, "_landed_this_session", False))
+      assert second.gpkg_widget.filePath(), (
+        "PREMISE: the Load did not leave an output path, so there is "
+        "nothing for the switch to clear")
+
+      BAR_MESSAGES.clear()
+      second.layer_combo.setLayer(other)
+      _settle(second)
+      _tick(200)
+      said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+      return flag, bool(second.gpkg_widget.filePath()), said
+    finally:
+      for dlg in (second, first):
+        if dlg is not None:
+          dlg.close()
+          dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  with _temp_dir() as td:
+    flag, kept, said = drive(os.path.join(td, "fresh.gpkg"), False)
+    assert flag, (
+      "the fresh door stopped counting an opened map as this "
+      "session's work, so the control this test rests on is gone")
+    assert not kept, (
+      "the fresh door kept the output path across a change of "
+      "dataset, so a Generate would land in the file just opened")
+    assert "cleared" in said, (
+      f"the fresh door cleared the path and said nothing about it: "
+      f"{said!r}")
+
+    flag, kept, said = drive(os.path.join(td, "already.gpkg"), True)
+    assert flag, (
+      "a map opened with its own layers still in the project is not "
+      "counted as this session's work, so every protection that asks "
+      "`switched_from_work` is off on the commonest Load journey")
+    assert not kept, (
+      "the output path survived a change of dataset, so the next "
+      "Generate and Save write the other dataset's tiles into the "
+      "file that was opened")
+    assert "cleared" in said, (
+      f"the path was cleared and the person was not told, which is "
+      f"the half of the switch door that speaks: {said!r}")
+
+
 def test_a_cancel_the_writer_could_not_serve_says_nothing():
   """The hold must not answer a question only the writer can ask.
 
@@ -82926,6 +83055,8 @@ def main():
         test_a_close_during_a_write_does_not_wait_for_the_write)
   check("a close that declines the save stops the write",
         test_a_close_that_declines_the_save_stops_the_write)
+  check("both load doors count the map as this session's work",
+        test_both_load_doors_count_the_map_as_this_sessions_work)
   check("a cancel the writer could not serve says nothing",
         test_a_cancel_the_writer_could_not_serve_says_nothing)
   check("a save whose commit fails says so and keeps the map",

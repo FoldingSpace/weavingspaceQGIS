@@ -9180,6 +9180,20 @@ MUTATIONS = [
            "write's own pump: 4 of 4 element layers left reading from "
            "that file, and a sentence reporting the save said "
            "immediately after the one promising the opposite"),
+  dict(name="both-load-doors-count-the-map-as-work", file=DIALOG,
+       old="""        self._landed_this_session = bool(landed_on)""",
+       new="""        pass  # mutation: leave the already-open door unarmed""",
+       test="test_both_load_doors_count_the_map_as_this_sessions_work",
+       why="a map opened through the door a person takes most -- the "
+           "plugin or the project reopened, with its layers still in "
+           "front of them -- not counting as this session's work. "
+           "`switched_from_work` then reads a change of dataset as a "
+           "first choice, so the output path stays aimed at the file "
+           "just opened and nothing is said, and the next Generate "
+           "and Save put the other dataset's tiles into it. Measured "
+           "2026-09-02 with the two doors driven side by side: fresh "
+           "cleared the path and announced it, already-open kept it "
+           "and stayed silent"),
   dict(name="the-hold-does-not-report-a-cancel-it-could-not-serve",
        file=DIALOG,
        # AIMED AT THE LINE WHERE THE ANSWER IS DECIDED rather than at
