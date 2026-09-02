@@ -8741,6 +8741,10 @@ def test_a_filter_is_a_view_and_is_never_written_into_the_file():
   [mutation]
   """
   import os
+  # THE MODULE OBJECT `dialog.py` ITSELF HOLDS, so wrapping an
+  # attribute on it reaches the call the product makes. Patching a name
+  # imported into this test would reach nothing.
+  from weavingspace_qgis import bridge
   from weavingspace_qgis.dialog import WeavingSpaceDialog
 
   layer = make_region_layer()
@@ -8761,11 +8765,11 @@ def test_a_filter_is_a_view_and_is_never_written_into_the_file():
                 if name.startswith("tiles_")}
       assert before, "PREMISE: the file holds no element tables to lose"
 
-      first = None
-      for layer_id in dlg._element_layer_ids.values():
+      first, filtered_tid = None, None
+      for tid, layer_id in dlg._element_layer_ids.items():
         found = QgsProject.instance().mapLayer(layer_id)
         if found is not None:
-          first = found
+          first, filtered_tid = found, tid
           break
       assert first is not None, "PREMISE: no element layer to filter"
       # THE FILTER IS SET ON THE LAYER, which is what QGIS's own Query
@@ -8793,6 +8797,17 @@ def test_a_filter_is_a_view_and_is_never_written_into_the_file():
         f"back: the layer now reads {first.subsetString()!r}")
 
       # ---- AND A FILTERED RE-TILE WRITES THE WHOLE NEW MAP
+      # ...WHICH IS ALSO THE ONLY ARM THAT CAN JUDGE THE RESTORE, and
+      # that is measured rather than assumed. `_filters_taken_off_for_
+      # the_write` is built from `to_write`, and a layer already
+      # reading from its own table goes to `already` and never reaches
+      # it -- so on the second save above the subset never comes off,
+      # and the assertion beside it cannot fail however the restore is
+      # broken. Judged 2026-09-02: an entry over the restore SURVIVED
+      # against that arm alone. A RE-TILE hands every element a NEW
+      # MEMORY layer and the plugin carries the person's filter onto
+      # it deliberately, so there the subset genuinely is taken off
+      # and genuinely has to go back.
       was = dlg.spacing_spin.value()
       dlg.spacing_spin.setValue(was * 0.9)
       _tick(100)
@@ -8810,6 +8825,85 @@ def test_a_filter_is_a_view_and_is_never_written_into_the_file():
         f"a re-tile carries the filter onto the new layers, so the "
         f"save emptied {empty} outright: the filter selects nothing "
         f"among tiles it was never written for")
+
+      # ---- AND THE PERSON'S FILTER IS STILL ON THE LAYER
+      # The element has a NEW layer object after the re-tile, so this
+      # asks the project for it again rather than reading the stale
+      # handle the filter was set on.
+      fresh_id = dlg._element_layer_ids.get(filtered_tid)
+      fresh = (QgsProject.instance().mapLayer(fresh_id)
+               if fresh_id else None)
+      assert fresh is not None, (
+        f"PREMISE: element {filtered_tid!r} has no layer after the "
+        f"re-tile, so there is nothing to ask about its filter")
+      # THE PREMISE IS THAT THE FILTER WAS CARRIED, because if the
+      # re-tile dropped it the restore would have nothing to put back
+      # and this arm would pass while measuring nothing -- which is
+      # exactly how the assertion above it came to be dead.
+      # AND THIS ONE IS HELD REDUNDANTLY, said here rather than left to
+      # be rediscovered: the repointing loop puts each subset back as
+      # it goes, two hundred lines above the `finally` that also does,
+      # so on a save that RUNS TO ITS END either writer answers. That
+      # is a real promise and worth asserting; what it cannot do is
+      # judge the `finally`, which the arm below exists for.
+      assert fresh.subsetString() == wanted, (
+        f"the save took the person's filter off to write the map and "
+        f"did not put it back: element {filtered_tid!r} now reads "
+        f"{fresh.subsetString()!r} where they set {wanted!r}")
+
+      # ---- AND A SAVE THAT NEVER REACHES THE REPOINTING PUTS IT BACK
+      # A cancelled write rolls its transaction back and RETURNS, so
+      # the repointing never runs and the save's own `finally` is the
+      # only thing left that can restore a subset it took off. That is
+      # the route the `finally` exists for, in its own words, and it
+      # is the only one on which an entry over it can fail: judged
+      # 2026-09-02, an entry aimed there SURVIVED against the arms
+      # above twice, because both are covered by the repointing.
+      # THE CONDITION IS STAGED RATHER THAN RACED. The writer asks
+      # `should_stop` between tables, so setting the flag as it starts
+      # puts the dialog in exactly the state a person's Cancel
+      # produces, with no window to lose.
+      dlg.spacing_spin.setValue(was * 0.8)
+      _tick(100)
+      dlg._generate()
+      _settle(dlg)
+      again_id = dlg._element_layer_ids.get(filtered_tid)
+      again = (QgsProject.instance().mapLayer(again_id)
+               if again_id else None)
+      assert again is not None and again.subsetString() == wanted, (
+        f"PREMISE: element {filtered_tid!r} does not carry the filter "
+        f"after the second re-tile, so a cancelled save has nothing to "
+        f"take off and this arm would measure nothing")
+      real_writer = bridge.write_gpkg_layers
+
+      def cancel_as_it_writes(*args, **kwargs):
+        """Ask for the cancel the writer is about to read.
+
+        Args:
+          *args: passed straight to the real writer.
+          **kwargs: the same.
+
+        Returns:
+          Whatever the real writer returns, having been told to stop.
+          The flag is set BEFORE the call rather than from a timer,
+          because the writer reads it between tables and a timer would
+          be a bet on how fast the machine is.
+        """
+        dlg._save_cancelled = True
+        return real_writer(*args, **kwargs)
+
+      bridge.write_gpkg_layers = cancel_as_it_writes
+      try:
+        press_save(dlg, out, expect=False)
+        _tick(200)
+      finally:
+        bridge.write_gpkg_layers = real_writer
+      assert again.subsetString() == wanted, (
+        f"a cancelled save left the person's own filter cleared: "
+        f"element {filtered_tid!r} reads {again.subsetString()!r} "
+        f"where they set {wanted!r}. The write takes a subset off "
+        f"because `getFeatures()` honours one, and a cancel returns "
+        f"before the repointing that would otherwise put it back")
     finally:
       dlg.close()
       dlg.deleteLater()

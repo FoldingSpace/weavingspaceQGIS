@@ -9402,6 +9402,14 @@ MUTATIONS = [
        # filter off, and the already-saved question stops reading one
        # as part of a layer's identity. Only the FIRST can be made to
        # fail here -- with the subset cleared, a filtered second save
+       # (AND THE PUTTING-BACK IS A THIRD LIMB WITH AN ENTRY OF ITS
+       # OWN, `a-filter-taken-off-for-the-write-goes-back`, added
+       # 2026-09-02. It could not be judged against this test's first
+       # two arms at all: the repointing restores each subset as it
+       # goes, so both writers answer on any save that runs to its
+       # end, and the entry SURVIVED twice before the test was given
+       # an arm on the CANCELLED route, where the repointing never
+       # runs and the `finally` is the only restorer left.)
        # writes the whole map back into its own table and loses
        # nothing, so mutating the identity half changes no count any
        # test can see. Its job is to keep the second press on any map
@@ -9424,6 +9432,42 @@ MUTATIONS = [
            "carries the filter onto the new layer deliberately -- the "
            "same table went to ZERO, the filter selecting nothing "
            "among tiles it was never written for"),
+  dict(name="a-filter-taken-off-for-the-write-goes-back", file=DIALOG,
+       # THE OTHER HALF OF THE SAME PROMISE, and it needs its own
+       # entry because the entry above proves only that the filter
+       # comes OFF. A save that cleared somebody's Layer Properties
+       # filter and left it cleared would trade one loss for another,
+       # which is the workaround failure mode this project's
+       # dependency procedure warns about arriving in our own code.
+       # AND THE AXIS WAS DEAD UNTIL THE TEST WAS RE-STAGED, measured
+       # 2026-09-02 rather than reasoned: `_filters_taken_off_for_the_
+       # write` is built from `to_write`, and a filtered layer already
+       # reading from its own table goes to `already` and never
+       # reaches it -- so on the SECOND-SAVE arm, which is where the
+       # assertion sat, the subset never comes off and nothing can put
+       # it back wrongly. The RE-TILE arm is where it genuinely comes
+       # off, because a re-tile hands every element a new memory layer
+       # and the plugin carries the filter onto it, so the assertion
+       # was moved to follow that save.
+       old="""      for layer, subset in getattr(
+          self, "_filters_taken_off_for_the_write", []):
+        try:
+          if layer.subsetString() != subset:
+            layer.setSubsetString(subset)""",
+       new="""      for layer, subset in getattr(
+          self, "_filters_taken_off_for_the_write", []):
+        try:
+          pass  # mutation: leave the person's own filter cleared""",
+       test="test_a_filter_is_a_view_and_is_never_written_into_the_file",
+       why="a save silently clearing the filter somebody set in "
+           "QGIS's Query Builder. The write takes a subset off "
+           "because `getFeatures()` honours one, so the map rather "
+           "than the view reaches the file; leaving it off means the "
+           "person's own layer comes back showing every tile, with "
+           "nothing said. Restored in the save's own `finally` rather "
+           "than beside the write, since the cancel branch returns "
+           "between the two and an exception may leave by neither "
+           "door"),
   dict(name="both-load-doors-count-the-map-as-work", file=DIALOG,
        old="""        self._landed_this_session = bool(landed_on)""",
        new="""        pass  # mutation: leave the already-open door unarmed""",
