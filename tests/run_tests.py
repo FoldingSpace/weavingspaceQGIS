@@ -8344,6 +8344,153 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_close_that_declines_the_save_stops_the_write():
+  """"Close" means do not save, at both moments a save can be in.
+
+  `closeEvent` asks "This map has not been saved yet. Save it before
+  closing?" whenever `_a_save_is_outstanding()`, and that predicate
+  deliberately merges two facts: a promise made and not yet kept, and
+  the KEEPING of it. Its Close arm answered only the first. It cleared
+  `_save_pending` -- already False during a write -- and reported
+  "Closed without saving; the map is still in the project", while the
+  write ran on to completion, repointed every element layer at the
+  file, and said "Saved to ..." immediately afterwards.
+
+  MEASURED 2026-09-02, with the close delivered from the write's own
+  pump: 4 of 4 element layers reading from the file the person had
+  just declined to write, and the two sentences one after the other
+  (`tools/probes/what_a_close_that_declines_the_save_does.py`). Two
+  hunts reported it independently, from opposite directions, and both
+  read the harm off the FILE; the probe reads the PROJECT's layers,
+  which is the half no reading of the file can show.
+
+  WHAT STOPS A WRITE is the flag `write_gpkg_layers` reads between
+  tables, which is the mechanism the waiting window's Cancel already
+  uses: it answers with a rollback, and the save returns before it
+  repoints anything.
+
+  BOTH ARMS ARE ASSERTED, because either alone is satisfied by a
+  repair that is wrong in the other direction. A close with only a
+  PROMISE outstanding must still say so in the sentence written for
+  it, since that sentence is true there; a close during a WRITE must
+  leave no tables in the file AND no layer reading from it.
+
+  Regression: answering "Close" during a write saved the map anyway,
+  over the file the person had just declined, and told them it had
+  not. [mutation]
+  """
+  import os
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def drive(out, during_a_write):
+    """Answer Close to the save question and read what happened.
+
+    Args:
+      out: the GeoPackage the Save chooser holds.
+      during_a_write: True to deliver the close from the write's own
+        pump, which is the claim; False to deliver it with only a
+        promise outstanding, which is the control.
+
+    Returns:
+      (what was true at the close, the layers now reading from the
+      file, the element tables the file holds). The layers are asked
+      of their own `source()`, which is what a repointing moves.
+    """
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    seen = {}
+    try:
+      dlg.live_check.setChecked(False)
+      # SHOWN, BECAUSE `close()` ON A HIDDEN WIDGET SENDS NO CLOSE
+      # EVENT. Qt takes a hidden window as already closed, so the
+      # handler under test never runs and both arms measure nothing --
+      # which is what the premise assertions below caught on this
+      # guard's first run.
+      dlg.show()
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Close
+
+      real_close = dlg.closeEvent
+
+      def watched(event):
+        """Read the two flags before the handler clears them."""
+        seen["saving_now"] = bool(getattr(dlg, "_saving_now", False))
+        seen["save_pending"] = bool(getattr(dlg, "_save_pending",
+                                            False))
+        return real_close(event)
+
+      dlg.closeEvent = watched
+      if during_a_write:
+        # DELIVERED AT THE FIRST PUMP INSIDE THE WRITE, which is what
+        # puts the close's frame BELOW the writer rather than after
+        # it -- the same staging the freeze guard above uses.
+        QTimer.singleShot(0, dlg.close)
+        press_save(dlg, expect=False)
+      else:
+        # THE PROMISE IS STAGED DIRECTLY rather than through the live
+        # debounce, deliberately: this arm's subject is the SENTENCE,
+        # and driving a re-tile to arm the flag would make the arm
+        # about the deferral instead.
+        dlg._save_pending = True
+        QTimer.singleShot(0, dlg.close)
+        _tick(400)
+      _tick(200)
+      reads = []
+      for layer_id in dlg._element_layer_ids.values():
+        found = QgsProject.instance().mapLayer(layer_id)
+        if found is not None and out in found.source():
+          reads.append(found.name())
+      tables = []
+      if os.path.exists(out):
+        tables = [name for name in gpkg_contents(out)["tables"]
+                  if name.startswith("tiles_")]
+      return seen, reads, tables, _said(dlg)
+    finally:
+      MODAL_ANSWERS.pop("question", None)
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  with _temp_dir() as td:
+    promised = os.path.join(td, "promised.gpkg")
+    seen, reads, tables, said = drive(promised, during_a_write=False)
+    assert not seen.get("saving_now"), (
+      "FIXTURE: a write was running in the control arm, so it "
+      "measured the treatment's journey")
+    assert seen.get("save_pending"), (
+      "FIXTURE: nothing was outstanding, so the question was never "
+      "asked and this arm proves nothing")
+    assert not tables and not reads, (
+      f"the promised save was written anyway: tables={tables}, "
+      f"layers reading from it={reads}")
+    assert "closed without saving" in said.lower(), (
+      f"the sentence written for a dropped promise was not said, and "
+      f"it is true there: {said!r}")
+
+    writing = os.path.join(td, "writing.gpkg")
+    seen, reads, tables, said = drive(writing, during_a_write=True)
+    assert seen.get("saving_now"), (
+      "FIXTURE: the close did not arrive during the write, so this "
+      "measured some other journey")
+    assert not tables, (
+      f"the person answered Close and the map was written anyway: "
+      f"the file holds {tables}")
+    assert not reads, (
+      f"the save ran to its repointing, so {len(reads)} element "
+      f"layers now read from the file the person declined to write: "
+      f"{reads}")
+    assert "closed without saving" not in said.lower(), (
+      f"the close claimed nothing was written while the write was "
+      f"still running, which is the sentence that cannot be true "
+      f"here: {said!r}")
+
+
 def test_a_save_whose_commit_fails_says_so_and_keeps_the_map():
   """A commit that will not go through must not be reported as a save.
 
@@ -82611,6 +82758,8 @@ def main():
         test_a_save_waits_for_a_build_already_coming)
   check("a close during a write does not wait for the write",
         test_a_close_during_a_write_does_not_wait_for_the_write)
+  check("a close that declines the save stops the write",
+        test_a_close_that_declines_the_save_stops_the_write)
   check("a save whose commit fails says so and keeps the map",
         test_a_save_whose_commit_fails_says_so_and_keeps_the_map)
   check("closing the window over an unsaved map asks first",

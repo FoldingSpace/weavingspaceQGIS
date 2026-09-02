@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-496 defect(s) with a regression test.
+497 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -362,6 +362,8 @@ there is no separate list to remember.
   guarded by `test_a_class_source_follows_the_record_under_it`
 - **closing the window during a write froze it for the ceiling and then lost the map.**  
   guarded by `test_a_close_during_a_write_does_not_wait_for_the_write`
+- **answering "Close" during a write saved the map anyway, over the file the person had just declined, and told them it had not.**  
+  guarded by `test_a_close_that_declines_the_save_stops_the_write`
 - **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
   guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
 - **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
@@ -1046,7 +1048,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 169
+- the mutation campaign: 170
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

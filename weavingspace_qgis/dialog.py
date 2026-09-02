@@ -6176,8 +6176,37 @@ class WeavingSpaceDialog(QDialog):
         self._hold_until_the_save_lands("close")
       else:
         self._save_pending = False
-        self._report_quietly("Closed without saving; the map is still "
-                             "in the project.")
+        # "CLOSE" MEANS DO NOT SAVE, AND DURING A WRITE THAT IS A
+        # DIFFERENT MECHANISM FROM DROPPING A PROMISE. (2026-09-02,
+        # found by two hunts independently and measured through a
+        # third route.) `_a_save_is_outstanding` above deliberately
+        # merges two facts -- a promise made and not yet kept, and the
+        # keeping of it -- so this question is asked during a WRITE
+        # as well, where `_save_pending` is already False. Clearing it
+        # then answered nothing: the write went on to completion, the
+        # map was written over the file the person had just declined
+        # to write, and every element layer was repointed at it, while
+        # they were told "Closed without saving". Measured with the
+        # close delivered from the write's own pump: 4 of 4 layers
+        # reading from that file, and "Saved to writing.gpkg" said
+        # immediately after the sentence promising the opposite
+        # (`tools/probes/what_a_close_that_declines_the_save_does.py`,
+        # whose promised-only arm is the control and is correct).
+        # WHAT STOPS A WRITE IS THE FLAG THE WRITER READS between
+        # tables, which is the same mechanism the waiting window's
+        # Cancel uses and which the ruling of 2026-09-01 already
+        # built: `write_gpkg_layers` answers it with a rollback, the
+        # save returns before it repoints anything, and it clears the
+        # flag on its own way out so the next save is not poisoned.
+        # AND THE SENTENCE IS THE WRITER'S, not this one. Ours cannot
+        # be true here: past the LAST table nothing reads the flag, so
+        # the save legitimately completes and the honest report is the
+        # one `_save_the_map` makes about what actually happened.
+        if getattr(self, "_saving_now", False):
+          self._save_cancelled = True
+        else:
+          self._report_quietly("Closed without saving; the map is still "
+                               "in the project.")
     if self._task is not None:
       try:
         self._task.cancel()
