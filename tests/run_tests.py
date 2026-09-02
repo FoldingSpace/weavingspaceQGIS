@@ -6431,6 +6431,136 @@ def test_a_dragged_vertex_records_what_its_box_shows():
     QgsProject.instance().removeAllMapLayers()
 
 
+def test_every_handle_a_drag_offers_commits_what_it_previewed():
+  """A gesture on any handle is kept, not only on the ones drawn first.
+
+  THE SHAPE RATHER THAN THE INSTANCE, deliberately.
+  `TopologyPanel._drag_moved` is a table keyed by manipulation, and a
+  table keyed by manipulation does not grow with its family: it was
+  written on 2026-08-30 when a vertex carried ONE handle, and the push
+  rail arrived on 2026-08-31 with the ruling that every manipulation
+  is reachable on the drawing. Nothing failed. The fall-through
+  answered False for the fifth member, so `_commit_the_drag` returned
+  before `_record` and a push somebody had watched move under their
+  hand was thrown away in silence.
+
+  TWO HALVES, and the first is what will catch the SIXTH handle.
+  Every key the two handle tables offer is put to `_drag_moved` with a
+  gesture far larger than any of its thresholds, and must be answered
+  yes. It needs no drawing, so it cannot fail for want of a design
+  that offers a rail; a handle added without teaching this table fails
+  here rather than a year later.
+
+  AND THE SECOND HALF DRIVES THE PRODUCT, because a table that answers
+  correctly is not a gesture that reaches the record. It clicks a
+  vertex the drawing offers a PUSH RAIL on -- asking the view which
+  one rather than computing a point, since the rail exists only where
+  the vertex's own symmetry leaves it somewhere to go -- drags it, and
+  requires the record to gain the edit.
+
+  Regression: dragging the push rail recorded nothing, on a control
+  the drawing offers and the person watches move. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_tab as tab_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  # ---- EVERY HANDLE'S KEY IS A BRANCH. The gesture is generous on
+  # every parameter at once, because each manipulation reads only its
+  # own: a nudge asks about dx and dy, a rotation about degrees, a
+  # scale about a factor away from one.
+  generous = {"dx": 0.5, "dy": 0.5, "h": 0.5, "angle": 45.0,
+              "sf": 1.5, "push_d": 0.5}
+  panel_class = tab_module.TopologyPanel
+  offered = [key for key, _at, _out, _shape
+             in tab_module._VERTEX_HANDLES + tab_module._EDGE_HANDLES]
+  assert offered, "PREMISE: the handle tables are empty"
+  deaf = [key for key in offered
+          if not panel_class._drag_moved(None, key, generous)]
+  assert not deaf, (
+    f"a drag on {deaf} asks for nothing whatever it does: the drawing "
+    f"offers those handles, so `_drag_moved` needs a branch for each. "
+    f"If one of them reads a parameter this test does not name, add "
+    f"it to `generous` -- the gesture is meant to be past every "
+    f"threshold, not to be the smallest thing that passes")
+
+  # ---- AND THE PUSH REACHES THE RECORD, driven through the widget.
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(2)
+    _tick(200)
+    _choose_family(dlg, "archimedean 4.8.8")
+    _tick(300)
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: the topology tab never went quiet"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.resize(600, 600)
+    _tick(100)
+    # PAINT IT, OR IT HAS NO TRANSFORM.
+    view.grab()
+    _tick(50)
+
+    topology = view._drawn()
+    assert topology is not None, "PREMISE: nothing is drawn to click"
+    centre = (view.width() / 2, view.height() / 2)
+    ordered = []
+    for vertex in topology.points.values():
+      at = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= at.x() <= view.width() and 0 <= at.y() <= view.height()):
+        continue
+      away = ((at.x() - centre[0]) ** 2 + (at.y() - centre[1]) ** 2) ** 0.5
+      ordered.append((away, QPoint(int(round(at.x())), int(round(at.y())))))
+    grab_at = None
+    for _away, candidate in sorted(ordered, key=lambda pair: pair[0]):
+      QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, candidate)
+      _tick(120)
+      for handle in view.handles():
+        if handle[0] == "push_vertex":
+          grab_at = QPoint(int(round(handle[1].x())),
+                           int(round(handle[1].y())))
+          break
+      if grab_at is not None:
+        break
+    assert grab_at is not None, (
+      "PREMISE: no vertex on this design offers a push rail, so the "
+      "member that was missing cannot be driven here")
+
+    before = len(panel._edits)
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(50)
+    QTest.mouseMove(view, grab_at + QPoint(40, 40))
+    _tick(200)
+    asked = dict(panel._drag_from or {})
+    assert asked, (
+      "PREMISE: the drag drew nothing to commit, so what follows is "
+      "not about committing it")
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier,
+                       grab_at + QPoint(40, 40))
+    _tick(200)
+    _the_topology_tab_is_quiet(dlg)
+    _tick(100)
+    assert len(panel._edits) > before, (
+      f"a push drag asked for {asked} and the record still holds "
+      f"{len(panel._edits)} edits: the gesture previewed under the "
+      f"person's hand and was then thrown away")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_a_drag_is_measured_in_the_frame_it_began_in():
   """The drawing does not rescale under a pointer that is not moving.
 
@@ -8028,6 +8158,128 @@ def test_a_cancel_during_the_write_stops_the_write():
         "a save pressed after a cancelled WRITE wrote nothing: the "
         "flag outlived the act, so the next press was rolled back")
     finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_cancel_after_the_tables_does_not_poison_the_next_save():
+  """A cancel that arrives too late to stop anything stops nothing ELSE.
+
+  THE THIRD MOMENT, and it is the one a repair created. Its two
+  siblings above cover a cancel on a promise (drop the intent) and a
+  cancel between tables (roll the transaction back). This one lands
+  AFTER `write_gpkg_layers` has returned -- during the repointing or
+  the styling, which is 13.0s of a 256-element save -- where nothing
+  is left to stop: the map is written and the person is told so,
+  correctly.
+
+  WHAT MUST NOT HAPPEN IS THAT THE FLAG SURVIVES. `_save_cancelled` is
+  read BETWEEN TABLES, so a cancel arriving after the last one is
+  never consumed; the writer clears it only where it read one, and the
+  hold deliberately leaves it alone while a write is running, which is
+  what makes a cancel DURING the write work. Between those two lies a
+  moment nobody covered, and a flag left standing there rolled back
+  the person's NEXT save and told them it was stopped.
+
+  IT IS STAGED RATHER THAN TIMED. The quit is armed from a wrapper
+  around `bridge.write_gpkg_layers` that calls the real one and then
+  asks for a close, so the hold opens at the next pump the save makes
+  -- which is in the repointing. Measuring how often a click lands in
+  that window would be measuring the machine.
+
+  Regression: a cancel landing after the tables went in left the flag
+  set for ever, and the next save was rolled back. [mutation]
+  """
+  import os
+  from qgis.PyQt.QtGui import QCloseEvent
+  from qgis.PyQt.QtWidgets import QApplication, QPushButton
+  from weavingspace_qgis import bridge as bridge_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  window = _a_window_that_counts_its_closes()
+  real_writer = bridge_module.write_gpkg_layers
+  with _temp_dir() as td:
+    out = os.path.join(td, "cancelled-too-late.gpkg")
+    dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+
+      at_the_press = {}
+      watcher = QTimer()
+      watcher.setInterval(10)
+
+      def press_the_cancel():
+        """Click Cancel once the waiting window is up.
+
+        Returns:
+          None, and it records what was true at the press so the
+          premise below is asserted rather than assumed.
+        """
+        waiting = getattr(dlg, "_waiting_window", None)
+        if waiting is None:
+          return
+        for button in waiting.findChildren(QPushButton):
+          at_the_press["saving_now"] = bool(
+            getattr(dlg, "_saving_now", False))
+          button.click()
+          watcher.stop()
+          return
+
+      watcher.timeout.connect(press_the_cancel)
+
+      def write_then_ask_to_quit(*args, **kwargs):
+        """Call the real writer, then arm the quit behind it.
+
+        Args:
+          *args: whatever the dialog passes.
+          **kwargs: the same.
+
+        Returns:
+          The real writer's own answer, untouched. Only the MOMENT of
+          the quit is staged; the write itself is the product's.
+        """
+        answer = real_writer(*args, **kwargs)
+        at_the_press["the writer returned"] = True
+        watcher.start()
+        QTimer.singleShot(0, lambda: QApplication.sendEvent(
+          window, QCloseEvent()))
+        return answer
+
+      bridge_module.write_gpkg_layers = write_then_ask_to_quit
+      BAR_MESSAGES.clear()
+      try:
+        press_save(dlg, expect=False)
+      finally:
+        bridge_module.write_gpkg_layers = real_writer
+      watcher.stop()
+
+      assert at_the_press.get("the writer returned"), (
+        "FIXTURE: the writer was never called, so nothing here is "
+        "about a cancel that arrives after it")
+      assert at_the_press.get("saving_now"), (
+        "FIXTURE: the cancel never landed while the save was still "
+        "running, so this measured some other moment")
+      assert not dlg._save_cancelled, (
+        "the cancel flag outlived the save it was set for: nothing "
+        "reads it after the last table, so the next press will be "
+        "rolled back and reported as stopped")
+
+      # AND THE NEXT SAVE IS THE HARM, so it is driven rather than
+      # inferred from the flag.
+      _settle(dlg)
+      BAR_MESSAGES.clear()
+      assert press_save(dlg), (
+        "the save after a too-late cancel wrote nothing: the flag "
+        "was still standing when the writer next asked")
+    finally:
+      bridge_module.write_gpkg_layers = real_writer
       dlg.close()
       dlg.deleteLater()
       _tick(50)
@@ -81897,6 +82149,8 @@ def main():
         test_a_later_save_replaces_a_motif_rather_than_dropping_it)
   check("a dragged vertex records what its box shows",
         test_a_dragged_vertex_records_what_its_box_shows)
+  check("every handle a drag offers commits what it previewed",
+        test_every_handle_a_drag_offers_commits_what_it_previewed)
   check("a drag is measured in the frame it began in",
         test_a_drag_is_measured_in_the_frame_it_began_in)
   check("a build that lands mid drag does not wipe the gesture",
@@ -81961,6 +82215,8 @@ def main():
         test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go)
   check("a cancel during the write stops the write",
         test_a_cancel_during_the_write_stops_the_write)
+  check("a cancel after the tables does not poison the next save",
+        test_a_cancel_after_the_tables_does_not_poison_the_next_save)
   check("closing the window over an unsaved map asks first",
         test_closing_the_window_over_an_unsaved_map_asks_first)
   check("the experimental box gates its tabs",

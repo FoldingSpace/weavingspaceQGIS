@@ -2364,6 +2364,22 @@ class TopologyPanel(QWidget):
     """
     if key == "nudge_vertex":
       return abs(args.get("dx", 0.0)) > 1e-4 or abs(args.get("dy", 0.0)) > 1e-4
+    if key == "push_vertex":
+      # THE FIFTH MEMBER, and the reason this table is the thing that
+      # went stale. `_drag_moved` was written 2026-08-30 when a vertex
+      # carried ONE handle; the push rail was added on 2026-08-31 with
+      # the ruling that every manipulation is reachable on the
+      # drawing, and a table keyed by manipulation does not grow with
+      # the family by itself. Without this the fall-through answered
+      # False, so `_commit_the_drag` returned before `_record` and a
+      # push somebody had watched move under their hand was thrown
+      # away in silence -- measured 2026-09-02 on `archimedean 4.8.8`,
+      # where the drag previewed and left the record at nought while
+      # the nudge handle beside it recorded exactly as it should.
+      # ITS OWN IDEA OF NOTHING is a fraction of the unit, as the
+      # nudge's is: `push_d` is what the rail's own length is measured
+      # in, and both become map units at `in_map_units`.
+      return abs(args.get("push_d", 0.0)) > 1e-4
     if key == "zigzag_edge":
       return abs(args.get("h", 0.0)) > 0.01
     if key == "rotate_edge":

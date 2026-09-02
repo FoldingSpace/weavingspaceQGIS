@@ -19757,6 +19757,18 @@ class WeavingSpaceDialog(QDialog):
       # not leave the plugin refusing to redraw for the rest of the
       # session.
       self._saving_now = False
+      # ...AND THE CANCEL FLAG ENDS WITH THE ACT IT WAS SET FOR.
+      # (2026-09-02, a defect inside the same day's repair, found by a
+      # hunt aimed at it within the hour.) The writer clears the flag
+      # where IT reads one -- between tables -- and the hold clears it
+      # where no write is running. Neither covers a Cancel that lands
+      # AFTER `write_gpkg_layers` has returned, during the repointing
+      # or the styling, which is 13.0s of a 256-element save: the hold
+      # sees `_saving_now` still True and leaves it, and nobody else
+      # looks. Left standing it rolled back the person's NEXT save and
+      # told them it was stopped. The flag belongs to this act, and
+      # this is where the act ends, whichever way it went.
+      self._save_cancelled = False
     # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.
     # Deferring it to here changes nothing about the result -- the same
     # rows are removed, scoped by this plugin's own description as they

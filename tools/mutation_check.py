@@ -9196,6 +9196,33 @@ MUTATIONS = [
            "read False at every table afterwards. Measured 2026-09-02: "
            "the writer asked four times and was told False four "
            "times"),
+  dict(name="a-push-drag-reaches-the-record", file=TOPOLOGY_TAB,
+       # ANCHORED WITH THE LINE IT ANSWERS, because the key appears
+       # twice in this file: once here and once where the handle is
+       # drawn, and an ambiguous anchor is refused rather than judged.
+       old="""      return abs(args.get("push_d", 0.0)) > 1e-4""",
+       new="""      return False  # mutation: the table stops at four handles""",
+       test="test_every_handle_a_drag_offers_commits_what_it_previewed",
+       why="a drag on the push rail previewing under somebody's hand "
+           "and then being thrown away in silence. `_drag_moved` is a "
+           "table keyed by manipulation and was written when a vertex "
+           "carried one handle; the rail arrived with the ruling that "
+           "every manipulation is reachable on the drawing, and the "
+           "fall-through answered False for it"),
+  dict(name="a-cancelled-save-does-not-outlive-its-own-act", file=DIALOG,
+       old="""      self._save_cancelled = False
+    # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.""",
+       new="""      pass  # mutation: let the flag outlive the act
+    # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.""",
+       test="test_a_cancel_after_the_tables_does_not_poison_the_next_save",
+       why="a Cancel landing after the tables are in -- during the "
+           "repointing or the styling, 13.0s of a 256-element save -- "
+           "leaving the flag set for ever, so the person's NEXT save "
+           "is rolled back and reported as stopped when they stopped "
+           "nothing. The writer clears it only where IT read one, "
+           "between tables, and the hold leaves it alone while a "
+           "write is running: this is the only line that covers the "
+           "moment between those two"),
   dict(name="the-close-question-holds-the-close", file=DIALOG,
        old="""        self._hold_until_the_save_lands("close")""",
        new="""        pass  # mutation: close without waiting for the save""",

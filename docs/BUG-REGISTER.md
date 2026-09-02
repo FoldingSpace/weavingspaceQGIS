@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-490 defect(s) with a regression test.
+492 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -346,6 +346,8 @@ there is no separate list to remember.
   guarded by `test_a_boundary_retyped_beside_a_recolour_is_still_recorded`
 - **a topology build finishing while a vertex was being dragged wiped the preview and the selection under the pointer, so the drawing snapped back mid-gesture and the drop committed an edit nobody could see.**  
   guarded by `test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture`
+- **a cancel landing after the tables went in left the flag set for ever, and the next save was rolled back.**  
+  guarded by `test_a_cancel_after_the_tables_does_not_poison_the_next_save`
 - **a Cancel pressed during the write wrote the map anyway and reported it saved.**  
   guarded by `test_a_cancel_during_the_write_stops_the_write`
 - **copying a categorized scheme from an element with no hand-picks left the target's old picks painting the map and stamped into the file, against the overwrite ruling. Found by the class-source hunt of 2026-08-26; verified at the layer stamp.**  
@@ -554,6 +556,8 @@ there is no separate list to remember.
   guarded by `test_every_declared_offset_is_pinned`
 - **controls added via a shared row helper were never checked for reachability, so removing the helper call hid two of them.**  
   guarded by `test_every_design_control_is_reachable`
+- **dragging the push rail recorded nothing, on a control the drawing offers and the person watches move.**  
+  guarded by `test_every_handle_a_drag_offers_commits_what_it_previewed`
 - **three modals in plugin.py, including the consent dialogue whose answer matters most, left no trace in the tab at all.**  
   guarded by `test_everything_the_plugin_says_reaches_the_record`
 - **only the existence of installed palettes was checked, never the colours they run between.**  
@@ -1034,7 +1038,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 163
+- the mutation campaign: 165
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40
