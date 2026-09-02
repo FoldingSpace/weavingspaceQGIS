@@ -5372,16 +5372,23 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
     """Which of the stores changed between two readings."""
     return {key for key in before if before[key] != after[key]}
 
-  def aim_at(view, kind):
+  def aim_at(view, kind, every=False):
     """A widget point on the vertex or edge nearest the middle.
 
     Args:
       view: the drawing widget.
       kind: "vertex" or "edge".
+      every: True to hand back EVERY candidate, nearest first, rather
+        than the nearest alone. A click on the class that is already
+        selected moves no store, so a caller asking "does clicking a
+        vertex select" has to be free to try more than the one that
+        happens to sit nearest the middle -- which is decided by the
+        drawn layout, and so by the fonts.
 
     Returns:
       A QPoint, or None where the topology offers no such thing inside
-      the widget. An edge point is taken along a SEGMENT and required
+      the widget; a LIST of QPoints where `every` is set, empty for the
+      same case. An edge point is taken along a SEGMENT and required
       to clear every vertex by more than the hit test's own reach,
       since a vertex wins ties inside it.
     """
@@ -5401,11 +5408,19 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       return away, QPoint(int(round(point.x())), int(round(point.y())))
 
     if kind == "vertex":
-      for vertex in topology.points.values():
-        found = consider(vertex.point.x, vertex.point.y)
-        if found and (best is None or found[0] < best):
-          best, at = found
-      return at
+      # EVERY DRAWN VERTEX, NEAREST FIRST, rather than the nearest
+      # alone. A click on a vertex of the class ALREADY selected moves
+      # no store -- `_refresh_classes` puts the chooser on the first
+      # vertex class after a landing -- so which vertex happens to sit
+      # nearest the middle decides whether this test can see anything,
+      # and that is a fact about the fonts and the panel width. macOS
+      # CI reported "clicking a vertex selected nothing" on 2026-09-01
+      # where this machine passed every time.
+      found = [consider(v.point.x, v.point.y)
+               for v in topology.points.values()]
+      ordered = sorted((f for f in found if f), key=lambda f: f[0])
+      return [point for _away, point in ordered] if every else (
+        ordered[0][1] if ordered else None)
     seats = [view._to_screen(v.point.x, v.point.y)
              for v in topology.points.values()]
     for edge in topology.edges.values():
@@ -5427,7 +5442,7 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
             continue
           if best is None or found[0] < best:
             best, at = found
-    return at
+    return [at] if (every and at is not None) else ([] if every else at)
 
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -5497,15 +5512,27 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
 
       # ---- selection, both kinds
       for kind in ("vertex", "edge"):
-        at = aim_at(view, kind)
-        assert at is not None, \
+        candidates = aim_at(view, kind, every=True)
+        assert candidates, \
           f"PREMISE: no {kind} is drawn inside the widget to click"
-        before = stores(dlg)
-        QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
-                         QtNamespace.KeyboardModifier.NoModifier, at)
-        _tick(150)
-        if "chose" not in moved(before, stores(dlg)):
-          dead.append(f"clicking a {kind} selected nothing")
+        # TRIED UNTIL ONE MOVES, and counted. A click on the class the
+        # chooser is already on is a click that correctly changes
+        # nothing, so a single candidate makes this test's verdict a
+        # fact about which shape happened to be drawn nearest the
+        # middle -- and it was, on macOS CI and not here.
+        tried = 0
+        for at in candidates:
+          tried += 1
+          before = stores(dlg)
+          QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                           QtNamespace.KeyboardModifier.NoModifier, at)
+          _tick(150)
+          if "chose" in moved(before, stores(dlg)):
+            break
+        else:
+          dead.append(
+            f"clicking a {kind} selected nothing, on any of the "
+            f"{tried} candidate point(s) this aimer could offer")
 
       # ---- dragging, both kinds. An EDGE is dragged by a handle, not
       # by its own line: `_handle_at` is asked first, so a press
@@ -67744,12 +67771,22 @@ def test_random_designs_keep_their_views_in_agreement():
   trouble, total_compared, total_filed = [], 0, 0
 
   for case in range(cases):
-    n, family, _entry = rng.choice(pool)
+    n, family, entry = rng.choice(pool)
     dlg = WeavingSpaceDialog(iface=_Iface())
     dlg.live_check.setChecked(False)
     dlg.layer_combo.setLayer(layer)
     _tick(250)
     dlg.n_spin.setValue(n)
+    # THE KIND COMES FROM THE ENTRY. This pool holds WEAVES as well as
+    # tilings, and a family is only on offer while the chooser shows
+    # its own kind -- so a drawn weave selected NOTHING and the case
+    # swept whichever tiling happened to be current, which is not the
+    # design its own failure message would have named.
+    # `setCurrentText` swallowed that in silence for as long as this
+    # test has existed; `_choose_family` made it loud on 2026-09-01 and
+    # CI has been red on `plain weave ab-|c` ever since.
+    dlg.kind_combo.setCurrentText(
+      "tiling" if entry.get("type") == "tiling" else "weave")
     _tick(150)
     _choose_family(dlg, family)
     _tick(250)
