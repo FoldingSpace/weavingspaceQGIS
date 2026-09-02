@@ -124,3 +124,11 @@ do not is the whole finding: a drag's parameter is a polar coordinate
 about the handle's own edge, so it would be measured on one edge and
 recorded against another. It aims by asking the product which candidate
 offers a handle rather than by computing a point.
+
+**`what_an_apply_during_a_write_reaches.py`** answers what the acting
+controls still live during a write can reach: the record is captured
+AFTER the element loop, so the question is whether a press delivered by
+the write's own pump lands in it. Three arms, and the answer is none of
+them -- the record's design half is carried from the group's own
+record, so a save standing at no landing cannot move it. Re-run it if
+that carry ever changes.
