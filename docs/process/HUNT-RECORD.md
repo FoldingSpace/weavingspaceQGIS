@@ -12,7 +12,11 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-02 (late), after the campaign's day one ran to THIRTEEN bugs closed across two rounds of hunts -- eight, then three replenished as bugs closed. Both rounds are in the section immediately below. Before that, 2026-09-01, after ROUND SIX -- ten hunts, eight defects
+Last updated 2026-09-02 (evening), with ROUND SEVEN IN FLIGHT and the
+campaign at twenty-one of twenty-four. Its slate and its aim are in
+the section immediately below; its yields are deliberately blank,
+because a direction's number is what SURVIVED verification and none of
+this round's claims has been judged yet. Before it, the campaign's day one ran to THIRTEEN bugs closed across two rounds of hunts -- eight, then three replenished as bugs closed. Both rounds are in the section below that. Before that, 2026-09-01, after ROUND SIX -- ten hunts, eight defects
 closed, and the first round in which two hunts converged on one defect
 from opposite directions TWICE. See the section immediately below;
 before that, 2026-08-31 (late), after ROUND FIVE and the day the
@@ -1744,6 +1748,61 @@ THE INSTRUMENT WAS A STACK PRINTED FROM A PATCHED METHOD, not more
 runs. Recording who called `show_topology` between the press and the
 reading named the caller on the first failing attempt; counting how
 often the race is lost would have measured the machine.
+
+## ROUND SEVEN, 2026-09-02 (evening): EIGHT HUNTS, IN FLIGHT
+
+Launched when the owed list cleared and the campaign stood at
+twenty-one of twenty-four. Worktrees under `dev/hunts/wt-<slug>`, all
+created at the CURRENT head, which is what the campaign's own rule
+asks and what stops a hunt reading a tree that has moved under it.
+Yields are left blank on purpose: a direction's number is what
+SURVIVED an independent reproduction, and it is not the hunt's to
+count.
+
+| Direction | Confirmed | Aimed at |
+| --- | ---: | --- |
+| the round's own repairs (12th) | -- | today's rows 14-21 and the acting-controls owner two acts now share |
+| backwards from harm (10th) | -- | the last two days, ranked BEFORE any source is opened |
+| stochastic settled sessions (7th) | -- | the save, the Load doors, the waiting window, the tab |
+| two stores of one fact | -- | the save's three records after the single-session rewrite |
+| asymmetry / twins (8th) | -- | `_save_the_map` against `_resume_from_gpkg`; the two Load doors |
+| the specification itself (4th) | -- | the tab's rules: is a settled DECISION wrong |
+| unreachable branches (4th) | -- | the deferral machinery of 2026-09-01 |
+| tests that cannot fail (6th) | -- | the six guards written this afternoon, per assertion |
+
+**WHAT IS DELIBERATE ABOUT THE SLATE.**
+
+**THREE OF THE EIGHT CANNOT PATTERN-MATCH** -- harm, stochastic and
+the specification -- which is the portfolio rule's reserved third. The
+record's argument for it is unchanged: the worst defect this project
+has had came from backwards-from-harm AFTER eight code-reading hunts
+walked past it, and a process tuned on yield cuts that direction
+first.
+
+**EIGHT AT ONCE IS RIGHT HERE BECAUSE THE QUEUE WAS EMPTY.** This file
+has said since August that running more hunts does not raise
+throughput, it lengthens the verification queue -- and round five
+held slots empty against an instruction to launch more, correctly. The
+queue is the thing to watch, not the slate.
+
+**AND THE SWEEP IS PROPOSED AND HELD, WITH ITS REASON.** CLAUDE.md
+requires the consistency sweep be proposed beside any round with a
+reason for choosing one. Its ground was swept clean this morning at 19
+acts and 3,903 comparisons with all five negative controls firing, and
+has since been touched by rows 14 to 21, so it IS worth re-walking.
+What decides the timing is that it is a MEASUREMENT: eight hunts
+already saturate this machine, contention degrades its settles, and
+its faults then become its own. Its value is unchanged by waiting;
+the hunts' value is highest on the freshest tree.
+
+**THE ROUND SHARES ONE AIM FILE.** `dev/hunts/briefs/ROUND-AIM.md`
+names all twenty-one closed defects, the two claims judged and NOT
+reproduced, the six suite repairs made this afternoon, and what each
+sibling covers -- so a hunt spends one line on an overlap rather than
+a report, and no budget goes on re-finding something already shut.
+That practice came out of round five, where several hunts converged on
+the loudest defect and the round returned one finding wearing six
+costumes.
 
 ## THE 24-BUG CAMPAIGN, DAY ONE'S SECOND ROUND: THREE HUNTS, SIX MORE CLOSED
 

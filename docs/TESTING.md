@@ -4748,3 +4748,132 @@ reported a finding from its other one. `WORKING_STATE_ELEMENT` is the
 record's real definition and is where a key is read from, never from
 memory -- which this project has now written down for the fifth time,
 about a fifth reader.
+
+## A WAITER ANSWERS "IS ANYTHING OUTSTANDING", WHICH IS NOT "DID IT HAPPEN"
+
+2026-09-02, and it had spread to ten registered tests before anybody
+asked what the sentence beside it claimed.
+
+`_the_topology_tab_is_quiet` returns True when no build is in flight,
+none is queued behind one and no working sentence is up. A test then
+staged its ground with
+
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: no topology was built, so there are no classes to aim at"
+
+and read the panel three lines later. The function cannot answer that
+sentence: a tab which has NEVER BUILT ANYTHING is quiet, trivially.
+
+**AND IT WAS REACHABLE RATHER THAN THEORETICAL, WHICH IS THE HALF THAT
+MATTERS.** The build is queued inside `_rebuild_unit`, which fires on
+the preview debounce -- an interval that is a FLOOR and widens to
+whatever the last rebuild cost, up to a ceiling of 350 ms against the
+200-300 ms every caller ticks. Staged by reporting a rebuild as having
+cost 400 ms, three arms with the control first: the panel held the
+PREVIOUS design's classes (`abcd`/`ABC` where the design in force has
+`ab`/`AB`), and where that previous design had no topology at all it
+held None and the next line raised `AttributeError`.
+
+**THE LEVER WAS NOT THE TIMER.** Setting the interval directly came
+back as 152 where 4000 had just been asked for, because
+`_queue_preview` re-derives it from `_last_rebuild_ms` on every
+change. A quantity the product recomputes is not a quantity you can
+set; find the input it recomputes it FROM.
+
+**THE REPAIR IS AT THE QUESTION, NOT THE SITE.** A pending rebuild is
+the fourth way something can still be coming, and every one of the ten
+callers had the same weakness -- the third-narrow-loop rule arriving
+before the third loop rather than after it. The one test whose subject
+IS a landing under a pointer deliberately does not ask, so widening
+the helper could not delete it; checked rather than assumed.
+
+**AND A PREMISE ASSERTS WHAT THE SETUP MADE TRUE.** Waiting until the
+tab is quiet STAGES a condition; asserting the panel HOLDS a topology
+is the claim the sentence was making. Where a helper answers a
+narrower question than its callers need, the callers assert the rest.
+
+## A RESTORE HELD BY TWO WRITERS CAN ONLY BE JUDGED WHERE ONE DOES NOT RUN
+
+Same day, and it took an entry SURVIVING TWICE to find the second
+writer.
+
+A save takes a layer's subset off to write the map, because
+`getFeatures()` honours one, and puts it back. An owed line said the
+restore assertion could not fail because the already-saved skip means
+a filtered layer is never written -- true, and only half of it. On the
+RE-TILE arm the subset genuinely does come off, and the assertion
+still could not fail: the REPOINTING loop restores each subset as it
+goes, two hundred lines above the `finally` that also does.
+
+**SO THE `finally`'S OWN ROUTE IS THE ONE NOTHING DROVE**, and it is
+the one its comment names: a save that never reaches the repointing. A
+cancelled write rolls back and RETURNS, so there the `finally` is the
+only restorer left -- and a person who stops a save would otherwise
+find their Layer Properties filter silently cleared.
+
+The rule this joins is already here -- when an entry survives, ask
+whether the behaviour has two implementations before asking whether
+the test is weak. What this adds is where to look for the second one:
+NOT beside the first. Both writers of this fact are in the same
+method, two hundred lines apart, and reading either alone shows
+nothing wrong.
+
+**AND THE ARM IS STAGED AT THE SEAM.** The writer asks `should_stop`
+between tables, so the flag is set by wrapping the module attribute
+`dialog.py` itself holds and letting the real writer run -- no timer,
+which would be a bet on the machine.
+
+## A UNIFORM VERDICT CAN BE THE ANSWER RATHER THAN THE INSTRUMENT
+
+2026-09-02, and it corrects a cause this file had carried since
+2026-09-01.
+
+This document's oldest tell is that a result which comes back the same
+for every input is almost always the instrument. `tools/ci_probe_the_
+topology_aim.py` reported the SAME numbers on Linux 4.0.0, Linux
+4.0.3, Linux stable and macOS -- 420x462, `Sans Serif` at 9pt, class A
+four drawn and three reachable, class B eight of eight, both classes
+held. By the tell alone that reads as a probe varying nothing.
+
+It is not. Offscreen supplies one font on every runner and the
+window's own minimum pins the drawing, so the drawn layout genuinely
+cannot vary -- and THAT is the finding, because three documents said
+the failure was "decided by the drawn layout, and so by the fonts".
+The one unreachable seat has a HANDLE over it; handles are hit-tested
+first and sit on whatever is ALREADY SELECTED; so what differs between
+runs is the selection at the press, which is timing.
+
+**THE DISCRIMINATOR IS WHETHER THE QUANTITY COULD HAVE VARIED.** Ask
+what would have to be different for the number to move. Where the
+answer is "nothing on any machine we run", a uniform verdict is a
+measurement rather than a broken instrument -- and it is then evidence
+ABOUT the explanations on offer.
+
+**AND A CAUSE NAMED BY READING SPREADS.** That one had reached
+docs/TESTING.md and two sites in the suite before anything measured
+it, which is this file's own rule about a SITE named by reading,
+arriving at a CAUSE. When you write down WHY something differs between
+machines, say how you know -- and if the answer is "I read the code",
+the probe costs one CI round you were going to spend anyway.
+
+## A GATE THAT CANNOT START IS NOT A GATE THAT ANSWERED
+
+Same day, inside a commit chain. `check_no_secrets` exited 1 and the
+commit correctly did not run -- and it had found nothing: the shell
+had sourced the QGIS environment, so a plain `python3` inherited
+PYTHONHOME and died at "No module named 'encodings'". Re-asked under
+`env -u PYTHONHOME -u PYTHONPATH python3` it checks 321 files clean.
+
+It failed SAFE, which is the right direction and is why this cost
+nothing. But the same trap in the other direction is this project's
+oldest: a harness whose failure to start is indistinguishable from
+success can only confirm. Ask of any gate you have just seen go red
+whether it RAN -- a secrets check reporting a Python bootstrap error
+has not audited anything, and a red you cannot explain is worth one
+command before it is worth an hour.
+
+**AND THE SAME BUFFERING TRAP REACHES A WATCHER.** Hand-running one
+into a PIPE printed nothing at all before its timeout, because printf
+to a pipe is block-buffered; into a FILE it printed twenty-seven
+lines. Hand-run a watcher before arming it -- and hand-run it THE WAY
+IT WILL BE ARMED, or the rehearsal measures the rehearsal.
