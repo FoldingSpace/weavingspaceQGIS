@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-492 defect(s) with a regression test.
+495 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -360,6 +360,8 @@ there is no separate list to remember.
   guarded by `test_a_class_source_comes_home_to_the_dataset_it_was_chosen_on`
 - **an imported class source was lost when its own output group was selected, because the combo was repopulated without being re-selected from the record, and the record was then overwritten from the stale widget.**  
   guarded by `test_a_class_source_follows_the_record_under_it`
+- **closing the window during a write froze it for the ceiling and then lost the map.**  
+  guarded by `test_a_close_during_a_write_does_not_wait_for_the_write`
 - **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
   guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
 - **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
@@ -500,6 +502,8 @@ there is no separate list to remember.
   guarded by `test_a_save_never_removes_a_layer_this_map_did_not_write`
 - **`_write_or_drop_the_topology` built the topology SYNCHRONOUSLY inside the write until 2026-09-01. Measured on `hex-colouring 7`, both arms in one run: a save took 27.53s of which the build was 27.22, and a 50 ms heartbeat's longest gap was 27.29s -- the window went twenty-seven seconds without repainting, with Save and Generate down and the bar frozen on whatever it last said. The control, `laves 3.3.4.3.4`, froze for 1.05s.**  
   guarded by `test_a_save_owed_a_topology_waits_for_it`
+- **a Save pressed while the topology build was still coming wrote no motif at all.**  
+  guarded by `test_a_save_waits_for_a_build_already_coming`
 - **a save made between a topology edit and its Generate wrote a motif the record named another design for, and the next reopen deleted it.**  
   guarded by `test_a_save_with_an_edit_outstanding_leaves_the_motif_alone`
 - **a finished map could be looked at but not carried on with: the GeoPackage held tables and styles and nothing about the design that produced them, so a demo had to re-tile from scratch and a colleague received a result they could not continue.**  
@@ -510,6 +514,8 @@ there is no separate list to remember.
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
   guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
+- **a stub left by a stopped save made the file nobody's for the rest of the session.**  
+  guarded by `test_a_stub_from_a_stopped_save_is_not_somebody_elses_file`
 - **clearing a group's field-keyed records on a silent record destroyed a pinned bound belonging to an element that had merely been switched to another style, and stamped its absence onto the layer.**  
   guarded by `test_a_style_switch_is_not_consent_to_lose_a_pin`
 - **a dialog that had not adopted the output GeoPackage left the table of an element's previous variable behind, and resuming that file drew the abandoned variable over the map. Found by the element-tables hunt, 2026-08-27.**  
@@ -1038,7 +1044,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 165
+- the mutation campaign: 168
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

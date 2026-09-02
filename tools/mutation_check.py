@@ -9176,26 +9176,25 @@ MUTATIONS = [
            "2026-09-01 while writing the guard for the Cancel button: "
            "cancel a deferred press, press Save again, and the writer "
            "stops at its first table and rolls back"),
-  dict(name="a-cancel-mid-write-is-left-for-the-writer-to-read", file=DIALOG,
-       # THE CONDITION IS THE FIX, so the mutation puts the clearing
-       # back where it was: outside the `if`, running whatever the
-       # write is doing.
-       old="""      if not self._saving_now:
-        self._report_quietly(
-          "The save was cancelled, so the map was not written.")""",
-       new="""      if True:  # mutation: clear it whatever the write is doing
-        self._report_quietly(
-          "The save was cancelled, so the map was not written.")""",
-       test="test_a_cancel_during_the_write_stops_the_write",
-       why="a Cancel pressed while the file is being WRITTEN doing "
-           "nothing at all, with the map written anyway and the "
-           "person told it was saved. The close or the quit arrives "
-           "by the write's own pump, so the hold runs in a frame "
-           "NESTED BELOW the writer -- clearing the flag there ran "
-           "while the writer was still suspended above it, and it "
-           "read False at every table afterwards. Measured 2026-09-02: "
-           "the writer asked four times and was told False four "
-           "times"),
+  # `a-cancel-mid-write-is-left-for-the-writer-to-read` STOOD HERE AND
+  # WAS RETIRED ON 2026-09-02, HOURS AFTER IT WAS WRITTEN, with its
+  # measurement. It mutated the condition that stops the hold clearing
+  # `_save_cancelled` while a write is running, and it caught -- until
+  # the freeze repair of the same day made the hold DECLINE ENTIRELY
+  # where a write is already under way. A hold that never runs beneath
+  # a writer cannot clear a flag out from under one, so by the time
+  # its branch executes the write has finished, `_saving_now` is False
+  # and the condition makes no difference: measured, the mutation
+  # SURVIVED on the journey that still offers a cancel.
+  # THE CONDITION STAYS, as defence in depth and with the nesting
+  # written at the line, because it is a countdown rather than a
+  # defence: WHAT WOULD REOPEN THIS is any change that lets the hold
+  # run while `_saving_now` is true again -- a write that stops
+  # pumping close and quit events and offers its own window, say.
+  # WHAT STILL GUARDS THE OUTCOME is
+  # `test_a_cancel_during_the_write_stops_the_write`, which drives the
+  # cancel on the journey that reaches a running writer and requires
+  # the rollback, and `a-hold-declines-a-write-it-cannot-serve` above.
   dict(name="a-push-drag-reaches-the-record", file=TOPOLOGY_TAB,
        # ANCHORED WITH THE LINE IT ANSWERS, because the key appears
        # twice in this file: once here and once where the handle is
@@ -9209,20 +9208,48 @@ MUTATIONS = [
            "carried one handle; the rail arrived with the ruling that "
            "every manipulation is reachable on the drawing, and the "
            "fall-through answered False for it"),
-  dict(name="a-cancelled-save-does-not-outlive-its-own-act", file=DIALOG,
-       old="""      self._save_cancelled = False
-    # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.""",
-       new="""      pass  # mutation: let the flag outlive the act
-    # ...AND THE SUPERSEDED STYLES GO IN ONE PASS over the whole file.""",
-       test="test_a_cancel_after_the_tables_does_not_poison_the_next_save",
-       why="a Cancel landing after the tables are in -- during the "
-           "repointing or the styling, 13.0s of a 256-element save -- "
-           "leaving the flag set for ever, so the person's NEXT save "
-           "is rolled back and reported as stopped when they stopped "
-           "nothing. The writer clears it only where IT read one, "
-           "between tables, and the hold leaves it alone while a "
-           "write is running: this is the only line that covers the "
-           "moment between those two"),
+  # `a-cancelled-save-does-not-outlive-its-own-act` STOOD HERE AND WAS
+  # RETIRED ON 2026-09-02, the same day, with its measurement. It
+  # mutated the clearing of `_save_cancelled` in `_save_the_map`'s own
+  # `finally`, which was written that morning because a cancel landing
+  # after the last table was consumed by nobody. The freeze repair
+  # then made the hold decline while a write runs -- so the hold's
+  # branch now always executes AFTER the act has ended, where
+  # `_saving_now` is false and it clears the flag itself. Measured
+  # twice, including with the press staged exactly between the
+  # writer's return and the end of the act: the mutation SURVIVED both
+  # times, because the hold is a second writer of the same fact.
+  # THE LINE STAYS for the reason the project keeps every redundant
+  # guard -- an omission that costs nothing today is a countdown --
+  # and WHAT WOULD REOPEN THIS is a journey that sets the flag with no
+  # hold open to clear it, which is what a cancel offered anywhere but
+  # the waiting window would be.
+  dict(name="an-empty-file-is-nobodys", file=DIALOG,
+       old="""    existed = bool(bridge.gpkg_tables(path))""",
+       new="""    existed = os.path.exists(path) and os.path.getsize(path) > 0""",
+       test="test_a_stub_from_a_stopped_save_is_not_somebody_elses_file",
+       why="a stub left by a cancelled or failed first save -- 65,536 "
+           "bytes of header holding no layer -- reading as somebody "
+           "else's work, which is cached for the session and turns "
+           "off every remover scoped to our own files. Measured "
+           "2026-09-02 with a control: after the stub, shrinking a "
+           "four-element design to two left two elements' tables, "
+           "columns and values in the file a colleague receives"),
+  dict(name="a-hold-declines-a-write-it-cannot-serve", file=DIALOG,
+       old="""    if getattr(self, "_saving_now", False):
+      return True
+    if getattr(self, "_holding_for_a_save", False):""",
+       new="""    if False:  # mutation: wait for a frame that cannot run
+      return True
+    if getattr(self, "_holding_for_a_save", False):""",
+       test="test_a_close_during_a_write_does_not_wait_for_the_write",
+       why="a close or a quit arriving during a write freezing the "
+           "window for the whole ceiling. It is delivered by that "
+           "write's own pump, so the hold runs NESTED inside it and "
+           "spins on a flag only the suspended frame beneath can "
+           "clear. Measured 2026-09-02 through both doors with the "
+           "ceiling shortened: 5.1s against a control's 0.16s, and no "
+           "tables at all once the escape pressed Cancel"),
   dict(name="the-close-question-holds-the-close", file=DIALOG,
        old="""        self._hold_until_the_save_lands("close")""",
        new="""        pass  # mutation: close without waiting for the save""",

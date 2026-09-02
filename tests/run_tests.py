@@ -8044,30 +8044,33 @@ def test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go():
 def test_a_cancel_during_the_write_stops_the_write():
   """Cancel means cancel while the file is being written, too.
 
-  The OTHER moment. Its sibling above cancels a save that is only
-  PROMISED, where dropping the intent is the whole of the rollback
-  because nothing has been opened. This one is pressed while
-  `_save_the_map` is WRITING, where the rollback is real:
-  `write_gpkg_layers` asks `_save_cancelled` between tables and
-  answers True with a `RollbackTransaction`.
+  THE MOMENT, AND WHERE IT IS REACHABLE FROM. Its sibling above
+  cancels a save that is only PROMISED, where dropping the intent is
+  the whole of the rollback because nothing has been opened. This one
+  is pressed while `write_gpkg_layers` is running, where the rollback
+  is real: it asks `_save_cancelled` between tables and answers True
+  with a `RollbackTransaction`.
 
-  WHY IT IS A DIFFERENT TEST RATHER THAN A LEG. The close or the quit
-  arrives BY THE WRITE'S OWN PUMP -- the write turns the event loop
-  once per element behind its progress bar -- so the hold runs in a
-  frame nested BELOW the writer. Until 2026-09-02 the hold cleared
-  `_save_cancelled` on its way out under a comment claiming any write
-  that read it had already returned, which is true of the promised
-  journey and false of this one: the writer was still suspended above,
-  and it read False at every table afterwards. Measured then: the
-  writer asked four times, was told False four times, all four tables
-  were written, and the person was told "Saved" about the save they
-  had just stopped.
+  IT IS STAGED THROUGH THE DEFERRED PRESS, and that is not an
+  accident of the fixture. A close or a quit arriving DURING a write
+  is delivered by that write's own pump, so the hold would run nested
+  inside it and could never be satisfied -- it waits on a flag the
+  suspended frame beneath it owns, which froze the window for the
+  whole ceiling until 2026-09-02. The hold declines there now. What
+  still opens a window is a save that is PROMISED: the run lands
+  inside the hold's own pump, `_honour_a_queued_save` writes there,
+  and the button is live exactly where it can be served.
+
+  Until 2026-09-02 the hold cleared `_save_cancelled` on its way out,
+  under a comment claiming any write that read it had already
+  returned. Measured then: the writer asked four times, was told False
+  four times, all four tables were written, and the person was told
+  "Saved" about the save they had just stopped.
 
   BOTH DIRECTIONS ARE ASSERTED, because the obvious repair breaks the
-  other one. Leaving the flag standing for the suspended writer is
+  other one: leaving the flag standing for the suspended writer is
   right here and wrong for a wait that never opens the file, where
-  nothing consumes it and the person's NEXT save is rolled back
-  instead -- which is what the last assertion is for.
+  nothing consumes it and the person's NEXT save is rolled back.
 
   Regression: a Cancel pressed during the write wrote the map anyway
   and reported it saved. [mutation]
@@ -8083,24 +8086,25 @@ def test_a_cancel_during_the_write_stops_the_write():
     out = os.path.join(td, "cancelled-mid-write.gpkg")
     dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
     try:
-      dlg.live_check.setChecked(False)
+      dlg.live_check.setChecked(True)
       dlg.gpkg_widget.setFilePath(out)
       _tick(200)
       dlg._generate()
       _settle(dlg)
+      assert press_save(dlg), "PREMISE: the first save did not write"
+      before = _a_save_waiting_on_a_redraw(dlg, out)
 
       at_the_press = {}
       watcher = QTimer()
-      watcher.setInterval(10)
+      watcher.setInterval(5)
 
       def press_the_cancel():
-        """Click Cancel once the write is genuinely under way.
+        """Click Cancel once the write itself is under way.
 
         Returns:
-          None. It waits for `_saving_now` deliberately: pressing as
-          soon as the window appears would measure the promised
-          journey again, which the sibling test above already covers,
-          and the two arms differ by the MOMENT rather than the act.
+          None. It waits for `_saving_now`, which is what makes this
+          the WRITE's moment rather than the promise's -- the sibling
+          test above covers the promise.
         """
         if not getattr(dlg, "_saving_now", False):
           return
@@ -8115,20 +8119,9 @@ def test_a_cancel_during_the_write_stops_the_write():
 
       watcher.timeout.connect(press_the_cancel)
       watcher.start()
-
-      def deliver_the_quit():
-        """Send QGIS's Close inside the write's own pump.
-
-        Returns:
-          None. Armed at zero before the press, so it is delivered by
-          the first `processEvents` the write makes -- which is what
-          puts the hold's frame below the writer rather than after it.
-        """
-        QApplication.sendEvent(window, QCloseEvent())
-
-      QTimer.singleShot(0, deliver_the_quit)
       BAR_MESSAGES.clear()
-      press_save(dlg, expect=False)
+      QApplication.sendEvent(window, QCloseEvent())
+      _tick(300)
       watcher.stop()
       said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
 
@@ -8137,22 +8130,15 @@ def test_a_cancel_during_the_write_stops_the_write():
         "so this measured the promised journey rather than the one "
         "this test is about")
       after = gpkg_contents(out)
-      wrote = [name for name in after["tables"] if name.startswith("tiles_")]
-      assert not wrote, (
-        f"the cancelled write left {wrote} in the file: the rollback "
-        f"is what Cancel promises once the writing has started")
+      assert after["tables"] == before["tables"], (
+        f"the cancelled write left {sorted(set(after['tables']) - set(before['tables']))} "
+        f"in the file: the rollback is what Cancel promises once the "
+        f"writing has started")
       assert "not written" in said or "stopped" in said, (
         f"a cancelled write said {said!r}, so somebody who stopped it "
         f"has no way to know their map is not on disk")
-      assert window.closes == 1, (
-        f"the main window received {window.closes} closes: cancelling "
-        f"is the answer to 'may I stop waiting', so the quit goes "
-        f"through")
 
-      # AND THE FLAG DID NOT OUTLIVE THE WRITE IT WAS SET FOR. The
-      # writer's own branch clears it; a repair that made the hold
-      # keep it unconditionally would pass everything above and roll
-      # back this press instead.
+      # AND THE FLAG DID NOT OUTLIVE THE WRITE IT WAS SET FOR.
       _settle(dlg)
       assert press_save(dlg), (
         "a save pressed after a cancelled WRITE wrote nothing: the "
@@ -8165,29 +8151,29 @@ def test_a_cancel_during_the_write_stops_the_write():
 
 
 def test_a_cancel_after_the_tables_does_not_poison_the_next_save():
-  """A cancel that arrives too late to stop anything stops nothing ELSE.
+  """A cancel too late to stop anything stops nothing ELSE.
 
-  THE THIRD MOMENT, and it is the one a repair created. Its two
-  siblings above cover a cancel on a promise (drop the intent) and a
-  cancel between tables (roll the transaction back). This one lands
-  AFTER `write_gpkg_layers` has returned -- during the repointing or
-  the styling, which is 13.0s of a 256-element save -- where nothing
-  is left to stop: the map is written and the person is told so,
-  correctly.
+  THE THIRD MOMENT, and it is the one a repair created. Its siblings
+  cover a cancel on a promise (drop the intent) and one between tables
+  (roll the transaction back). This lands AFTER `write_gpkg_layers`
+  has returned -- during the repointing or the styling, 13.0s of a
+  256-element save -- where nothing is left to stop: the map is
+  written and the person is told so, correctly.
 
   WHAT MUST NOT HAPPEN IS THAT THE FLAG SURVIVES. `_save_cancelled` is
   read BETWEEN TABLES, so a cancel arriving after the last one is
   never consumed; the writer clears it only where it read one, and the
-  hold deliberately leaves it alone while a write is running, which is
-  what makes a cancel DURING the write work. Between those two lies a
-  moment nobody covered, and a flag left standing there rolled back
-  the person's NEXT save and told them it was stopped.
+  hold leaves it alone while a write is running, which is what makes a
+  cancel between tables work. Between those two lies a moment nobody
+  covered, and a flag left standing there rolled back the person's
+  NEXT save and told them it was stopped.
 
-  IT IS STAGED RATHER THAN TIMED. The quit is armed from a wrapper
-  around `bridge.write_gpkg_layers` that calls the real one and then
-  asks for a close, so the hold opens at the next pump the save makes
-  -- which is in the repointing. Measuring how often a click lands in
-  that window would be measuring the machine.
+  IT IS STAGED, NOT TIMED, and through the door that still offers a
+  window: the save is PROMISED first, so the hold is already open when
+  the run lands and writes inside its pump. A wrapper round
+  `write_gpkg_layers` calls the real one and then lets the cancel be
+  pressed, which puts the press after the last table without measuring
+  how often a click lands there.
 
   Regression: a cancel landing after the tables went in left the flag
   set for ever, and the next save was rolled back. [mutation]
@@ -8205,37 +8191,18 @@ def test_a_cancel_after_the_tables_does_not_poison_the_next_save():
     out = os.path.join(td, "cancelled-too-late.gpkg")
     dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
     try:
-      dlg.live_check.setChecked(False)
+      dlg.live_check.setChecked(True)
       dlg.gpkg_widget.setFilePath(out)
       _tick(200)
       dlg._generate()
       _settle(dlg)
+      assert press_save(dlg), "PREMISE: the first save did not write"
+      _a_save_waiting_on_a_redraw(dlg, out)
 
-      at_the_press = {}
-      watcher = QTimer()
-      watcher.setInterval(10)
+      seen = {}
 
-      def press_the_cancel():
-        """Click Cancel once the waiting window is up.
-
-        Returns:
-          None, and it records what was true at the press so the
-          premise below is asserted rather than assumed.
-        """
-        waiting = getattr(dlg, "_waiting_window", None)
-        if waiting is None:
-          return
-        for button in waiting.findChildren(QPushButton):
-          at_the_press["saving_now"] = bool(
-            getattr(dlg, "_saving_now", False))
-          button.click()
-          watcher.stop()
-          return
-
-      watcher.timeout.connect(press_the_cancel)
-
-      def write_then_ask_to_quit(*args, **kwargs):
-        """Call the real writer, then arm the quit behind it.
+      def write_then_press_the_cancel(*args, **kwargs):
+        """Call the real writer, then press Cancel at once.
 
         Args:
           *args: whatever the dialog passes.
@@ -8243,29 +8210,41 @@ def test_a_cancel_after_the_tables_does_not_poison_the_next_save():
 
         Returns:
           The real writer's own answer, untouched. Only the MOMENT of
-          the quit is staged; the write itself is the product's.
+          the press is staged; the write is the product's. It is
+          pressed HERE rather than from a timer because the moment is
+          narrow -- the repointing and the styling are milliseconds on
+          a four-element map -- and a timer measures how fast this
+          machine is rather than what the flag does.
         """
         answer = real_writer(*args, **kwargs)
-        at_the_press["the writer returned"] = True
-        watcher.start()
-        QTimer.singleShot(0, lambda: QApplication.sendEvent(
-          window, QCloseEvent()))
+        seen["the writer returned"] = True
+        waiting = getattr(dlg, "_waiting_window", None)
+        if waiting is not None:
+          for button in waiting.findChildren(QPushButton):
+            seen["pressed"] = True
+            seen["saving_now"] = bool(getattr(dlg, "_saving_now", False))
+            button.click()
+            break
         return answer
 
-      bridge_module.write_gpkg_layers = write_then_ask_to_quit
+      bridge_module.write_gpkg_layers = write_then_press_the_cancel
       BAR_MESSAGES.clear()
       try:
-        press_save(dlg, expect=False)
+        QApplication.sendEvent(window, QCloseEvent())
+        _tick(400)
       finally:
         bridge_module.write_gpkg_layers = real_writer
-      watcher.stop()
 
-      assert at_the_press.get("the writer returned"), (
+      assert seen.get("the writer returned"), (
         "FIXTURE: the writer was never called, so nothing here is "
         "about a cancel that arrives after it")
-      assert at_the_press.get("saving_now"), (
-        "FIXTURE: the cancel never landed while the save was still "
-        "running, so this measured some other moment")
+      assert seen.get("pressed"), (
+        "FIXTURE: the cancel was never pressed -- the waiting window "
+        "had already gone by the time the writer returned")
+      assert seen.get("saving_now"), (
+        "FIXTURE: the save had already finished when the cancel was "
+        "pressed, so this measured the ordinary journey and not the "
+        "moment between the last table and the end of the act")
       assert not dlg._save_cancelled, (
         "the cancel flag outlived the save it was set for: nothing "
         "reads it after the last table, so the next press will be "
@@ -8276,14 +8255,323 @@ def test_a_cancel_after_the_tables_does_not_poison_the_next_save():
       _settle(dlg)
       BAR_MESSAGES.clear()
       assert press_save(dlg), (
-        "the save after a too-late cancel wrote nothing: the flag "
-        "was still standing when the writer next asked")
+        "the save after a too-late cancel wrote nothing: the flag was "
+        "still standing when the writer next asked")
     finally:
       bridge_module.write_gpkg_layers = real_writer
       dlg.close()
       dlg.deleteLater()
       _tick(50)
       QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_close_during_a_write_does_not_wait_for_the_write():
+  """A wait that only an outer frame can end is not a wait.
+
+  `_save_the_map` turns the event loop once per element behind its
+  progress bar, so a close or a quit arriving during a write is
+  delivered by THAT WRITE'S OWN PUMP. The hold then runs nested inside
+  it and spins until `_a_save_is_outstanding()` goes false -- and
+  `_saving_now` is cleared only by the suspended frame beneath. The
+  condition can never come true, so the window sat frozen for the
+  whole `SAVE_WAIT_CEILING` with its bar on "preparing to save", and
+  the only control on it threw the map away. Measured 2026-09-02
+  through both doors, with the ceiling shortened and said so: 5.1s
+  against a control's 0.16s, and no tables at all once the escape
+  pressed Cancel.
+
+  THE ANSWER IS THE ONE THE STACK ALREADY GUARANTEES: the save is
+  running and finishes the moment the hold returns, so the act is let
+  through and the map lands. What is asserted is both halves -- the
+  press does not reach the ceiling, and the file holds the map.
+
+  THE CEILING IS LOWERED HERE AND THAT IS DELIBERATE. The product's is
+  180s, a hang-catcher rather than a budget; a test that waits three
+  minutes to prove a freeze is one somebody deletes.
+
+  Regression: closing the window during a write froze it for the
+  ceiling and then lost the map. [mutation]
+  """
+  import os
+  import time
+  from qgis.PyQt.QtGui import QCloseEvent
+  from qgis.PyQt.QtWidgets import QApplication
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  window = _a_window_that_counts_its_closes()
+  with _temp_dir() as td:
+    out = os.path.join(td, "closed-mid-write.gpkg")
+    dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      dlg.SAVE_WAIT_CEILING = 6.0
+
+      seen = {}
+
+      def deliver_the_quit():
+        """Send QGIS's Close from inside the write's own pump."""
+        seen["saving_now"] = bool(getattr(dlg, "_saving_now", False))
+        QApplication.sendEvent(window, QCloseEvent())
+
+      QTimer.singleShot(0, deliver_the_quit)
+      started = time.monotonic()
+      press_save(dlg, expect=False)
+      took = time.monotonic() - started
+
+      assert seen.get("saving_now"), (
+        "FIXTURE: the quit did not arrive during the write, so this "
+        "measured some other journey")
+      assert took < dlg.SAVE_WAIT_CEILING - 1.0, (
+        f"the press took {took:.2f}s against a ceiling of "
+        f"{dlg.SAVE_WAIT_CEILING}s: the hold waited for a flag only "
+        f"the frame beneath it can clear, so it ended at the ceiling "
+        f"rather than at the save")
+      wrote = [name for name in gpkg_contents(out)["tables"]
+               if name.startswith("tiles_")]
+      assert wrote, (
+        "the map was not written at all: letting the act through is "
+        "only right because the save lands as soon as the hold "
+        "returns")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_stub_from_a_stopped_save_is_not_somebody_elses_file():
+  """A GeoPackage holding nothing is nobody's, whatever it weighs.
+
+  A write creates its data source BEFORE the transaction opens, so a
+  cancelled or failed first save leaves a stub at the path: 65,536
+  bytes of header holding no layer at all. `_save_the_map` decided
+  whose file it was by asking whether the path existed and had bytes,
+  which reads that stub as somebody else's work -- and the answer is
+  CACHED for the session, so every remover scoped to our own files
+  stayed off. Measured 2026-09-02 with a control: after a cancelled
+  first save, shrinking a four-element design to two left
+  `tiles_c_v3` and `tiles_d_v1` in the file, where the same journey
+  without the cancel dropped them. A colleague then receives the
+  tables, the column names and the values of elements the map no
+  longer has.
+
+  BOTH DIRECTIONS ARE ASSERTED, and the second is what the first must
+  not cost. A file holding nothing is ours, so the drop runs; a file
+  holding somebody ELSE's table is still theirs, and nothing of theirs
+  is touched. A repair that made every file ours would pass the first
+  half and destroy a colleague's work, which is the harm the ownership
+  question exists for.
+
+  Regression: a stub left by a stopped save made the file nobody's for
+  the rest of the session. [mutation]
+  """
+  import os
+  from osgeo import ogr, osr
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from weavingspace_qgis import bridge as bridge_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  with _temp_dir() as td:
+    stub = os.path.join(td, "stopped-save.gpkg")
+    # THE STUB IS MADE THE WAY THE WRITER MAKES IT -- an OGR data
+    # source with nothing in it -- rather than by cancelling a save,
+    # because what is under test is what the ownership question does
+    # with such a file, and staging the state is steadier than
+    # staging the race that produces it.
+    made = ogr.GetDriverByName("GPKG").CreateDataSource(stub)
+    assert made is not None, "PREMISE: no stub could be created"
+    made = None
+    assert os.path.exists(stub) and os.path.getsize(stub) > 0, \
+      "PREMISE: the stub has no bytes, so a size test would not be fooled"
+    assert not bridge_module.gpkg_tables(stub), \
+      "PREMISE: the stub already holds a table, so it is not a stub"
+
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      dlg.gpkg_widget.setFilePath(stub)
+      dlg._generate()
+      _settle(dlg)
+      assert press_save(dlg), "PREMISE: the save into the stub wrote nothing"
+      four = {name for name in bridge_module.gpkg_tables(stub)
+              if name.startswith("tiles_")}
+      assert len(four) >= 3, (
+        f"PREMISE: this design wrote {sorted(four)}, too few for "
+        f"shrinking it to leave anything behind")
+
+      dlg.n_spin.setValue(2)
+      _tick(300)
+      dlg._generate()
+      _settle(dlg)
+      assert press_save(dlg), "PREMISE: the second save wrote nothing"
+      after = {name for name in bridge_module.gpkg_tables(stub)
+               if name.startswith("tiles_")}
+      assert after < four, (
+        f"the design lost elements and the file kept "
+        f"{sorted(after - (after & four))} of their tables: a stub is "
+        f"nobody's file, so the drop that spares a colleague's work "
+        f"was left off our own")
+
+      # ---- AND A FILE THAT REALLY IS SOMEBODY ELSE'S IS SPARED.
+      theirs = os.path.join(td, "a-colleague.gpkg")
+      data = ogr.GetDriverByName("GPKG").CreateDataSource(theirs)
+      crs = osr.SpatialReference()
+      crs.ImportFromEPSG(3857)
+      crs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+      data.CreateLayer("tiles_a_theirs", crs, ogr.wkbPolygon)
+      data = None
+      assert "tiles_a_theirs" in bridge_module.gpkg_tables(theirs), \
+        "PREMISE: the colleague's file was not written"
+      dlg.gpkg_widget.setFilePath(theirs)
+      _tick(100)
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Yes
+      press_save(dlg, path=theirs, expect=False)
+      assert "tiles_a_theirs" in bridge_module.gpkg_tables(theirs), (
+        "a table this map never wrote was removed from a file it did "
+        "not make: reading an empty file as ours must not make every "
+        "file ours")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
+def test_a_save_waits_for_a_build_already_coming():
+  """One act, one file, whether or not you pause before pressing Save.
+
+  `_a_topology_is_owed` asks THE FILE, which is the cost ruling of
+  2026-08-30 and is right about whether to START a build: somebody who
+  has never opened the Topology tab has no unit table in their
+  GeoPackage and pays none of it. It was the wrong question about a
+  build ALREADY RUNNING. Measured 2026-09-02, both arms in one run:
+  draw a map with the tab open, move the spacing, Generate, and press
+  Save -- hurried, the file got no motif and recorded
+  `topology_written: False`; after a second's pause the same press
+  wrote `weavingspace_unit_no_crs` and its dual. One act, two files,
+  decided by a race nobody can see.
+
+  IT IS A DIFFERENTIAL, so it needs no oracle: the two presses must
+  leave the same tables, and a disagreement is a defect by
+  construction.
+
+  AND THE COST RULING IS ASSERTED BESIDE IT, because the obvious
+  repair overturns it. A dialog with no build outstanding and a file
+  carrying no motif of ours is owed NOTHING -- otherwise every save
+  made by somebody who has never opened the tab would wait for work
+  they never asked for.
+
+  Regression: a Save pressed while the topology build was still coming
+  wrote no motif at all. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge as bridge_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def motif_tables(path):
+    """The two topology tables a saved file holds, if any.
+
+    Args:
+      path: the GeoPackage to read.
+
+    Returns:
+      A sorted list of `weavingspace_` table names.
+    """
+    return sorted(name for name in bridge_module.gpkg_tables(path)
+                  if name.startswith("weavingspace_"))
+
+  def one_arm(path, pause):
+    """Draw, move the design, and save with or without a pause.
+
+    Args:
+      path: where to save.
+      pause: True to let the tab go quiet before pressing.
+
+    Returns:
+      (whether a build was outstanding at the press, the motif tables).
+    """
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      _choose_family(dlg, "laves 3.3.4.3.4")
+      _tick(300)
+      assert _the_topology_tab_is_quiet(dlg), \
+        "PREMISE: the first build never landed"
+      assert dlg.topology_panel._topology is not None, \
+        "PREMISE: this design carries no topology, so nothing is owed"
+      dlg.spacing_spin.setValue(900.0)
+      _tick(200)
+      dlg.gpkg_widget.setFilePath(path)
+      dlg._generate()
+      _settle(dlg)
+      if pause:
+        assert _the_topology_tab_is_quiet(dlg), \
+          "PREMISE: the second build never landed"
+      outstanding = (dlg._topology_task is not None
+                     or bool(getattr(dlg, "_topology_wanted", False)))
+      assert press_save(dlg), "PREMISE: the press wrote nothing at all"
+      _the_topology_tab_is_quiet(dlg)
+      _tick(200)
+      return outstanding, motif_tables(path)
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  with _temp_dir() as td:
+    running, hurried = one_arm(os.path.join(td, "hurried.gpkg"), pause=False)
+    _quiet, patient = one_arm(os.path.join(td, "patient.gpkg"), pause=True)
+
+    assert running, (
+      "FIXTURE: no build was outstanding at the hurried press, so both "
+      "arms drove the same journey and the comparison below is empty")
+    assert patient, (
+      "PREMISE: even the patient press wrote no motif, so this test "
+      "cannot tell a race from a design that carries none")
+    assert hurried == patient, (
+      f"the hurried press left {hurried} and the patient one "
+      f"{patient}: one act, two files, decided by a race the person "
+      f"cannot see")
+
+  # ---- AND NOBODY WHO HAS NOT ASKED PAYS FOR IT. A dialog with no
+  # build outstanding, saving into a file carrying no motif of ours,
+  # is owed nothing whatever.
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    _tick(200)
+    dlg._generate()
+    _settle(dlg)
+    with _temp_dir() as td:
+      fresh = os.path.join(td, "never-opened-the-tab.gpkg")
+      assert not dlg._a_topology_is_owed(fresh, True), (
+        "a save by somebody who never opened the Topology tab was "
+        "deferred behind a build: the cost ruling of 2026-08-30 says "
+        "they pay none of it")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
 
 
 def test_closing_the_window_over_an_unsaved_map_asks_first():
@@ -82217,6 +82505,12 @@ def main():
         test_a_cancel_during_the_write_stops_the_write)
   check("a cancel after the tables does not poison the next save",
         test_a_cancel_after_the_tables_does_not_poison_the_next_save)
+  check("a stub from a stopped save is not somebody else's file",
+        test_a_stub_from_a_stopped_save_is_not_somebody_elses_file)
+  check("a save waits for a build already coming",
+        test_a_save_waits_for_a_build_already_coming)
+  check("a close during a write does not wait for the write",
+        test_a_close_during_a_write_does_not_wait_for_the_write)
   check("closing the window over an unsaved map asks first",
         test_closing_the_window_over_an_unsaved_map_asks_first)
   check("the experimental box gates its tabs",

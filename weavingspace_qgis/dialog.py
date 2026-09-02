@@ -19358,7 +19358,22 @@ class WeavingSpaceDialog(QDialog):
     # The overwrite question keeps the live reading deliberately --
     # with Save a deliberate press, asking every time is noise, which
     # is the settled ruling of 2026-08-27.
-    existed = os.path.exists(path) and os.path.getsize(path) > 0
+    # AND "EXISTED" IS ABOUT WHAT THE FILE HOLDS, NOT ITS SIZE.
+    # (2026-09-02.) `_this_map_owns_the_file`'s own docstring says an
+    # empty file "is nobody's and is decided by the caller", and this
+    # is that caller. A GeoPackage OGR has created and nothing has
+    # written to is 65,536 bytes of header and holds no layer at all,
+    # which a size test reads as somebody else's work -- so a save
+    # cancelled mid-write, whose rollback cannot undo the creation
+    # that preceded the transaction, left a stub that made the file
+    # NOT OURS for the rest of the session. Measured that day with a
+    # control: after the stub, shrinking a four-element design to two
+    # left `tiles_c_v3` and `tiles_d_v1` in the file, where the same
+    # journey without the cancel dropped them. A failed write leaves
+    # the same stub, so this covers that too.
+    # ONE OGR OPEN, once per press, against a drop that decides what a
+    # colleague receives.
+    existed = bool(bridge.gpkg_tables(path))
     if not hasattr(self, "_file_was_ours_when_met"):
       self._file_was_ours_when_met = {}
     mine_from_the_start = self._file_was_ours_when_met.setdefault(
@@ -22444,6 +22459,30 @@ class WeavingSpaceDialog(QDialog):
     """
     if not self._a_save_is_outstanding():
       return True
+    # A WRITE IN AN OUTER FRAME LANDS BY ITSELF, AND WAITING FOR IT
+    # HERE CANNOT WORK. (2026-09-02, found by two hunts and measured
+    # through both doors.) `_save_the_map` turns the event loop once
+    # per element, so a close or a quit arriving during a write is
+    # delivered by that write's OWN pump and this method runs NESTED
+    # INSIDE it. The loop below waits for `_saving_now` to clear, and
+    # only the suspended frame beneath can clear it -- so the window
+    # sat frozen for the whole ceiling with its bar on "preparing to
+    # save", and the only control on it threw the map away. Measured
+    # with the ceiling shortened to six seconds and said so: 5.1s
+    # against a control's 0.16s, and no tables at all once the escape
+    # pressed Cancel.
+    # SO THE HONEST ANSWER IS THE ONE THE STACK ALREADY GUARANTEES:
+    # the save is running, nothing is lost, and it finishes the moment
+    # this returns. The act is let through and the map lands.
+    # WHAT IT DOES NOT RETIRE is the cancel this window exists for. A
+    # save that is merely PROMISED still opens the window, and the
+    # write that follows runs INSIDE this method's own pump, where the
+    # button is live and `write_gpkg_layers` reads the flag between
+    # tables -- which is the journey the mid-write cancel was built
+    # for. What is gone is a cancel offered where it could only be
+    # served by a frame that cannot run.
+    if getattr(self, "_saving_now", False):
+      return True
     if getattr(self, "_holding_for_a_save", False):
       # RE-ENTRANCY, and it is not hypothetical: pumping the loop is
       # exactly what lets a second Close arrive while the first is
@@ -22599,6 +22638,27 @@ class WeavingSpaceDialog(QDialog):
     held_dual = getattr(self, "_topology_dual", None)
     if held is not None and held_dual is not None and held_dual[0] == stamp:
       return False
+    # A BUILD ALREADY COMING IS WORTH WAITING FOR, whatever the file
+    # holds. (2026-09-02.) The rule below asks the FILE, which is the
+    # cost ruling of 2026-08-30 and is right about whether to START a
+    # build: somebody who has never opened the tab pays nothing. It is
+    # the wrong question about one that is ALREADY RUNNING, because
+    # then the work has been asked for and is being done, and the only
+    # thing in doubt is whether the press waits for it.
+    # WHAT IT COST: measured that day, both arms in one run
+    # (`tools/probes/a_save_that_outruns_its_own_build.py`). Draw a
+    # map with the tab open, move the spacing, Generate, and press
+    # Save -- hurried, the file gets no motif and records
+    # `topology_written: False`; after a pause of one second, the same
+    # press writes `weavingspace_unit_no_crs` and its dual. One act,
+    # two files, decided by a race nobody can see.
+    # IT CANNOT DEFER TWICE: `_topology_built_for` is set for this
+    # stamp whatever the build comes back with, and the clause above
+    # returns False on it, so the honoured press goes straight
+    # through.
+    if (getattr(self, "_topology_task", None) is not None
+        or bool(getattr(self, "_topology_wanted", False))):
+      return True
     try:
       holds = bridge.gpkg_tables(path)
     except Exception:                                   # noqa: BLE001
