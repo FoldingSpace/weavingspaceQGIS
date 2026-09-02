@@ -1750,6 +1750,22 @@ class WeavingSpaceDialog(QDialog):
     # deleting a table on the strength of its name matching our
     # convention would eventually delete somebody's work.
     self._gpkg_tables_written = {}
+    # {gpkg key: (did that file carry a copy of the data, how many
+    # times the box had been touched when we learned it)}. The pair
+    # `_embed_or_drop_the_source` compares, so an untouched box cannot
+    # strip a copy a sender chose while a deliberate untick still
+    # means what it says. The comment at the checkbox itself carries
+    # the reasoning and the two repairs it cost.
+    # IT IS INITIALISED HERE, BEFORE `_adopt_existing_group` RUNS, and
+    # that is load-bearing rather than tidy: adoption is the second
+    # door into a saved map and now records this fact, and it happens
+    # in `__init__` BEFORE the interface is built -- so leaving these
+    # two beside the checkbox meant the UI wiped what adoption had
+    # just learned. Measured 2026-09-02, when the repair raised
+    # AttributeError at the adoption site rather than quietly losing
+    # the answer, which is the better of the two failures.
+    self._embedded_when_resumed = {}
+    self._embed_touches = 0
     # {(layer id, column, data version): bool} -- see _column_has_nulls
     self._nulls_cache = {}
     # {(layer id, column, data version, floor, ceiling): bool} -- see
@@ -3236,7 +3252,11 @@ class WeavingSpaceDialog(QDialog):
     # may overrule the first, which is what keeps a recipient's Save
     # from emptying a file they never asked to change while leaving a
     # deliberate untick meaning exactly what it says.
-    self._embedded_when_resumed = {}
+    # BOTH OF THOSE ARE INITIALISED WITH THE OTHER PER-FILE RECORDS,
+    # far above, because `_adopt_existing_group` runs before this
+    # interface is built and now writes to them -- so creating them
+    # here would wipe what the adoption door had just learned. The
+    # reasoning for what they hold stays here, where the control is.
     # HOW MANY TIMES ANYBODY HAS TOUCHED THE BOX, and what that count
     # was when each file was opened. A plain "has it been touched"
     # bool was the first repair's own mistake, and it is the mistake
@@ -3247,7 +3267,6 @@ class WeavingSpaceDialog(QDialog):
     # the hunt aimed at that repair: tick, save your own file, untick,
     # then open a colleague's map and save -- their embedded copy gone
     # and the file no longer redrawable.
-    self._embed_touches = 0
     self.opt_embed_source.toggled.connect(self._note_an_embed_touch)
     # THE TOPOLOGY TABLES NEED BOTH OF THOSE TOO, and the reason they
     # did not have them is worth keeping: the drop was written with a
@@ -17524,6 +17543,17 @@ class WeavingSpaceDialog(QDialog):
     # describes where the output actually IS rather than where the
     # dialog would put it next.
     self._last_path = path
+    # ...AND WHETHER THAT FILE CARRIED A COPY OF THE DATA, which is the
+    # other per-file fact a door into a saved map has to record. Its
+    # only writer was `_recover_the_source`, which the two RESUME
+    # branches call and adoption does not -- so reopening the plugin
+    # over a project holding somebody's self-contained map left the
+    # memory empty, the box back at its default, and the drop written
+    # for the act of UNTICKING fired for the act's absence. Measured
+    # 2026-09-02 on both doors and one file: Load kept the copy,
+    # adoption stripped it and the map's own layers were left reading
+    # a table that had gone.
+    self._remember_whether_the_file_carried_the_data(path)
 
   def _our_groups(self, root):
     """Every output group in the project, newest first.
@@ -20330,6 +20360,47 @@ class WeavingSpaceDialog(QDialog):
   CONTROLS_A_PUMP_TAKES_DOWN = ("save_button", "generate_btn",
                                 "load_button")
 
+  def _remember_whether_the_file_carried_the_data(self, path,
+                                                  record=None) -> None:
+    """Record whether a saved map's file arrived with a copy of the data.
+
+    Args:
+      path: the GeoPackage a door into a saved map has just opened or
+        adopted. Anything falsy is ignored.
+      record: that file's working state where the caller already has
+        it, which is the resume's case and costs no second open. Where
+        it is None the file is read HERE -- and only where this file
+        has no answer yet, because the adoption site calls this once
+        per LAYER and opening a GeoPackage costs time proportional to
+        the layers already in it, which is the quadratic the save was
+        rewritten to escape.
+
+    Returns:
+      None. Fills `_embedded_when_resumed` with (did the file carry a
+      copy, how many times the box had been touched when we learned
+      it) -- the pair `_embed_or_drop_the_source` compares, so that a
+      deliberate untick still means what it says while an untouched
+      box cannot strip a copy the sender chose.
+
+    WHY IT IS ONE OWNER. The fact belongs to a FILE and the doors into
+    a saved map are two: a resume, and the adoption a reopened plugin
+    performs. It had a single writer on the resume path, so the
+    adoption door left the memory empty and the drop -- written for
+    the act of unticking -- fired for the act's ABSENCE. That is this
+    project's own rule about a repair aimed at an act, met from the
+    side where the act never happens; and it is the second time this
+    twin pair has been swept for its GUARDS and not for its MEMORIES.
+    """
+    if not path:
+      return
+    key = self._gpkg_key(path)
+    if record is None:
+      if key in self._embedded_when_resumed:
+        return
+      record = bridge.read_working_state(path) or {}
+    self._embedded_when_resumed[key] = (
+      bool((record or {}).get("region_embedded")), self._embed_touches)
+
   def _take_the_acting_controls_down(self):
     """Disable every control that acts, for the length of a pumped act.
 
@@ -21288,8 +21359,7 @@ class WeavingSpaceDialog(QDialog):
     # had it silently unticked by opening any file without a copy in
     # it. The fact belongs to the FILE, so it is remembered against
     # the file and the control is left alone.
-    self._embedded_when_resumed[self._gpkg_key(path)] = (
-      bool(record.get("region_embedded")), self._embed_touches)
+    self._remember_whether_the_file_carried_the_data(path, record)
     # AND THE SAME FOR THE TOPOLOGY THE FILE ARRIVED WITH, for exactly
     # the reason above and after making exactly the same mistake
     # (2026-08-30, found by a hunt within an hour of the code being

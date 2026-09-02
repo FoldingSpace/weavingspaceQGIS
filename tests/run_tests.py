@@ -39377,6 +39377,142 @@ def test_the_saves_count_is_asked_of_the_file():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_both_doors_remember_the_file_carried_the_data():
+  """Reopening the plugin must not strip a copy the sender included.
+
+  `_embed_or_drop_the_source` asks the checkbox first, and where it is
+  untouched it asks a per-FILE memory instead, so a recipient who has
+  never had an opinion cannot remove a copy the sender deliberately
+  put in. That reasoning is right and the memory had ONE writer, in
+  `_recover_the_source`, which only the two RESUME branches call.
+
+  ADOPTION IS THE OTHER DOOR -- reopening the plugin over a project
+  that already holds the map -- and it wrote nothing. The box is back
+  at its default there and `_embed_touches` is zero, so the drop
+  written for the act of UNTICKING fired for the act's absence: the
+  copy went, and the map's own layers were left reading a table that
+  had gone. Measured 2026-09-02 on both doors and one file, which is
+  what says whose defect it is rather than which journey is unlucky.
+
+  IT IS THE SECOND TIME THIS TWIN PAIR HAS BEEN SWEPT FOR ITS GUARDS
+  AND NOT FOR ITS MEMORIES, which is the lesson worth more than the
+  fix: when a repair gives one door a per-file memory, the twin needs
+  it as well as the guard.
+
+  AND THE RECORDS MOVED ABOVE THE INTERFACE, which is load-bearing.
+  `_adopt_existing_group` runs in `__init__` BEFORE the tab holding
+  that checkbox is built, so leaving the two records beside the
+  control meant the interface wiped what adoption had just learned.
+
+  BOTH ANSWERS ARE ASSERTED. A repair that simply stopped dropping
+  would pass the first two arms and make the checkbox inert, so the
+  third arm unticks deliberately and requires the copy to go.
+
+  Regression: reopening the plugin over somebody's self-contained map
+  and pressing Save removed the copy of the data they had included, so
+  the file could no longer be redrawn by anybody. [mutation]
+  """
+  import shutil
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_embed_doors_")
+  sender = os.path.join(folder, "sender.gpkg")
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  first = WeavingSpaceDialog(iface=_Iface())
+  try:
+    first.live_check.setChecked(False)
+    first.layer_combo.setLayer(layer)
+    _tick(300)
+    first.spacing_spin.setValue(700.0)
+    _generate_and_wait(first)
+    first.opt_embed_source.setChecked(True)
+    first.gpkg_widget.setFilePath(sender)
+    assert press_save(first, sender), "PREMISE: the sender's save failed"
+    assert bridge.REGION_TABLE_NAME in bridge.gpkg_tables(sender), (
+      "PREMISE: the sender's file carries no copy of the data, so "
+      "nothing can be seen to be lost")
+  finally:
+    first.close()
+    QgsProject.instance().clear()
+    _tick(200)
+
+  def through(name, door, untick=False):
+    """Open the sender's file by one door and save, keeping the arms apart.
+
+    Args:
+      name: names the arm and its own copy of the sender's file.
+      door: "load" to press Load, or "adopt" to build a NEW dialog
+        over the project the map is already in, which is what
+        reopening the plugin does.
+      untick: True to have the person speak about the box before
+        saving -- ticked and then unticked, which is what speaking
+        LOOKS like from this state. The box is a standing preference
+        and shows unchecked after an adoption whatever the file says,
+        so `setChecked(False)` there clicks nothing and emits nothing:
+        a first draft of this arm asserted a no-op and failed. Ending
+        unchecked, with the touch count moved, is the arm that must
+        still lose the copy.
+
+    Returns:
+      Whether the copy of the data survived the save.
+    """
+    path = os.path.join(folder, f"{name}.gpkg")
+    shutil.copyfile(sender, path)
+    opener = WeavingSpaceDialog(iface=_Iface())
+    working = opener
+    try:
+      opener.live_check.setChecked(False)
+      opener.resume_widget.setFilePath(path)
+      opener.load_button.click()
+      _tick(600)
+      assert opener._element_layer_ids, \
+        f"PREMISE: the Load door opened no map for the {door} arm"
+      if door == "adopt":
+        opener.close()
+        working = WeavingSpaceDialog(iface=_Iface())
+        working.live_check.setChecked(False)
+        _tick(600)
+        assert working._element_layer_ids, (
+          "PREMISE: the reopened plugin adopted no map, so the "
+          "adoption door was never taken")
+      if untick:
+        before = working._embed_touches
+        working.opt_embed_source.setChecked(True)
+        working.opt_embed_source.setChecked(False)
+        _tick(100)
+        assert working._embed_touches > before, (
+          "PREMISE: the box emitted nothing, so nobody has spoken "
+          "about it and this arm is asking the untouched question")
+        assert not working.opt_embed_source.isChecked(), \
+          "PREMISE: the box ended ticked, so this is not an untick"
+      working.gpkg_widget.setFilePath(path)
+      assert press_save(working, path), f"the {name} save was refused"
+      return bridge.REGION_TABLE_NAME in bridge.gpkg_tables(path)
+    finally:
+      try:
+        working.close()
+      finally:
+        QgsProject.instance().clear()
+        _tick(200)
+
+  try:
+    assert through("byload", "load"), (
+      "the Load door removed the copy of the data the sender included, "
+      "so the file can no longer be redrawn by anybody")
+    assert through("byadopt", "adopt"), (
+      "reopening the plugin over the sender's own map removed the copy "
+      "of the data they included: the memory of what the file arrived "
+      "with is written on the resume door and not on this one, so the "
+      "drop written for the act of unticking fires for its absence")
+    assert not through("unticked", "adopt", untick=True), (
+      "a deliberate untick left the copy in the file, so the control "
+      "no longer means what it says")
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_no_acting_control_is_live_while_a_save_writes():
   """A write pumps, so every control that acts goes down with it.
 
@@ -84084,6 +84220,8 @@ def main():
         test_a_records_region_and_its_crs_name_one_dataset)
   check("no acting control is live while a save writes",
         test_no_acting_control_is_live_while_a_save_writes)
+  check("both doors remember the file carried the data",
+        test_both_doors_remember_the_file_carried_the_data)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

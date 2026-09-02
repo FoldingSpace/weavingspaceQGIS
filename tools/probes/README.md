@@ -89,3 +89,11 @@ mechanism whose journey turned out to be the suite's alone. Its seam
 is the progress bar's own beat, immediately before the `processEvents`
 that makes a click deliverable, and the press is staged there
 synchronously rather than from a timer.
+
+**`which_door_remembers_the_embedded_copy.py`** drives BOTH doors into
+a saved map -- a Load, and the adoption a reopened plugin performs --
+on one self-contained file in one run, and reads the DECISION's own
+inputs at the moment of the press beside what the file ends up with.
+Two doors on one file is what says whose defect it is rather than
+which journey is unlucky. Re-run it after any change to what a door
+records about a file.

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-506 defect(s) with a regression test.
+507 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -562,6 +562,8 @@ there is no separate list to remember.
   guarded by `test_an_unclassed_swatch_reaches_both_ends_of_its_ramp`
 - **a re-tile whose element named a class source that had gone re-seeded automatic colours over the QML's, unrecoverably, while the identical journey through the restyle path kept them -- two runs less than a second apart gave two different maps. Found by the class-source hunt of 2026-08-26.**  
   guarded by `test_an_unreadable_source_keeps_the_map_at_the_landing`
+- **reopening the plugin over somebody's self-contained map and pressing Save removed the copy of the data they had included, so the file could no longer be redrawn by anybody.**  
+  guarded by `test_both_doors_remember_the_file_carried_the_data`
 - **pressing Load on a map whose layers were still in the project left the output path aimed at that file, so switching dataset and saving replaced it with nothing said.**  
   guarded by `test_both_load_doors_count_the_map_as_this_sessions_work`
 - **the waiting window offered a Cancel with nothing behind it.**  
@@ -1066,7 +1068,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 179
+- the mutation campaign: 180
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

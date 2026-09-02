@@ -2374,10 +2374,17 @@ MUTATIONS = [
        # direction or their preference in the other.
        # RE-ANCHORED 2026-08-28, when the remembered fact gained the
        # touch count that keys its override by file.
-       old="""    self._embedded_when_resumed[self._gpkg_key(path)] = (
-      bool(record.get("region_embedded")), self._embed_touches)""",
-       new="""    self._embedded_when_resumed[self._gpkg_key(path)] = (
-      False, self._embed_touches)""",
+       # AND AGAIN 2026-09-02, onto the OWNER both doors now call --
+       # which widens what this entry proves rather than narrowing it,
+       # since the same mutation now reaches a resume and an adoption
+       # alike. Its sibling `adoption-remembers-what-the-file-arrived-
+       # with` stands on the adoption CALL SITE for the other axis:
+       # this one says the answer recorded is the file's, that one
+       # says the second door records at all.
+       old="""    self._embedded_when_resumed[key] = (
+      bool((record or {}).get("region_embedded")), self._embed_touches)""",
+       new="""    self._embedded_when_resumed[key] = (
+      False, self._embed_touches)  # mutation: the file said nothing""",
        test="test_a_recipients_save_keeps_the_source_the_sender_included",
        why="a colleague who opens a self-contained map and saves it "
            "still having a file anybody can redraw"),
@@ -9213,6 +9220,22 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="adoption-remembers-what-the-file-arrived-with", file=DIALOG,
+       # ANCHORED AT THE ADOPTION DOOR rather than at the owner, and
+       # deliberately: the owner is shared with the resume, which
+       # would answer for it and leave the entry surviving. What this
+       # claims is that the SECOND door records the fact at all.
+       old="""    self._remember_whether_the_file_carried_the_data(path)""",
+       new="""    pass  # mutation: adoption learns nothing about the file""",
+       test="test_both_doors_remember_the_file_carried_the_data",
+       why="reopening the plugin over somebody's self-contained map "
+           "and pressing Save removing the copy of the data they "
+           "included, so the file can no longer be redrawn by anybody. "
+           "The memory of what a file arrived with had one writer, on "
+           "the RESUME door; adoption is the other door and wrote "
+           "nothing, so the box was back at its default and the drop "
+           "written for the act of UNTICKING fired for the act's "
+           "absence. Measured 2026-09-02 on both doors and one file"),
   dict(name="a-pumped-act-takes-every-acting-control-down", file=DIALOG,
        # ANCHORED ON THE LIST rather than on either call site: the
        # save and the resume both take their controls from it, so a
