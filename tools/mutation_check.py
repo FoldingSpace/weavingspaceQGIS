@@ -9238,6 +9238,20 @@ MUTATIONS = [
            "answered None by construction. Measured 2026-09-02 with a "
            "control: `tiles_b_v2` in a copy whose record says "
            "`b: landcover`"),
+  dict(name="the-handles-follow-the-class-that-is-chosen",
+       file=TOPOLOGY_TAB,
+       old="""    self._chosen = (target, label)
+    self._settle_what_the_handles_sit_on()""",
+       new="""    self._chosen = (target, label)  # mutation: leave the handles""",
+       test="test_the_handles_follow_a_class_chosen_from_the_list",
+       why="choosing a class in the chooser or the tick list moving "
+           "the SELECTION -- which Apply, the drag preview and the "
+           "drop all ask -- while the three drag handles stay on the "
+           "thing last clicked. A drag's parameter is a polar "
+           "coordinate about the handle's own edge, so it is measured "
+           "on one edge and recorded against another. Measured "
+           "2026-09-02: click `edge b`, choose `edge a`, and all "
+           "three handles stay on b to the pixel"),
   dict(name="a-new-project-empties-the-topology-shelf", file=DIALOG,
        # TWO ENTRIES RATHER THAN ONE, because emptying the shelf and
        # emptying the PANEL are two claims and either alone leaves the

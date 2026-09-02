@@ -116,3 +116,11 @@ the file contradicting itself: the copy's own record says which
 variable each element was saved with, so a table named for another one
 is a file that disagrees with its own description. The control draws
 nothing first, since two maps on their defaults agree by accident.
+
+**`where_the_handles_sit_after_a_list_choice.py`** clicks an edge, then
+chooses a different class from the chooser, and reads the selection and
+the three handle seats after each. The selection moving while the seats
+do not is the whole finding: a drag's parameter is a polar coordinate
+about the handle's own edge, so it would be measured on one edge and
+recorded against another. It aims by asking the product which candidate
+offers a handle rather than by computing a point.

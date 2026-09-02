@@ -39446,6 +39446,135 @@ def test_the_saves_count_is_asked_of_the_file():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_handles_follow_a_class_chosen_from_the_list():
+  """Choosing a class moves the handles onto it.
+
+  `_chosen_thing` -- the thing the three drag handles are seated on --
+  had ONE writer, in `mousePressEvent`. `_selection` is the owner
+  Apply, the drag preview and the drop all ask, and choosing a class
+  in the combo or the tick list moved that and left the handles where
+  the last click had put them.
+
+  WHAT IT COST is not merely a wrong-looking picture. A drag's
+  parameter is a POLAR COORDINATE about the handle's own edge -- the
+  scale factor is how far out the end now sits, the rotation is the
+  angle it now makes -- so grabbing a handle seated on `b` while the
+  edit is recorded against `a` measures the number on the wrong edge.
+  Measured 2026-09-02: click `edge b`, choose `edge a`, and the
+  selection reads `('edge', 'a')` while all three handles stay on b to
+  the pixel.
+
+  BOTH ANSWERS ARE ASSERTED, and the second is what stops the repair
+  overreaching: a CLICK chooses a particular edge, and the sync that
+  follows it must not drag the handles off onto the first member of
+  that class. The thing already in hand wins.
+
+  Regression: choosing a class from the tick list or the chooser left
+  the drawing's handles on the previously clicked one. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint
+  from qgis.PyQt.QtCore import Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: no topology was built, so there are no classes to choose"
+    _tick(200)
+    panel = dlg.topology_panel
+    view = panel.view
+    view.grab()
+    _tick(50)
+
+    # ---- A CLICK ON AN EDGE, aimed by asking the product which
+    # candidate it agrees offers a handle rather than by computing a
+    # point and hoping.
+    topology = view._drawn()
+    middle = (view.width() / 2, view.height() / 2)
+    seats = []
+    for edge in topology.edges.values():
+      ends = [topology.points[edge.vertices[0]],
+              topology.points[edge.vertices[-1]]]
+      points = [view._to_screen(end.point.x, end.point.y) for end in ends]
+      spot = ((points[0].x() + points[1].x()) / 2,
+              (points[0].y() + points[1].y()) / 2)
+      if not (0 <= spot[0] <= view.width()
+              and 0 <= spot[1] <= view.height()):
+        continue
+      away = ((spot[0] - middle[0]) ** 2 + (spot[1] - middle[1]) ** 2) ** 0.5
+      seats.append((away, QPoint(int(spot[0]), int(spot[1]))))
+    seats.sort(key=lambda pair: pair[0])
+    clicked = None
+    for _away, spot in seats:
+      QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, spot)
+      _tick(150)
+      if view.handles() and panel._selection[0] == "edge":
+        clicked = spot
+        break
+    assert clicked is not None, (
+      "PREMISE: no edge drawn inside the widget could be clicked into "
+      "a selection offering a handle, so this cannot aim")
+
+    def seats_of(handles):
+      """The handles as (manipulation, x, y), rounded.
+
+      Args:
+        handles: what `view.handles()` returns -- (key, QPointF,
+          shape) triples, the third being the glyph drawn on the seat.
+
+      Returns:
+        A list of (key, x, y), which is what this comparison is about.
+      """
+      return [(entry[0], round(entry[1].x()), round(entry[1].y()))
+              for entry in handles]
+
+    first = panel._selection
+    before = seats_of(view.handles())
+    assert before, "PREMISE: the click left no handle to compare"
+
+    # ---- CHOOSING THE SAME CLASS AGAIN MUST MOVE NOTHING, or the
+    # repair would drag the handles off the edge the click aimed at.
+    panel._select_classes(first[0], first[1])
+    _tick(150)
+    assert seats_of(view.handles()) == before, (
+      "re-choosing the class a click had already selected moved the "
+      "handles off the edge that was clicked, so a deliberate aim is "
+      "replaced by the first member of its class")
+
+    # ---- AND CHOOSING ANOTHER CLASS MUST MOVE THEM.
+    other = None
+    for index in range(panel.class_combo.count()):
+      text = panel.class_combo.itemText(index)
+      if text.startswith("edge") and text != f"edge {first[1][0]}":
+        panel.class_combo.setCurrentIndex(index)
+        panel.class_combo.activated.emit(index)
+        _tick(250)
+        other = text
+        break
+    assert other, "PREMISE: the chooser offers no second edge class"
+    assert panel._selection != first, (
+      f"PREMISE: choosing {other!r} did not move the selection, so "
+      f"this says nothing about the handles")
+    after = seats_of(view.handles())
+    assert after and after != before, (
+      f"choosing {other!r} left the handles where the click on "
+      f"{first[1]!r} put them: {before}. A drag's parameter is a polar "
+      f"coordinate about the handle's own edge, so it would be "
+      f"measured on one edge and recorded against another")
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
+
+
 def test_a_save_as_names_the_tables_of_the_map_it_saves():
   """A copy is named for the map being copied, not the last one drawn.
 
@@ -84543,6 +84672,8 @@ def main():
         test_a_new_project_leaves_no_topology_edits_behind)
   check("a save as names the tables of the map it saves",
         test_a_save_as_names_the_tables_of_the_map_it_saves)
+  check("the handles follow a class chosen from the list",
+        test_the_handles_follow_a_class_chosen_from_the_list)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

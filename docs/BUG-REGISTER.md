@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-509 defect(s) with a regression test.
+510 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -650,6 +650,8 @@ there is no separate list to remember.
   guarded by `test_the_files_record_follows_a_dock_edit`
 - **the output group was the unit of work in the rulings and in three separate mechanisms that had never been driven against each other -- and the first build of them broke six reopen journeys, let go of a map when the region layer was removed, and undid the user's own edits after every landing.**  
   guarded by `test_the_group_unit_rulings_hold_on_every_route`
+- **choosing a class from the tick list or the chooser left the drawing's handles on the previously clicked one.**  
+  guarded by `test_the_handles_follow_a_class_chosen_from_the_list`
 - **deleting the output GeoPackage and pressing Generate removed every element layer from the project and added none, silently, because the handle release recreated a zero-byte file and the landing read bare existence as "update the file". Found 2026-08-26 by the file-lifecycle census; the write's own moment measured first=False exists=True size=0.**  
   guarded by `test_the_map_survives_its_file_being_deleted`
 - **a run refused through a modal left the message bar empty, so the user had no way to see what the plugin had told them.**  
@@ -1072,7 +1074,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 182
+- the mutation campaign: 183
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

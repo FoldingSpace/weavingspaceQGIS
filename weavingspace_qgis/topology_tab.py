@@ -352,7 +352,53 @@ class TopologyView(QWidget):
       None.
     """
     self._chosen = (target, label)
+    self._settle_what_the_handles_sit_on()
     self.update()
+
+  def _settle_what_the_handles_sit_on(self) -> None:
+    """Move the handles onto the class that is now chosen.
+
+    Returns:
+      None. Leaves `_chosen_thing` alone where it is already a member
+      of the chosen class, moves it to the first member otherwise, and
+      clears it where the class has no member drawn.
+
+    WHY IT EXISTS. `_chosen_thing` had ONE writer, in
+    `mousePressEvent`, so choosing a class in the combo or the tick
+    list moved the SELECTION -- which Apply, the drag preview and the
+    drop all ask -- and left the handles where the last click had put
+    them. Measured 2026-09-02: click `edge b`, choose `edge a` from
+    the chooser, and the selection reads `('edge', 'a')` while all
+    three handles stay on b, to the pixel.
+    WHAT THAT COSTS is not merely a wrong-looking picture. A drag's
+    parameter is a POLAR COORDINATE about the handle's own edge --
+    the scale factor is how far out the end sits, the rotation is the
+    angle it makes -- so grabbing a handle seated on b and having the
+    edit recorded against a measures the number on the wrong edge.
+    MEMBERSHIP IS ASKED THE WAY THE PAINT ASKS IT, `label in chosen`,
+    because a selection may name several classes and "every edge"
+    always does: its datum is the whole group.
+    """
+    target, chosen = self._chosen
+    topology = self._drawn()
+    if topology is None or not chosen or not target:
+      self._chosen_thing = None
+      return
+    members = (topology.edges.values() if target == "edge"
+               else topology.points.values())
+    held = self._chosen_thing
+    for thing in members:
+      if getattr(thing, "label", None) in chosen:
+        # THE ONE ALREADY IN HAND WINS, so a click that chose a
+        # particular edge is not moved off it by the chooser being
+        # synced to the class that click selected.
+        if held is not None and held is thing:
+          return
+    for thing in members:
+      if getattr(thing, "label", None) in chosen:
+        self._chosen_thing = thing
+        return
+    self._chosen_thing = None
 
   # ---------------------------------------------------------- paint
 
