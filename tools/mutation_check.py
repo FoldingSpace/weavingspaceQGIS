@@ -9146,10 +9146,14 @@ MUTATIONS = [
            "filter returns False deliberately and the guard counts the "
            "closes the main window actually received"),
   dict(name="a-cancelled-wait-abandons-the-save", file=DIALOG,
+       # RE-ANCHORED 2026-09-02, when the condition below gained the
+       # term that keeps the hold from reporting a cancel the writer
+       # could not serve. The claim is unchanged: what this entry
+       # guards is the PROMISE being dropped, not the sentence.
        old="""      self._save_pending = False
-      if not self._saving_now:""",
+      # AND ONLY WHERE NO WRITE WAS EVER RUNNING""",
        new="""      pass  # mutation: keep the promise they cancelled
-      if not self._saving_now:""",
+      # AND ONLY WHERE NO WRITE WAS EVER RUNNING""",
        test="test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go",
        why="a Cancel that closes its own window and leaves the save "
            "standing, so the map is written anyway a moment later. "
@@ -9176,6 +9180,24 @@ MUTATIONS = [
            "write's own pump: 4 of 4 element layers left reading from "
            "that file, and a sentence reporting the save said "
            "immediately after the one promising the opposite"),
+  dict(name="the-hold-does-not-report-a-cancel-it-could-not-serve",
+       file=DIALOG,
+       # AIMED AT THE LINE WHERE THE ANSWER IS DECIDED rather than at
+       # the recording forty lines above it, which is this project's
+       # own rule for an entry that would otherwise stand at a door.
+       old="""      if not self._saving_now and not cancelled.get("mid_write"):""",
+       new="""      if not self._saving_now:  # mutation: speak for the writer too""",
+       test="test_a_cancel_the_writer_could_not_serve_says_nothing",
+       why="a cancel the writer could not serve being reported as one. "
+           "`write_gpkg_layers` asks `should_stop` BETWEEN TABLES, so "
+           "a press landing during the styling or the repointing "
+           "cannot be served and the write finishes -- and the hold, "
+           "reading `_saving_now` after the wait ends, cannot tell a "
+           "write that has just FINISHED from a wait where nothing "
+           "was ever opened. Measured 2026-09-02 with the press "
+           "delivered from the repointing pump: four tables in the "
+           "file, four layers repointed at it, and the save's own "
+           "report said immediately before the denial"),
   dict(name="a-cancel-does-not-poison-the-next-save", file=DIALOG,
        # ANCHORED WITH THE LINE ABOVE, because a match is a SUBSTRING:
        # the eight-space assignment here sits inside no other, but the

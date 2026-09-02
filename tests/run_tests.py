@@ -8344,6 +8344,172 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_cancel_the_writer_could_not_serve_says_nothing():
+  """The hold must not answer a question only the writer can ask.
+
+  `write_gpkg_layers` asks `should_stop` BETWEEN TABLES, so a press
+  landing during the styling or the repointing -- 13.0s of a
+  256-element save, by the save's own measurement -- cannot be served,
+  and the write finishes. That much is settled and correct. What was
+  not is what the person is then told: `_hold_until_the_save_lands`
+  resumed, read `_saving_now` as False, and said "The save was
+  cancelled, so the map was not written" -- unable to tell a write
+  that had just FINISHED from a wait where nothing was ever opened.
+
+  MEASURED 2026-09-02 with the press delivered from the repointing
+  pump, one phase past the styles: four tables in the file, four
+  element layers repointed at it, and "Saved to late.gpkg." said
+  immediately before the denial
+  (`tools/probes/what_a_cancel_after_the_tables_reports.py`). The same
+  probe's early arm showed the plugin speaking TWICE about one
+  outcome, which is the same fault where both sentences happen to be
+  true.
+
+  THE WRITER IS THE ONLY FRAME THAT KNOWS, and it speaks in both
+  cases: "The save was stopped" on a rollback, "Saved to ..." on a
+  save that completed. So the hold records whether a write was running
+  AT THE MOMENT THE PRESS LANDED -- the only moment that can be known
+  -- and keeps its own sentence for the wait where nothing had been
+  opened, which is what the promise-only guard beside this one drives.
+
+  BOTH ARMS ARE ASSERTED, because a repair that simply deleted the
+  hold's sentence would satisfy the late arm while destroying the
+  report a cancelled REDRAW depends on.
+
+  Regression: a cancel the writer could not serve was reported as one,
+  beside the save's own report that the map had been written.
+  [mutation]
+  """
+  import os
+  from qgis.PyQt.QtGui import QCloseEvent
+  from qgis.PyQt.QtWidgets import QApplication, QMessageBox
+  from qgis.PyQt.QtWidgets import QPushButton
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def drive(out, when):
+    """Cancel a wait at one of the two moments and read what was said.
+
+    Args:
+      out: the GeoPackage the Save chooser holds.
+      when: "early" to press between tables, where the flag is read
+        and the rollback lands; "late" to press from the repointing,
+        which nothing reads.
+
+    Returns:
+      (where the press landed, what was said, the element tables the
+      file holds afterwards).
+    """
+    from weavingspace_qgis import bridge as bridge_module
+    from weavingspace_qgis import compat as compat_module
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    window = _a_window_that_counts_its_closes()
+    dlg = WeavingSpaceDialog(iface=_an_iface_with_a_main_window(window))
+    pressed = {"at": None}
+    real_writer = bridge_module.write_gpkg_layers
+    real_point = compat_module.point_layer_at
+
+    def press_the_cancel(where):
+      """Click the waiting window's Cancel, where a person would."""
+      if pressed["at"] is not None:
+        return
+      waiting = getattr(dlg, "_waiting_window", None)
+      if waiting is None:
+        return
+      for button in waiting.findChildren(QPushButton):
+        button.click()
+        pressed["at"] = where
+
+    def watched_writer(*args, **kwargs):
+      """Press between tables, which is where the flag is read."""
+      stop = kwargs.get("should_stop")
+      if stop is not None and when == "early":
+        def press_then_ask():
+          press_the_cancel("between tables")
+          return stop()
+        kwargs["should_stop"] = press_then_ask
+      return real_writer(*args, **kwargs)
+
+    def watched_point(*args, **kwargs):
+      """Press from the repointing, one phase past the styles."""
+      if when == "late":
+        press_the_cancel("repointing")
+      return real_point(*args, **kwargs)
+
+    bridge_module.write_gpkg_layers = watched_writer
+    compat_module.point_layer_at = watched_point
+    try:
+      dlg.live_check.setChecked(True)
+      dlg.show()
+      dlg.gpkg_widget.setFilePath(out)
+      _tick(200)
+      dlg._generate()
+      _settle(dlg)
+      # THE PROMISE IS STAGED THE WAY A PERSON REACHES IT: move the
+      # design, which arms the live timer, then press Save inside that
+      # window -- which since 2026-08-29 is KEPT rather than refused.
+      # No earlier save is made, deliberately: a layer already reading
+      # from the destination is skipped, and the early arm needs a
+      # write with tables in it to press between.
+      was = dlg.spacing_spin.value()
+      dlg.spacing_spin.setValue(was / 2.0)
+      _tick(50)
+      assert dlg.spacing_spin.value() != was, (
+        f"PREMISE: the spacing did not move when halved from {was}")
+      assert dlg._live_timer.isActive(), (
+        "PREMISE: no redraw is coming, so no press can be deferred")
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Save
+      dlg.save_button.click()
+      assert dlg._save_pending, (
+        "PREMISE: the press was not deferred, so there is no "
+        "outstanding save for the waiting window to be about")
+      BAR_MESSAGES.clear()
+      QApplication.sendEvent(window, QCloseEvent())
+      _tick(200)
+      said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+      tables = []
+      if os.path.exists(out):
+        tables = [name for name in gpkg_contents(out)["tables"]
+                  if name.startswith("tiles_")]
+      return pressed["at"], said, tables
+    finally:
+      bridge_module.write_gpkg_layers = real_writer
+      compat_module.point_layer_at = real_point
+      MODAL_ANSWERS.pop("question", None)
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  with _temp_dir() as td:
+    where, said, tables = drive(os.path.join(td, "early.gpkg"), "early")
+    assert where == "between tables", (
+      f"FIXTURE: the cancel landed at {where!r}, so this arm is not "
+      f"about a press the writer can serve")
+    assert not tables, (
+      f"the rollback did not happen, so this arm cannot say anything "
+      f"about what was reported: the file holds {tables}")
+    assert "the save was stopped" in said, (
+      f"the writer's own report went missing, and it is the only "
+      f"frame that knows the rollback happened: {said!r}")
+    assert "the save was cancelled" not in said, (
+      f"the plugin said the same thing twice about one outcome, once "
+      f"from the frame that measured it and once from the frame that "
+      f"could not: {said!r}")
+
+    where, said, tables = drive(os.path.join(td, "late.gpkg"), "late")
+    assert where == "repointing", (
+      f"FIXTURE: the cancel landed at {where!r} rather than after the "
+      f"tables, so this arm measured the early journey")
+    assert tables, (
+      "FIXTURE: nothing was written, so the press was served after "
+      "all and this arm is about the other moment")
+    assert "the save was cancelled" not in said, (
+      f"the map was written and the person was told it was not: the "
+      f"hold answered a question only the writer can ask, and the "
+      f"writer had already answered it. What was said: {said!r}")
+
+
 def test_a_close_that_declines_the_save_stops_the_write():
   """"Close" means do not save, at both moments a save can be in.
 
@@ -82760,6 +82926,8 @@ def main():
         test_a_close_during_a_write_does_not_wait_for_the_write)
   check("a close that declines the save stops the write",
         test_a_close_that_declines_the_save_stops_the_write)
+  check("a cancel the writer could not serve says nothing",
+        test_a_cancel_the_writer_could_not_serve_says_nothing)
   check("a save whose commit fails says so and keeps the map",
         test_a_save_whose_commit_fails_says_so_and_keeps_the_map)
   check("closing the window over an unsaved map asks first",

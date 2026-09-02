@@ -22544,6 +22544,18 @@ class WeavingSpaceDialog(QDialog):
         `write_gpkg_layers` asking `_save_cancelled` between tables.
       """
       cancelled["asked"] = True
+      # WHETHER A WRITE WAS RUNNING WHEN THE PRESS LANDED, taken HERE
+      # because it is the only moment it can be known. (2026-09-02.)
+      # The branch below reads `_saving_now` after the wait has ended,
+      # where a write that has just FINISHED and a wait where nothing
+      # ever started both read False -- so it cannot tell them apart,
+      # and it said "the map was not written" about a save that had
+      # written everything. Measured with the press delivered from the
+      # repointing pump: four tables in the file, four element layers
+      # repointed at it, "Saved to late.gpkg." and the denial one
+      # after the other
+      # (`tools/probes/what_a_cancel_after_the_tables_reports.py`).
+      cancelled["mid_write"] = bool(getattr(self, "_saving_now", False))
       self._save_cancelled = True
 
     stop.clicked.connect(asked_to_stop)
@@ -22594,7 +22606,18 @@ class WeavingSpaceDialog(QDialog):
       # return path says so to the person; this line covers the case
       # where nothing had started.
       self._save_pending = False
-      if not self._saving_now:
+      # AND ONLY WHERE NO WRITE WAS EVER RUNNING, which is the other
+      # half of the same correction. `write_gpkg_layers` asks
+      # `should_stop` BETWEEN TABLES, so a press landing during the
+      # styling or the repointing -- 13.0s of a 256-element save --
+      # cannot be served, and the write finishes and says so itself.
+      # The writer is the only frame that can know which of those
+      # happened, and it speaks in both cases: "The save was stopped"
+      # on a rollback, "Saved to ..." on a save that completed. This
+      # sentence is for the wait where nothing was ever opened, and
+      # saying it beside the writer's made the plugin contradict
+      # itself in one of the two.
+      if not self._saving_now and not cancelled.get("mid_write"):
         self._report_quietly(
           "The save was cancelled, so the map was not written.")
         # AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR.
