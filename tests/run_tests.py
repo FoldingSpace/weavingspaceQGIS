@@ -9224,58 +9224,60 @@ def test_a_cancel_the_writer_could_not_serve_says_nothing():
       f"writer had already answered it. What was said: {said!r}")
 
 
-def test_a_close_that_declines_the_save_stops_the_write():
-  """"Close" means do not save, at both moments a save can be in.
+def test_closing_during_a_write_asks_before_interrupting_it():
+  """Shutting the panel does not stop a save; it asks first.
 
-  `closeEvent` asks "This map has not been saved yet. Save it before
-  closing?" whenever `_a_save_is_outstanding()`, and that predicate
-  deliberately merges two facts: a promise made and not yet kept, and
-  the KEEPING of it. Its Close arm answered only the first. It cleared
-  `_save_pending` -- already False during a write -- and reported
-  "Closed without saving; the map is still in the project", while the
-  write ran on to completion, repointed every element layer at the
-  file, and said "Saved to ..." immediately afterwards.
+  (Maintainer's ruling, 2026-09-02: "a panel's close button shouldn't
+  stop a save, it should prompt whether to interrupt save".)
 
-  MEASURED 2026-09-02, with the close delivered from the write's own
-  pump: 4 of 4 element layers reading from the file the person had
-  just declined to write, and the two sentences one after the other
-  (`tools/probes/what_a_close_that_declines_the_save_does.py`). Two
-  hunts reported it independently, from opposite directions, and both
-  read the harm off the FILE; the probe reads the PROJECT's layers,
-  which is the half no reading of the file can show.
+  ONE QUESTION WAS BEING ASKED ABOUT TWO STATES. `closeEvent` asked
+  "This map has not been saved yet. Save it before closing?" whenever
+  `_a_save_is_outstanding()`, and that predicate deliberately merges a
+  promise made with the KEEPING of it. So somebody answering Close
+  about a promise they no longer wanted was taken to have said stop
+  the write already running, table by table, over a file they had
+  chosen. That is ledger row 5's lesson one layer up: the predicate
+  was mended for merging the two, and the question built on it went on
+  merging them.
 
-  WHAT STOPS A WRITE is the flag `write_gpkg_layers` reads between
-  tables, which is the mechanism the waiting window's Cancel already
-  uses: it answers with a rollback, and the save returns before it
-  repoints anything.
+  SO THERE ARE TWO QUESTIONS. A promise not yet kept keeps the old
+  sentence and is simply dropped -- nothing has been opened, so there
+  is nothing on disk to lose. A WRITE UNDER WAY is asked about in the
+  maintainer's own words, with the safe answer as the default, so a
+  stray Return lets the save finish.
 
-  BOTH ARMS ARE ASSERTED, because either alone is satisfied by a
-  repair that is wrong in the other direction. A close with only a
-  PROMISE outstanding must still say so in the sentence written for
-  it, since that sentence is true there; a close during a WRITE must
-  leave no tables in the file AND no layer reading from it.
+  THREE ARMS, BECAUSE THE RULING IS ABOUT WHICH ANSWER DOES WHAT. The
+  promise arm is the control the previous guard already had. The write
+  arm is driven BOTH WAYS: No must leave the map written and every
+  element layer repointed at the file, and Yes must leave no tables
+  and no layer reading from it. Either alone is satisfied by a repair
+  that is wrong in the other direction -- a close that never
+  interrupts, or one that always does, which is the behaviour this
+  ruling overturned.
 
-  Regression: answering "Close" during a write saved the map anyway,
-  over the file the person had just declined, and told them it had
-  not. [mutation]
+  Regression: closing the panel during a write stopped the save
+  outright, on an answer given about a promise rather than about the
+  write. [mutation]
   """
   import os
   from qgis.PyQt.QtWidgets import QMessageBox
   from weavingspace_qgis.dialog import WeavingSpaceDialog
 
-  def drive(out, during_a_write):
-    """Answer Close to the save question and read what happened.
+  def drive(out, during_a_write, answer):
+    """Close the window over an outstanding save and read what happened.
 
     Args:
       out: the GeoPackage the Save chooser holds.
       during_a_write: True to deliver the close from the write's own
-        pump, which is the claim; False to deliver it with only a
-        promise outstanding, which is the control.
+        pump, which is what the ruling is about; False to deliver it
+        with only a promise outstanding, which is the control.
+      answer: the button the person presses, as QMessageBox names it.
 
     Returns:
       (what was true at the close, the layers now reading from the
-      file, the element tables the file holds). The layers are asked
-      of their own `source()`, which is what a repointing moves.
+      file, the element tables the file holds, what was said). The
+      layers are asked of their own `source()`, which is what a
+      repointing moves.
     """
     layer = make_region_layer()
     QgsProject.instance().addMapLayer(layer)
@@ -9285,15 +9287,13 @@ def test_a_close_that_declines_the_save_stops_the_write():
       dlg.live_check.setChecked(False)
       # SHOWN, BECAUSE `close()` ON A HIDDEN WIDGET SENDS NO CLOSE
       # EVENT. Qt takes a hidden window as already closed, so the
-      # handler under test never runs and both arms measure nothing --
-      # which is what the premise assertions below caught on this
-      # guard's first run.
+      # handler under test never runs and every arm measures nothing.
       dlg.show()
       dlg.gpkg_widget.setFilePath(out)
       _tick(200)
       dlg._generate()
       _settle(dlg)
-      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Close
+      MODAL_ANSWERS["question"] = answer
 
       real_close = dlg.closeEvent
 
@@ -9338,8 +9338,12 @@ def test_a_close_that_declines_the_save_stops_the_write():
       QgsProject.instance().removeAllMapLayers()
 
   with _temp_dir() as td:
+    # ---- THE CONTROL: only a promise is outstanding, so nothing is
+    # interrupted and the old sentence is the true one.
     promised = os.path.join(td, "promised.gpkg")
-    seen, reads, tables, said = drive(promised, during_a_write=False)
+    seen, reads, tables, said = drive(
+      promised, during_a_write=False,
+      answer=QMessageBox.StandardButton.Close)
     assert not seen.get("saving_now"), (
       "FIXTURE: a write was running in the control arm, so it "
       "measured the treatment's journey")
@@ -9353,22 +9357,38 @@ def test_a_close_that_declines_the_save_stops_the_write():
       f"the sentence written for a dropped promise was not said, and "
       f"it is true there: {said!r}")
 
-    writing = os.path.join(td, "writing.gpkg")
-    seen, reads, tables, said = drive(writing, during_a_write=True)
+    # ---- THE RULING'S OWN ARM: closing during a write and declining
+    # to interrupt leaves the save to finish.
+    kept = os.path.join(td, "kept.gpkg")
+    seen, reads, tables, said = drive(
+      kept, during_a_write=True, answer=QMessageBox.StandardButton.No)
     assert seen.get("saving_now"), (
       "FIXTURE: the close did not arrive during the write, so this "
       "measured some other journey")
+    assert tables, (
+      "the save was interrupted although the person declined to "
+      "interrupt it: the file holds no element tables")
+    assert reads, (
+      "the save was stopped before it repointed anything, so no "
+      "element layer reads from the file it was told to finish "
+      "writing")
+
+    # ---- AND THE OTHER ANSWER, which is what makes the first mean
+    # something: asked for, the interruption happens.
+    stopped = os.path.join(td, "stopped.gpkg")
+    seen, reads, tables, said = drive(
+      stopped, during_a_write=True,
+      answer=QMessageBox.StandardButton.Yes)
+    assert seen.get("saving_now"), (
+      "FIXTURE: the close did not arrive during the write in the "
+      "interrupting arm either")
     assert not tables, (
-      f"the person answered Close and the map was written anyway: "
-      f"the file holds {tables}")
+      f"the person asked to interrupt the save and the map was "
+      f"written anyway: the file holds {tables}")
     assert not reads, (
-      f"the save ran to its repointing, so {len(reads)} element "
-      f"layers now read from the file the person declined to write: "
+      f"the save ran on to its repointing after being interrupted, "
+      f"so {len(reads)} element layers now read from that file: "
       f"{reads}")
-    assert "closed without saving" not in said.lower(), (
-      f"the close claimed nothing was written while the write was "
-      f"still running, which is the sentence that cannot be true "
-      f"here: {said!r}")
 
 
 def test_a_save_whose_commit_fails_says_so_and_keeps_the_map():
@@ -85273,8 +85293,8 @@ def main():
         test_a_save_waits_for_a_build_already_coming)
   check("a close during a write does not wait for the write",
         test_a_close_during_a_write_does_not_wait_for_the_write)
-  check("a close that declines the save stops the write",
-        test_a_close_that_declines_the_save_stops_the_write)
+  check("closing during a write asks before interrupting it",
+        test_closing_during_a_write_asks_before_interrupting_it)
   check("a save after a load names the opened map's own tables",
         test_a_save_after_a_load_names_the_opened_maps_own_tables)
   check("the save's count is asked of the file",

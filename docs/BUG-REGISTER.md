@@ -364,8 +364,6 @@ there is no separate list to remember.
   guarded by `test_a_class_source_follows_the_record_under_it`
 - **closing the window during a write froze it for the ceiling and then lost the map.**  
   guarded by `test_a_close_during_a_write_does_not_wait_for_the_write`
-- **answering "Close" during a write saved the map anyway, over the file the person had just declined, and told them it had not.**  
-  guarded by `test_a_close_that_declines_the_save_stops_the_write`
 - **the painted-ladder store had no stated meaning for an absent entry, and either reading of it silently mis-attributes every colour on the element.**  
   guarded by `test_a_colour_on_a_ladder_we_never_saw_is_declined_and_named`
 - **a guard corrected to answer False for a moved file had that answer travel into a signature, so a colour picked afterwards was recorded, never drawn and never mentioned.**  
@@ -576,6 +574,8 @@ there is no separate list to remember.
   guarded by `test_both_load_doors_count_the_map_as_this_sessions_work`
 - **the waiting window offered a Cancel with nothing behind it.**  
   guarded by `test_cancelling_the_wait_abandons_the_save_and_lets_the_quit_go`
+- **closing the panel during a write stopped the save outright, on an answer given about a promise rather than about the write.**  
+  guarded by `test_closing_during_a_write_asks_before_interrupting_it`
 - **`closeEvent` cleared `_save_pending` with nothing said, so closing the panel inside the live debounce threw away a save the plugin had just promised.**  
   guarded by `test_closing_the_window_over_an_unsaved_map_asks_first`
 - **the Copy to... dropdown had no way to tick every element at once, so giving one classification to a whole design meant one trip through the list per element. Asked for by the maintainer, 2026-08-27.**  

@@ -6199,7 +6199,47 @@ class WeavingSpaceDialog(QDialog):
     # The press was deferred precisely because the map on screen is
     # the one they had already changed away from, so writing it now
     # would be ledger row 54 arriving through this door.
-    if self._a_save_is_outstanding() and not self._closed:
+    # AND A WRITE UNDER WAY IS A DIFFERENT QUESTION FROM A PROMISE NOT
+    # YET KEPT. (Maintainer's ruling, 2026-09-02: a panel's close
+    # button should not stop a save, it should ask whether to interrupt
+    # one.) The two states were asked about in ONE question -- "save it
+    # before closing?" -- and the answer "Close" was then read as
+    # permission to stop a write that was already running, table by
+    # table, over a file the person had chosen. Somebody shutting a
+    # panel is saying they are done looking at it; they are not
+    # necessarily saying to throw away a write in progress, and the two
+    # readings differ by exactly the work already on disk.
+    # IT IS THIS DAY'S OWN LESSON ONE LAYER UP. Ledger row 5 records
+    # `_a_save_is_outstanding` merging a promise with the keeping of
+    # it -- right for a WAIT, wrong for a QUESTION. The predicate was
+    # mended and the QUESTION built on it still merged the same two
+    # states, so the fix moved the fault rather than closing it.
+    # THE SAFE ANSWER IS THE DEFAULT, on the dependency-consent
+    # precedent: a stray Return lets the save finish.
+    if (self._a_save_is_outstanding() and not self._closed
+        and getattr(self, "_saving_now", False)):
+      # THE WORDING IS THE MAINTAINER'S OWN, given with the ruling and
+      # sharpened by them to exactly this, lead sentence and all: the
+      # question alone, because the window's own title and the moment
+      # it is asked already say a save is running, and "when closing"
+      # names the occasion rather than something Yes buys -- the
+      # window goes either way.
+      answer = self._ask(
+        "Interrupt the save when closing?",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No)
+      if answer == QMessageBox.StandardButton.Yes:
+        # WHAT STOPS A WRITE IS THE FLAG THE WRITER READS between
+        # tables, which is the mechanism the waiting window's Cancel
+        # already uses: `write_gpkg_layers` answers it with a
+        # rollback, the save returns before it repoints anything, and
+        # it clears the flag on its own way out so the next save is
+        # not poisoned. THE SENTENCE IS THE WRITER'S, not ours: past
+        # the last table nothing reads the flag, so the save
+        # legitimately completes and only the writer can say which
+        # happened.
+        self._save_cancelled = True
+    elif self._a_save_is_outstanding() and not self._closed:
       answer = self._ask(
         "This map has not been saved yet. Save it before closing?",
         QMessageBox.StandardButton.Save
@@ -6209,37 +6249,25 @@ class WeavingSpaceDialog(QDialog):
         self._hold_until_the_save_lands("close")
       else:
         self._save_pending = False
-        # "CLOSE" MEANS DO NOT SAVE, AND DURING A WRITE THAT IS A
-        # DIFFERENT MECHANISM FROM DROPPING A PROMISE. (2026-09-02,
-        # found by two hunts independently and measured through a
-        # third route.) `_a_save_is_outstanding` above deliberately
-        # merges two facts -- a promise made and not yet kept, and the
-        # keeping of it -- so this question is asked during a WRITE
-        # as well, where `_save_pending` is already False. Clearing it
-        # then answered nothing: the write went on to completion, the
-        # map was written over the file the person had just declined
-        # to write, and every element layer was repointed at it, while
-        # they were told "Closed without saving". Measured with the
-        # close delivered from the write's own pump: 4 of 4 layers
-        # reading from that file, and "Saved to writing.gpkg" said
-        # immediately after the sentence promising the opposite
-        # (`tools/probes/what_a_close_that_declines_the_save_does.py`,
-        # whose promised-only arm is the control and is correct).
-        # WHAT STOPS A WRITE IS THE FLAG THE WRITER READS between
-        # tables, which is the same mechanism the waiting window's
-        # Cancel uses and which the ruling of 2026-09-01 already
-        # built: `write_gpkg_layers` answers it with a rollback, the
-        # save returns before it repoints anything, and it clears the
-        # flag on its own way out so the next save is not poisoned.
-        # AND THE SENTENCE IS THE WRITER'S, not this one. Ours cannot
-        # be true here: past the LAST table nothing reads the flag, so
-        # the save legitimately completes and the honest report is the
-        # one `_save_the_map` makes about what actually happened.
-        if getattr(self, "_saving_now", False):
-          self._save_cancelled = True
-        else:
-          self._report_quietly("Closed without saving; the map is still "
-                               "in the project.")
+        # NOTHING IS INTERRUPTED HERE, and that is what this branch
+        # now means. A promise not yet kept is dropped by clearing it;
+        # no file has been opened, so there is nothing to roll back and
+        # nothing on disk to lose. The write case is asked about
+        # SEPARATELY above, under the ruling of 2026-09-02, because
+        # "do not save this" and "stop the save you are making" are
+        # different answers to different questions -- and this branch
+        # once served both, so a person declining a promise stopped a
+        # write, table by table, over a file they had chosen.
+        # ITS OWN HISTORY IS WORTH KEEPING. Until 2026-09-02 this
+        # cleared `_save_pending`, which is already False during a
+        # write, and answered nothing at all: the write ran on to
+        # completion, every element layer was repointed at the file,
+        # and "Saved to writing.gpkg" was said immediately after the
+        # sentence promising the opposite. That repair taught the
+        # branch to stop the write; the ruling that followed says the
+        # person should be asked first.
+        self._report_quietly("Closed without saving; the map is still "
+                             "in the project.")
     if self._task is not None:
       try:
         self._task.cancel()

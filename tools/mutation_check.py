@@ -9177,26 +9177,26 @@ MUTATIONS = [
            "Cancel abandoning the save was put to the maintainer as a "
            "question on 2026-09-01 and answered, because either "
            "reading costs somebody a map"),
-  dict(name="a-close-that-declines-the-save-stops-it", file=DIALOG,
-       # ANCHORED WITH THE CONDITION ABOVE IT, because the assignment
-       # alone appears twice: here and in the waiting window's Cancel,
-       # which is the same mechanism reached through the other door. An
-       # ambiguous anchor is refused rather than judged.
-       old="""        if getattr(self, "_saving_now", False):
-          self._save_cancelled = True""",
-       new="""        if getattr(self, "_saving_now", False):
-          pass  # mutation: answer the promise and let the write run on""",
-       test="test_a_close_that_declines_the_save_stops_the_write",
-       why="answering Close to the save question during a WRITE "
-           "saving the map anyway, over the file the person had just "
-           "declined, and telling them it had not been saved. "
-           "`_a_save_is_outstanding` merges a promise with the "
-           "keeping of it, so the question is asked during a write "
-           "too, where clearing `_save_pending` answers nothing. "
-           "Measured 2026-09-02 with the close delivered from the "
-           "write's own pump: 4 of 4 element layers left reading from "
-           "that file, and a sentence reporting the save said "
-           "immediately after the one promising the opposite"),
+  dict(name="closing-asks-before-it-interrupts-a-save", file=DIALOG,
+       # ANCHORED ON THE QUESTION ITSELF rather than on the assignment
+       # below it: `self._save_cancelled = True` appears twice, here
+       # and in the waiting window's Cancel, which is the same
+       # mechanism through the other door, and an ambiguous anchor is
+       # refused rather than judged. The mutation makes the question
+       # unaskable, which is the state the ruling of 2026-09-02
+       # overturned -- a close that decides for the person.
+       old="""    if (self._a_save_is_outstanding() and not self._closed
+        and getattr(self, "_saving_now", False)):""",
+       new="""    if False:  # mutation: never ask, and never interrupt""",
+       test="test_closing_during_a_write_asks_before_interrupting_it",
+       why="a panel's close deciding for somebody what happens to a "
+           "save already being written. Until 2026-09-02 one question "
+           "covered a promise not yet kept and a write under way, so "
+           "answering Close about the first stopped the second -- "
+           "table by table, over a file they had chosen. The "
+           "maintainer's ruling is that closing asks; this entry "
+           "makes the asking unreachable and requires the guard's "
+           "interrupting arm to notice"),
   dict(name="the-witness-answers-for-every-element", file=DIALOG,
        old="""    for tid in order:
       named = self._table_a_layer_already_reads(tid, path)
@@ -9751,14 +9751,16 @@ MUTATIONS = [
            "precisely for being about a map the person had already "
            "changed away from"),
   dict(name="closing-without-saving-says-so", file=DIALOG,
-       # RE-ANCHORED 2026-09-02, when the sentence moved under an
-       # `else` and gained two spaces: a close during a WRITE has no
-       # promise to drop and the sentence cannot be true there, so it
-       # is now said only where it is. The claim is unchanged -- what
-       # this entry guards is the PROMISE door, which still says so.
-       old="""          self._report_quietly("Closed without saving; the map is still "
-                               "in the project.")""",
-       new="""          pass  # mutation: drop the promise in silence""",
+       # RE-ANCHORED TWICE ON 2026-09-02, and the second time it lost
+       # the two spaces the first had given it: the write case moved
+       # out into a branch of its own under the maintainer's ruling
+       # that closing ASKS before interrupting, so this branch is
+       # about a promise alone and its sentence is unconditional
+       # again. The claim is unchanged -- what this entry guards is
+       # the PROMISE door, which still says so.
+       old="""        self._report_quietly("Closed without saving; the map is still "
+                             "in the project.")""",
+       new="""        pass  # mutation: drop the promise in silence""",
        test="test_closing_the_window_over_an_unsaved_map_asks_first",
        why="a promise dropped without a word. The plugin had just told "
            "them the map would be saved once it was redrawn, so "

@@ -1984,6 +1984,11 @@
   "excerpt": "Choose a saved map in the box beside Load first.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "cd2020faac2cf4f2": {
+  "approved": "2026-09-02",
+  "excerpt": "The map is being saved. Interrupt the save when closing?",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "cdcc7dc001490605": {
   "approved": "2026-08-26",
   "excerpt": "This will generate roughly {} tiles. A map this large may use all the memory on this computer, and QGIS may stop responding while it is drawn, so save your project first. {} Continue anyway?",
@@ -2377,6 +2382,11 @@
  "ee4fbfa708438419": {
   "approved": "2026-08-15",
   "excerpt": "Styled in QGIS; set it in the Layer Styling panel.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "ef0bcfa2ec941bcb": {
+  "approved": "2026-09-02",
+  "excerpt": "Interrupt the save when closing?",
   "where": "weavingspace_qgis/dialog.py"
  },
  "ef46c42e84d4d5a9": {
