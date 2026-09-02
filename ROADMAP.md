@@ -293,7 +293,14 @@ Lower and Upper columns, offset by about a row, on scrolling.
 
 ## 0.24.4 — next
 
-Worked on `pre-0.24.4rc1`. What follows is what the version owes.
+**NOTHING OUTSTANDING.** (The maintainer's declaration, 2026-09-01.)
+Nothing outstanding in code for this version: everything below
+describes what 0.24.4 DELIVERS and how it was measured, rather than
+work still owed. What remains outside the software is named under
+"Needs the maintainer" above and does not hold a candidate.
+
+Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
+and what each piece of it cost to prove.
 
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save

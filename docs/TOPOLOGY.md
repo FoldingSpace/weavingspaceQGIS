@@ -68,7 +68,59 @@ keeps the order. So at least part of the gap is a difference in the
 LIBRARY rather than in the hardware -- his own rewrite of
 `topology.py` was +179/-207 -- or in what his timing covers, since
 `Topology.__init__` runs `generate_dual()` eagerly and a cell timing
-only the constructor would not show it. Both are questions for him.
+only the constructor would not show it.
+
+**AND THAT READING WAS RIGHT: IT IS THE LIBRARY, MEASURED 2026-09-01.**
+The maintainer supplied the fact that made it separable -- he is on
+shapely 2.0.6 and numpy 2.4.4 where QGIS 4.0.3 bundles shapely 2.1.2
+and numpy 1.26.4 -- so there were three candidate causes rather than
+one, and five arms of `tools/probes/what_a_topology_build_costs_
+upstream.py` take them apart. Each arm times ONE checkout under ONE
+set of dependencies, three runs per design, sequentially on an idle
+machine, and asserts that the library which answered is the one named
+on its command line.
+
+    library                interpreter / numpy    hex-col 7   chavey K
+    our vendor             3.12.11 / 1.26.4         18.79       13.24
+    upstream main, clean   3.12.11 / 1.26.4         18.88       13.26
+    upstream experimental  3.12.11 / 1.26.4          9.47       10.08
+    our vendor             3.14.6  / 2.5.1          10.18        8.33
+    upstream experimental  3.14.6  / 2.5.1           4.87        6.47
+
+THREE THINGS FALL OUT, each from a pair differing in one thing.
+OUR PATCHES COST NOTHING: our vendor against a clean upstream main on
+the same interpreter is 18.79 against 18.88 and 13.24 against 13.26,
+so the matplotlib-optional family and the pandas idiom are not on this
+path. THE INTERPRETER AND NUMPY TOGETHER ROUGHLY HALVE BOTH and KEEP
+THE ORDER -- 18.79 to 10.18, 13.24 to 8.33 -- which is exactly what a
+faster machine would do and is why hardware could never have explained
+the inversion. AND THE EXPERIMENTAL BRANCH INVERTS IT, on either
+interpreter: 18.88 to 9.47 while chavey K barely moves, so
+`hex-colouring 7` becomes the CHEAPER of the two. Upstream's own
+commit message for `1961b6a` says "Topology construction - now a bit
+quicker", and it means it.
+
+SO THE ANSWER IS THAT HE IS RUNNING A DIFFERENT LIBRARY, not a
+different machine and not a different wrapper. Arm five -- the branch
+on the newer stack -- gives chavey K 6.47 and hex-colouring 7 4.87
+against his report of about 10 and about half that: the same ordering,
+his hex-colouring figure almost exactly, and chavey K faster here,
+which both his shapely 2.0.6 and an Air would push the other way.
+WHAT IS STILL OPEN is the smaller of the two questions owed him --
+whether his timing covers `generate_dual`, which the constructor runs
+eagerly -- and it now matters less, since the ordering it was offered
+to explain is explained.
+
+**AND WHAT A RE-VENDOR WOULD BUY IS MEASURED RATHER THAN HOPED.**
+Under QGIS's own python, which is the configuration the plugin
+actually gets, the branch takes `hex-colouring 7` from 18.9s to 9.5s.
+That is a factor of two on the worst design in the catalogue -- the
+one this document and the symmetry note both single out -- for no
+change of ours. It is not a reason to take an unmerged branch: it
+carries a revert saying a change to the potential-symmetries listing
+"broke topology construction for some tilings", and its own first
+commit says the plugin can ignore it until it merges. It is a reason
+to take it the day it merges, and to re-run these five arms then.
 
 What does NOT turn on the answer is the shape of the defect the
 deferral cures: a build whose cost nobody bounds, inside a write, on

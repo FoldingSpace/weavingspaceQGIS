@@ -38,6 +38,8 @@ times, so nothing is given up by taking his.
 where <checkout> is the root of an upstream weavingspace tree (the
 directory holding the `weavingspace` package).
 """
+import importlib.abc
+import importlib.machinery
 import json
 import os
 import sys
@@ -100,14 +102,65 @@ def main() -> int:
       touched.append(f"{self.__name__}.{name}")
       return _Watched(f"{self.__name__}.{name}")
 
+  class _Fabricate(importlib.abc.MetaPathFinder, importlib.abc.Loader):
+    """Answer any `matplotlib...` import with a watched module.
+
+    Naming four submodules by hand was not enough: `tile_map.py` does
+    `import matplotlib.colors`, and a submodule import goes through
+    the FINDER rather than through attribute access, so a stub that
+    covers `pyplot` and three others still dies on the fifth. A finder
+    cannot be caught out by the next module upstream reaches for.
+
+    AND IT IS THE MODERN PROTOCOL. `find_module`/`load_module` were
+    removed in Python 3.12, and a finder using them is simply never
+    consulted -- which presents as the original ImportError, entirely
+    unchanged, so it reads as the stub not being installed rather than
+    as the stub being the wrong shape.
+    """
+
+    def find_spec(self, name, path=None, target=None):
+      """Claim anything under matplotlib.
+
+      Args:
+        name: the module being imported.
+        path: unused; present for the finder protocol.
+        target: unused; present for the finder protocol.
+
+      Returns:
+        A spec naming this object as the loader, or None to decline.
+      """
+      if name.split(".")[0] != "matplotlib":
+        return None
+      return importlib.machinery.ModuleSpec(name, self, is_package=True)
+
+    def create_module(self, spec):
+      """Make the watched stand-in for this module.
+
+      Args:
+        spec: the spec `find_spec` returned.
+
+      Returns:
+        A `_Watched` recording every attribute anybody asks it for.
+      """
+      return _Watched(spec.name)
+
+    def exec_module(self, module):
+      """Nothing to execute; give it a package path and stop.
+
+      Args:
+        module: the module just created.
+
+      Returns:
+        None.
+      """
+      module.__path__ = []
+
   stubbed = False
   try:
     import matplotlib                                     # noqa: F401
   except ModuleNotFoundError:
     stubbed = True
-    for name in ("matplotlib", "matplotlib.pyplot",
-                 "matplotlib.patches", "matplotlib.figure"):
-      sys.modules[name] = _Watched(name)
+    sys.meta_path.insert(0, _Fabricate())
 
   import weavingspace
   from weavingspace import TileUnit
@@ -138,6 +191,12 @@ def main() -> int:
     print(json.dumps(report, indent=2))
     return 1
 
+  # TOUCHES DURING THE IMPORTS ARE EXPECTED AND SAY NOTHING. Upstream
+  # annotates with `pyplot.Axes` and asks for `__path__` on the way in,
+  # so a count taken over the whole run flags every arm and means
+  # nothing. What would matter is the stub being reached while a
+  # topology is being BUILT, so the count is baselined here.
+  at_import = len(touched)
   for name, spec in DESIGNS:
     entry = {"spec": spec}
     try:
@@ -159,12 +218,14 @@ def main() -> int:
   # ...AND THE STUB MUST NEVER HAVE BEEN REACHED. Where it was, the
   # timings are about a stand-in rather than about the library, and
   # saying so is worth more than a number nobody can trust.
-  report["stub_touched"] = touched[:8]
-  if touched:
+  report["stub_touched_importing"] = touched[:at_import][:6]
+  during = touched[at_import:]
+  report["stub_touched_building"] = during[:6]
+  if during:
     report["READ WITH CARE"] = (
-      "the matplotlib stub was reached %d time(s), so plotting is on "
-      "this path after all and these timings include a stand-in"
-      % len(touched))
+      "the matplotlib stub was reached %d time(s) DURING a build, so "
+      "plotting is on the construction path after all and these "
+      "timings include a stand-in" % len(during))
   print(json.dumps(report, indent=2))
   return 0
 
