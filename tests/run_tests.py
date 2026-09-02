@@ -8482,22 +8482,57 @@ def test_several_classes_can_be_moved_together():
       label: the class label to find something of.
 
     Returns:
-      A QPoint inside the widget, or None where nothing of that class
-      is drawn there. An EDGE point is taken along a segment and kept
-      clear of every vertex, since a vertex wins ties inside the hit
-      test's own reach.
+      A QPoint inside the widget AT WHICH A CLICK REALLY REACHES THIS
+      CLASS, or None where no such point exists. An EDGE point is
+      taken along a segment and kept clear of every vertex, since a
+      vertex wins ties inside the hit test's own reach.
+
+    IT ASKS THE VIEW'S OWN HIT TEST RATHER THAN ASSUMING, and that is
+    the whole of it. `mousePressEvent` tests HANDLES FIRST -- they sit
+    on whatever is already selected and are the smaller target -- and
+    then takes the NEAREST thing, so a point drawn on this class can
+    land on the previous selection's handle, or nearer a neighbour,
+    and select nothing at all. Which of a class's vertices that
+    happens to be true of is decided by the drawn layout, and so by
+    the fonts: measured 2026-09-01, this test passed on this Mac every
+    time and failed on one Linux runner with the selection left where
+    the first click put it. The candidates are offered in turn and the
+    first one the view agrees about is returned, so a fixture that
+    cannot aim says so through its caller's premise rather than
+    reporting the product as broken.
     """
     topology = view._drawn()
     if topology is None:
       return None
+
+    def would_select(point):
+      """Would a click at this point choose (target, label)?
+
+      Args:
+        point: a QPoint inside the widget.
+
+      Returns:
+        True where the view's own press logic would reach this class:
+        no handle under the pointer, and the nearest thing being the
+        one wanted. Asked of the product rather than recomputed here,
+        so the two cannot disagree.
+      """
+      if view._handle_at(point):
+        return False
+      found_target, found_label, _thing = view._nearest(point)
+      return (found_target, found_label) == (target, label)
+
     if target == "vertex":
       for vertex in topology.points.values():
         if getattr(vertex, "label", None) != label:
           continue
         point = view._to_screen(vertex.point.x, vertex.point.y)
-        if (0 <= point.x() <= view.width()
-            and 0 <= point.y() <= view.height()):
-          return QPoint(int(round(point.x())), int(round(point.y())))
+        if not (0 <= point.x() <= view.width()
+                and 0 <= point.y() <= view.height()):
+          continue
+        seat = QPoint(int(round(point.x())), int(round(point.y())))
+        if would_select(seat):
+          return seat
       return None
     seats = [view._to_screen(v.point.x, v.point.y)
              for v in topology.points.values()]
@@ -8519,8 +8554,11 @@ def test_several_classes_can_be_moved_together():
           clear = min(((point.x() - seat.x()) ** 2
                        + (point.y() - seat.y()) ** 2) ** 0.5
                       for seat in seats) if seats else 99.0
-          if clear > 12.0:
-            return QPoint(int(round(point.x())), int(round(point.y())))
+          if clear <= 12.0:
+            continue
+          at = QPoint(int(round(point.x())), int(round(point.y())))
+          if would_select(at):
+            return at
     return None
 
   layer = make_region_layer()
