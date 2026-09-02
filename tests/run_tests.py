@@ -9797,7 +9797,13 @@ def test_several_classes_can_be_moved_together():
     _tick(200)
     _choose_family(dlg, "laves 3.3.4.3.4")
     _tick(300)
-    assert _wait_for_the_topology(dlg), \
+    # THE QUIET OWNER RATHER THAN THE WAITER, which returns as soon as
+    # the panel holds an ANSWER -- and an answer left over from the
+    # previous design is an answer. Four other tests met that a site
+    # at a time; this is the fifth, and draining the queue is right
+    # here because this test's subject is the SELECTION rather than a
+    # landing arriving under a pointer.
+    assert _the_topology_tab_is_quiet(dlg), \
       "PREMISE: no topology was built, so there are no classes to aim at"
     panel = dlg.topology_panel
     view = panel.view
@@ -9827,13 +9833,55 @@ def test_several_classes_can_be_moved_together():
     at = seat_of(view, "vertex", second)
     assert at is not None, \
       f"PREMISE: no vertex of class {second!r} is drawn inside the widget"
-    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
-                     QtNamespace.KeyboardModifier.ShiftModifier, at)
-    _tick(150)
+    # WHAT THE PRESS ACTUALLY MET, recorded rather than deduced.
+    # This assertion has failed on one Linux leg of three rounds with
+    # the selection left where the plain click put it, and passed here
+    # every time; three candidate causes were measured and ruled out
+    # on this machine
+    # (`tools/probes/what_the_aim_promised_and_the_click_met.py`) --
+    # the aim and the click agreeing about every one of eight seats,
+    # the font swept to 18pt, and a topology build STAGED to land
+    # between the aim and the click. So the cause is still open, and
+    # what a failure on a machine nobody here can drive owes is what
+    # it FOUND rather than which assertion it reached: whether a
+    # handle was over the point, what the view named as nearest, and
+    # how many seats were candidates at all.
+    met = {}
+    real_press = view.mousePressEvent
+
+    def watched(event):
+      """Record what the press finds, then let it run.
+
+      Args:
+        event: Qt's press event, passed straight through.
+
+      Returns:
+        Whatever the real handler returns. The readings are taken
+        BEFORE it runs, because the handler is what acts on them.
+      """
+      where = (event.position() if hasattr(event, "position")
+               else event.pos())
+      target, label, _thing = view._nearest(where)
+      met.update({"a handle was over it": bool(view._handle_at(where)),
+                  "the view named": (target, label),
+                  "modifiers": str(event.modifiers())})
+      return real_press(event)
+
+    view.mousePressEvent = watched
+    try:
+      QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.ShiftModifier, at)
+      _tick(150)
+    finally:
+      view.mousePressEvent = real_press
     held = panel._selection
     assert held[0] == "vertex" and set(held[1]) == {first, second}, (
       f"a shift-click left the selection at {held}: adding a class to "
-      f"what is already in hand is the whole of this control")
+      f"what is already in hand is the whole of this control. The "
+      f"press was aimed at {(at.x(), at.y())} for class {second!r} "
+      f"and met {met or 'nothing -- the handler never ran'}; the "
+      f"drawing is {view.width()}x{view.height()} and the tab was "
+      f"quiet before the click")
 
     # ---- THE LIST SAYS SO, which is the confirming half
     ticked = set()
