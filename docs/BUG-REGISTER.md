@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-508 defect(s) with a regression test.
+509 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -512,6 +512,8 @@ there is no separate list to remember.
   guarded by `test_a_retired_dialogs_landing_is_discarded`
 - **a save after a Load wrote the previous map's table names and dropped the opened map's real tables.**  
   guarded by `test_a_save_after_a_load_names_the_opened_maps_own_tables`
+- **a Save As after drawing named the copy's element tables for the drawn map's variables while they held the opened map's data.**  
+  guarded by `test_a_save_as_names_the_tables_of_the_map_it_saves`
 - **saving twice into a GeoPackage holding a colleague's map deleted the tables whose element ids ours happened to share, under the word "Saved".**  
   guarded by `test_a_save_never_removes_a_layer_this_map_did_not_write`
 - **`_write_or_drop_the_topology` built the topology SYNCHRONOUSLY inside the write until 2026-09-01. Measured on `hex-colouring 7`, both arms in one run: a save took 27.53s of which the build was 27.22, and a 50 ms heartbeat's longest gap was 27.29s -- the window went twenty-seven seconds without repainting, with Save and Generate down and the bar frozen on whatever it last said. The control, `laves 3.3.4.3.4`, froze for 1.05s.**  
@@ -1070,7 +1072,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 181
+- the mutation campaign: 182
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

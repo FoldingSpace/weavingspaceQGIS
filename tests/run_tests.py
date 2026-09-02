@@ -39446,6 +39446,117 @@ def test_the_saves_count_is_asked_of_the_file():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_save_as_names_the_tables_of_the_map_it_saves():
+  """A copy is named for the map being copied, not the last one drawn.
+
+  `_save_the_map` seeds its table names from `_element_tables`, which
+  a LANDING fills and which said nothing about being cleared, and then
+  asks each layer's own source -- but only where that layer reads from
+  THE FILE BEING SAVED TO. A Save AS reads a different file, so the
+  witness is answered None BY CONSTRUCTION, which its own docstring
+  states deliberately: a map written afresh should take the names this
+  map would choose. It took the names of the last map DRAWN.
+
+  WHAT IT COST: draw a map with `b` on v2, open a colleague's map with
+  Load, Save As -- and the copy holds `tiles_b_v2` while its own
+  record says `b: landcover`. A file that contradicts its own
+  description is the ruling of 2026-08-26 broken from the inside, at a
+  second door; the same shape was closed for the same-file case the
+  same day by asking the witness for every element.
+
+  A HUNT CALLED IT HELD REDUNDANTLY THAT MORNING, correctly about the
+  same-file case, where the witness does answer. This is the door
+  where it cannot, and a guard that is missing and currently costs
+  nothing is a countdown.
+
+  THE FIXTURE'S OWN PREMISE IS ASSERTED, because two maps on their
+  defaults would agree by accident: the drawn map puts `b` on another
+  variable, and the record is required to hold that name before the
+  Load.
+
+  Regression: a Save As after drawing named the copy's element tables
+  for the drawn map's variables while they held the opened map's data.
+  [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def element_tables(path):
+    """The element tables in a file, twins aside."""
+    return sorted(name for name in bridge.gpkg_tables(path)
+                  if name.startswith("tiles_")
+                  and not name.endswith("_no_data"))
+
+  folder = tempfile.mkdtemp(prefix="ws_save_as_names_")
+  try:
+    # ---- SOMEBODY ELSE'S MAP, with landcover on row 1.
+    sent = os.path.join(folder, "sent.gpkg")
+    sender, layer, _tid = _categorical_dialog()
+    try:
+      sender.spacing_spin.setValue(700.0)
+      _generate_and_wait(sender)
+      sender.gpkg_widget.setFilePath(sent)
+      assert press_save(sender, sent), "PREMISE: the sender's save failed"
+      assert "tiles_b_landcover" in element_tables(sent), (
+        f"PREMISE: the sent map does not carry the table this is "
+        f"about: {element_tables(sent)}")
+    finally:
+      sender.close()
+    QgsProject.instance().clear()
+    _tick(200)
+
+    # ---- MY SESSION: a map of my own with a DIFFERENT variable on the
+    # same element, so the record answers differently from the file
+    # about to be saved.
+    mine, _layer2, _tid2 = _categorical_dialog()
+    out = os.path.join(folder, "copy.gpkg")
+    try:
+      mine.table.cellWidget(1, 1).setCurrentText("v2")
+      mine._update_dynamic_columns()
+      _tick(150)
+      mine.spacing_spin.setValue(900.0)
+      _generate_and_wait(mine)
+      drawn = os.path.join(folder, "mine.gpkg")
+      mine.gpkg_widget.setFilePath(drawn)
+      assert press_save(mine, drawn), "PREMISE: my own save failed"
+      assert mine._element_tables.get("b") == "tiles_b_v2", (
+        f"PREMISE: the record does not name my own map's table, so it "
+        f"cannot answer wrongly for another map's: "
+        f"{sorted(mine._element_tables.items())}")
+
+      # ---- OPEN THEIRS, AND SAVE IT SOMEWHERE ELSE.
+      mine.resume_widget.setFilePath(sent)
+      mine.load_button.click()
+      _tick(700)
+      assert mine._element_layer_ids, "PREMISE: the Load opened no map"
+      mine.gpkg_widget.setFilePath(out)
+      assert press_save(mine, out), "the Save As was refused"
+
+      record = bridge.read_working_state(out) or {}
+      says = {str(entry.get("id")): entry.get("var")
+              for entry in (record.get("elements") or [])
+              if isinstance(entry, dict)}
+      assert says, "PREMISE: the copy carries no record to compare with"
+      wrong = []
+      for table in element_tables(out):
+        tid = table.split("tiles_", 1)[1].split("_", 1)[0]
+        if tid in says and table != bridge.element_table_name(
+            tid, says[tid]):
+          wrong.append((table, says[tid]))
+      assert not wrong, (
+        f"the copy holds {wrong} -- each table named for a variable "
+        f"its own record does not give that element, so the file "
+        f"contradicts its own description. The names came from the "
+        f"map this session DREW, which a Save As cannot correct with "
+        f"the layer's own source because that source names another "
+        f"file")
+    finally:
+      mine.close()
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_new_project_leaves_no_topology_edits_behind():
   """Edits belong to the project they were made in.
 
@@ -84430,6 +84541,8 @@ def main():
         test_both_doors_remember_the_file_carried_the_data)
   check("a new project leaves no topology edits behind",
         test_a_new_project_leaves_no_topology_edits_behind)
+  check("a save as names the tables of the map it saves",
+        test_a_save_as_names_the_tables_of_the_map_it_saves)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

@@ -109,3 +109,10 @@ of each chooser is a vertex class and `push_vertex`, whose
 displacement is exactly zero on this design, so an edit aimed there
 changes nothing and the journey afterwards shows nothing being
 carried.
+
+**`what_a_save_as_calls_the_tables.py`** asks whether a copy is named
+for the map being copied or for the last one drawn, and its oracle is
+the file contradicting itself: the copy's own record says which
+variable each element was saved with, so a table named for another one
+is a file that disagrees with its own description. The control draws
+nothing first, since two maps on their defaults agree by accident.

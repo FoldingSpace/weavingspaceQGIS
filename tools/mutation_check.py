@@ -9220,6 +9220,24 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="a-taken-over-map-forgets-the-drawn-ones-tables", file=DIALOG,
+       # ANCHORED WITH THE LINE ABOVE IT, because the bare assignment
+       # appears twice -- here and where the record is created in
+       # `__init__` -- and an anchor that matches twice mutates
+       # nothing while the run still reports a result.
+       old="""    # that is missing and currently costs nothing is a countdown.
+    self._element_tables = {}""",
+       new="""    # that is missing and currently costs nothing is a countdown.
+    pass  # mutation: keep the drawn map's table names""",
+       test="test_a_save_as_names_the_tables_of_the_map_it_saves",
+       why="a Save AS naming the copy's element tables for the map "
+           "this session DREW while they hold the opened map's data, "
+           "so the file contradicts its own record. The witness "
+           "cannot correct it there: it answers only where the layer "
+           "reads from the file being saved to, and a Save As is "
+           "answered None by construction. Measured 2026-09-02 with a "
+           "control: `tiles_b_v2` in a copy whose record says "
+           "`b: landcover`"),
   dict(name="a-new-project-empties-the-topology-shelf", file=DIALOG,
        # TWO ENTRIES RATHER THAN ONE, because emptying the shelf and
        # emptying the PANEL are two claims and either alone leaves the

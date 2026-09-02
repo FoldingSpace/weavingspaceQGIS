@@ -18224,6 +18224,28 @@ class WeavingSpaceDialog(QDialog):
     self._outline_layer_id = None
     self._last_signatures = {}
     self._group_name = None
+    # ...AND WHAT THIS DIALOG BELIEVES ITS TABLES ARE CALLED, which
+    # this list left behind until 2026-09-02. `_element_tables` is
+    # filled by a LANDING and says what the map THIS DIALOG DREW put
+    # in the file; the moment another map is taken over, it describes
+    # something that is no longer on screen -- and an opened map's
+    # elements share their ids with the drawn one's, so it answers for
+    # every one of them.
+    # THE WITNESS CANNOT CORRECT IT ON A SAVE AS, which is where the
+    # omission stopped being harmless. `_table_a_layer_already_reads`
+    # answers only where the layer reads from THE FILE BEING SAVED TO,
+    # and its own docstring says a Save As is answered None by
+    # construction -- deliberately, since a map written afresh should
+    # take the names this map would choose. It then took the names of
+    # the last map DRAWN. Measured 2026-09-02 with a control: draw a
+    # map with `b` on v2, open a colleague's map with Load, Save As --
+    # and the copy holds `tiles_b_v2` while its own record says
+    # `b: landcover`, which is the file-describes-itself ruling of
+    # 2026-08-26 broken from the inside at a second door.
+    # A HUNT CALLED IT HELD REDUNDANTLY THE SAME MORNING, correctly
+    # about the same-file case, where the witness does answer. A guard
+    # that is missing and currently costs nothing is a countdown.
+    self._element_tables = {}
 
   def _take_over_group(self, group):
     """Make an existing output group the one this dialog works on.
