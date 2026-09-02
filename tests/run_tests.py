@@ -8344,6 +8344,145 @@ def test_a_close_during_a_write_does_not_wait_for_the_write():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_a_save_after_a_load_names_the_opened_maps_own_tables():
+  """The layer's own source is the authority, for every element.
+
+  `_element_tables` is written by a LANDING and cleared by nothing --
+  not by the Load door, not by a group switch -- so a session that has
+  drawn any map carries THAT map's table names. The save took its
+  names from that record and asked the layer's own source only for
+  elements the record had never heard of; an opened map's elements
+  share their ids with the drawn one's, so the record answered for all
+  of them and the witness was never consulted.
+
+  WHAT IT COST: draw a map, open a saved one with Load, press Save,
+  and the sent map's `tiles_b_landcover` is gone with `tiles_b_v2`
+  standing in its place -- a file whose own record says `b:
+  landcover` while its table says otherwise, which is the
+  file-describes-itself ruling of 2026-08-26 broken from the inside.
+  With nothing drawn first the same journey changes nothing, which is
+  the control and the whole of the discrimination.
+
+  MEASURED 2026-09-02, two arms in one run
+  (`tools/probes/what_a_save_calls_the_tables_after_a_load.py`), with
+  the file read through OGR and its own record read back beside it.
+
+  THE PLUGIN IS REOPENED BETWEEN THE TWO MAPS, and that is the
+  fixture rather than scenery: a test that draws the sent map and then
+  presses Load in the same window has the record filled by its own
+  setup, and both arms become the treatment.
+
+  Regression: a save after a Load wrote the previous map's table names
+  and dropped the opened map's real tables. [mutation]
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def drive(out, draw_first):
+    """Send a map, open it in a new dialog, save, and read the file.
+
+    Args:
+      out: the GeoPackage to write, open back and save again.
+      draw_first: True to draw a map in the second dialog before
+        pressing Load, which is what fills the table record.
+
+    Returns:
+      (the tables before, the tables after, what the file's own record
+      says each element's variable is).
+    """
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    first = WeavingSpaceDialog(iface=_Iface())
+    second = None
+    try:
+      first.live_check.setChecked(False)
+      first.show()
+      first.gpkg_widget.setFilePath(out)
+      _tick(200)
+      # ONE ELEMENT ON A VARIABLE THE SECOND MAP WILL NOT CHOOSE, or
+      # the two maps' table names agree by accident and the record
+      # cannot be caught answering for the wrong map. A name follows
+      # the variable its element displays, which is what makes this
+      # the discriminating fixture rather than decoration.
+      first.table.cellWidget(1, 1).setCurrentText("landcover")
+      _tick(150)
+      first._generate()
+      _settle(first)
+      assert press_save(first, out), "PREMISE: the map was never sent"
+      assert any(name.endswith("_landcover")
+                 for name in gpkg_contents(out)["tables"]), (
+        "PREMISE: no table is named for the chosen variable, so the "
+        "two maps cannot disagree about names")
+      before = {name for name in gpkg_contents(out)["tables"]
+                if name.startswith("tiles_")}
+      assert before, "PREMISE: the sent file holds no element tables"
+      for layer_id in list(first._element_layer_ids.values()):
+        QgsProject.instance().removeMapLayer(layer_id)
+      _tick(100)
+      first.close()
+      _tick(100)
+
+      second = WeavingSpaceDialog(iface=_Iface())
+      second.live_check.setChecked(False)
+      second.show()
+      _tick(200)
+      if draw_first:
+        second._generate()
+        _settle(second)
+        assert getattr(second, "_element_tables", None), (
+          "PREMISE: drawing a map left the table record empty, so "
+          "this arm is the control wearing the treatment's name")
+        for layer_id in list(second._element_layer_ids.values()):
+          QgsProject.instance().removeMapLayer(layer_id)
+        _tick(100)
+      else:
+        assert not getattr(second, "_element_tables", None), (
+          "PREMISE: the record is not empty, so the witness would not "
+          "be asked and this arm is not a control")
+
+      second.resume_widget.setFilePath(out)
+      second.load_button.click()
+      _settle(second)
+      _tick(200)
+      press_save(second, out)
+      _tick(200)
+      after = {name for name in gpkg_contents(out)["tables"]
+               if name.startswith("tiles_")}
+      record = bridge.read_working_state(out) or {}
+      says = {entry.get("id"): entry.get("var")
+              for entry in (record.get("elements") or [])}
+      return before, after, says
+    finally:
+      for dlg in (second, first):
+        if dlg is not None:
+          dlg.close()
+          dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+  with _temp_dir() as td:
+    for arm in ("control", "treated"):
+      before, after, says = drive(
+        os.path.join(td, f"{arm}.gpkg"), arm == "treated")
+      assert not (before - after), (
+        f"the {arm} arm's save removed {sorted(before - after)} from "
+        f"the file it had just opened: the names came from the record "
+        f"of a map drawn earlier in this session rather than from the "
+        f"layers themselves")
+      assert says, (
+        "PREMISE: the file carries no element record, so the check "
+        "below cannot say whether it contradicts itself")
+      wrong = [name for name in after
+               for tid, var in says.items()
+               if tid and var and name.startswith(f"tiles_{tid}_")
+               and not name.endswith(var)]
+      assert not wrong, (
+        f"the {arm} arm left {wrong} in a file whose own record says "
+        f"{says}: the table's name and the record disagree about "
+        f"which variable it holds")
+
+
 def test_a_resumed_map_tells_its_layers_which_region_it_found():
   """A group's record and its layers must agree about the dataset.
 
@@ -83353,6 +83492,8 @@ def main():
         test_a_close_during_a_write_does_not_wait_for_the_write)
   check("a close that declines the save stops the write",
         test_a_close_that_declines_the_save_stops_the_write)
+  check("a save after a load names the opened map's own tables",
+        test_a_save_after_a_load_names_the_opened_maps_own_tables)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

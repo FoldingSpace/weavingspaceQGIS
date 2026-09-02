@@ -19449,6 +19449,33 @@ class WeavingSpaceDialog(QDialog):
     # resumed rather than drawn carries the names it was found under.
     tables = dict(getattr(self, "_element_tables", {}) or {})
     order = sorted(self._element_layer_ids, key=bridge.element_order)
+    # AND THE WITNESS IS ASKED FIRST, FOR EVERY ELEMENT, not only for
+    # the ones this record has never heard of. (2026-09-02, found by
+    # the backwards-from-harm hunt and reproduced here with a control.)
+    # `_element_tables` is filled by a LANDING and cleared by nothing
+    # -- not by the Load door, not by a group switch -- so a session
+    # that has drawn any map carries THAT map's names, and an opened
+    # map's elements share their ids with it. The record therefore
+    # answered for all of them and the layer's own source, which the
+    # comment below rightly calls the only witness that has not been
+    # through this session, was never consulted.
+    # MEASURED, two arms in one run
+    # (`tools/probes/what_a_save_calls_the_tables_after_a_load.py`):
+    # draw a map, open a saved one with Load, press Save, and the sent
+    # map's `tiles_b_landcover` is gone and `tiles_b_v2` stands in its
+    # place -- a file whose own record says `b: landcover` while the
+    # table says otherwise. With nothing drawn first, the same journey
+    # changes nothing.
+    # IT COSTS THE DRAWN MAP NOTHING, which is why the order can
+    # simply be reversed: a map drawn here reads from MEMORY at its
+    # first save, so the witness has no answer and the record decides
+    # exactly as before; from the second save on it reads the very
+    # names the record holds. And a Save As is answered None by
+    # construction, since the layer reads a DIFFERENT file.
+    for tid in order:
+      named = self._table_a_layer_already_reads(tid, path)
+      if named:
+        tables[tid] = named
     missing = [tid for tid in order if tid not in tables]
     if missing:
       # THE LAYER'S OWN TABLE IS THE AUTHORITY where it already reads

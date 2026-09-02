@@ -9179,6 +9179,27 @@ MUTATIONS = [
            "write's own pump: 4 of 4 element layers left reading from "
            "that file, and a sentence reporting the save said "
            "immediately after the one promising the opposite"),
+  dict(name="the-witness-answers-for-every-element", file=DIALOG,
+       old="""    for tid in order:
+      named = self._table_a_layer_already_reads(tid, path)
+      if named:
+        tables[tid] = named""",
+       new="""    for tid in ():  # mutation: trust the record for every element
+      named = self._table_a_layer_already_reads(tid, path)
+      if named:
+        tables[tid] = named""",
+       test="test_a_save_after_a_load_names_the_opened_maps_own_tables",
+       why="a save after a Load writing the table names of a map "
+           "drawn EARLIER IN THE SESSION, and dropping the opened "
+           "map's real tables. `_element_tables` is filled by a "
+           "landing and cleared by nothing, so it answers for every "
+           "element an opened map shares an id with -- and the "
+           "layer's own source, the only witness that has not been "
+           "through this session, was asked only where the record was "
+           "silent. Measured 2026-09-02 with a control: with a map "
+           "drawn first, `tiles_b_landcover` was replaced by "
+           "`tiles_b_v2` in a file whose own record still said "
+           "landcover; with nothing drawn first, nothing moved"),
   dict(name="a-resumed-map-stamps-its-own-layers", file=DIALOG,
        # ANCHORED ON THE HELPER rather than on either call site, which
        # is what this project's own rule asks: two branches call it,

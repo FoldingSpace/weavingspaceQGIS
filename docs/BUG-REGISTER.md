@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-501 defect(s) with a regression test.
+502 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -506,6 +506,8 @@ there is no separate list to remember.
   guarded by `test_a_resumed_map_tells_its_layers_which_region_it_found`
 - **retirement cancels the task, but a run past its worker has already reported, so its landing executed for the retired window -- removing the live session's layers, adopting nothing, and building a rival group beside the map, rows 18 and 19's settled rules broken at a fifth door. The natural route is the natural act: the landing is the long, hang-looking phase, and opening the plugin again then is the ordinary retry. Found by the seams hunt of round nine (2026-08-26).**  
   guarded by `test_a_retired_dialogs_landing_is_discarded`
+- **a save after a Load wrote the previous map's table names and dropped the opened map's real tables.**  
+  guarded by `test_a_save_after_a_load_names_the_opened_maps_own_tables`
 - **saving twice into a GeoPackage holding a colleague's map deleted the tables whose element ids ours happened to share, under the word "Saved".**  
   guarded by `test_a_save_never_removes_a_layer_this_map_did_not_write`
 - **`_write_or_drop_the_topology` built the topology SYNCHRONOUSLY inside the write until 2026-09-01. Measured on `hex-colouring 7`, both arms in one run: a save took 27.53s of which the build was 27.22, and a 50 ms heartbeat's longest gap was 27.29s -- the window went twenty-seven seconds without repainting, with Save and Generate down and the bar frozen on whatever it last said. The control, `laves 3.3.4.3.4`, froze for 1.05s.**  
@@ -1056,7 +1058,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 174
+- the mutation campaign: 175
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40
