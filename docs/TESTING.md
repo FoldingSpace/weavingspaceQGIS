@@ -4634,3 +4634,97 @@ different halves of the code. When a claim names a failure at a
 particular STEP, stage the failure at that step: ask what the step
 needs that the others do not -- here, the exclusive lock a commit
 takes and a write does not.
+
+## THREE PREMISES THAT WERE BETS ON THE MACHINE
+
+2026-09-02, all three found by CI and none by this machine, and they
+had between them spent candidates while passing here every time. The
+shape is one: A READING TAKEN AFTER A FIXED NUMBER OF TICKS RATHER
+THAN AFTER THE THING IT IS ABOUT HAS HAPPENED.
+
+**A RACE THE FIXTURE HOPED TO WIN.** `a save waits for a build already
+coming` needs a topology build still outstanding at the press, and
+relied on the one the design change queued not having landed yet. It
+failed its own FIXTURE on three legs of one round and on two rounds
+before that. It queues a build EXPLICITLY now, which puts the dialog
+in exactly the state the behaviour is about with no race to lose.
+
+**A SETTLE THAT RETURNS BEFORE THE RESULT IS ADOPTED**, counted at
+250ms. `_settle_topology` returns when no build is in flight and the
+edited unit is adopted a beat later, which is longer on Windows than
+here. It waits for the dialog's own unit to MOVE now, bounded by a
+hang-catcher -- and the failure quotes the ground it found, because
+equalling the un-edited design means the edit was REFUSED rather than
+slow, and those need different repairs.
+
+**A PASS THAT RUNS THROUGH A `singleShot`**, counted at 400ms. The
+Design tab's alignment pass had the two label columns 51px apart at
+13pt on the macOS runner where this machine reads 0 at every size. It
+is waited for now -- and the wait cannot blunt the assertion, since a
+pass that never runs exhausts the ceiling and fails, which is the
+difference between waiting for an event and widening a tolerance. That
+distinction had already been paid for once on this very line, where
+eight pixels of slack made it blind to a 3px fault.
+
+**THE GENERAL RULE IS THIS FILE'S OWN AND IT KEEPS BEING RE-LEARNED:**
+where a case depends on a window, close the window. What these three
+add is that a PREMISE is the easiest place to break it, because a
+premise looks like the safe kind of assertion -- and a premise that
+fails on a runner reads as a broken fixture rather than as a bet.
+
+## A CORRELATION WITH YOUR OWN COMMIT IS A HYPOTHESIS
+
+Same day, and it is the cheapest half-hour of the round. CI went red
+on three legs at a commit of mine, having been GREEN on every job at
+the commit before it. Everything fitted: three legs failing at once is
+this project's own tell for a claim about the CODE rather than about
+timing, and the commit had changed how a save decides its table names.
+
+TWO THINGS ANSWERED IT AND NEITHER WAS AN ARGUMENT. The mechanism: the
+repair runs INSIDE the Save press, and the failing assertion is a
+premise read BEFORE that press, so it cannot have moved the reading.
+And the record: the same test had already failed on two earlier
+commits, so the fully green run in between was the LUCKY one rather
+than the fixed one.
+
+**SO BEFORE BELIEVING A RED THAT FOLLOWS YOUR CHANGE, ASK THE HISTORY
+WHETHER IT IS NEW.** One `gh` call over the branch's earlier runs
+turns "my repair broke three legs" into "this premise has been losing
+a race for three rounds", and those want opposite work. This project
+already says a stack pointing at your newest change is a hypothesis;
+a RED RUN pointing at it is the same hypothesis wearing a verdict.
+
+## FOUR FIXTURES THAT COULD NOT REACH THEIR OWN CASE, IN ONE DAY
+
+Same day, mine, counted because a day whose findings are mostly its
+own instruments is a day nobody should act on -- and because every one
+of them was caught by a premise or a control rather than by reading.
+
+**A CONTROL THAT COULD NOT FAIL EITHER.** A probe comparing the two
+Load doors reported both sound, because it drew and saved a map in the
+same window it then pressed Load in -- and a LANDING sets the very
+flag the press was supposed to set. The plugin is reopened before the
+press now. The tell was that the control arm was as green as the
+treatment.
+
+**A FIXTURE HOLDING THE THING IT MEANT TO REMOVE.** A probe about a
+self-contained file left the SENDER'S own region layer in the project,
+so `_recover_the_source` took its first route -- a layer already open
+-- and the two stores it was written to compare agreed. A recipient
+does not have that layer, which is what the copy inside the file is
+FOR.
+
+**TWO ARMS ON THEIR DEFAULTS AGREE BY ACCIDENT.** The guard for the
+table-naming repair drew both of its maps without touching a variable,
+so the names matched whatever the code did and its catalogue entry
+SURVIVED against a test that was otherwise sound. One element is put
+on another variable now, with a premise asserting the sent file
+carries a table named for it.
+
+**AND AN ORACLE KEYED BY A NAME NOBODY CHECKED.** The same probe read
+the file's own record with `entry.get("tid")`, where the record keys an
+element `id`, so that axis answered nothing at all while the probe
+reported a finding from its other one. `WORKING_STATE_ELEMENT` is the
+record's real definition and is where a key is read from, never from
+memory -- which this project has now written down for the fifth time,
+about a fifth reader.

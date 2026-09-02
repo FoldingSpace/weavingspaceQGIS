@@ -12,7 +12,7 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-02, after DAY ONE of the 24-bug campaign -- eight hunts, seven bugs closed, and the section immediately below. Before that, 2026-09-01, after ROUND SIX -- ten hunts, eight defects
+Last updated 2026-09-02 (late), after the campaign's day one ran to THIRTEEN bugs closed across two rounds of hunts -- eight, then three replenished as bugs closed. Both rounds are in the section immediately below. Before that, 2026-09-01, after ROUND SIX -- ten hunts, eight defects
 closed, and the first round in which two hunts converged on one defect
 from opposite directions TWICE. See the section immediately below;
 before that, 2026-08-31 (late), after ROUND FIVE and the day the
@@ -1744,6 +1744,46 @@ THE INSTRUMENT WAS A STACK PRINTED FROM A PATCHED METHOD, not more
 runs. Recording who called `show_topology` between the press and the
 reading named the caller on the first failing attempt; counting how
 often the race is lost would have measured the machine.
+
+## THE 24-BUG CAMPAIGN, DAY ONE'S SECOND ROUND: THREE HUNTS, SIX MORE CLOSED
+
+Launched when three bugs had closed, which is what the campaign's own
+rule asks -- replenishment is triggered by a CLOSED bug rather than by
+a report. Three slots rather than eight, because the verification
+queue was standing and this record has said since August that running
+more hunts does not raise throughput. All three paid.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the specification itself (3rd) | 1 (+2 sentences measured) | a rewrite can remove the mechanism a rule was JUSTIFIED by and leave the rule standing on a reason nobody re-reads -- the OGR refusal the already-saved skip cites stopped happening on 2026-09-01 and nothing failed |
+| backwards from harm (9th) | 1 | the ranked list is worth writing for the MECHANISMS it suggests rather than the losses it orders: this finding sat fifteenth, and was reached by chasing the first |
+| the round's own repairs (11th) | 1 | when a repair arms a flag on a new door, grep the flag's OTHER readers first -- the harm was two readers away, in a store the resume never writes |
+
+**WHAT THE SECOND ROUND SETTLES.**
+
+**A HUNT'S OWN NOTE ABOUT ITS TWIN IS WORTH DRIVING.** The repairs
+hunt reported a defect at the door its own claim named and added, in
+one line, that if the FRESH branch shared the exposure the repair
+belonged on the stamp rather than on the flag. It did. Driving both
+doors turned a regression in an hours-old repair into an older defect
+with a wider fix -- and the difference decides where the repair goes.
+
+**AND A CLAIM'S HARM CAN BE BIGGER THAN REPORTED, NOT ONLY SMALLER.**
+This record already says the mechanism is usually right and the harm
+usually overstated. The filter claim was the other way: the hunt drove
+a filter set BETWEEN TWO SAVES, where the table lost most of its rows;
+the route it did not drive -- a filter carried across a RE-TILE, which
+the plugin does deliberately -- empties the table outright, because the
+filter names ids the new tiling never produced. Ask of any claim which
+neighbouring journey nobody drove.
+
+**AND THE SUITE'S OWN FAULTS WERE THE THING KEEPING THE BRANCH RED.**
+Three tests, all passing on this machine and failing on runners, every
+one of them a premise counted in ticks rather than waited for. They
+had spent candidates between them while the code was sound. That is
+this record's oldest asymmetry stated freshly: a hunt asks what MIGHT
+be broken, the suite asks what IS, and a second machine asks whether
+the suite's own fixtures can reach their cases.
 
 ## THE 24-BUG CAMPAIGN, DAY ONE: 2026-09-02, SEVEN CLOSED
 

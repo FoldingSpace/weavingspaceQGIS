@@ -6530,3 +6530,122 @@ here, and the decision to add one is the maintainer's. Recorded
   silence. WHEN A HANDLE LIST, A VERB LIST OR A MODE LIST GAINS A
   MEMBER, GREP EVERY TABLE KEYED BY THAT LIST -- and guard the SHAPE,
   so the next member is covered by whoever adds it.
+- **A PREDICATE THAT MERGES TWO FACTS IS RIGHT FOR A WAIT AND WRONG
+  FOR A QUESTION.** (2026-09-02, found by two hunts independently and
+  from opposite directions, which is the strongest confirmation this
+  method produces.) `_a_save_is_outstanding` answers "is there a save
+  that has been asked for and not finished", deliberately merging a
+  PROMISE made with the KEEPING of it, because to the person who
+  pressed the button they are one act. That is exactly right for the
+  hold, which waits for either to end. It is wrong for the CLOSE, which
+  asks a QUESTION -- and whose Close arm answered only the first half:
+  it cleared `_save_pending`, already False during a write, reported
+  "Closed without saving", and let the write run on to completion over
+  the file the person had just declined. Every element layer was
+  repointed at that file, so the map in their project ended up backed
+  by it, and "Saved to ..." was said immediately after the sentence
+  promising the opposite.
+  SO WHEN A REPAIR TEACHES A GUARD A NEW STATE, READ THE CALLER'S
+  PRECONDITION IN THE SAME BREATH. One name for two acts is fine while
+  every caller wants both; the day one caller wants only one of them,
+  the name stops carrying the difference and nothing says so.
+- **A FRAME MUST NOT REPORT THE OUTCOME OF AN ACT IT CANNOT SEE.**
+  (Same day, the other end of the same mechanism.) `write_gpkg_layers`
+  asks `should_stop` BETWEEN TABLES, so a Cancel landing during the
+  styling or the repointing -- 13.0s of a 256-element save -- cannot
+  be served and the write finishes. That much is settled and correct.
+  What was not is that the hold then reported it: resuming, it read
+  `_saving_now` as False, unable to tell a write that had just
+  FINISHED from a wait in which nothing was ever opened, and said "the
+  map was not written" beside the save's own report that it was.
+  THE FIX IS A MOMENT RATHER THAN A CONDITION: record whether a write
+  was under way AT THE PRESS, which is the only moment that can be
+  known, and leave the report to the frame that can see the answer --
+  here the writer, which speaks in both cases. Ask of any two frames
+  reporting one act which of them actually watched it happen.
+- **A FILTER IS A VIEW, AND `getFeatures()` HONOURS ONE.** (Same day,
+  found by the specification hunt.) A person who sets a filter on an
+  element layer in QGIS -- the Query Builder in Layer Properties --
+  had every tile it hides written OUT of their saved GeoPackage at the
+  next Save, permanently, under the word "Saved". Measured on three
+  arms in one run: between two saves a table went from 41 rows to 3,
+  and across a re-tile -- where the plugin carries the filter onto the
+  new layer deliberately -- the same table went to ZERO, the filter
+  naming feature ids the new tiling never produced.
+  WHICH OF THE TWO A FILTER IS WAS SETTLED BY THE PLUGIN'S OWN WORDS
+  rather than by preference: the line that carries a subset across a
+  re-tile says it says which features to DRAW. So it comes off for the
+  write and goes back in the save's own `finally`, since the cancel
+  branch returns between the two and an exception may leave by neither
+  door -- a save that silently cleared somebody's filter would trade
+  one loss for another.
+  AND IDENTITY THAT LIVES IN A SOURCE STRING GAINS A NEW TAIL THE
+  MOMENT A USER TOUCHES THE LAYER. `same_source` compares the whole
+  tail, rightly, for every other question it answers; a subset lives
+  in that tail, so a filtered layer stopped matching the table it was
+  plainly reading from. The save asks its own question without the
+  subset now, and `same_source` is left alone -- it also decides which
+  group a dataset owns and whether a landing may write over one.
+- **A RECORD FILLED BY A LANDING AND CLEARED BY NOTHING ANSWERS FOR A
+  MAP IT HAS NEVER SEEN.** (Same day, found by backwards-from-harm at
+  the end of a list that had ranked it fifteenth.) `_element_tables`
+  is written when a map LANDS and cleared by neither the Load door nor
+  a group switch, so a session that has drawn any map carries THAT
+  map's table names -- and an opened map's elements share their ids
+  with it. The save took its names from that record and asked the
+  layer's own source only where the record was silent, so a person who
+  drew a map, opened a saved one with Load and pressed Save got a file
+  whose table was NAMED for one variable and HELD another, with the
+  sender's table dropped. The file contradicted its own record.
+  THE COMMENT AT THAT LINE ALREADY CALLED THE SOURCE "the only witness
+  that has not been through this session", WHICH IS THE TELL: an
+  authority subordinated to the record it exists to correct. The
+  witness is asked for every element now, and the record answers only
+  where it has nothing to say -- which costs the drawn map nothing,
+  since its layers read from MEMORY at the first save and from those
+  very names afterwards.
+- **AND WHEN A RESUME STAMPS ONE STORE, IT STAMPS THE OTHER.** (Same
+  day, found by the hunt aimed at the same morning's repairs, which is
+  that direction's eleventh outing for eleven.) A resume stamps the
+  GROUP's record with the region the recovery LANDED ON, and it must:
+  a self-contained file records the SENDER'S own path and nothing on
+  the recipient's machine answers to it. It never re-stamped the
+  LAYERS, and `_our_groups` asks the layers -- so the two disagreed,
+  `theirs` came back empty, and the binding let go of the map just
+  opened. A Generate then built a rival group beside it and a Save
+  wrote that rival into the opened map's own tables.
+  IT REPRODUCED AT BOTH DOORS, which is what said whose defect it was:
+  the fresh branch does it too, so the flag that reveals it decides
+  only whether the binding is REACHED, and the repair belongs on the
+  stamp. A claim's own note that "if the twin shares the exposure the
+  repair belongs elsewhere" is worth driving rather than reading.
+- **AND A DEPENDENCY'S REFUSAL CAN STOP BEING TRUE WHILE THE RULE IT
+  JUSTIFIED STANDS.** Measured 2026-09-02 with the plugin out of the
+  way: a `QgsVectorLayer` on `path|layername=tiles_b_v1`, copied into
+  `tiles_b_v1` through an open OGR update transaction the way
+  `bridge._write_one_layer` does, wrote 40 of 40 features, raised
+  nothing, and committed `OGRERR_NONE`. The skip that treats a layer
+  already reading from its destination as saved already was justified
+  by "asking OGR to write a layer into the table it is reading from is
+  asking it to overwrite a layer with itself, which it refuses" -- and
+  that refusal was `QgsVectorFileWriter`'s, which the single-session
+  rewrite of 2026-09-01 stopped going through. The line stays, its
+  remaining job being cost rather than correctness, and its catalogue
+  entry is retired with the measurement.
+  THE SHAPE, and it is the dependency procedure read backwards: a
+  workaround gets a canary because the bug may be fixed under it. A
+  JUSTIFICATION deserves the same suspicion, because the mechanism it
+  names may stop being reached under it -- and nothing fails when that
+  happens, which is why it is found by a hunt rather than by a gate.
+- **THE TWENTY-FOURTH WATCHER FAULT: A JOB NAME HAS A SPACE IN IT.**
+  (2026-09-02, mine, in a watcher armed at the maintainer's asking to
+  reach a green candidate.) The reading was `for job in $JOBS` over
+  lines like `suite (4.0.3)=success`, which the shell splits at the
+  space -- so every line arrived as `tests (4.0.3)=success` and there
+  was no telling the SUITE from the INSTALL. Both are green far more
+  often than not, so the log read plausibly and said nothing. The
+  names have their spaces replaced before the split now.
+  IT IS THE NAME-YOUR-SUBJECT RULE MET INSIDE ONE LINE rather than
+  across a branch: a verdict whose subject is ambiguous is not a
+  measurement, and a watcher that reports twelve jobs under six names
+  is reporting half of what it read.

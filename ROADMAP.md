@@ -382,8 +382,46 @@ and with them taken in one breath it holds. The test waits for
 rc10's repair -- and reads the verdict and its oracle together, so
 quiet arriving late cannot make it compare two designs.
 
-**AND THE 24-BUG CAMPAIGN IS RUNNING, WITH SEVEN CLOSED ON ITS FIRST
-DAY.** (Maintainer's instruction, 2026-09-01: keep eight hunts going
+**AND THE 24-BUG CAMPAIGN IS RUNNING, WITH THIRTEEN CLOSED ON ITS
+FIRST DAY.** The seven below were the first round; six more came from
+a second round of three hunts, replenished as bugs closed, and every
+one is again reproduced here by a route its hunt did not use, repaired,
+guarded and proved.
+
+THE SIX: answering "Close" to the save question during a WRITE saved
+the map anyway, over the file just declined, and said nothing had been
+written; a Cancel the writer could not serve -- past the last table,
+where nothing reads the flag -- was reported as one, beside the save's
+own report that the map WAS written; the Load door's already-open
+branch never counted an opened map as this session's work, so a switch
+of dataset kept the output path aimed at yesterday's file and said
+nothing; a FILTER set in QGIS was written into the saved file as
+though it were the map, taking a table from 41 rows to 3 and, across a
+re-tile, to zero; a resumed map left its layers stamped with the
+SENDER'S region, so the dialog let go of the map just opened and a
+Generate built a rival beside it; and a save after a Load wrote the
+previous map's table names and dropped the opened map's real tables.
+
+AND THREE SUITE FAULTS WERE REPAIRED WITH THEM, which is what had been
+keeping the branch from a green candidate: three premises counted in
+ticks rather than waited for, each passing here and failing on
+runners. `3b7e44c` then came back green on every job -- standards, all
+three suite legs, three installs, three galleries, Windows, macOS and
+the mutation workflow.
+
+AND A CI PROBE WAS ADDED at the maintainer's asking for the one
+failure this machine cannot reproduce: `several classes can be moved
+together` fails on one Linux leg with the selection left where the
+plain click put it, and three candidate causes are measured and ruled
+out here -- the aim and the click agreeing about all eight seats, the
+font swept to 18pt, and a topology build STAGED to land between the
+aim and the click. `tools/ci_probe_the_topology_aim.py` runs beside
+the platform probe on all three platforms and REPORTS rather than
+gates, printing the drawing's size, every seat with its hit-test
+verdict, what the press met and where the selection ended.
+
+**THE FIRST ROUND'S SEVEN, kept because the reasoning is what a later
+session will not have.** (Maintainer's instruction, 2026-09-01: keep eight hunts going
 on temporary worktrees, replenishing after each bug is fixed and
 committed, until twenty-four are repaired and tested.) The plan is in
 `docs/process/HUNT-RECORD.md`, the watcher is
@@ -411,14 +449,27 @@ day's catalogue entries to sleep -- both retired with their
 measurements, both lines kept as defence in depth.
 
 WHAT IS OWED BEFORE A CANDIDATE: the queue is not empty, so rc12 is
-cut when it is. Two claims are verified and unrepaired (the group's
-record carrying a live variable into the file's, and the drawing's
-handles staying on the previous class when one is chosen from the
-list); four findings are the SUITE'S rather than the product's -- three
-dead axes in the guards written 2026-09-01 and a geometry-signature
-term no test covers -- and one workaround has gone dead, since
-upstream now cleans the doubled zigzag vertices itself and
+cut when it is. FIVE CLAIMS are verified or reported and unrepaired --
+the save's success sentence counting elements it never wrote
+(`vanished` is never subtracted from `kept`); `_may_overwrite` asking
+a file's BYTE SIZE where the stub repair of this morning taught its
+sibling to ask what the file holds; an Apply pressed while the next
+design's topology is building landing on the like-named class of the
+NEW design, reshaping the map and the saved file; the group's record
+carrying a live variable into the file's; and the drawing's handles
+staying on the previous class when one is chosen from the list rather
+than clicked.
+
+FOUR FINDINGS ARE THE SUITE'S rather than the product's -- three dead
+axes in the guards written 2026-09-01 and a geometry-signature term no
+test covers -- and one workaround has gone dead, since upstream now
+cleans the doubled zigzag vertices itself and
 `topology_edits._make_drawable`'s repair stage no longer fires.
+
+AND ONE FAILURE IS REMOTE-ONLY AND STILL OPEN: `several classes can be
+moved together` on one Linux leg. Three causes are ruled out here and
+the CI probe above now measures the fourth on the machine that has it,
+which is the honest instrument for a session nobody here can drive.
 
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save

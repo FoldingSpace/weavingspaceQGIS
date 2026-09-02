@@ -841,6 +841,67 @@ press a second later wrote the unit and its dual. It now answers True
 while a build is running or queued -- it still starts none, so nobody
 who has not opened the tab pays anything.
 
+**AND THE CLOSE'S QUESTION IS ANSWERED WITH THE RIGHT MECHANISM.**
+`_a_save_is_outstanding` merges a promise made with the keeping of it,
+which is right for the hold and wrong for a QUESTION: during a write
+there is no promise to drop, so the Close arm cleared a flag that was
+already False, said nothing had been written, and let the write finish
+over the file the person had just declined -- repointing every element
+layer at it. It sets `_save_cancelled` now, which is the same
+mechanism the waiting window's Cancel uses, and the SENTENCE is the
+writer's, because ours cannot be true past the last table.
+
+**AND THE HOLD ONLY REPORTS WHAT IT WATCHED.** Past the last table
+nothing reads the flag, so a Cancel landing during the styling or the
+repointing cannot be served and the save completes. The hold used to
+report it anyway: resuming, it read `_saving_now` as False and could
+not tell a write that had just FINISHED from a wait where nothing was
+ever opened. It records whether a write was under way AT THE PRESS --
+the only moment that can be known -- and leaves the report to the
+writer, which speaks in both cases.
+
+**AND A FILTER NEVER REACHES THE FILE.** `write_gpkg_layers` iterates
+`getFeatures()`, which honours a layer's subset, so a filter set in
+QGIS's Query Builder was written as though it were the map: 41 rows to
+3 between two saves, and to ZERO across a re-tile, where the plugin
+carries the filter onto the new layer and it names ids the new tiling
+never produced. A subset says which features to DRAW, which the line
+that carries one across a re-tile says in as many words, so it comes
+off for the write and goes back in the save's own `finally` -- the
+cancel branch returns between the two, and an exception may leave by
+neither door. The already-saved question is asked without the subset
+too, so a filtered layer is recognised as reading from its own table.
+
+**AND THE LAYER IS THE AUTHORITY ON WHAT ITS TABLE IS CALLED.**
+`_element_tables` is filled by a LANDING and cleared by nothing, so a
+session that has drawn any map carries that map's names -- and an
+opened map's elements share their ids with it. The witness is asked
+for EVERY element now rather than only for those the record has never
+heard of, which costs a drawn map nothing: its layers read from memory
+at the first save and from those very names afterwards, and a Save As
+is answered None by construction.
+
+## What a resume writes on the layers, and why it must
+
+`_recover_the_source` returns the source it LANDED ON, and the group's
+record is stamped with that rather than with the record's own region
+-- a self-contained file names the SENDER'S path, and nothing on the
+recipient's machine answers to it.
+
+`_our_groups` asks the LAYERS. So stamping the group alone left the
+two disagreeing about which dataset the map came from: `theirs` came
+back empty, `_bind_group_to_dataset` let go of the map just opened,
+and the next Generate built a rival group beside it whose Save wrote
+into the opened map's own tables.
+`_tell_the_layers_which_region_we_landed_on` is called from both
+branches, and it stamps NOTHING where the recovery landed on nothing,
+since writing the record's own region would put the sender's path onto
+the recipient's layers.
+
+IT REPRODUCED AT BOTH DOORS, which is what said the defect was older
+than the flag that revealed it: `_landed_this_session` decides only
+whether the binding is reached at all.
+
 ## Nothing ends while a save is outstanding
 
 (Maintainer's ruling, 2026-09-01: when a save is outstanding and QGIS
