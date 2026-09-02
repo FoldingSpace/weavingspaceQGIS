@@ -9239,19 +9239,24 @@ MUTATIONS = [
            "and panel survived where the scheme did not, and the next "
            "project's unit came out at 246,109.968 against a "
            "control's 250,000.0"),
-  dict(name="a-new-project-empties-the-tab-as-well", file=DIALOG,
-       old="""    panel = getattr(self, "topology_panel", None)
-    if panel is not None:
-      panel.set_edits([])""",
-       new="""    panel = None  # mutation: the tab keeps the old project's edits""",
-       test="test_a_new_project_leaves_no_topology_edits_behind",
-       why="the tab going on listing the outgoing project's edits "
-           "after File > New. Emptying the shelf is not enough: "
-           "`_restore_topology_edits` is what puts it back into the "
-           "panel and nothing calls that unless the design MOVES, so "
-           "somebody who opens a new project and leaves the design "
-           "alone keeps the old edits in front of them and "
-           "`_topology_edit_key` goes on answering with them"),
+  # RETIRED 2026-09-02 WITH ITS MEASUREMENT, rather than left as a bare
+  # survivor. `a-new-project-empties-the-tab-as-well` mutated the two
+  # lines that clear the PANEL beside the shelf, and it SURVIVED with
+  # its control run -- the sibling entry over the shelf's place in the
+  # clear list fails the same test, so the axis is live and this half
+  # is held redundantly.
+  # WHAT ANSWERS INSTEAD, measured rather than assumed: wrapping
+  # `_restore_topology_edits` across the clear records three calls,
+  # the last with zero edits, and the panel reads empty IMMEDIATELY
+  # after `QgsProject.clear()` -- so emptying the shelf empties the
+  # tab by that route, on this journey, without the two lines.
+  # THE LINES STAY AS DEFENCE IN DEPTH, because which route runs is
+  # incidental: they are one comparison and they say the thing where
+  # the thing is decided. WHAT WOULD REOPEN THE ENTRY is a journey on
+  # which nothing re-reads the shelf after a clear -- if the layer
+  # change stopped rebuilding, or the restore stopped being reached,
+  # the panel would keep the outgoing project's edits and only these
+  # two lines would empty it.
   dict(name="adoption-remembers-what-the-file-arrived-with", file=DIALOG,
        # ANCHORED AT THE ADOPTION DOOR rather than at the owner, and
        # deliberately: the owner is shared with the resume, which

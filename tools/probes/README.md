@@ -97,3 +97,15 @@ inputs at the moment of the press beside what the file ends up with.
 Two doors on one file is what says whose defect it is rather than
 which journey is unlucky. Re-run it after any change to what a door
 records about a file.
+
+**`what_a_new_project_leaves_on_the_shelf.py`** reads the SHELF and
+the panel across a project clear, with `_scheme_memory` beside them as
+the control -- a record that IS in the clear list, so a run where it
+survives too is saying the clear never happened rather than that the
+shelf is missing from it. It then walks the harm to its end by drawing
+the same design in the emptied project against a dialog that never
+edited anything. Its own premise is the thing to keep: the first index
+of each chooser is a vertex class and `push_vertex`, whose
+displacement is exactly zero on this design, so an edit aimed there
+changes nothing and the journey afterwards shows nothing being
+carried.
