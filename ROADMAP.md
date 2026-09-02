@@ -654,8 +654,8 @@ so writing it would replace a real table with an empty one. The save
 writes what it can, REMOVES NOTHING -- once a file has changed under
 us, a table that looks like our own abandoned one is just as likely
 to be their current one -- and says which element the file lost. That
-sentence is IN THE TEXT-REVIEW QUEUE and is the maintainer's to
-approve.
+sentence went through the text-review queue and was APPROVED; the
+queue reads 0 of 377 pending.
 Measured with two QGIS processes and a rendezvous, because a running
 QGIS serves its own cached pages and the drop is gated on the file
 being the saver's own; the suite stages the same file state instead,
@@ -765,9 +765,10 @@ that Generate destroys the dock's work.
 **THE DECLARATION STAYS WITHDRAWN, AND WHAT IT COVERS HAS CHANGED.**
 Six things were owed after rc5 went out. FIVE ARE BUILT, on
 2026-08-30, each with a registered test and catalogue entries proved
-`caught`; the sixth is the window ceiling and is the one still owed.
-Two further things the maintainer asked for the same day are built
-beside them.
+`caught`; the sixth was the window ceiling, and it is built too --
+see "AND THE SIXTH IS BUILT TOO" below, which is the paragraph this
+sentence used to contradict. Two further things the maintainer asked
+for the same day are built beside them.
 
 WHAT IS DONE, and what each cost:
 
@@ -1214,14 +1215,15 @@ The file's dual is still built from a rebuild, because a chained one
 is stale; that is `built["rebuilt_topology"]`, and the test that
 caught it is `test_the_saved_dual_belongs_to_the_saved_unit`.
 
-WHAT REMAINS BESIDES IS THE MAINTAINER'S OWN, and neither is work on
-the software: the CHANGELOG LINE for everything above, which is a
-sentence a person writes and approves, and the ONE SENTENCE left in
-the text-review queue -- README.md's vendored-library line, changed
-only by the re-vendor moving the recorded commit. The rest of the
-queue was approved on 2026-08-29 and 2026-08-31. CI is red on that one
-paragraph and the other five jobs are SKIPPED behind it, which is the
-gate working: approving prose is nobody else's act.
+WHAT REMAINED BESIDES WAS THE MAINTAINER'S OWN AND IS NOW DONE: the
+CHANGELOG LINE for everything above was approved on 2026-09-01, and so
+was the last sentence in the text-review queue -- README.md's
+vendored-library line, changed only by the re-vendor moving the
+recorded commit. The queue reads 0 of 377 pending, so the gate CI was
+red on is satisfied. Kept as a sentence rather than deleted because it
+records what that gate is FOR: approving prose is nobody else's act,
+and five jobs sat SKIPPED behind one unread paragraph, which is the
+gate working rather than failing.
 
 AND THE SLIDER WAS FLAGGED HERE AND IS NOW DECIDED, above: the
 track keeps its range and crossing the weave ceiling says what it
