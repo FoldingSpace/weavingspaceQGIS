@@ -20318,7 +20318,37 @@ class WeavingSpaceDialog(QDialog):
     """
     import os
     from qgis.PyQt.QtWidgets import QMessageBox
-    if not os.path.exists(path) or os.path.getsize(path) == 0:
+    if not os.path.exists(path):
+      return True
+    # "HOLDS NOTHING" IS A QUESTION ABOUT CONTENT, NOT ABOUT BYTES,
+    # which is what the Returns block above promises and what this
+    # asked with `os.path.getsize(path) == 0` until 2026-09-02. A
+    # GeoPackage OGR has created and nothing has written to is 65,536
+    # bytes of header holding no layer -- non-empty by size, empty by
+    # content -- and that is exactly what a cancelled or failed first
+    # save leaves at the path somebody named. Its sibling
+    # `_this_map_owns_the_file` was mended for the same reading that
+    # morning; this is the other reader of the same fact.
+    # MEASURED with both controls firing
+    # (`tools/probes/what_the_overwrite_question_asks.py`): over a
+    # 65,536-byte stub holding no tables the plugin asked about "the
+    # tables this map needs" and "the rest of the file", neither of
+    # which the file had, and the SAFE BUTTON IS No -- so a person who
+    # pressed Return over their own empty stub lost the save they had
+    # just asked for. That is the harm the maintainer's ruling of
+    # 2026-08-29 is about: most people will not read the sentence.
+    # AND THE FILE'S OWN BOOKKEEPING IS WHAT ANSWERS IT. The obvious
+    # composition -- it opens, and holds no tables -- was written here
+    # first and measured wrong the same hour: GDAL returns None for a
+    # GeoPackage with NO LAYERS exactly as it does for a file that is
+    # not a GeoPackage, so `why_a_file_will_not_open` calls both
+    # "unreadable" and `gpkg_tables` answers empty for both. That pair
+    # cannot tell an empty shell from somebody else's data, and taking
+    # it would have waved a save straight over a file this question
+    # exists to protect. `gpkg_holds_nothing` reads `gpkg_contents`,
+    # which a GeoPackage carries by definition and which LISTS its
+    # layers, so the two cases separate exactly.
+    if bridge.gpkg_holds_nothing(path):
       return True
     if self._this_map_owns_the_file(path):
       return True

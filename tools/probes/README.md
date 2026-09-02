@@ -62,3 +62,12 @@ the layers panel and a colleague's save having taken a second
 element's table, the count was wrong in both directions at once, and
 the two errors cancel unless the colleague also took the deleted
 element's own table. Re-run it after any change to what a save skips.
+
+**`what_the_overwrite_question_asks.py`** is the measurement behind
+"holds nothing" being a question about content rather than bytes. Four
+arms, and the last two are the discrimination: a GeoPackage OGR
+created and nothing wrote to must NOT be asked about, while somebody
+else's map and a file that is not a GeoPackage at all must both still
+be. It is also where the obvious composition was measured wrong --
+GDAL returns None for a zero-layer GeoPackage exactly as it does for a
+text file, so "it opens and holds no tables" cannot separate them.

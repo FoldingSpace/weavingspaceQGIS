@@ -5122,6 +5122,66 @@ def gpkg_tables(path: str) -> set:
     source = None
 
 
+def gpkg_holds_nothing(path: str) -> bool:
+  """Is this a GeoPackage with no map in it at all?
+
+  Args:
+    path: the file somebody is about to be asked about.
+
+  Returns:
+    True only where the file IS a GeoPackage and its own contents
+    table lists nothing. False for a path that does not exist, for
+    anything that is not a GeoPackage -- a text file, a plain sqlite
+    database, a truncated one -- and for a GeoPackage holding
+    anything at all. Never raises.
+
+  WHY GDAL CANNOT ANSWER THIS, measured 2026-09-02 and the reason
+  this function exists rather than a pair of the readers above.
+  `gdal.OpenEx` and `ogr.Open` both return None for a GeoPackage with
+  NO LAYERS, exactly as they do for a file that is not a GeoPackage --
+  so `why_a_file_will_not_open` says "unreadable" of both and
+  `gpkg_tables` answers empty for both. Composing those two therefore
+  cannot tell an empty shell from somebody else's data, which is the
+  one distinction the overwrite question turns on.
+
+  THE FILE'S OWN BOOKKEEPING CAN. A GeoPackage carries `gpkg_contents`
+  by definition, and that table LISTS its layers -- so
+  `gpkg_contents` present with nothing in it is precisely "a
+  GeoPackage holding no map". Measured on four files in one run: a
+  data source OGR created and nothing wrote to (present, 0 listed), a
+  file with one layer (present, 1), a text file (sqlite refuses to
+  open it), and a plain sqlite database (no `gpkg_contents`).
+
+  IT USES STDLIB SQLITE AND OPENS READ-ONLY, for the reason
+  `probe_kit.tables` gives: an instrument that opens the file through
+  OGR HOLDS it open, and a plain `connect` on a missing path CREATES
+  one, which is the last thing a question about somebody else's file
+  should do.
+  """
+  import sqlite3
+  if not path or not os.path.exists(path):
+    return False
+  connection = None
+  try:
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    rows = connection.execute(
+      "SELECT name FROM sqlite_master "
+      "WHERE type='table' AND name='gpkg_contents'").fetchall()
+    if not rows:
+      return False
+    listed = connection.execute(
+      "SELECT count(*) FROM gpkg_contents").fetchone()[0]
+    return not listed
+  except Exception:
+    return False
+  finally:
+    if connection is not None:
+      try:
+        connection.close()
+      except Exception:
+        pass
+
+
 def gpkg_tables_we_would_replace(path: str, layer_names) -> list:
   """Which of these tables the file ALREADY holds.
 

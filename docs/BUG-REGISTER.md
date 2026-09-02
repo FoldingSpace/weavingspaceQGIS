@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-503 defect(s) with a regression test.
+504 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -652,6 +652,8 @@ there is no separate list to remember.
   guarded by `test_the_no_data_count_counts_areas_that_drew`
 - **no widget anywhere in the dialog named the output group, so a demo of several datasets in a row accumulated maps with nothing to say which one the next Generate would replace -- and A-B-A left one dataset owning two groups that nothing could tell apart.**  
   guarded by `test_the_output_group_chooser_binds_to_the_dataset`
+- **a stub left by a cancelled first save was treated as somebody else's work, so an ordinary second save met a warning about tables the file did not have, with the declining button as the default.**  
+  guarded by `test_the_overwrite_question_is_about_what_a_file_holds`
 - **every style change answered by the live restyle path left the design preview showing the previous act's colours -- the pick-time repaint read the layers before the restyle landed and nothing repainted after it. Found by the preview hunt of 2026-08-26 with three faces (a settled ramp pick, a mid-run pick, a style-ending burst); shipping since 2026-08-17.**  
   guarded by `test_the_preview_follows_the_live_restyle`
 - **the preview debounce was a flat 350 ms guarding some 20 ms of work, so two thirds of the wait a user feels after nudging a control was deliberate delay.**  
@@ -1060,7 +1062,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 176
+- the mutation campaign: 177
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

@@ -39377,6 +39377,124 @@ def test_the_saves_count_is_asked_of_the_file():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_overwrite_question_is_about_what_a_file_holds():
+  """A file with no map in it is nobody's, and is not asked about.
+
+  `_may_overwrite`'s own Returns block promises that a file which
+  "does not exist, HOLDS NOTHING, or is one of ours" is never asked
+  about. It asked `os.path.getsize(path) == 0`, and a GeoPackage OGR
+  has created and nothing has written to is 65,536 bytes of header
+  holding no layer -- non-empty by size, empty by content -- which is
+  exactly what a cancelled or failed first save leaves behind. Its
+  sibling `_this_map_owns_the_file` was mended for the same reading
+  on 2026-09-02; this is the other reader of the same fact.
+
+  WHAT IT COST. Cancel a first save, reopen the plugin so nothing
+  remembers the file, press Save at the same path: the person meets
+  "already exists and was not written by this map. Saving will replace
+  the tables this map needs and leave the rest of the file alone" over
+  a file with neither, and its SAFE BUTTON IS No -- so a stray Return
+  declines the save they had just asked for, which is the harm the
+  ruling of 2026-08-29 is about.
+
+  AND THE OBVIOUS COMPOSITION IS WRONG, which is why this asserts four
+  answers rather than two. GDAL returns None for a GeoPackage with NO
+  LAYERS exactly as it does for a file that is not a GeoPackage, so
+  "it opens and holds no tables" cannot tell an empty shell from
+  somebody's data and would have waved a save straight over a file
+  this question exists to protect. `bridge.gpkg_holds_nothing` reads
+  `gpkg_contents`, which a GeoPackage carries by definition and which
+  LISTS its layers.
+
+  Measured 2026-09-02, four arms in one run
+  (`tools/probes/what_the_overwrite_question_asks.py`).
+
+  Regression: a stub left by a cancelled first save was treated as
+  somebody else's work, so an ordinary second save met a warning about
+  tables the file did not have, with the declining button as the
+  default. [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from osgeo import ogr
+  folder = tempfile.mkdtemp(prefix="ws_overwrite_asks_")
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg.spacing_spin.setValue(700.0)
+    _generate_and_wait(dlg)
+
+    def asked_about(name, stage):
+      """Press Save at a path in the given state and say what happened.
+
+      Args:
+        name: names the arm and its own file.
+        stage: "absent", "stub", "real" or "foreign".
+
+      Returns:
+        True where the overwrite question was raised.
+      """
+      path = os.path.join(folder, f"{name}.gpkg")
+      if stage == "stub":
+        source = ogr.GetDriverByName("GPKG").CreateDataSource(path)
+        assert source is not None, "PREMISE: OGR would not make a stub"
+        source = None
+        assert os.path.getsize(path) > 0, (
+          "PREMISE: the stub is zero bytes, so the old byte test would "
+          "have skipped it and this arm measures nothing")
+        assert bridge.gpkg_holds_nothing(path), \
+          "PREMISE: the stub is not an empty GeoPackage"
+      elif stage == "real":
+        bridge.write_gpkg_layer(layer, path, "their_own_areas",
+                                first=True, open_after=False)
+        assert bridge.gpkg_tables(path), "PREMISE: their map wrote nothing"
+      elif stage == "foreign":
+        with open(path, "w", encoding="utf-8") as handle:
+          handle.write("their notes, and not a GeoPackage\n")
+        assert bridge.why_a_file_will_not_open(path) == "unreadable", \
+          "PREMISE: GDAL opens it, so it is not the foreign case"
+      assert path not in getattr(dlg, "_file_was_ours_when_met", {}), \
+        "PREMISE: this dialog has already met the file"
+      MODALS.clear()
+      BAR_MESSAGES.clear()
+      dlg.gpkg_widget.setFilePath(path)
+      try:
+        press_save(dlg, path)
+      except AssertionError:
+        # A GeoPackage cannot be written over a text file, so the
+        # foreign arm's save refuses -- correctly, and AFTER the
+        # question, which is the only thing this asks about.
+        pass
+      return any("already exists" in str(text) for _kind, text in MODALS)
+
+    stub = asked_about("stub", "stub")
+    absent = asked_about("absent", "absent")
+    real = asked_about("real", "real")
+    foreign = asked_about("foreign", "foreign")
+    assert not absent, \
+      "a save was questioned over a path with no file at it"
+    assert not stub, (
+      "a save was questioned over a GeoPackage holding nothing -- the "
+      "stub a cancelled first save leaves -- and the declining button "
+      "is the default, so a person pressing Return loses the save")
+    assert real, (
+      "a save over somebody else's map asked nothing, so the question "
+      "the ruling of 2026-08-27 is about has stopped being raised")
+    assert foreign, (
+      "a save over a file that is not a GeoPackage at all asked "
+      "nothing: an empty answer about tables also means GDAL would "
+      "not open this, and treating the two alike overwrites somebody "
+      "else's file")
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
   """A colleague saving the shared file must not cost an element.
 
@@ -83705,6 +83823,8 @@ def main():
         test_a_save_after_a_load_names_the_opened_maps_own_tables)
   check("the save's count is asked of the file",
         test_the_saves_count_is_asked_of_the_file)
+  check("the overwrite question is about what a file holds",
+        test_the_overwrite_question_is_about_what_a_file_holds)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

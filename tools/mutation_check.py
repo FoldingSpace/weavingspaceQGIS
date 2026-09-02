@@ -9200,6 +9200,21 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="an-empty-shell-is-not-somebody-elses-file", file=DIALOG,
+       old="""    if bridge.gpkg_holds_nothing(path):
+      return True""",
+       new="""    if os.path.getsize(path) == 0:  # mutation: ask the bytes again
+      return True""",
+       test="test_the_overwrite_question_is_about_what_a_file_holds",
+       why="an ordinary second save being questioned over the stub a "
+           "cancelled or failed first save leaves -- 65,536 bytes of "
+           "GeoPackage header holding no layer, non-empty by size and "
+           "empty by content -- with a sentence about tables the file "
+           "does not have and the DECLINING button as its default, so "
+           "a person pressing Return loses the save they asked for. "
+           "Measured 2026-09-02 on four arms, the last two being the "
+           "controls: somebody else's map and a file that is not a "
+           "GeoPackage at all must both still be asked about"),
   dict(name="the-saves-count-is-asked-of-the-file", file=DIALOG,
        # ANCHORED ON THE DECISION rather than on the sentence built
        # from it: the two format strings below read the number, and an
