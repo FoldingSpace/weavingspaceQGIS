@@ -5721,11 +5721,22 @@ def test_a_drag_previews_the_move_it_will_commit():
       if seat is None or away < seat[0]:
         seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
     assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    # NOTHING OUTSTANDING BEFORE THE CLICK. A build landing between
+    # the click and the read clears the chosen thing -- `show_topology`
+    # does that deliberately, both belonging to the topology being
+    # replaced -- so the premise below would fail about a selection
+    # something else had just taken away. Found by CI on a candidate's
+    # own commit, 2026-09-01, having passed here every time.
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: a topology build never stopped being outstanding"
     QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
                      QtNamespace.KeyboardModifier.NoModifier, seat[1])
     _tick(150)
     handles = view.handles()
-    assert handles, "PREMISE: the chosen vertex offers no handle to drag"
+    assert handles, (
+      "PREMISE: the chosen vertex offers no handle to drag; the panel "
+      f"holds {panel._selection!r} and a build is "
+      f"{'outstanding' if dlg._topology_task is not None else 'not running'}")
     grab_at = QPoint(int(round(handles[0][1].x())),
                      int(round(handles[0][1].y())))
 
@@ -5884,11 +5895,23 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
       if seat is None or away < seat[0]:
         seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
     assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    # AND THIS TEST DELIBERATELY DOES NOT SETTLE THE TAB FIRST, where
+    # its two siblings do. Its subject IS a landing arriving under a
+    # pointer, and draining the queued build ahead of the click changes
+    # the sequence the rest of it depends on: measured 2026-09-01,
+    # three runs of three pass without the settle and the arm that
+    # commits fails with it, saying the panel adopted a new topology
+    # mid-gesture. A step inserted into a sequence is a step that
+    # resets it, which this project has already paid for once in the
+    # topology matrix.
     QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
                      QtNamespace.KeyboardModifier.NoModifier, seat[1])
     _tick(150)
     handles = view.handles()
-    assert handles, "PREMISE: the chosen vertex offers no handle to drag"
+    assert handles, (
+      "PREMISE: the chosen vertex offers no handle to drag; the panel "
+      f"holds {panel._selection!r} and a build is "
+      f"{'outstanding' if dlg._topology_task is not None else 'not running'}")
     grab_at = QPoint(int(round(handles[0][1].x())),
                      int(round(handles[0][1].y())))
     QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
@@ -6474,11 +6497,22 @@ def test_a_drag_is_measured_in_the_frame_it_began_in():
       if seat is None or away < seat[0]:
         seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
     assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    # NOTHING OUTSTANDING BEFORE THE CLICK. A build landing between
+    # the click and the read clears the chosen thing -- `show_topology`
+    # does that deliberately, both belonging to the topology being
+    # replaced -- so the premise below would fail about a selection
+    # something else had just taken away. Found by CI on a candidate's
+    # own commit, 2026-09-01, having passed here every time.
+    assert _the_topology_tab_is_quiet(dlg), \
+      "PREMISE: a topology build never stopped being outstanding"
     QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
                      QtNamespace.KeyboardModifier.NoModifier, seat[1])
     _tick(150)
     handles = view.handles()
-    assert handles, "PREMISE: the chosen vertex offers no handle to drag"
+    assert handles, (
+      "PREMISE: the chosen vertex offers no handle to drag; the panel "
+      f"holds {panel._selection!r} and a build is "
+      f"{'outstanding' if dlg._topology_task is not None else 'not running'}")
     grab_at = QPoint(int(round(handles[0][1].x())),
                      int(round(handles[0][1].y())))
 
@@ -8026,6 +8060,55 @@ def test_topology_edits_survive_the_working_state():
       f"rather than under {key!r}"
   finally:
     second.close()
+
+
+def _the_topology_tab_is_quiet(dlg, seconds: float = 90.0) -> bool:
+  """Wait until no topology build is outstanding, or say it never was.
+
+  Args:
+    dlg: the dialog whose Topology tab to settle.
+    seconds: a ceiling that catches a hang rather than budgeting the
+      work. A build is 0.8s on laves and about 21s on the worst design
+      in the catalogue, so this clears the slowest measured figure
+      several times over.
+
+  Returns:
+    True where the tab went quiet -- no build in flight, none queued
+    behind one, and no "working" sentence up -- and False where it
+    never did, which is a real complaint rather than a slow machine.
+
+  WHY THIS EXISTS RATHER THAN A FOURTH INLINE LOOP.
+  `_wait_for_the_topology` returns as soon as the panel holds an
+  ANSWER, which may be the PREVIOUS design's, and `_settle` knows
+  nothing about topology builds at all. Neither is wrong; both are the
+  wrong question for a test about to READ the panel, because a queue
+  made while a build is RUNNING is deferred and re-queued at the
+  landing -- so a second build can arrive moments later, and
+  `show_topology` clears the drag preview and the chosen thing on its
+  way past.
+
+  FOUR TESTS MET THAT ONE AT A TIME, and the last was found by CI on a
+  candidate's own commit: a click selected a vertex, a re-queued build
+  landed during the tick that followed, and the premise "the chosen
+  vertex offers no handle to drag" failed about a selection the build
+  had just cleared. Asking the question once beats mending three
+  sites, which is this project's own rule about the third narrow
+  guard.
+  """
+  import time as _time
+  panel = getattr(dlg, "topology_panel", None)
+  if panel is None:
+    return True
+  deadline = _time.monotonic() + seconds
+  while _time.monotonic() < deadline:
+    building = getattr(dlg, "_topology_task", None) is not None
+    queued = bool(getattr(dlg, "_topology_wanted", False))
+    label = getattr(panel, "working", None)
+    saying = bool((label.text() if label is not None else "").strip())
+    if not building and not queued and not saying:
+      return True
+    _tick(100)
+  return False
 
 
 def _settle_topology(dlg, seconds: int = 30):

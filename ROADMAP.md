@@ -317,6 +317,27 @@ commit, which `publish_candidate` requires and no later fix can make
 true of an earlier commit. Notes for testers are drafted at
 `dist/CANDIDATE-0.24.4rc10.notes.md`.
 
+**AND rc10 IS SPENT, WHICH IS THE DOCUMENTED TRADE RATHER THAN A
+WASTE.** CI went red on its commit -- one test, on its own premise,
+"the chosen vertex offers no handle to drag" -- so no later fix can
+publish it. The fault is the suite's rather than the plugin's and is
+the third site of one mechanism: `_wait_for_the_topology` returns as
+soon as the panel holds an ANSWER, a queue made while a build runs is
+re-queued at the landing, and `show_topology` clears the chosen thing
+on its way past. `_the_topology_tab_is_quiet` is the one owner of that
+question now, used by the two drag guards whose subject is something
+else and deliberately NOT by the third, whose subject IS a landing
+arriving under a pointer -- measured, three runs of three pass without
+it there and the committing arm fails with it.
+THE RED CAME FROM THE COVERAGE LEG, not from a mutation result. Both
+measuring steps in `mutation.yml` carry `continue-on-error`, so a
+survivor cannot redden that workflow; what exits 1 is the step that
+records which tests touch which lines, because a partial record
+overstates survivors silently. Nothing about that was tightened -- the
+file has not changed since 2026-08-19 -- and the confusion it invites
+is the per-workflow against per-job question already listed under
+"Conflicts to settle by grilling".
+
 **ONE LINE CARRIES 0.24.4**, since the two branches were merged on
 2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
 work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and
