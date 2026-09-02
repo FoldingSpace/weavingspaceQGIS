@@ -40513,6 +40513,185 @@ def test_a_records_region_and_its_crs_name_one_dataset():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_a_resume_records_the_system_it_landed_on():
+  """A resume that found nothing keeps the file's own system.
+
+  `_resume_from_gpkg`'s two stamps hand `_stamp_working_state` a
+  launch state of `region` and `output_path` alone, so `region_crs`
+  fell through to `_capture_working_state`'s LIVE reading of whatever
+  the region chooser happened to hold. The region is handed over
+  deliberately, with the reason at its own call site; the system was
+  whatever was standing there.
+
+  WHAT IT COST, and the journey is the one this branch exists for. You
+  open a colleague's map, or your own after the data has moved, and
+  are told the region could not be found. Press Save and the file's
+  record now names THEIR region beside whatever unrelated layer your
+  project happened to have in it -- and `_wear_the_recorded_crs`
+  forces that system onto a region which declares its own correctly,
+  so the region lands thousands of kilometres from its own tiles.
+  Found 2026-09-02 by two hunts independently, from opposite
+  directions, and verified here by a third route: the failed recovery
+  staged with a MEMORY region rather than by moving a file, and the
+  record read through the plugin's own reader
+  (`tools/probes/whose_crs_a_resume_writes_at_both_doors.py`).
+
+  ONLY THE FRESH DOOR CARRIES IT, measured in the same run. The
+  already-open branch finds a group that already carries a record,
+  and `_stamp_working_state` prefers a carried `region_crs` to the
+  live reading, so that door came back correct while this one came
+  back EPSG:27700. Both are written the same way regardless, for the
+  reason at the code: being held by somebody else's mechanism is a
+  countdown rather than a defence.
+
+  BOTH ANSWERS ARE ASSERTED, and the second is what stops the lazy
+  repair. Always taking the file's own record would satisfy the first
+  arm and lose the reason the key exists: a file written before
+  `region_crs` existed carries none, and a resume that LANDS on the
+  region must record the system that layer actually has, or the next
+  recovery rebuilds it from the source string alone.
+
+  Regression: a resume that found no data recorded the region it was
+  told about beside the coordinate system of an unrelated layer that
+  happened to be in the project. [mutation]
+  """
+  from qgis.PyQt.QtWidgets import QMessageBox
+  from qgis.core import QgsCoordinateReferenceSystem
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_resume_crs_")
+  stranger_crs = "EPSG:27700"
+
+  def draw_and_save(name):
+    """A map from a MEMORY region, saved without the source copy.
+
+    Args:
+      name: names this arm's own file.
+
+    Returns:
+      (the file, the region layer, the element layers' ids).
+
+    The region is a memory layer on purpose: a later session cannot
+    answer to its source however the filesystem is arranged, so the
+    failed recovery is staged by an ordinary fact rather than by
+    moving a file underneath the plugin. The source copy is off for
+    the same reason -- with it on, the recovery lands on the copy
+    inside the file and this case cannot arise.
+    """
+    alpha = make_region_layer()
+    alpha.setName("alpha")
+    QgsProject.instance().addMapLayer(alpha)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(alpha)
+      _tick(300)
+      dlg.opt_embed_source.setChecked(False)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      path = os.path.join(folder, f"{name}.gpkg")
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+      return path, alpha, list(dlg._element_layer_ids.values())
+    finally:
+      dlg.close()
+      _tick(200)
+
+  def resume_and_save(path):
+    """Open the map through the Load door and save it again.
+
+    Args:
+      path: the GeoPackage to resume.
+
+    Returns:
+      (the file's record afterwards, the layer the chooser held at
+      the moment of the save).
+    """
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      _tick(200)
+      dlg.resume_widget.setFilePath(path)
+      dlg.load_button.click()
+      _settle(dlg)
+      _tick(300)
+      chosen = dlg.layer_combo.currentLayer()
+      # THE QUESTION IS ANSWERED because this arm is about what the
+      # record says, not about who owns the file: a resumed map whose
+      # own data could not be found is exactly the case `_may_
+      # overwrite` may ask about, and an unanswered modal would leave
+      # the save unmade and the assertion below reading a stale file.
+      MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Yes
+      assert press_save(dlg, path), \
+        "the save after the resume was refused"
+      return (bridge.read_working_state(path) or {}), chosen
+    finally:
+      dlg.close()
+      _tick(200)
+
+  try:
+    # ---- THE JOURNEY: the data is gone and something else is here.
+    path, alpha, layer_ids = draw_and_save("lost")
+    drawn_in = alpha.crs().authid()
+    for layer_id in layer_ids:
+      QgsProject.instance().removeMapLayer(layer_id)
+    QgsProject.instance().removeMapLayer(alpha.id())
+    stranger = make_region_layer(origin=(500000, 200000))
+    stranger.setName("somebody else's basemap")
+    stranger.setCrs(QgsCoordinateReferenceSystem(stranger_crs))
+    QgsProject.instance().addMapLayer(stranger)
+    assert stranger.crs().authid() == stranger_crs, \
+      "PREMISE: the stranger did not take the system it was assigned"
+    assert stranger.crs().authid() != drawn_in, (
+      "PREMISE: the stranger shares the map's own system, so a record "
+      "carrying the wrong one would be indistinguishable")
+    _tick(300)
+    record, chooser = resume_and_save(path)
+    assert chooser is stranger, (
+      "PREMISE: the chooser is not on the unrelated layer, so the "
+      "live reading this test is about would have been right by "
+      "accident and the arm cannot fail")
+    assert record.get("region_crs") != stranger_crs, (
+      f"the file's record names its own region beside "
+      f"{record.get('region_crs')!r}, which is the system of a layer "
+      f"that merely happened to be in the project -- and "
+      f"_wear_the_recorded_crs forces it onto a region that declares "
+      f"its own correctly")
+    assert record.get("region_crs") == drawn_in, (
+      f"the file's record says {record.get('region_crs')!r} where the "
+      f"map was drawn in {drawn_in}")
+
+    # ---- AND THE OTHER ANSWER: a recovery that LANDS must record the
+    # system the layer in force actually has, or a repair that always
+    # took the file's own record would satisfy the arm above and lose
+    # everything an older file cannot tell it.
+    QgsProject.instance().clear()
+    _tick(200)
+    path, alpha, layer_ids = draw_and_save("found")
+    older = dict(bridge.read_working_state(path) or {})
+    older.pop("region_crs", None)
+    assert bridge.write_working_state(path, older), \
+      "PREMISE: the older-file record could not be staged"
+    assert "region_crs" not in (bridge.read_working_state(path) or {}), \
+      "PREMISE: the file still carries a system, so this arm would "\
+      "pass on a repair that only ever reads the record"
+    for layer_id in layer_ids:
+      QgsProject.instance().removeMapLayer(layer_id)
+    _tick(300)
+    record, chooser = resume_and_save(path)
+    assert chooser is alpha, (
+      "PREMISE: the recovery did not land on the map's own region, so "
+      "this arm is not about a resolution at all")
+    assert record.get("region_crs") == alpha.crs().authid(), (
+      f"a resume that landed on the region recorded "
+      f"{record.get('region_crs')!r} rather than the system that "
+      f"layer has, so the next recovery rebuilds it from the source "
+      f"string alone and brings it back in the file's coordinates")
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_the_overwrite_question_is_about_what_a_file_holds():
   """A file with no map in it is nobody's, and is not asked about.
 
@@ -84963,6 +85142,8 @@ def main():
         test_the_overwrite_question_is_about_what_a_file_holds)
   check("a record's region and its crs name one dataset",
         test_a_records_region_and_its_crs_name_one_dataset)
+  check("a resume records the system it landed on",
+        test_a_resume_records_the_system_it_landed_on)
   check("no acting control is live while a save writes",
         test_no_acting_control_is_live_while_a_save_writes)
   check("both doors remember the file carried the data",

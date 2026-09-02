@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-510 defect(s) with a regression test.
+511 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -500,6 +500,8 @@ there is no separate list to remember.
   guarded by `test_a_resume_is_not_snatched_by_its_own_tail`
 - **the resume path registered element layers without updating the region chooser's exclusions, so a resumed map's own tile layers were offered as region data and the next Generate tiled the plugin's own output.**  
   guarded by `test_a_resume_keeps_its_output_off_the_region_list`
+- **a resume that found no data recorded the region it was told about beside the coordinate system of an unrelated layer that happened to be in the project.**  
+  guarded by `test_a_resume_records_the_system_it_landed_on`
 - **opening a saved GeoPackage while a tiling was in flight repointed the element records mid-run, silently dropped the resumed map at the landing, and one ordinary Generate then rewrote the saved file with the other dataset's tiling. Found by the doors hunt of round nine (2026-08-26); the same shape as ledger row 30, at a third door.**  
   guarded by `test_a_resume_waits_for_the_run`
 - **a group made by opening a saved GeoPackage was named "WeavingSpace tiles" with a counter rather than for its dataset, so two resumed maps could offer the chooser two identical labels while writing different files. Found by the group-naming hunt, 2026-08-27.**  
@@ -1074,7 +1076,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 183
+- the mutation campaign: 184
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

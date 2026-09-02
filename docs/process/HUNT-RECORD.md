@@ -1761,14 +1761,28 @@ count.
 
 | Direction | Confirmed | Aimed at |
 | --- | ---: | --- |
-| the round's own repairs (12th) | -- | today's rows 14-21 and the acting-controls owner two acts now share |
+| the round's own repairs (12th) | (same) | today's rows 14-21 and the acting-controls owner two acts now share. Reached row 22 from the write-only side, independently of the row below |
 | backwards from harm (10th) | -- | the last two days, ranked BEFORE any source is opened |
 | stochastic settled sessions (7th) | -- | the save, the Load doors, the waiting window, the tab |
-| two stores of one fact | -- | the save's three records after the single-session rewrite |
+| two stores of one fact | 1 | the save's three records after the single-session rewrite. Row 22: the resume's two stamps hand over `region` and not `region_crs`, so a recovery that found nothing records the file's own region beside a stranger's system |
 | asymmetry / twins (8th) | -- | `_save_the_map` against `_resume_from_gpkg`; the two Load doors |
 | the specification itself (4th) | -- | the tab's rules: is a settled DECISION wrong |
 | unreachable branches (4th) | -- | the deferral machinery of 2026-09-01 |
 | tests that cannot fail (6th) | -- | the six guards written this afternoon, per assertion |
+
+**AND THE FIRST JUDGEMENT WAS A CONVERGENCE, COUNTED ONCE.** Two of
+the eight reached ledger row 22 within minutes of each other and from
+opposite directions -- the write-only hunt asking what the round's own
+repairs write that nothing reads back, and the two-stores hunt asking
+which of two records wins when they disagree. That is this method's
+strongest evidence and it is one defect: the number sits in the
+two-stores row and the repairs row says so.
+WHAT MY OWN ROUTE ADDED, which is the argument for verifying rather
+than accepting: neither hunt drove the OTHER door. Three arms in one
+run showed the already-open branch answering correctly, because it
+finds a group already carrying a record and the carry beats the live
+reading -- so an entry on that site would have survived while the code
+was right, and the catalogue entry stands on the fresh door alone.
 
 **WHAT IS DELIBERATE ABOUT THE SLATE.**
 

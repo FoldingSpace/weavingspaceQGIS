@@ -1263,11 +1263,9 @@ MUTATIONS = [
        file=DIALOG,
        # RE-ANCHORED 2026-08-29 for the same reason as its
        # neighbour; the stamp reads the landing now.
-       old="""        self._stamp_working_state(already, launch_state={
-          key: value for key, value in
-          (("region", landed_on or record.get("region")),
-           ("output_path", path))
-          if value})""",
+       # AND RE-ANCHORED AGAIN 2026-09-02, when `region_crs` joined
+       # this launch state; re-proved rather than assumed.
+       old="""        self._stamp_working_state(already, launch_state=landing)""",
        new="""        pass  # mutation: leave the group without its record""",
        test="test_a_file_already_open_resumes_completely",
        why="the take-over branch was written from the twin that loads "
@@ -9342,6 +9340,33 @@ MUTATIONS = [
            "region which declares its own correctly, landing it a "
            "long way from its own tiles. Found 2026-09-02 by two "
            "hunts independently, from opposite directions"),
+  dict(name="a-resume-records-the-system-it-landed-on", file=DIALOG,
+       # ANCHORED ON THE FRESH DOOR, WHICH IS THE ONE THAT CAN FAIL.
+       # The twin above it, the already-open branch, writes the same
+       # line and is currently held by `_stamp_working_state`'s carry:
+       # that branch finds a group already carrying a record, and a
+       # carried `region_crs` beats the live reading. An entry on that
+       # site would therefore SURVIVE while the code was perfectly
+       # right, which is the one shape this catalogue must not carry.
+       # Measured in one run, three arms
+       # (`tools/probes/whose_crs_a_resume_writes_at_both_doors.py`):
+       # fresh EPSG:27700, already-open EPSG:3857, control EPSG:3857.
+       old="""      landing["region_crs"] = self._crs_the_resume_landed_on(
+        landed_on, record)""",
+       new="""      landing.pop("region_crs", None)  # mutation: leave it live""",
+       test="test_a_resume_records_the_system_it_landed_on",
+       why="a resume that found NOTHING recording the region it was "
+           "told about beside the coordinate system of whatever "
+           "unrelated layer the project happened to hold. The region "
+           "is handed over deliberately and the system fell through "
+           "to the live reading, so opening a colleague's map whose "
+           "data cannot be found and pressing Save wrote their region "
+           "beside your basemap's authid -- and "
+           "`_wear_the_recorded_crs` forces that system onto a region "
+           "which declares its own correctly, landing it thousands of "
+           "kilometres from its own tiles. Found 2026-09-02 by two "
+           "hunts from opposite directions and verified by a third "
+           "route"),
   dict(name="an-empty-shell-is-not-somebody-elses-file", file=DIALOG,
        old="""    if bridge.gpkg_holds_nothing(path):
       return True""",
@@ -9810,10 +9835,14 @@ MUTATIONS = [
        # group can never be pointed back at its own data. With a
        # second sender's map open, returning to this one re-tiles it
        # from THEIR data, into this sender's own file.
-       old="""                      (("region", landed_on or record.get("region")),
-                       ("output_path", path)) if value})""",
-       new="""                      (("region", record.get("region")),
-                       ("output_path", path)) if value})""",
+       # RE-ANCHORED 2026-09-02, when `region_crs` joined this launch
+       # state and the expression moved into a `landing` name, and
+       # RE-PROVED rather than assumed: an anchor that matches again
+       # can still be aimed at nothing.
+       old="""                 (("region", landed_on or record.get("region")),
+                  ("output_path", path)) if value}""",
+       new="""                 (("region", record.get("region")),
+                  ("output_path", path)) if value}""",
        test="test_returning_to_one_senders_map_re_tiles_it_from_their_own_data",
        why="a resumed group naming data that exists on THIS machine: "
            "the record names where the map was drawn and the recovery "
@@ -9824,12 +9853,14 @@ MUTATIONS = [
        # file whose layers are already in the project. Both branches
        # stamp, so an entry on either alone would report a clean
        # sweep with the other still wrong.
-       old="""          (("region", landed_on or record.get("region")),
-           ("output_path", path))
-          if value})""",
-       new="""          (("region", record.get("region")),
-           ("output_path", path))
-          if value})""",
+       # RE-ANCHORED AND RE-PROVED 2026-09-02, with its twin, for the
+       # reason written there.
+       old="""                   (("region", landed_on or record.get("region")),
+                    ("output_path", path))
+                   if value}""",
+       new="""                   (("region", record.get("region")),
+                    ("output_path", path))
+                   if value}""",
        test="test_returning_to_one_senders_map_re_tiles_it_from_their_own_data",
        why="the same promise at the door people take most, which is "
            "re-opening a map whose layers never left the project"),

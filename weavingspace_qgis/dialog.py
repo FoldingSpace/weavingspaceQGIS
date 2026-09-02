@@ -20880,11 +20880,33 @@ class WeavingSpaceDialog(QDialog):
         # the SECOND sender's data, into the first sender's file --
         # measured 2026-08-29 with the two regions half a million map
         # units apart, ledger row 23.
-        self._stamp_working_state(already, launch_state={
-          key: value for key, value in
-          (("region", landed_on or record.get("region")),
-           ("output_path", path))
-          if value})
+        # AND `region_crs` TRAVELS WITH `region`, WHICH THIS DOOR SAID
+        # AND DID NOT DO. Handing over the region alone leaves the
+        # system to `_capture_working_state`'s live reading of
+        # whatever the chooser holds, which on a failed recovery is
+        # some other dataset entirely; the twin below carries what
+        # that cost.
+        # THIS DOOR IS CURRENTLY HELD BY THE CARRY, and that is
+        # measured rather than assumed
+        # (`tools/probes/whose_crs_a_resume_writes_at_both_doors.py`,
+        # three arms, control first): the group this branch finds
+        # already carries a record, and `_stamp_working_state` takes
+        # `region_crs` from an existing record in preference to the
+        # live reading, so the file came back EPSG:3857 here where the
+        # fresh door came back EPSG:27700. It is written the same way
+        # regardless, because being held by somebody else's mechanism
+        # is a countdown rather than a defence -- a group with no
+        # record of its own, which is what any group made before this
+        # key existed is, falls straight through to the live reading.
+        # A catalogue entry standing on this line alone would SURVIVE
+        # for exactly that reason, and the entry is on the twin.
+        landing = {key: value for key, value in
+                   (("region", landed_on or record.get("region")),
+                    ("output_path", path))
+                   if value}
+        landing["region_crs"] = self._crs_the_resume_landed_on(
+          landed_on, record)
+        self._stamp_working_state(already, launch_state=landing)
         # AND THE LAYERS ARE TOLD THE SAME THING, or the group's own
         # record and the layers it holds disagree about which dataset
         # this map came from -- and `_our_groups` asks the layers.
@@ -21168,11 +21190,33 @@ class WeavingSpaceDialog(QDialog):
       # RECOVERY LANDED ON and the file's own only where it landed on
       # nothing -- see the already-open branch, where the two cases
       # and what each costs are written out.
+      # AND THE SYSTEM TRAVELS WITH THE SOURCE, which is where this
+      # door lost a map. `region` is handed over deliberately and
+      # `region_crs` was not, so it fell through to
+      # `_capture_working_state`'s live reading -- and on the journey
+      # this branch exists for, a recovery that found NOTHING, the
+      # chooser is holding whatever else the project has in it. The
+      # record then named the sender's region beside a stranger's
+      # authid, the next Save carried both into the file, and
+      # `_wear_the_recorded_crs` FORCED that system onto a region
+      # which declares its own correctly.
+      # MEASURED 2026-09-02, three arms in one run, control first
+      # (`tools/probes/whose_crs_a_resume_writes_at_both_doors.py`):
+      # with the region present the file came back EPSG:3857 as
+      # drawn; with it gone and an EPSG:27700 layer in the project the
+      # file came back EPSG:27700, its `region` still naming the map's
+      # own data. Two hunts reported the mechanism the same evening
+      # from opposite directions, and both walked it to the loss --
+      # about 18,000 km and 12,500 km between a region and its own
+      # tiles, depending which stranger was standing there.
+      landing = {key: value for key, value in
+                 (("region", landed_on or record.get("region")),
+                  ("output_path", path)) if value}
+      landing["region_crs"] = self._crs_the_resume_landed_on(
+        landed_on, record)
       self._stamp_working_state(
         self._group_of_our_layers(QgsProject.instance().layerTreeRoot()),
-        launch_state={key: value for key, value in
-                      (("region", landed_on or record.get("region")),
-                       ("output_path", path)) if value})
+        launch_state=landing)
       # AND THE LAYERS TOO, for the reason written at the twin: the
       # group's record and the layers it holds must not disagree about
       # which dataset this map came from.
@@ -21321,6 +21365,44 @@ class WeavingSpaceDialog(QDialog):
     except Exception:
       return 0
     return missing
+
+  def _crs_the_resume_landed_on(self, landed_on, record):
+    """The system to record beside a resumed map's region.
+
+    Args:
+      landed_on: the source string `_recover_the_source` actually
+        landed on, or None where none of its three routes answered.
+      record: the file's own working state, read for `region_crs`
+        where the recovery found nothing to ask.
+
+    Returns:
+      An authid, or None where neither the resolution nor the record
+      has one -- a file written before that key existed says nothing,
+      rather than claiming a system, which is the state
+      `_wear_the_recorded_crs` is built to meet.
+
+    THE RESOLUTION FIRST, THE RECORD SECOND, AND THE CHOOSER NEVER ON
+    ITS OWN. Where the recovery landed on a layer, that layer is the
+    region this map now has and its system is a fact about the data in
+    front of us; where it landed on nothing, the file's own record is
+    the only honest answer, and the chooser is holding some unrelated
+    thing. Reading the chooser without asking WHICH layer it holds is
+    exactly the fault this exists to close.
+
+    SO THE CHOOSER IS CHECKED AGAINST WHAT WAS LANDED ON rather than
+    trusted to be it. `_recover_the_source` points the chooser as part
+    of landing, and a later step could leave it elsewhere; a record
+    describes where something came from and only the resolution
+    describes where it IS, so the two are compared before either is
+    believed.
+    """
+    chosen = self.layer_combo.currentLayer()
+    here = chosen.source() if chosen is not None else None
+    if landed_on and here and same_source(here, landed_on):
+      authid = chosen.crs().authid()
+      if authid:
+        return authid
+    return (record or {}).get("region_crs")
 
   def _wear_the_recorded_crs(self, layer, record):
     """Give a recovered region the system it was drawn in.
