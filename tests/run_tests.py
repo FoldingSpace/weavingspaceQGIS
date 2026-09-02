@@ -39209,6 +39209,174 @@ def test_a_save_lets_the_window_paint_while_it_writes():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_saves_count_is_asked_of_the_file():
+  """"The file holds N of M elements" must be true of the file.
+
+  That sentence is said when an element's layer has gone from the
+  layers panel, so the sender learns what the recipient will find. It
+  counted `len(order) - len(left_out)`, which is arithmetic over ONE
+  of the three ways an element can fail to reach the file, and it was
+  wrong in both directions at once:
+
+  an element whose table somebody ELSE removed is `vanished` rather
+  than left out, so it was counted as held; and an element left out
+  whose old table the drop SPARED -- which is what happens once a file
+  has changed under us, since nothing is deleted on a guess -- really
+  is in the file, so subtracting it as well would understate.
+
+  The two errors cancel where both happen to one file and do not where
+  the colleague's save also took the deleted element's table, which is
+  an ordinary thing for somebody reducing a shared design to do.
+  Measured 2026-09-02, three arms in one run: "holds 3 of 4 elements"
+  over a file holding TWO.
+
+  SO NO ARITHMETIC OVER THOSE LISTS IS RIGHT, and the count is asked
+  of the file instead -- which of the names this save decided the
+  tiles live under does the file actually hold, read after the write,
+  the drop and the record, since every one of those moves the answer.
+  It is the shape three of the same day's repairs took: an "empty"
+  file is a question about content rather than bytes, and a layer's
+  own source is the witness for what its table is called.
+
+  BOTH ANSWERS ARE ASSERTED. A repair that simply stopped counting the
+  left-out element would pass the second arm and destroy the sentence
+  the first one is about, so the ordinary journey must still say three
+  of four while the shared one says two.
+
+  Regression: with an element's row deleted from the layers panel and
+  a colleague's save having taken another element's table, the save
+  reported that the file held three of four elements when it held two.
+  [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def drive(path, colleague_takes_both):
+    """Save, lose elements two ways, save again, and read both answers.
+
+    Args:
+      path: the GeoPackage to write and then share.
+      colleague_takes_both: True to have the colleague's save remove
+        the DELETED element's table as well as the one it moved, which
+        is what reducing a shared design does and is the only journey
+        on which the two errors do not cancel.
+
+    Returns:
+      (the count the sentence quoted, the number of this map's element
+      tables the file really holds).
+    """
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.layer_combo.setLayer(layer)
+      _tick(300)
+      dlg.spacing_spin.setValue(700.0)
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg, path), "PREMISE: the first save failed"
+      order = sorted(dlg._element_layer_ids, key=bridge.element_order)
+      assert len(order) >= 3, (
+        f"PREMISE: {len(order)} elements is too few to delete one and "
+        f"lose another")
+      held = set(bridge.gpkg_tables(path))
+
+      # ---- SOMEBODY DELETES ONE ELEMENT'S ROW IN THE PANEL...
+      deleted, lost = order[0], order[1]
+      mine_gone = None
+      for name in held:
+        if name.startswith(f"tiles_{deleted}_") \
+           and not name.endswith("_no_data"):
+          mine_gone = name
+      assert mine_gone, (
+        f"PREMISE: the file holds no table for element {deleted}, so "
+        f"there is nothing for the drop to spare: {sorted(held)}")
+      QgsProject.instance().removeMapLayer(
+        dlg._element_layer_ids[deleted])
+      twin = dlg._no_data_layer_ids.get(deleted)
+      if twin:
+        QgsProject.instance().removeMapLayer(twin)
+      _tick(200)
+
+      # ---- ...AND SOMEBODY ELSE SAVES THE SHARED FILE, moving a
+      # second element to another column: their table in place of
+      # ours, and the file's own record naming their variable.
+      element = QgsProject.instance().mapLayer(
+        dlg._element_layer_ids[lost])
+      assert element is not None, "PREMISE: the second element has no layer"
+      theirs_gone = element.source().split(
+        "layername=", 1)[-1].split("|")[0]
+      assert theirs_gone in held, (
+        f"PREMISE: element {lost} reads {theirs_gone!r}, which the "
+        f"file does not hold, so it cannot go missing from under us")
+      bridge.write_gpkg_layer(layer, path,
+                              bridge.element_table_name(lost, "theirs"),
+                              first=False, open_after=False)
+      assert bridge.drop_gpkg_layer(path, theirs_gone), \
+        f"PREMISE: {theirs_gone!r} could not be removed"
+      if colleague_takes_both:
+        assert bridge.drop_gpkg_layer(path, mine_gone), \
+          f"PREMISE: {mine_gone!r} could not be removed"
+      record = bridge.read_working_state(path)
+      moved = False
+      for entry in (record.get("elements") or []):
+        if isinstance(entry, dict) and str(entry.get("id")) == lost:
+          entry["var"] = "theirs"
+          moved = True
+      assert moved, f"PREMISE: the file's record names no element {lost!r}"
+      assert bridge.write_working_state(path, record), \
+        "PREMISE: the colleague's record could not be written back"
+
+      # ---- AND I PRESS SAVE, believing the map is still mine.
+      BAR_MESSAGES.clear()
+      assert press_save(dlg, path), "the save was refused outright"
+      said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
+      quoted = re.search(r"holds (\d+) of (\d+) elements", said)
+      assert quoted, (
+        f"the save said nothing about how many elements the file "
+        f"holds, though an element's layer had gone: {said[:200]!r}")
+      ended = set(bridge.gpkg_tables(path))
+      really = sum(
+        1 for tid in order
+        if any(name.startswith(f"tiles_{tid}_")
+               and not name.endswith("_no_data")
+               and not name.endswith("_theirs")
+               for name in ended))
+      return int(quoted.group(1)), really
+    finally:
+      dlg.close()
+
+  folder = tempfile.mkdtemp(prefix="ws_save_count_")
+  try:
+    # THE ARM WHERE THE TWO ERRORS CANCEL, which is the control: the
+    # drop stands down over a changed file, so the deleted element's
+    # own table survives and the count is right by accident.
+    spared, spared_really = drive(
+      os.path.join(folder, "spared.gpkg"), colleague_takes_both=False)
+    assert spared == spared_really, (
+      f"the ordinary shared save says the file holds {spared} of this "
+      f"map's elements where it holds {spared_really}")
+    QgsProject.instance().clear()
+    _tick(200)
+    # ...AND THE ARM WHERE THEY DO NOT.
+    taken, taken_really = drive(
+      os.path.join(folder, "taken.gpkg"), colleague_takes_both=True)
+    assert taken == taken_really, (
+      f"the save says the file holds {taken} of this map's elements "
+      f"where it holds {taken_really}: the count subtracts the "
+      f"elements whose LAYER has gone and knows nothing about the "
+      f"tables that have gone from the FILE")
+    # AND THE TWO ARMS MUST DIFFER, or a count that always answered the
+    # same number would satisfy both.
+    assert spared != taken, (
+      f"both arms quoted {spared}, so the fixture is not staging two "
+      f"different files and neither assertion above can fail")
+  finally:
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_save_leaves_a_shared_file_somebody_else_has_changed():
   """A colleague saving the shared file must not cost an element.
 
@@ -83535,6 +83703,8 @@ def main():
         test_a_close_that_declines_the_save_stops_the_write)
   check("a save after a load names the opened map's own tables",
         test_a_save_after_a_load_names_the_opened_maps_own_tables)
+  check("the save's count is asked of the file",
+        test_the_saves_count_is_asked_of_the_file)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

@@ -20112,7 +20112,41 @@ class WeavingSpaceDialog(QDialog):
     absent = ""
     if left_out:
       names = ", ".join(sorted(left_out))
-      kept = len(order) - len(left_out)
+      # AND THE COUNT IS ASKED OF THE FILE, NOT OF ONE LIST. It read
+      # `len(order) - len(left_out)`, which is arithmetic over the
+      # elements whose LAYER had gone from the project and knows
+      # nothing about the two other ways an element can fail to be in
+      # the file. It was wrong in both directions, measured 2026-09-02
+      # with a control that could fail:
+      #   an element whose table somebody ELSE removed is `vanished`
+      #     rather than left out, so it was counted as held. Delete
+      #     one element's row in the panel while a colleague's save
+      #     has taken another element's table, and the sentence said
+      #     "holds 3 of 4 elements" over a file holding TWO;
+      #   and an element left out whose OLD table the drop spared --
+      #     which is what happens once a file has changed under us,
+      #     since nothing is deleted on a guess -- really is in the
+      #     file, and subtracting it as well would have understated by
+      #     one on the same journey.
+      # So the two errors cancel on one route and not on the other,
+      # which is why no arithmetic over these lists is right. `tables`
+      # holds the name this save decided each element's tiles live
+      # under, so asking which of those the file HOLDS answers the
+      # question the sentence is really about: how many of this map's
+      # elements a recipient's Load will find.
+      # ONE OPEN, AND ONLY WHERE THE SENTENCE IS SAID. `gpkg_tables`
+      # opens the GeoPackage, and opening one costs time proportional
+      # to the layers already in it -- so it is read inside this
+      # branch rather than beside the loop, which leaves the ordinary
+      # save paying nothing. The reading is taken AFTER the write, the
+      # drop and the record, because every one of those changes the
+      # answer.
+      # This is the shape three of this morning's repairs took: an
+      # "empty" file is a question about content rather than bytes,
+      # and a layer's own source is the witness for what its table is
+      # called. A count is the same question again.
+      holds = set(bridge.gpkg_tables(path))
+      kept = sum(1 for tid in order if tables.get(tid) in holds)
       absent = (
         f" Element {names} is no longer in the project, so the file "
         f"holds {kept} of {len(order)} elements."

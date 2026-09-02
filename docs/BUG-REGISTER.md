@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-502 defect(s) with a regression test.
+503 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -668,6 +668,8 @@ there is no separate list to remember.
   guarded by `test_the_saved_dual_belongs_to_the_saved_unit`
 - **the unit and dual were written under the map's CRS, putting the motif at the origin of the region's projection.**  
   guarded by `test_the_saved_unit_and_dual_carry_no_crs`
+- **with an element's row deleted from the layers panel and a colleague's save having taken another element's table, the save reported that the file held three of four elements when it held two.**  
+  guarded by `test_the_saves_count_is_asked_of_the_file`
 - **the scheme shelf was not cleared with the project, so a scheme set aside in one project reappeared in the next.**  
   guarded by `test_the_shelf_does_not_survive_the_project_that_made_it`
 - **the size guard refused instead of asking, on a memory figure nothing measured; and two answers that were not sizes at all shared the refusal's value, so a design that does not tile the plane was reported as a spacing problem.**  
@@ -1058,7 +1060,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 175
+- the mutation campaign: 176
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

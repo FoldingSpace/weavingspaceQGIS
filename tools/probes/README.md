@@ -53,3 +53,12 @@ and then the colinear ones where ours removed only exact repeats. Both
 arms run together deliberately -- one arm says nothing about the other,
 and this project has been caught believing one before. Re-run it after
 any change to the manipulation repair.
+
+**`what_the_success_sentence_counts.py`** is the measurement behind
+the save's "the file holds N of M elements" being asked of the FILE
+rather than of one list. Three arms in one run, and the middle one is
+the reason no arithmetic works: with an element's row deleted from
+the layers panel and a colleague's save having taken a second
+element's table, the count was wrong in both directions at once, and
+the two errors cancel unless the colleague also took the deleted
+element's own table. Re-run it after any change to what a save skips.

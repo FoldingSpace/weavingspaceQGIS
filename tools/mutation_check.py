@@ -9200,6 +9200,26 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="the-saves-count-is-asked-of-the-file", file=DIALOG,
+       # ANCHORED ON THE DECISION rather than on the sentence built
+       # from it: the two format strings below read the number, and an
+       # entry standing on either of those limbs would be answered by
+       # the other, which is the fallback-chain shape this catalogue
+       # has met three times.
+       old="""      holds = set(bridge.gpkg_tables(path))
+      kept = sum(1 for tid in order if tables.get(tid) in holds)""",
+       new="""      # mutation: count by arithmetic over one of the three lists
+      kept = len(order) - len(left_out)""",
+       test="test_the_saves_count_is_asked_of_the_file",
+       why="a save telling somebody the file holds three of four "
+           "elements when it holds two. The count subtracted the "
+           "elements whose LAYER had gone from the project and knew "
+           "nothing about the tables that had gone from the FILE, so "
+           "an element a colleague's save had taken was counted as "
+           "held. Measured 2026-09-02 on three arms in one run: the "
+           "two errors cancel where the drop spares the deleted "
+           "element's own table, and do not where the colleague's "
+           "save took that one too"),
   dict(name="a-resumed-map-stamps-its-own-layers", file=DIALOG,
        # ANCHORED ON THE HELPER rather than on either call site, which
        # is what this project's own rule asks: two branches call it,
