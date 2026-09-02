@@ -9766,8 +9766,18 @@ def _the_topology_tab_is_quiet(dlg, seconds: float = 90.0) -> bool:
 
   Returns:
     True where the tab went quiet -- no build in flight, none queued
-    behind one, and no "working" sentence up -- and False where it
-    never did, which is a real complaint rather than a slow machine.
+    behind one, no "working" sentence up, and NO PREVIEW REBUILD STILL
+    PENDING, since that rebuild is what queues a build at all -- and
+    False where it never did, which is a real complaint rather than a
+    slow machine.
+
+  IT STAGES A CONDITION AND DOES NOT ASSERT ONE, which is the
+  distinction this suite got wrong on 2026-09-01: waiting until the
+  tab is quiet is making something true, where demanding that it
+  already be quiet is a bet on the machine. So callers wait on this
+  and then ASSERT WHAT THEY ARE ABOUT TO READ -- that the panel holds
+  a topology -- because quiet says only that nothing is outstanding
+  and is trivially true of a tab that never built anything.
 
   WHY THIS EXISTS RATHER THAN A FOURTH INLINE LOOP.
   `_wait_for_the_topology` returns as soon as the panel holds an
@@ -9797,7 +9807,28 @@ def _the_topology_tab_is_quiet(dlg, seconds: float = 90.0) -> bool:
     queued = bool(getattr(dlg, "_topology_wanted", False))
     label = getattr(panel, "working", None)
     saying = bool((label.text() if label is not None else "").strip())
-    if not building and not queued and not saying:
+    # AND A PENDING REBUILD IS A BUILD ASKED FOR AND NOT YET QUEUED,
+    # which is the fourth way something can still be coming and was
+    # the one this function could not see. `_queue_topology` runs
+    # inside `_rebuild_unit`, which fires on the PREVIEW DEBOUNCE --
+    # an interval that is a floor of `PREVIEW_DEBOUNCE_MS` and widens
+    # to whatever the last rebuild cost, up to
+    # `PREVIEW_DEBOUNCE_CEILING_MS`, which is 350. Every caller here
+    # ticks 200 to 300 ms after moving the design, so on any machine
+    # where a rebuild has cost a third of a second the timer is still
+    # counting down: nothing is queued, nothing is in flight, no
+    # sentence is up, and the tab is quiet BY NEVER HAVING STARTED.
+    # Measured 2026-09-02 by staging that reading rather than waiting
+    # for a slow machine to supply it
+    # (`tools/probes/what_the_quiet_premise_proves.py`): with the last
+    # rebuild reported at 400 ms the panel went on holding the
+    # PREVIOUS design's classes -- `abcd`/`ABC` where the design in
+    # force has `ab`/`AB` -- and, where that previous design had no
+    # topology at all, held None, so the caller's next line raised
+    # AttributeError three lines below a premise that had just passed.
+    pending = bool(getattr(dlg, "_preview_timer", None) is not None
+                   and dlg._preview_timer.isActive())
+    if not building and not queued and not saying and not pending:
       return True
     _tick(100)
   return False
@@ -10291,8 +10322,23 @@ def test_several_classes_can_be_moved_together():
     # here because this test's subject is the SELECTION rather than a
     # landing arriving under a pointer.
     assert _the_topology_tab_is_quiet(dlg), \
-      "PREMISE: no topology was built, so there are no classes to aim at"
+      "PREMISE: a topology build never settled, so there is nothing " \
+      "stable to aim at"
     panel = dlg.topology_panel
+    # AND QUIET IS NOT THE SAME CLAIM AS BUILT, which is what the
+    # sentence above used to assert and could not measure. The
+    # function answers whether anything is OUTSTANDING; a tab that has
+    # never built anything is quiet, and the line below then reads
+    # `.edges` off None. Measured 2026-09-02
+    # (`tools/probes/what_the_quiet_premise_proves.py`): with a
+    # rebuild's cost reported at 400 ms the debounce had not fired, so
+    # the panel held either the previous design's classes or nothing
+    # at all, and this test failed with an AttributeError three lines
+    # below a premise that had just passed.
+    assert panel._topology is not None, (
+      "PREMISE: the panel holds no topology, so its classes cannot be "
+      "read -- the design in force is "
+      f"{dlg._family_key()!r} at n={dlg.n_spin.value()}")
     view = panel.view
     view.grab()
     _tick(50)
