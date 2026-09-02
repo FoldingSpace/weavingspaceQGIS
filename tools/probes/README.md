@@ -79,3 +79,13 @@ different datasets. Two arms: draw and save, against draw, save,
 glance at a second dataset in another system through the region
 chooser, and come back through the GROUP chooser. Run it after any
 change to what `_stamp_working_state` carries.
+
+**`which_controls_are_live_while_writing.py`** asks two questions in
+one run and keeps them apart: which controls a person could actually
+press at each beat of a write, and what pressing one costs. The first
+is worth asserting even if no press cost anything, which is why it is
+sampled rather than deduced -- this project has already fixed a
+mechanism whose journey turned out to be the suite's alone. Its seam
+is the progress bar's own beat, immediately before the `processEvents`
+that makes a click deliverable, and the press is staged there
+synchronously rather than from a timer.

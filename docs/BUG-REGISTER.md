@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-505 defect(s) with a regression test.
+506 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -588,6 +588,8 @@ there is no separate list to remember.
   guarded by `test_keeping_a_result_keeps_its_file_however_it_was_kept`
 - **live update's tile-count gate measured the region's bounding box rather than its ground, so it paused on sparse data and quoted a count many times what the map draws. Found by the size-guard hunt, 2026-08-27.**  
   guarded by `test_live_update_measures_the_ground_not_the_box`
+- **the Load button was live for the whole of every write, so a click inside the save's own pump wrote another map into the file being saved and left its record naming the other file.**  
+  guarded by `test_no_acting_control_is_live_while_a_save_writes`
 - **the push gate rebuilt an unversioned zip into dist/, and one such build was installed over a gated candidate.**  
   guarded by `test_no_artefact_is_named_without_its_version`
 - **every control on the Design tab was drawn as wide as the window, because a form layout stretches its field column under the style QGIS actually uses.**  
@@ -1064,7 +1066,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 178
+- the mutation campaign: 179
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

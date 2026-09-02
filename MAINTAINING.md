@@ -769,6 +769,26 @@ the TOP of the body, where none of that loop's four `continue`s can
 skip it -- a bar that stops moving on the elements that are skipped
 says the save has hung.
 
+**AND IT IS EVERY CONTROL THAT ACTS, WHICH IS A LIST RATHER THAN A
+PAIR.** The paragraph below named Save and Generate, correctly when it
+was written and incompletely from 2026-08-27, when LOAD arrived on the
+row beneath Save. It was live for the whole of every write and every
+resume, at both acts that pump -- measured 2026-09-02 at each of a
+write's twelve beats -- and a Load delivered by the save's own pump
+repoints every element layer mid-loop, so the other map's tiles go
+into this file's tables and its record names the other file as this
+one's output path. `CONTROLS_A_PUMP_TAKES_DOWN` is the list now, taken
+and restored by one owner both acts call, so a fourth control joins a
+list rather than being remembered at two sites.
+
+WHAT IS DELIBERATELY NOT IN IT: the two file CHOOSERS, since a chooser
+records what you would save to or load from and does nothing on its
+own. And what is NOT YET DECIDED is the rest of the acting controls --
+the Topology tab's Apply, Undo and Clear, and Auto -- which are live
+during a write and whose reach into the record captured after the loop
+nobody has measured. That is an open question rather than an omission,
+and it is on the owed list rather than repaired blind.
+
 **The pump and the disabling are one decision.** Turning the event
 loop is exactly what would otherwise let somebody press Save or
 Generate into a half-written file, so both controls go down for the

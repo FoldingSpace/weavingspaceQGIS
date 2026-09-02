@@ -39377,6 +39377,134 @@ def test_the_saves_count_is_asked_of_the_file():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_no_acting_control_is_live_while_a_save_writes():
+  """A write pumps, so every control that acts goes down with it.
+
+  MAINTAINING.md says of the save's pump: "Turning the event loop is
+  exactly what would otherwise let somebody press Save or Generate
+  into a half-written file, so both controls go down for the
+  duration." TWO controls. The interface has a THIRD button on that
+  row -- Load, added 2026-08-27, after that sentence -- and
+  `_resume_from_gpkg` guards `self._task is not None` and nothing
+  about a save. Measured 2026-09-02: at every one of a write's twelve
+  beats, Save and Generate were down and Load was LIVE.
+
+  WHAT IT COST. A Load delivered by the write's own pump repoints
+  every element layer mid-loop, so the already-saved skip stops
+  recognising them and the other map's tiles go into this file's
+  tables; and the record captured after the loop then describes the
+  other map and names the OTHER FILE as this one's output path -- so
+  the saved file points a resume at a file its owner may not have, and
+  their own next Save writes over the other map.
+
+  THE REACHABILITY IS MEASURED SEPARATELY FROM THE MECHANISM, which is
+  this project's rule after a defect whose journey turned out to be
+  the suite's alone. The first half of this test asks only what a
+  person could press, and would be worth asserting even if no press
+  cost anything.
+
+  THE LIST IS THE SHAPE. Both pumped acts -- the save and the resume
+  -- take their controls down through one owner now, so a fourth
+  control joins a list rather than being remembered at two sites.
+
+  WHAT IS DELIBERATELY NOT ASSERTED: the two file CHOOSERS stay live,
+  because a chooser records what you would save to or load from and
+  does nothing on its own (the ruling of 2026-08-27). Other acting
+  controls -- the Topology tab's Apply, Undo and Clear, and Auto --
+  are live during a write and are NOT claimed here: whether any of
+  them reaches the record captured after the loop is a measurement
+  nobody has taken, and it is on the owed list rather than repaired
+  blind.
+
+  Regression: the Load button was live for the whole of every write,
+  so a click inside the save's own pump wrote another map into the
+  file being saved and left its record naming the other file.
+  [mutation]
+  """
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  folder = tempfile.mkdtemp(prefix="ws_live_controls_")
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  watched = ("save_button", "generate_btn", "load_button")
+  try:
+    assert set(watched) <= set(dlg.CONTROLS_A_PUMP_TAKES_DOWN), (
+      f"the list a pumped act takes its controls from names "
+      f"{dlg.CONTROLS_A_PUMP_TAKES_DOWN}, which does not cover "
+      f"{watched}: a control missing from it is live for the whole of "
+      f"every write")
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    other = os.path.join(folder, "other.gpkg")
+    mine = os.path.join(folder, "mine.gpkg")
+    # A FIRST MAP SOMEWHERE ELSE, so there is something to open, drawn
+    # at a different spacing so the two cannot be confused.
+    dlg.spacing_spin.setValue(600.0)
+    _generate_and_wait(dlg)
+    dlg.gpkg_widget.setFilePath(other)
+    assert press_save(dlg, other), "PREMISE: the other map did not save"
+    # ...AND THEN THE MAP IN FRONT OF THEM.
+    dlg.spacing_spin.setValue(1200.0)
+    _generate_and_wait(dlg)
+    dlg.gpkg_widget.setFilePath(mine)
+    assert press_save(dlg, mine), "PREMISE: the first save of mine failed"
+
+    # THE SEAM IS THE PROGRESS BAR'S OWN BEAT, which the loop moves
+    # once per element at the top of its body, immediately before the
+    # `processEvents` that makes a click deliverable. It is staged
+    # SYNCHRONOUSLY rather than from a timer, which would measure how
+    # fast the machine is.
+    beats = []
+    real_set = dlg.progress.setValue
+    state = {"beat": 0}
+
+    def watched_beat(value):
+      """Sample what is live, then press Load at the second element."""
+      state["beat"] += 1
+      beats.append({name: getattr(dlg, name).isEnabled()
+                    for name in watched})
+      out = real_set(value)
+      if state["beat"] == 2:
+        dlg.resume_widget.setFilePath(other)
+        dlg.load_button.click()
+      return out
+
+    dlg.progress.setValue = watched_beat
+    try:
+      press_save(dlg, mine)
+    finally:
+      dlg.progress.setValue = real_set
+
+    assert len(beats) >= 2, (
+      f"the write beat {len(beats)} time(s), so the press was never "
+      f"staged inside it and this test measured nothing")
+    live = sorted({name for beat in beats
+                   for name, enabled in beat.items() if enabled})
+    assert not live, (
+      f"{live} stayed live for a write that pumps the event loop, so "
+      f"a person can press into a half-written file -- which is what "
+      f"taking the other controls down is for")
+    # ...AND THE PRESS COST NOTHING, which is the harm rather than the
+    # affordance. The saved file's own record must name the file it is.
+    record = bridge.read_working_state(mine) or {}
+    assert os.path.basename(str(record.get("output_path") or "")) \
+      == "mine.gpkg", (
+        f"the file just saved carries a record naming "
+        f"{record.get('output_path')!r}, so a resume from it points at "
+        f"another file and the next Save writes over that other map")
+    # AND THEY COME BACK AS THEY WERE FOUND, or the write's own repair
+    # leaves the person unable to press anything afterwards.
+    for name in watched:
+      assert getattr(dlg, name).isEnabled(), (
+        f"{name} was left disabled after the save finished")
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_a_records_region_and_its_crs_name_one_dataset():
   """The system a record names belongs to the region it names.
 
@@ -83954,6 +84082,8 @@ def main():
         test_the_overwrite_question_is_about_what_a_file_holds)
   check("a record's region and its crs name one dataset",
         test_a_records_region_and_its_crs_name_one_dataset)
+  check("no acting control is live while a save writes",
+        test_no_acting_control_is_live_while_a_save_writes)
   check("a resumed map tells its layers which region it found",
         test_a_resumed_map_tells_its_layers_which_region_it_found)
   check("a filter is a view and is never written into the file",

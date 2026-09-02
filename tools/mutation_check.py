@@ -9020,10 +9020,16 @@ MUTATIONS = [
        # for the same reason -- so the bare two lines match twice and
        # the tool would mutate whichever came first. The line below
        # them differs between a save and a load.
-       old="""    self.save_button.setEnabled(False)
-    self.generate_btn.setEnabled(False)
-    self.progress.setVisible(True)""",
-       new="""    self.progress.setVisible(True)""",
+       # AND RE-ANCHORED 2026-09-02 ONTO THE OWNER BOTH ACTS CALL,
+       # which retires that narrowing rather than tightening it: there
+       # is one site now, and covering both acts is a stronger claim
+       # than covering the save alone. Its sibling
+       # `a-pumped-act-takes-every-acting-control-down` stands on the
+       # LIST for a different axis -- this one says the controls are
+       # disabled at all, that one says WHICH.
+       old="""      was[name] = control.isEnabled()
+      control.setEnabled(False)""",
+       new="""      was[name] = control.isEnabled()  # mutation: leave it live""",
        test="test_a_save_lets_the_window_paint_while_it_writes",
        why="a save that turns the event loop not letting somebody "
            "press INTO it: the pump and the disabling are one "
@@ -9207,6 +9213,23 @@ MUTATIONS = [
            "drawn first, `tiles_b_landcover` was replaced by "
            "`tiles_b_v2` in a file whose own record still said "
            "landcover; with nothing drawn first, nothing moved"),
+  dict(name="a-pumped-act-takes-every-acting-control-down", file=DIALOG,
+       # ANCHORED ON THE LIST rather than on either call site: the
+       # save and the resume both take their controls from it, so a
+       # mutation at one site would leave the other answering -- the
+       # break-every-route rule, met before it could bite.
+       old="""  CONTROLS_A_PUMP_TAKES_DOWN = ("save_button", "generate_btn",
+                                "load_button")""",
+       new="""  CONTROLS_A_PUMP_TAKES_DOWN = ("save_button", "generate_btn")""",
+       test="test_no_acting_control_is_live_while_a_save_writes",
+       why="the Load button staying live for the whole of every write, "
+           "so a click delivered by the save's OWN pump repoints every "
+           "element layer mid-loop -- the already-saved skip then "
+           "stops recognising them, the other map's tiles go into this "
+           "file's tables, and the record captured after the loop "
+           "names the OTHER FILE as this one's output path. Measured "
+           "2026-09-02 at every one of a write's twelve beats: Save "
+           "and Generate down, Load live throughout"),
   dict(name="a-regions-system-travels-with-the-region", file=DIALOG,
        # ANCHORED ON THE CARRY LIST rather than on the switch-out
        # stamp's launch state, because this line is where "which

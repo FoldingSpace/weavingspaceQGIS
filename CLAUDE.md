@@ -5086,6 +5086,22 @@ here, and the decision to add one is the maintainer's. Recorded
   and are put back AS THEY WERE FOUND rather than enabled -- a save
   can be pressed while Generate is already refusing for its own
   reasons.
+  THAT SENTENCE NAMED TWO CONTROLS WHERE THE INTERFACE HAS THREE, and
+  the third is the one it cost. LOAD arrived on 2026-08-27, on the row
+  beneath Save, AFTER this was written -- and it was never taken down,
+  at either of the two acts that pump. Measured 2026-09-02 at every
+  one of a write's twelve beats: Save down, Generate down, Load LIVE
+  throughout. A click delivered by the save's own pump repoints every
+  element layer mid-loop, so the already-saved skip stops recognising
+  them and the other map's tiles go into this file's tables, and the
+  record captured after the loop names the OTHER FILE as this one's
+  output path.
+  SO THE CONTROLS ARE A LIST NOW, `CONTROLS_A_PUMP_TAKES_DOWN`, taken
+  and given back by one owner that both acts call. WHEN A
+  JUSTIFICATION ENUMERATES THE DOORS IT CLOSES, COUNT THE DOORS -- and
+  count them again whenever the interface gains one, because a
+  sentence naming two controls goes on reading correctly for ever
+  while a third sits beside them.
   THE COST IS UNTOUCHED AND THAT IS THE DECISION, not an omission.
   Responsiveness and cost are different questions, and answering the
   cheap one first is what stops a rewrite being done in a hurry.

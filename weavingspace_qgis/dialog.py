@@ -19617,10 +19617,7 @@ class WeavingSpaceDialog(QDialog):
     # elements against 2.68s at sixty, which is that ceiling's real
     # gift being DURATION rather than new ids.
     self._saving_now = True
-    was_enabled = (self.save_button.isEnabled(),
-                   self.generate_btn.isEnabled())
-    self.save_button.setEnabled(False)
-    self.generate_btn.setEnabled(False)
+    was_enabled = self._take_the_acting_controls_down()
     self.progress.setVisible(True)
     self.progress.setRange(0, len(order))
     self.progress.setValue(0)
@@ -19897,8 +19894,7 @@ class WeavingSpaceDialog(QDialog):
       self.progress.setVisible(False)
       self.progress.setRange(0, 100)
       self.progress.setFormat("%p%")
-      self.save_button.setEnabled(was_enabled[0])
-      self.generate_btn.setEnabled(was_enabled[1])
+      self._put_the_acting_controls_back(was_enabled)
       # ...AND THE LIVE PATH IS LET BACK IN, in the same `finally` as
       # the buttons and for the same reason: a write that raises must
       # not leave the plugin refusing to redraw for the rest of the
@@ -20316,6 +20312,61 @@ class WeavingSpaceDialog(QDialog):
       if here and same_source(here, record.get("region")):
         return True
     return False
+
+  # THE CONTROLS AN ACT THAT PUMPS MUST TAKE DOWN, in one place
+  # because there are two such acts and there was nearly a third.
+  # Turning the event loop is what lets the window paint AND what
+  # makes a click deliverable, so every control that ACTS on the map
+  # goes down for the duration. A chooser is not one of them: the
+  # ruling of 2026-08-27 is that a path chooser records what you WOULD
+  # save to or load from and does nothing on its own, so leaving the
+  # two file widgets live costs nothing and lets somebody line up
+  # their next act while they wait.
+  # IT IS A LIST RATHER THAN THREE LINES because the list is what a
+  # fourth control joins. Save and Generate were taken down by hand at
+  # both sites and Load -- added on 2026-08-27, after the sentence in
+  # MAINTAINING.md that names two controls -- was left live at both,
+  # for the whole of every write.
+  CONTROLS_A_PUMP_TAKES_DOWN = ("save_button", "generate_btn",
+                                "load_button")
+
+  def _take_the_acting_controls_down(self):
+    """Disable every control that acts, for the length of a pumped act.
+
+    Returns:
+      What each was, as a dict keyed by attribute name, to be handed
+      straight back to `_put_the_acting_controls_back`. They are put
+      back AS THEY WERE FOUND rather than enabled, since a save can be
+      pressed while Generate is already refusing for its own reasons.
+
+    A control missing from the dialog is skipped rather than raising:
+    this runs inside a `try` whose `finally` is what restores them,
+    and an exception here would take the restore with it.
+    """
+    was = {}
+    for name in self.CONTROLS_A_PUMP_TAKES_DOWN:
+      control = getattr(self, name, None)
+      if control is None:
+        continue
+      was[name] = control.isEnabled()
+      control.setEnabled(False)
+    return was
+
+  def _put_the_acting_controls_back(self, was) -> None:
+    """Restore what `_take_the_acting_controls_down` took.
+
+    Args:
+      was: the dict it returned, or anything falsy, which restores
+        nothing -- an act that never took them down has nothing to
+        give back.
+
+    Returns:
+      None.
+    """
+    for name, enabled in (was or {}).items():
+      control = getattr(self, name, None)
+      if control is not None:
+        control.setEnabled(enabled)
 
   def _may_overwrite(self, path) -> bool:
     """Ask before writing over a file this plugin did not write.
@@ -20773,10 +20824,7 @@ class WeavingSpaceDialog(QDialog):
     # still being opened -- the fault this project already measured on
     # the save side, where sixty elements were drawn, thirty-six tables
     # written and the record said eight.
-    was_enabled = (self.save_button.isEnabled(),
-                   self.generate_btn.isEnabled())
-    self.save_button.setEnabled(False)
-    self.generate_btn.setEnabled(False)
+    was_enabled = self._take_the_acting_controls_down()
     self._resuming_now = True
     self.progress.setVisible(True)
     self.progress.setRange(0, max(1, len(wanted)))
@@ -20891,8 +20939,7 @@ class WeavingSpaceDialog(QDialog):
       self.progress.setVisible(False)
       self.progress.setRange(0, 100)
       self.progress.setFormat("%p%")
-      self.save_button.setEnabled(was_enabled[0])
-      self.generate_btn.setEnabled(was_enabled[1])
+      self._put_the_acting_controls_back(was_enabled)
       self._resuming_now = False
     for _key, layer in sorted(arriving, key=lambda pair: pair[0]):
       group.addLayer(layer)
