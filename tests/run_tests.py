@@ -5563,7 +5563,16 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       # anywhere else is a selection.
       for kind in ("vertex", "edge"):
         at = aim_at(view, kind)
+        # A SKIP WITHOUT A LINE IS A CELL THAT NEVER EXISTED, and this
+        # one was bare `continue` while its sibling twenty lines below
+        # already said `FIXTURE:` -- the asymmetry being the tell. It
+        # matters more since the aimer learned to refuse a point under
+        # a HANDLE: a failed aim went from nearly impossible to
+        # ordinary, so a drag cell could vanish in silence and the
+        # verdict would read as a clean run.
         if at is None:
+          dead.append(f"FIXTURE: no {kind} could be aimed at for the "
+                      f"drag, so that cell measured nothing")
           continue
         QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
                          QtNamespace.KeyboardModifier.NoModifier, at)
@@ -49713,6 +49722,14 @@ def test_a_landing_between_the_click_and_the_press_keeps_the_choice():
 
   def one_arm(land_between_them):
     """Click a vertex, optionally land a rebuild, then drag it."""
+    # EACH ARM STARTS FROM AN EMPTY PROJECT, and that is not tidiness.
+    # Two arms sharing one `QgsProject` is how a control gets
+    # contaminated -- the control's region layer is still loaded when
+    # the treated arm builds its dialog, so the chooser has two layers
+    # to pick from and the arm may measure a design nobody staged.
+    # This test's own probe clears per arm; this did not, which the
+    # audit of 2026-09-02 found after both arms had passed.
+    QgsProject.instance().clear()
     layer = make_region_layer()
     QgsProject.instance().addMapLayer(layer)
     dlg = WeavingSpaceDialog(iface=_Iface())
@@ -49826,6 +49843,16 @@ def test_every_shared_waiter_widens_for_a_slow_machine():
 
   AND IT COUNTS WHAT IT SCANNED, since a walk that finds no waiters
   and a walk that looked at nothing are the same green.
+
+  ITS LIVENESS RESTS ON ITS FIRST RUN, and that is written here because
+  there is nowhere else it lives. This family carries no mutation
+  catalogue entry -- `test_every_ceiling_widens_for_a_slow_machine` has
+  none either, checked -- so nobody has broken this guard and watched
+  it fail. What stands instead is that its FIRST execution was red: it
+  named `_settle`, the oldest and most-called waiter here, which three
+  hand repairs made the same hour had missed. That is the red-that-came-
+  for-free this project records of the `os.path.exists` family guard,
+  and it is the only evidence a guard of this shape ever gets.
 
   Regression: three shared wait helpers carried ceilings sized on this Mac while every other bound in the suite widened for a slow machine, and one of them spent a release candidate on a runner. [suite]
   """
