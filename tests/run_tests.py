@@ -3385,7 +3385,7 @@ def _wait_for_the_topology(dlg, seconds: float = 40.0) -> bool:
   suite's standing rule for exactly this shape.
   """
   import time as _time
-  deadline = _time.monotonic() + seconds
+  deadline = _time.monotonic() + seconds * CONTENTION
   while _time.monotonic() < deadline:
     panel = getattr(dlg, "topology_panel", None)
     if panel is None:
@@ -5399,11 +5399,32 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       return None
     middle = (view.width() / 2, view.height() / 2)
     best = at = None
+    # A POINT UNDER A HANDLE IS NOT A POINT THAT SELECTS, which this
+    # docstring has said since it was written and only the `every`
+    # path acted on. `_handle_at` is asked before edges and vertices
+    # and reaches 13 pixels, so a click there GRABS -- and a click is
+    # a press and a release with no travel, so it commits nothing,
+    # moves no store, and leaves whatever was selected still selected.
+    # A caller taking the single nearest candidate would then click a
+    # vertex, hold an edge, and read "nudge_vertex is not offered
+    # while holding a edge" -- a sentence about the fixture wearing a
+    # complaint about the product. Measured 2026-09-02, when the class
+    # chooser was taught to KEEP its class across a rebuild: before
+    # that a rebuild reset it to the first vertex class, which cleared
+    # the edge handles out of the way and hid this.
+    seated = [where for _key, where, _shape in (view.handles() or [])]
+
+    def under_a_handle(point):
+      return any(((where.x() - point.x()) ** 2
+                  + (where.y() - point.y()) ** 2) ** 0.5 < 13.0
+                 for where in seated)
 
     def consider(x, y):
       point = view._to_screen(x, y)
       if not (0 <= point.x() <= view.width()
               and 0 <= point.y() <= view.height()):
+        return None
+      if under_a_handle(point):
         return None
       away = ((point.x() - middle[0]) ** 2
               + (point.y() - middle[1]) ** 2) ** 0.5
@@ -5503,7 +5524,8 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
         """
         _settle_topology(dlg, seconds=40)
         _settle(dlg)
-        for _ in range(seconds * 5):
+        # WIDENED FOR A SLOW MACHINE like every other bound here.
+        for _ in range(int(seconds * 5 * CONTENTION)):
           seen = moved(before_stores, stores(dlg))
           if wanted <= seen:
             return seen
@@ -5729,8 +5751,9 @@ def test_a_drag_previews_the_move_it_will_commit():
     # replaced -- so the premise below would fail about a selection
     # something else had just taken away. Found by CI on a candidate's
     # own commit, 2026-09-01, having passed here every time.
-    assert _the_topology_tab_is_quiet(dlg), \
-      "PREMISE: a topology build never stopped being outstanding"
+    assert _the_topology_tab_is_quiet(dlg), (
+      "PREMISE: a topology build never stopped being outstanding -- "
+      + _why_the_topology_tab_is_busy(dlg))
     QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
                      QtNamespace.KeyboardModifier.NoModifier, seat[1])
     _tick(150)
@@ -6706,8 +6729,9 @@ def test_a_drag_is_measured_in_the_frame_it_began_in():
     # replaced -- so the premise below would fail about a selection
     # something else had just taken away. Found by CI on a candidate's
     # own commit, 2026-09-01, having passed here every time.
-    assert _the_topology_tab_is_quiet(dlg), \
-      "PREMISE: a topology build never stopped being outstanding"
+    assert _the_topology_tab_is_quiet(dlg), (
+      "PREMISE: a topology build never stopped being outstanding -- "
+      + _why_the_topology_tab_is_busy(dlg))
     QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
                      QtNamespace.KeyboardModifier.NoModifier, seat[1])
     _tick(150)
@@ -7780,7 +7804,7 @@ def test_a_save_owed_a_topology_waits_for_it():
     # about, so that is what it waits for, with a ceiling that catches
     # a hang rather than budgeting the work.
     _settle_topology(dlg, seconds=60)
-    kept_by = time.monotonic() + 90.0
+    kept_by = time.monotonic() + 90.0 * CONTENTION
     while time.monotonic() < kept_by and dlg._save_pending:
       _tick(100)
     _settle(dlg)
@@ -7840,7 +7864,7 @@ def test_the_topology_tab_says_when_it_is_working():
     # process, on the premise rather than the subject. Waiting for the
     # tab to actually go quiet closes the window; the assertion then
     # names a genuine failure to settle rather than a race.
-    quiet_by = time.monotonic() + 90.0
+    quiet_by = time.monotonic() + 90.0 * CONTENTION
     while time.monotonic() < quiet_by and (
         dlg._topology_task is not None or panel.working.text().strip()):
       _tick(100)
@@ -7872,7 +7896,7 @@ def test_the_topology_tab_says_when_it_is_working():
     assert dlg._topology_task is not None, (
       "PREMISE: the queue started no build, so nothing below is about "
       "one landing")
-    landed_by = time.monotonic() + 90.0
+    landed_by = time.monotonic() + 90.0 * CONTENTION
     while time.monotonic() < landed_by and dlg._topology_task is not None:
       _tick(100)
     assert dlg._topology_task is None, \
@@ -10030,6 +10054,47 @@ def test_topology_edits_survive_the_working_state():
     second.close()
 
 
+def _why_the_topology_tab_is_busy(dlg) -> str:
+  """Which of the four outstanding things is still true, in words.
+
+  Args:
+    dlg: the dialog whose Topology tab to read.
+
+  Returns:
+    A sentence naming every term `_the_topology_tab_is_quiet` waits
+    on that is still true, with what the panel holds beside it, or
+    a note that none is.
+
+  IT EXISTS BECAUSE A PREMISE THAT NAMES NO CAUSE COSTS A CI ROUND.
+  On 2026-09-02 CI's 4.0.3 leg spent a candidate on a premise about a
+  build that never stopped being outstanding -- ninety seconds, 771
+  passed and 1 failed -- and the sentence could not say WHICH of the
+  four terms had not cleared, while the next topology test on the
+  same runner passed in 4.3 seconds. This project's own rule is to
+  say what was FOUND rather than which assertion was reached, and it
+  bites hardest on a machine nobody here can drive.
+  """
+  panel = getattr(dlg, "topology_panel", None)
+  if panel is None:
+    return "there is no topology panel at all"
+  label = getattr(panel, "working", None)
+  timer = getattr(dlg, "_preview_timer", None)
+  outstanding = []
+  if getattr(dlg, "_topology_task", None) is not None:
+    outstanding.append("a build is in flight")
+  if bool(getattr(dlg, "_topology_wanted", False)):
+    outstanding.append("another is queued behind it")
+  saying = (label.text() if label is not None else "").strip()
+  if saying:
+    outstanding.append(f"the tab still says {saying!r}")
+  if timer is not None and timer.isActive():
+    outstanding.append(
+      f"a preview rebuild is pending ({timer.interval()} ms)")
+  held = getattr(panel, "_topology", None)
+  return (", ".join(outstanding) or "none of the four is outstanding") + \
+    f"; the panel holds {'a topology' if held is not None else 'none'}"
+
+
 def _the_topology_tab_is_quiet(dlg, seconds: float = 90.0) -> bool:
   """Wait until no topology build is outstanding, or say it never was.
 
@@ -10077,7 +10142,7 @@ def _the_topology_tab_is_quiet(dlg, seconds: float = 90.0) -> bool:
   panel = getattr(dlg, "topology_panel", None)
   if panel is None:
     return True
-  deadline = _time.monotonic() + seconds
+  deadline = _time.monotonic() + seconds * CONTENTION
   while _time.monotonic() < deadline:
     building = getattr(dlg, "_topology_task", None) is not None
     queued = bool(getattr(dlg, "_topology_wanted", False))
@@ -10134,7 +10199,16 @@ def _settle_topology(dlg, seconds: int = 30):
   # saying why not -- and only fall back to the task being clear, which
   # is what a design that legitimately produces neither looks like.
   panel = getattr(dlg, "topology_panel", None)
-  for _ in range(seconds * 5):
+  # AND IT WIDENS FOR A SLOW MACHINE, as every other bound in this
+  # suite does. This counted TICKS and multiplied by nothing, so a
+  # three-shard Linux run -- where CONTENTION is 2.5 times the
+  # platform's own declared SLOWNESS -- got this Mac's allowance while
+  # every neighbouring wait got seven and a half times it. Its two
+  # siblings had the same omission, and one of them spent rc14: `a
+  # drag is measured in the frame it began in` sat out a ninety-second
+  # ceiling on CI's 4.0.3 leg, 771 passed and 1 failed, while the next
+  # topology test on that runner passed in 4.3 seconds.
+  for _ in range(int(seconds * 5 * CONTENTION)):
     _tick(200)
     if getattr(dlg, "_topology_task", None) is not None:
       continue
@@ -49580,6 +49654,208 @@ def test_a_dock_edit_during_a_run_is_not_lost():
   dlg.close()
 
 
+def test_a_landing_between_the_click_and_the_press_keeps_the_choice():
+  """A rebuild must not move what somebody has just clicked on.
+
+  The ruling of 2026-09-01 holds a landing that arrives MID-GESTURE
+  until the pointer comes up. `gesture_in_progress()` is true between
+  the press and the release, so the window between the CLICK that
+  chooses a class and the PRESS that grabs its handle is NOT covered,
+  and a landing there is applied at once.
+
+  TWO THINGS WENT WRONG IN THAT WINDOW AND BOTH ARE HERE. The class
+  chooser is refilled by a rebuild and a refilled combo sits on its
+  first entry, so `vertex B` became `vertex A` with nothing said --
+  while the verb chooser beside it has kept its own selection across a
+  refill since it was written. And `_settle_what_the_handles_sit_on`
+  re-seated the selection on the FIRST member of the class, which on
+  this fixture is 177 pixels from the click, so the press found no
+  handle, the drag drew no preview, and no edit was recorded.
+
+  MACOS CI FAILED ON EXACTLY THAT, at `743e73b` on 2026-09-02: `every
+  way of editing the topology moves the drawing`, 771 passed and 1
+  failed, with BOTH complaints its vertex cell can make -- "dragging a
+  vertex showed nothing while it moved" and "dragging a vertex left
+  ['chose']". The commit touched no shipped source, and the matrix
+  passes here three times in three, so the window is narrow rather
+  than the behaviour rare. Staged by
+  `tools/probes/a_landing_between_the_click_and_the_press.py`.
+
+  BOTH ANSWERS ARE ASSERTED IN ONE TEST, because they differ by one
+  thing only -- whether a build landed -- and a reader meeting either
+  alone would take it for the whole rule.
+
+  Regression: a topology build landing between the click that chose a class and the press that grabbed its handle moved the chooser to another class and the handles across the drawing, so the drag did nothing at all. [second-machine]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def a_vertex_to_aim_at(view):
+    """A screen point on a drawn vertex, nearest the middle."""
+    topology = view._drawn()
+    if topology is None:
+      return None
+    middle = (view.width() / 2, view.height() / 2)
+    seats = []
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      seats.append((away, QPoint(int(round(point.x())),
+                                 int(round(point.y())))))
+    seats.sort(key=lambda pair: pair[0])
+    return seats[0][1] if seats else None
+
+  def one_arm(land_between_them):
+    """Click a vertex, optionally land a rebuild, then drag it."""
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.opt_experimental.setChecked(True)
+      dlg.live_check.setChecked(False)
+      dlg.show()
+      _tick(200)
+      dlg.n_spin.setValue(4)
+      _tick(200)
+      _choose_family(dlg, "laves 3.3.4.3.4")
+      _tick(300)
+      assert _wait_for_the_topology(dlg), \
+        "PREMISE: no topology was built, so there is nothing to choose"
+      panel = dlg.topology_panel
+      view = panel.view
+      view.grab()
+      _tick(50)
+
+      at = a_vertex_to_aim_at(view)
+      assert at is not None, \
+        "PREMISE: no vertex is drawn inside the widget to click"
+      QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, at)
+      _tick(150)
+      chose = panel.class_combo.currentText()
+      assert view._chosen_thing is not None, \
+        "PREMISE: the click chose nothing, so nothing is staged"
+
+      if land_between_them:
+        # A REBUILD OF THE SAME DESIGN, which is what actually lands:
+        # a queued build finishing re-runs THIS design, so the classes
+        # carry the same labels over NEW objects. Landing another
+        # family would stage a louder condition than the journey
+        # produces.
+        rebuilt, why = topology_edits.build(panel._unit)
+        assert rebuilt is not None, \
+          f"PREMISE: the same design would not rebuild ({why})"
+        panel.set_unit(panel._unit, rebuilt, ghost=None)
+        _tick(100)
+
+      far = QPoint(at.x() + 12, at.y() - 9)
+      QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, at)
+      _tick(30)
+      QTest.mouseMove(view, far)
+      _tick(30)
+      drew = view._preview is not None
+      QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, far)
+      _tick(250)
+      return chose, panel.class_combo.currentText(), drew, len(
+        panel.edits() or [])
+    finally:
+      dlg.close()
+      _tick(100)
+
+  # ---- THE CONTROL, which says the measurement is live at all: with
+  # nothing landing, this journey chooses, drags, previews and records.
+  chose, after, drew, edits = one_arm(False)
+  assert after == chose, (
+    f"PREMISE: the chooser moved from {chose!r} to {after!r} with no "
+    f"build landing at all, so this fixture cannot tell a landing's "
+    f"damage from its own")
+  assert drew and edits == 1, (
+    f"PREMISE: an undisturbed click-then-drag drew preview={drew} and "
+    f"recorded {edits} edit(s), so the treated arm below would measure "
+    f"a journey that does not work anyway")
+
+  # ---- THE TREATED ARM: the same journey with a build landing in the
+  # one window the mid-gesture hold cannot see.
+  chose, after, drew, edits = one_arm(True)
+  assert after == chose, (
+    f"a build landing between the click and the press moved the class "
+    f"chooser from {chose!r} to {after!r}, so the class somebody "
+    f"selected was silently replaced by whichever one sorts first")
+  assert drew, (
+    "a build landing between the click and the press left the handles "
+    "on another member of the class, so the press found nothing to "
+    "grab and the drag drew no preview at all")
+  assert edits == 1, (
+    f"a build landing between the click and the press cost the drag "
+    f"its edit: {edits} recorded rather than 1, so a gesture the "
+    f"person watched move under their hand did nothing")
+
+
+def test_every_shared_waiter_widens_for_a_slow_machine():
+  """A helper that WAITS must scale its bound by `CONTENTION`.
+
+  The suite's own allowances are all `CONTENTION` times something --
+  `_stall_ceiling`, `_settle`, the coverage waits -- and CONTENTION is
+  2.5 for a sharded run times each platform's declared SLOWNESS, so a
+  three-shard Linux job gets 7.5 times this Mac's patience. THREE
+  SHARED WAITERS HAD NO SUCH FACTOR: `_wait_for_the_topology`,
+  `_the_topology_tab_is_quiet` and `_settle_topology`, the last
+  counting ticks rather than seconds.
+
+  WHAT IT COST WAS A CANDIDATE. On 2026-09-02 CI's 4.0.3 leg failed `a
+  drag is measured in the frame it began in` on its premise after
+  ninety seconds -- 771 passed and 1 failed of one shard of three --
+  while the next topology test on that same runner passed in 4.3
+  seconds, so the tab was healthy and only the allowance was this
+  machine's.
+
+  IT GUARDS THE SHAPE AND DERIVES ITS OWN LIST, because a hand-kept
+  list of waiters drifts the first time somebody adds a fourth -- the
+  fault this project has recorded of `USER_FACING` and of
+  `sandbox.INCLUDE_FILES`. Every module-level helper whose name says
+  it waits (`_wait...`, `_settle...`, or asks whether something is
+  quiet) must mention CONTENTION in its own body.
+
+  AND IT COUNTS WHAT IT SCANNED, since a walk that finds no waiters
+  and a walk that looked at nothing are the same green.
+
+  Regression: three shared wait helpers carried ceilings sized on this Mac while every other bound in the suite widened for a slow machine, and one of them spent a release candidate on a runner. [suite]
+  """
+  import ast as _ast
+
+  source = open(os.path.join(ROOT, "tests", "run_tests.py"),
+                encoding="utf-8").read()
+  tree = _ast.parse(source)
+  waiters = []
+  unscaled = []
+  for node in tree.body:
+    if not isinstance(node, _ast.FunctionDef):
+      continue
+    name = node.name
+    if not (name.startswith("_wait") or name.startswith("_settle")
+            or "is_quiet" in name):
+      continue
+    waiters.append(name)
+    body = _ast.get_source_segment(source, node) or ""
+    if "CONTENTION" not in body:
+      unscaled.append(name)
+  assert len(waiters) >= 3, (
+    f"this walk found {len(waiters)} wait helpers, so it is measuring "
+    f"nothing: {waiters}")
+  assert not unscaled, (
+    "these shared waiters do not widen for a slow machine, so a "
+    "sharded run on a slower platform gets this Mac's patience while "
+    f"every other bound gets CONTENTION times it: {unscaled}")
+
+
 def test_every_ceiling_widens_for_a_slow_machine():
   """The timing factor accounts for the MACHINE, not only for sharding.
 
@@ -53634,6 +53910,25 @@ def test_extreme_magnitudes_render_readable_legends():
 # checked nothing, and the one thing worse than a red suite is a green
 # one that measured less than it did yesterday without saying so.
 TOOLING_SKIPS = []
+
+
+def _qgis_version():
+  """The running QGIS as a tuple of integers.
+
+  Returns:
+    (major, minor, patch), e.g. (4, 0, 3). Falls back to (0, 0, 0)
+    where the string cannot be read, which makes an unreadable version
+    behave like an unknown one: every version-gated skip is written as
+    "equals the version that fails", so an unknown QGIS RUNS the test
+    rather than quietly skipping it. A gate that skips on doubt is how
+    coverage disappears without anybody deciding to give it up.
+  """
+  try:
+    from qgis.core import Qgis
+    parts = str(Qgis.QGIS_VERSION).split("-")[0].split(".")
+    return tuple(int(part) for part in parts[:3])
+  except Exception:                                     # noqa: BLE001
+    return (0, 0, 0)
 
 
 def _skip_loudly(test, reason):
@@ -61840,9 +62135,12 @@ def _settle(dlg, seconds=30):
     dlg: the dialog to wait on. Quiet means no task in flight and no
       debounce pending — both, because either alone leaves work that
       will still change the thing under test.
-    seconds: how long to wait before giving up. Thirty is generous
-      for a synthetic layer and short enough that a genuine hang is
-      reported as a failed test rather than a stalled suite.
+    seconds: how long to wait before giving up, WIDENED BY
+      `CONTENTION` like every other allowance here -- thirty is
+      generous for a synthetic layer on this Mac, and this Mac is the
+      fastest machine the suite will ever run on. Short enough, even
+      multiplied, that a genuine hang is reported as a failed test
+      rather than a stalled suite.
 
   Returns:
     True when the dialog settled, False on timeout. Callers assert on
@@ -61870,7 +62168,7 @@ def _settle(dlg, seconds=30):
              and not dlg._live_timer.isActive()
              and not dlg._preview_timer.isActive()
              and not (repaint is not None and repaint.isActive()))
-    if quiet or n[0] > seconds * 5:
+    if quiet or n[0] > seconds * 5 * CONTENTION:
       state["settled"] = quiet
       loop.quit()
       return
@@ -81504,81 +81802,113 @@ def test_every_restyle_door_repaints_the_preview():
     _tick(100)
     project.clear()
     _tick(300)
-  # door two: live ON, the region file moved away, ramp picked
-  folder = tempfile.mkdtemp(prefix="ws_prevdoor_")
-  try:
-    region, region_path = _boundary_disk_region(folder)
-    dlg = WeavingSpaceDialog(iface=_Iface())
+  def door_two():
+    """Live ON, the region file moved out from under the layer.
+
+    Returns:
+      None. Lifted out of the test body so it can be SKIPPED by
+      name on the one QGIS this abort has ever been seen on --
+      the alternative being a third guess at a destruction order,
+      which the note below rules out in advance.
+    """
+    # door two: live ON, the region file moved away, ramp picked
+    folder = tempfile.mkdtemp(prefix="ws_prevdoor_")
     try:
-      dlg.layer_combo.setLayer(region)
-      _tick(400)
-      assert dlg.live_check.isChecked(), "PREMISE: live update is off"
-      _tick(2500)
-      _settle(dlg, seconds=90)
-      assert dlg._element_layer_ids, "PREMISE: no live map landed"
-      tid = sorted(dlg._element_layer_ids)[0]
-      row = next(r for r in range(dlg.table.rowCount())
-                 if dlg.table.item(r, 0).text() == tid)
-      old = str(dlg._table_id_colours()[tid]).lower()
-      assert resting(dlg, tid) == old, \
-        "ORACLE PREMISE: the preview does not hold the baseline colour"
-      # WINDOWS CANNOT STAGE THIS DOOR, and it says so rather than
-      # failing: the OGR provider holds the GeoPackage open, and
-      # Windows refuses to rename a file another handle has, so "the
-      # source went away while the layer was open" is a state that
-      # does not exist there. Releasing the provider first would
-      # destroy the very layer this door is about. Door one above ran
-      # in full, so the SKIP names which half went missing rather
-      # than letting the test read as wholly skipped -- the practice
-      # four older tests here already follow.
+      region, region_path = _boundary_disk_region(folder)
+      dlg = WeavingSpaceDialog(iface=_Iface())
       try:
-        os.rename(region_path, region_path + ".away")
-      except OSError as exc:
-        _skip_loudly(
-          "test_every_restyle_door_repaints_the_preview",
-          f"door two only: this platform will not move a GeoPackage "
-          f"out from under an open layer, so the source-gone restyle "
-          f"cannot be staged here ({exc}). Door one ran.")
-        return
-      _tick(300)
-      other = "Purples" if "#6a51a3" not in old else "Oranges"
-      pick_ramp(dlg, row, other)
-      _tick(2500)
-      _settle(dlg, seconds=90)
-      new = str(dlg._table_id_colours()[tid]).lower()
-      assert new != old, \
-        f"PREMISE: the source-gone restyle never painted ({old}->{new})"
-      assert resting(dlg, tid) == new, \
-        f"after the source-gone restyle the preview rests on " \
-        f"{resting(dlg, tid)} while the table holds {new}"
+        dlg.layer_combo.setLayer(region)
+        _tick(400)
+        assert dlg.live_check.isChecked(), "PREMISE: live update is off"
+        _tick(2500)
+        _settle(dlg, seconds=90)
+        assert dlg._element_layer_ids, "PREMISE: no live map landed"
+        tid = sorted(dlg._element_layer_ids)[0]
+        row = next(r for r in range(dlg.table.rowCount())
+                   if dlg.table.item(r, 0).text() == tid)
+        old = str(dlg._table_id_colours()[tid]).lower()
+        assert resting(dlg, tid) == old, \
+          "ORACLE PREMISE: the preview does not hold the baseline colour"
+        # WINDOWS CANNOT STAGE THIS DOOR, and it says so rather than
+        # failing: the OGR provider holds the GeoPackage open, and
+        # Windows refuses to rename a file another handle has, so "the
+        # source went away while the layer was open" is a state that
+        # does not exist there. Releasing the provider first would
+        # destroy the very layer this door is about. Door one above ran
+        # in full, so the SKIP names which half went missing rather
+        # than letting the test read as wholly skipped -- the practice
+        # four older tests here already follow.
+        try:
+          os.rename(region_path, region_path + ".away")
+        except OSError as exc:
+          _skip_loudly(
+            "test_every_restyle_door_repaints_the_preview",
+            f"door two only: this platform will not move a GeoPackage "
+            f"out from under an open layer, so the source-gone restyle "
+            f"cannot be staged here ({exc}). Door one ran.")
+          return
+        _tick(300)
+        other = "Purples" if "#6a51a3" not in old else "Oranges"
+        pick_ramp(dlg, row, other)
+        _tick(2500)
+        _settle(dlg, seconds=90)
+        new = str(dlg._table_id_colours()[tid]).lower()
+        assert new != old, \
+          f"PREMISE: the source-gone restyle never painted ({old}->{new})"
+        assert resting(dlg, tid) == new, \
+          f"after the source-gone restyle the preview rests on " \
+          f"{resting(dlg, tid)} while the table holds {new}"
+      finally:
+        # THIS DOOR MOVES A GEOPACKAGE OUT FROM UNDER A LIVE LAYER, so
+        # what it leaves behind is a provider whose file has gone. On
+        # Linux QGIS 4.0.0 the suite ABORTED at exit 134 -- `corrupted
+        # double-linked list`, no Python traceback, inside `check`'s own
+        # `project.clear()` on the line after this test PASSED, with a
+        # thousand `sqlite3_open(.../region.gpkg) failed` lines above it
+        # from this very folder. Closing a window neither destroys its
+        # C++ object nor drops what it holds, so that destruction
+        # happened in a teardown shared with every other test. It
+        # happens HERE now, in an order this test chooses, and the
+        # layers go before the file does.
+        #
+        # ELEVEN OTHER TESTS CLOSE A DIALOG AND THEN CLEAR THE PROJECT
+        # without destroying it, which is the same shape; they are left
+        # alone deliberately, because this is the one whose file is
+        # removed underneath a layer and the only one measured to abort.
+        # (2026-09-01. The abort is 4.0.0's alone -- 4.0.3 and stable
+        # were green on the same tree -- so if it returns, the honest
+        # next step is `_skip_loudly` naming the version rather than
+        # another guess at the order.)
+        dlg.close()
+        dlg.deleteLater()
+        _tick(100)
     finally:
-      # THIS DOOR MOVES A GEOPACKAGE OUT FROM UNDER A LIVE LAYER, so
-      # what it leaves behind is a provider whose file has gone. On
-      # Linux QGIS 4.0.0 the suite ABORTED at exit 134 -- `corrupted
-      # double-linked list`, no Python traceback, inside `check`'s own
-      # `project.clear()` on the line after this test PASSED, with a
-      # thousand `sqlite3_open(.../region.gpkg) failed` lines above it
-      # from this very folder. Closing a window neither destroys its
-      # C++ object nor drops what it holds, so that destruction
-      # happened in a teardown shared with every other test. It
-      # happens HERE now, in an order this test chooses, and the
-      # layers go before the file does.
-      #
-      # ELEVEN OTHER TESTS CLOSE A DIALOG AND THEN CLEAR THE PROJECT
-      # without destroying it, which is the same shape; they are left
-      # alone deliberately, because this is the one whose file is
-      # removed underneath a layer and the only one measured to abort.
-      # (2026-09-01. The abort is 4.0.0's alone -- 4.0.3 and stable
-      # were green on the same tree -- so if it returns, the honest
-      # next step is `_skip_loudly` naming the version rather than
-      # another guess at the order.)
-      dlg.close()
-      dlg.deleteLater()
-      _tick(100)
-  finally:
-    project.clear()
-    _tick(200)
-    shutil.rmtree(folder, ignore_errors=True)
+      project.clear()
+      _tick(200)
+      shutil.rmtree(folder, ignore_errors=True)
+
+  # DOOR TWO IS NOT DRIVEN ON QGIS 4.0.0, AND THE SKIP IS LOUD.
+  # The note inside it records an abort measured on 2026-09-01 --
+  # `corrupted double-linked list`, exit 134, inside `check`'s own
+  # `project.clear()` on the line after this test PASSED, with a
+  # thousand `sqlite3_open(.../region.gpkg) failed` lines above it.
+  # The repair was to destroy the layers here, in an order this test
+  # chooses, and it was written down at the same time that IF THE
+  # ABORT RETURNED the honest next step was to skip by version
+  # rather than to guess again at the order.
+  # IT RETURNED: 2026-09-02 at `743e73b`, the same test, the same
+  # signature, on 4.0.0 alone -- 4.0.3 and stable were green on that
+  # very tree, and it does not reproduce here in two runs of the
+  # neighbourhood. So the prediction is honoured rather than
+  # re-litigated. What is given up is one door's coverage on one
+  # QGIS, announced in the run's own output; what is kept is a suite
+  # that reports its results instead of aborting with them unread.
+  if _qgis_version() == (4, 0, 0):
+    _skip_loudly(
+      "every restyle door repaints the preview (door two)",
+      "QGIS 4.0.0 aborts with `corrupted double-linked list` when a provider whose GeoPackage has been moved away is destroyed; measured 2026-09-01 and again 2026-09-02, on that version alone. The other two doors ran. Drive this door by hand on 4.0.3 when changing the restyle path.")
+  else:
+    door_two()
 
   # door three: a dock edit the plugin cannot NAME, so the element
   # starts deferring. A rule-based renderer is the plainest such edit
@@ -86050,6 +86380,10 @@ def main():
         test_a_dock_edit_during_a_run_is_not_lost)
   check("every ceiling widens for a slow machine",
         test_every_ceiling_widens_for_a_slow_machine)
+  check("every shared waiter widens for a slow machine",
+        test_every_shared_waiter_widens_for_a_slow_machine)
+  check("a landing between the click and the press keeps the choice",
+        test_a_landing_between_the_click_and_the_press_keeps_the_choice)
   check("one file spelt two ways is one destination",
         test_one_file_spelt_two_ways_is_one_destination)
   check("a run in flight does not land in the project that replaced it",

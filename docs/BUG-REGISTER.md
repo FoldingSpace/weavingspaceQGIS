@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-513 defect(s) with a regression test.
+515 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -767,6 +767,8 @@ there is no separate list to remember.
 
 - **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
   guarded by `test_a_hanging_test_is_named_rather_than_silent`
+- **a topology build landing between the click that chose a class and the press that grabbed its handle moved the chooser to another class and the handles across the drawing, so the drag did nothing at all.**  
+  guarded by `test_a_landing_between_the_click_and_the_press_keeps_the_choice`
 - **`CONTENTION` knew about sharding and nothing about the platform, so an unsharded CI run gave a test ten seconds on a Windows runner where neighbouring tests take 250s. It failed there at 18.7s and passed on macOS in 9.0s: the same code and assertion, two verdicts decided by the machine. Third ceiling this project sized from the machine in front of it.**  
   guarded by `test_every_ceiling_widens_for_a_slow_machine`
 - **tests/visual_tests.py never added libs/ to sys.path, so the visual gallery could not run on any Linux QGIS that had to provision its dependencies, and the first run of the gallery experiment measured that instead of the fonts it was written to measure.**  
@@ -794,6 +796,8 @@ there is no separate list to remember.
   guarded by `test_a_style_picked_by_hand_still_follows_a_paste_in_qgis`
 - **none in the product -- the clear works. What was missing was any test that could notice if it stopped, which the catalogue's own retirement had been credited to.**  
   guarded by `test_create_new_makes_one_group_and_not_one_per_run`
+- **three shared wait helpers carried ceilings sized on this Mac while every other bound in the suite widened for a slow machine, and one of them spent a release candidate on a runner.**  
+  guarded by `test_every_shared_waiter_widens_for_a_slow_machine`
 - **a late progress report reached a deleted progress bar and took QGIS with it; the topology task's landing wrote into a closed window's panel. Found by the hunt round of 2026-08-30.**  
   guarded by `test_every_task_callback_can_ask_whether_its_dialog_is_gone`
 - **a sharded coverage recorder lost a whole shard at startup to a race between three processes removing one file.**  
@@ -1085,8 +1089,8 @@ there is no separate list to remember.
 - not written down at the time: 88
 - reported by a user: 40
 - reading the code: 15
-- running the suite somewhere other than the machine it was written on: 9
-- the functional suite, run whole: 8
+- running the suite somewhere other than the machine it was written on: 10
+- the functional suite, run whole: 9
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5

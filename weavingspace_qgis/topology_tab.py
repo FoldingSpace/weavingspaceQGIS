@@ -266,6 +266,11 @@ class TopologyView(QWidget):
     # to the class, but the handles have to be drawn ON something, and
     # the honest something is the one the person clicked.
     self._chosen_thing = None
+    # WHERE THE CHOSEN THING SAT AT THE LAST REBUILD, so the handles
+    # come back to the place a person clicked rather than to whichever
+    # member of the class sorts first. None whenever there is nothing
+    # to come back to.
+    self._chosen_anchor = None
     # A handle under the pointer, and the one being dragged.
     self._hover_handle = ""
     self._held_handle = ""
@@ -308,6 +313,17 @@ class TopologyView(QWidget):
     # nothing else refers to -- and `is` comparisons against it would
     # answer False for the edge that looks identical on screen. The
     # CLASS survives a rebuild; the object does not.
+    # BUT WHERE IT SAT SURVIVES TOO, and that is the half this was
+    # missing. A class has several members, and re-seating on the
+    # FIRST of them moves the handles across the drawing: measured
+    # 2026-09-02, a vertex clicked and then rebuilt under the pointer
+    # put its handle 177 pixels from the click, so the press that
+    # followed found nothing and the drag drew no preview at all. The
+    # anchor is taken and cleared by `_settle_what_the_handles_sit_on`
+    # at the point of use, so a person CHOOSING a class from the
+    # chooser still lands on its first member, which is what choosing
+    # a class means.
+    self._chosen_anchor = self._where_a_thing_sits(self._chosen_thing)
     self._chosen_thing = None
     self._message = "" if topology is not None else (
       message or "This design has no topology to show.")
@@ -355,6 +371,29 @@ class TopologyView(QWidget):
     self._settle_what_the_handles_sit_on()
     self.update()
 
+  def _where_a_thing_sits(self, thing):
+    """The unit-space point a vertex or an edge is anchored at.
+
+    Args:
+      thing: a Vertex or an Edge from the drawn topology, or None.
+
+    Returns:
+      (x, y) in unit coordinates -- a vertex's own point, or an edge's
+      midpoint end to end -- and None where there is nothing to place
+      or the geometry cannot be read. Used to put the handles back
+      where they were after a rebuild replaces every object.
+    """
+    if thing is None:
+      return None
+    point = getattr(thing, "point", None)
+    if point is not None:
+      try:
+        return (float(point.x), float(point.y))
+      except Exception:                                 # noqa: BLE001
+        return None
+    frame = self._edge_frame(thing)
+    return None if frame is None else (frame[0], frame[1])
+
   def _settle_what_the_handles_sit_on(self) -> None:
     """Move the handles onto the class that is now chosen.
 
@@ -394,11 +433,27 @@ class TopologyView(QWidget):
         # synced to the class that click selected.
         if held is not None and held is thing:
           return
+    # NEAREST THE PLACE THE HANDLES WERE, where a rebuild has just
+    # left an anchor; the first member otherwise, which is what
+    # choosing a class from the chooser means. Taken and cleared here,
+    # at the point of use, like every other deferred intent in this
+    # project -- an anchor left standing would drag a later, unrelated
+    # choice back to an old position.
+    anchor, self._chosen_anchor = self._chosen_anchor, None
+    best, best_away = None, None
     for thing in members:
-      if getattr(thing, "label", None) in chosen:
+      if getattr(thing, "label", None) not in chosen:
+        continue
+      if anchor is None:
         self._chosen_thing = thing
         return
-    self._chosen_thing = None
+      sits = self._where_a_thing_sits(thing)
+      away = None if sits is None else (
+        (sits[0] - anchor[0]) ** 2 + (sits[1] - anchor[1]) ** 2)
+      if best is None or (away is not None
+                          and (best_away is None or away < best_away)):
+        best, best_away = thing, away
+    self._chosen_thing = best
 
   # ---------------------------------------------------------- paint
 
@@ -1788,6 +1843,23 @@ class TopologyPanel(QWidget):
     Both kinds are offered now, and `_refresh_manipulations` narrows
     the VERB to what suits whatever is selected.
     """
+    # WHAT THE PERSON HAD CHOSEN, READ BEFORE THE CLEAR. A rebuild
+    # refills this chooser, and a refilled combo sits on its first
+    # entry -- so the class somebody clicked was replaced by whichever
+    # class happens to sort first, with nothing said. The verb chooser
+    # beside it has kept its own selection across a refill since it was
+    # written ("narrowing the list does not silently retarget an edit
+    # somebody was in the middle of describing"), and the two had no
+    # business disagreeing.
+    # MEASURED 2026-09-02: click `vertex B`, let a queued build land
+    # before the pointer goes down, and the chooser reads `vertex A`,
+    # `_chosen_thing` is None, the press finds no handle, the drag
+    # draws no preview and records no edit. macOS CI failed `every way
+    # of editing the topology moves the drawing` on exactly that --
+    # both of its vertex cell's complaints at once -- while the test
+    # passes here three times in three, the window being narrow rather
+    # than the behaviour being rare.
+    wanted = self.class_combo.currentData()
     self.class_combo.blockSignals(True)
     self.class_combo.clear()
     # DEFINED BEFORE THE GUARD, because the tick list below reads it
@@ -1818,10 +1890,33 @@ class TopologyPanel(QWidget):
         item.setCheckState(Qt.CheckState.Unchecked)
         self.class_list.addItem(item)
     self.class_list.blockSignals(False)
-    # THE SELECTION IS RE-ESTABLISHED FROM THE COMBO, which the walk
-    # above has just left on this design's first class -- so a rebuild
-    # leaves the three controls agreeing rather than leaving the tick
-    # list empty beside a combo naming something.
+    # AND THE CHOICE IS PUT BACK WHERE THE NEW DESIGN STILL HAS IT. A
+    # class that survived the rebuild is found by its own
+    # (target, label); a design that no longer carries it falls
+    # through to the first entry, which is the old behaviour and the
+    # right answer when the class is genuinely gone. The objects are
+    # new either way, and `_select_classes` re-seats `_chosen_thing`
+    # on a member of the chosen class -- which is what
+    # `show_topology` means by "the CLASS survives a rebuild".
+    # COMPARED IN PYTHON, NOT BY `findData`, and that is not a
+    # preference. These items carry a TUPLE, and `findData` matches
+    # through QVariant, where a tuple never equals an equal tuple --
+    # so it answers -1 for a class that is plainly in the list. The
+    # verb chooser's own `findData` beside this one works only
+    # because its data is a string. Measured 2026-09-02: the first
+    # repair here used `findData` and changed nothing whatever, the
+    # probe reporting the same chooser moving B to A.
+    if wanted is not None:
+      for index in range(self.class_combo.count()):
+        if self.class_combo.itemData(index) == wanted:
+          self.class_combo.blockSignals(True)
+          self.class_combo.setCurrentIndex(index)
+          self.class_combo.blockSignals(False)
+          break
+    # THE SELECTION IS RE-ESTABLISHED FROM THE COMBO, which now names
+    # the class the person chose where the design still has it -- so a
+    # rebuild leaves the three controls agreeing rather than leaving
+    # the tick list empty beside a combo naming something.
     data = self.class_combo.currentData()
     if data:
       self._select_classes(*data)

@@ -408,6 +408,37 @@ threw a promised save away. Each was verified here by a route its hunt
 did not use, repaired, guarded and proved, and the last two were
 settled by the maintainer as rulings rather than patched.
 
+**AND `0.24.4rc14` IS SPENT, ON FOUR CEILINGS SIZED FOR THIS MAC.**
+Its software is rc13's, measured member by member and identical bar
+`metadata.txt`; `mutation` was green on its commit and `tests` was not.
+The 4.0.3 leg failed `a drag is measured in the frame it began in` on
+its PREMISE after ninety seconds -- 771 passed and 1 failed of one
+shard of three -- while the next topology test on that same runner
+passed in 4.3 seconds, which is what says the tab was healthy and only
+the allowance was local. Four shared wait helpers carried numbers
+measured here while every other bound multiplies by `CONTENTION`, 7.5
+on a three-shard Linux job. All four widen now, both premise sites
+report which of the four quiet terms was outstanding, and
+`test_every_shared_waiter_widens_for_a_slow_machine` guards the shape
+over a derived list -- it named `_settle` on its first run, which the
+three hand repairs had missed. That is the fifth candidate spent on a
+test repair.
+
+**AND THE 4.0.0 LEG ABORTED IN ITS HARNESS TEARDOWN, WHICH IS
+REPORTED RATHER THAN FIXED.** Exit 134, `corrupted double-linked
+list`, at `project.clear()`, on 4.0.0 alone with 4.0.3 green in the
+same round. Two local runs of the aborting neighbourhood passed 6 of 6
+and the bare-lambda family is ruled out, so there is a mechanism and
+no measurement of it; a site named by reading is a hypothesis. What is
+owed is a recurrence, and the ledger's Open section carries what to
+watch for. IT BLOCKS A CANDIDATE BY ITSELF, which is worth saying
+plainly: a failing job reddens its whole workflow, and
+`publish_candidate` requires every workflow green on the candidate's
+own commit. So rc15 is publishable only if the abort does not recur,
+and if it does, the choice is between diagnosing it and publishing
+with `--despite-ci` -- which prints its reason in the release body and
+is the maintainer's call, not one to make while tidying up a round.
+
 **AND `0.24.4rc13` IS SPENT TOO, ON A SUITE FAULT AND NO PRODUCT
 DEFECT.** Every local gate passed on `6e40574` and CI's coverage leg
 did not: `a build that lands mid drag does not wipe the gesture`,

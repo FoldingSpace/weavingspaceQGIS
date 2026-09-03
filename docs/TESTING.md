@@ -4983,3 +4983,43 @@ making a claim about when its own reading was taken. Ask what could
 have moved that value between the reading and the act, and where the
 answer is "anything the event loop delivers", take the reading at the
 act.
+
+## AN ALLOWANCE SIZED ON THIS MAC IS AN ALLOWANCE THIS MAC WILL NEVER MEET
+
+Every ceiling in this suite is `CONTENTION` times something -- 2.5 for
+a sharded run multiplied by each platform's declared slowness, so a
+three-shard Linux job is given seven and a half times this machine's
+patience. FOUR SHARED WAIT HELPERS HAD NO SUCH FACTOR:
+`_wait_for_the_topology`, `_the_topology_tab_is_quiet`,
+`_settle_topology` (which counts ticks rather than seconds) and
+`_settle` itself, the oldest and most-called of the four.
+
+WHAT IT COST WAS A CANDIDATE. On 2026-09-02 rc14's 4.0.3 leg failed `a
+drag is measured in the frame it began in` on its premise after ninety
+seconds, 771 passed and 1 failed of one shard of three -- while the
+NEXT topology test on that same runner passed in 4.3 seconds. A tab
+that is healthy four seconds later was never hung; only the allowance
+was this machine's.
+
+THE REPAIR IS A SHAPE GUARD RATHER THAN FOUR EDITS.
+`test_every_shared_waiter_widens_for_a_slow_machine` parses this file,
+collects every module-level helper whose name says it waits, and
+requires each to mention `CONTENTION` in its own body. It DERIVES its
+list, because a hand-kept one drifts the first time somebody adds a
+fifth -- the fault this project has already recorded of `USER_FACING`
+and of `sandbox.INCLUDE_FILES` -- and it COUNTS what it scanned,
+since a walk that finds no waiters and a walk that looked at nothing
+are the same green.
+
+IT PROVED ITSELF ON ITS FIRST RUN, which is the only evidence a new
+guard's liveness ever has: three waiters had just been repaired by
+hand and it immediately named a FOURTH nobody had looked at.
+
+AND A FAILING PREMISE MUST SAY WHICH TERM WAS OUTSTANDING.
+"a topology build never stopped being outstanding" names four possible
+causes and reports none of them, so the runner's ninety seconds bought
+no information at all. `_why_the_topology_tab_is_busy` reads all four
+-- a build in flight, another queued behind it, the working sentence
+still up, a preview rebuild pending -- and both premise sites now
+carry its answer. A premise that fires on a machine nobody can log
+into is the one place where the message IS the measurement.

@@ -6803,3 +6803,68 @@ here, and the decision to add one is the maintainer's. Recorded
   comment forbids.
   AND ALL THREE CATALOGUE ENTRIES WERE RE-PROVED after it, because a
   repair to a test is exactly where a guard stops being able to fail.
+
+- **A WAIT HELPER THAT DOES NOT WIDEN IS A CEILING SIZED ON THE
+  FASTEST MACHINE THE SUITE WILL EVER RUN ON.** (2026-09-02, rc14, and
+  it spent a second candidate in two days.) Every allowance in this
+  suite is `CONTENTION` times something -- 2.5 for a sharded run times
+  each platform's declared slowness, so a three-shard Linux job gets
+  seven and a half times this Mac's patience. FOUR SHARED WAITERS HAD
+  NO SUCH FACTOR, including `_settle`, the oldest and most-called of
+  them. CI's 4.0.3 leg duly failed `a drag is measured in the frame it
+  began in` on its PREMISE after ninety seconds -- while the next
+  topology test on the same runner passed in 4.3 seconds, which is
+  what says the tab was healthy and the number was this machine's.
+  THE GUARD IS OVER THE SHAPE AND DERIVES ITS OWN LIST, because a
+  hand-kept list of waiters drifts the first time somebody adds a
+  fifth -- the fault this file already records of `USER_FACING` and of
+  `sandbox.INCLUDE_FILES`. It proved itself on its first run by naming
+  a fourth waiter three hand repairs had missed, which is the only
+  evidence a new guard's liveness ever has.
+  AND A PREMISE THAT FIRES ON A MACHINE NOBODY CAN LOG INTO MUST SAY
+  WHAT IT FOUND. "A topology build never stopped being outstanding"
+  names four possible causes and reports none, so ninety seconds of
+  runner time bought no information; `_why_the_topology_tab_is_busy`
+  reads all four and both premise sites now carry its answer. This is
+  the project's own rule about instrumenting a child process before it
+  crashes, arriving at an ASSERTION MESSAGE.
+
+- **`findData` COMPARES THROUGH QVariant, SO A TUPLE NEVER MATCHES AN
+  EQUAL TUPLE.** (2026-09-02, and the first repair built on it changed
+  nothing whatever.) The topology class chooser carries `(target,
+  label)` as its item data; `combo.findData(wanted)` answers -1 for a
+  pair that is plainly in the list, while the verb chooser's own
+  `findData` beside it works perfectly -- because its data is a
+  STRING. The repair looked right, ran, and the probe reported the
+  identical before-and-after, which is the shape this file already
+  names: a verdict that will not budge is almost always the
+  instrument. Compare `itemData(i)` in Python where the data is not a
+  primitive, and ask of any Qt lookup whose argument is a Python
+  object whether Qt has any way to know what equality means for it.
+
+- **A LANDING IS HELD FOR A GESTURE, AND THE CLICK BEFORE THE PRESS IS
+  NOT A GESTURE.** (2026-09-02, macOS CI at `743e73b`.) The ruling of
+  2026-09-01 holds a build that lands mid-drag until the pointer comes
+  up, and `gesture_in_progress()` is true from the press to the
+  release -- so the window between the CLICK that chooses a class and
+  the PRESS that grabs its handle is uncovered, and a landing there
+  applies at once. Two things then went, and NEITHER REPAIR WORKS
+  ALONE: a refilled combo sits on its first entry, so the class
+  somebody chose became whichever sorts first; and the handles
+  re-seated on the FIRST member of the class, 177 pixels from the
+  click, so the press found nothing to grab. Repair the second only
+  and the handles come back to the nearest member of the WRONG class.
+  Two halves, two catalogue entries, both proved.
+  THE HALF THAT GENERALISES IS THE WINDOW. When a rule is written
+  about a gesture, ask what the state looks like just BEFORE the
+  gesture begins -- a selection made and not yet acted on is state a
+  person can see and lose, and no in-progress guard covers it.
+  AND THE REPAIR EXPOSED A FIXTURE THAT COULD NOT SELECT WHERE IT
+  CLICKED: with an edge class kept across a rebuild, an edge handle
+  sits over the vertex an aimer wants, `_handle_at` is asked first, so
+  the click GRABS and leaves the edge selected -- reported as
+  "nudge_vertex is not offered while holding a edge", which is a
+  sentence about the fixture wearing a complaint about the product.
+  The hazard was written in the aimer's own docstring and only one of
+  its two paths acted on it. WHEN A DOCSTRING NAMES A HAZARD, CHECK
+  EVERY PATH THROUGH THAT FUNCTION HONOURS IT.

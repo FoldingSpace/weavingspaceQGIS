@@ -2738,6 +2738,35 @@ MUTATIONS = [
        test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
        why="a gesture keeping the picture and the selection it is "
            "being made against, however a background build is timed"),
+  dict(name="a-rebuild-keeps-the-class-a-person-chose",
+       file=TOPOLOGY_TAB,
+       # HALF ONE OF TWO, and each needs its own entry because either
+       # alone leaves the defect standing -- measured, not assumed:
+       # with the re-seating in place and this half off, the chooser
+       # still walked from `vertex B` to `vertex A` and the handles
+       # then settled on the nearest member of the WRONG class, 125
+       # pixels from the click. A refilled combo sits on its first
+       # entry, so a rebuild landing between the click that chooses
+       # and the press that grabs replaced the person's class with
+       # whichever one sorts first.
+       old="""    wanted = self.class_combo.currentData()""",
+       new="""    wanted = None  # mutation: the choice is forgotten""",
+       test="test_a_landing_between_the_click_and_the_press_keeps_the_choice",
+       why="the class somebody clicked surviving a rebuild that lands "
+           "before they have grabbed its handle"),
+  dict(name="the-handles-come-back-where-they-were",
+       file=TOPOLOGY_TAB,
+       # HALF TWO. The class surviving is not enough: a class has
+       # several members and `_settle_what_the_handles_sit_on` seats
+       # on the FIRST of them, which on the laves fixture is 177
+       # pixels from the click -- so the press finds no handle, the
+       # drag draws no preview and no edit is recorded. macOS CI made
+       # both complaints at once on 2026-09-02 at `743e73b`.
+       old="""    self._chosen_anchor = self._where_a_thing_sits(self._chosen_thing)""",
+       new="""    self._chosen_anchor = None  # mutation: forget where it sat""",
+       test="test_a_landing_between_the_click_and_the_press_keeps_the_choice",
+       why="the handles coming back to the place a person clicked, "
+           "rather than to whichever member of the class sorts first"),
   dict(name="a-held-landing-is-applied-when-the-drag-ends",
        file=TOPOLOGY_TAB,
        # THE OTHER HALF, and it needs its own entry: holding a landing
