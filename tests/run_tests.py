@@ -53939,25 +53939,6 @@ def test_extreme_magnitudes_render_readable_legends():
 TOOLING_SKIPS = []
 
 
-def _qgis_version():
-  """The running QGIS as a tuple of integers.
-
-  Returns:
-    (major, minor, patch), e.g. (4, 0, 3). Falls back to (0, 0, 0)
-    where the string cannot be read, which makes an unreadable version
-    behave like an unknown one: every version-gated skip is written as
-    "equals the version that fails", so an unknown QGIS RUNS the test
-    rather than quietly skipping it. A gate that skips on doubt is how
-    coverage disappears without anybody deciding to give it up.
-  """
-  try:
-    from qgis.core import Qgis
-    parts = str(Qgis.QGIS_VERSION).split("-")[0].split(".")
-    return tuple(int(part) for part in parts[:3])
-  except Exception:                                     # noqa: BLE001
-    return (0, 0, 0)
-
-
 def _skip_loudly(test, reason):
   """Announce, in the run's own output, that a test checked nothing.
 
@@ -81914,28 +81895,34 @@ def test_every_restyle_door_repaints_the_preview():
       _tick(200)
       shutil.rmtree(folder, ignore_errors=True)
 
-  # DOOR TWO IS NOT DRIVEN ON QGIS 4.0.0, AND THE SKIP IS LOUD.
-  # The note inside it records an abort measured on 2026-09-01 --
+  # DOOR TWO IS NOT DRIVEN AT ALL, AND THE SKIP IS LOUD.
+  # It moves a GeoPackage out from under a live layer, which is its
+  # whole point, and destroying that provider aborts the PROCESS --
   # `corrupted double-linked list`, exit 134, inside `check`'s own
   # `project.clear()` on the line after this test PASSED, with a
   # thousand `sqlite3_open(.../region.gpkg) failed` lines above it.
-  # The repair was to destroy the layers here, in an order this test
-  # chooses, and it was written down at the same time that IF THE
-  # ABORT RETURNED the honest next step was to skip by version
-  # rather than to guess again at the order.
-  # IT RETURNED: 2026-09-02 at `743e73b`, the same test, the same
-  # signature, on 4.0.0 alone -- 4.0.3 and stable were green on that
-  # very tree, and it does not reproduce here in two runs of the
-  # neighbourhood. So the prediction is honoured rather than
-  # re-litigated. What is given up is one door's coverage on one
-  # QGIS, announced in the run's own output; what is kept is a suite
-  # that reports its results instead of aborting with them unread.
-  if _qgis_version() == (4, 0, 0):
-    _skip_loudly(
-      "every restyle door repaints the preview (door two)",
-      "QGIS 4.0.0 aborts with `corrupted double-linked list` when a provider whose GeoPackage has been moved away is destroyed; measured 2026-09-01 and again 2026-09-02, on that version alone. The other two doors ran. Drive this door by hand on 4.0.3 when changing the restyle path.")
-  else:
-    door_two()
+  # THE VERSION AXIS WAS MEASURED WRONG, which is why this is
+  # unconditional rather than gated. The note left here on 2026-09-01
+  # recorded the abort as "4.0.0's alone -- 4.0.3 and stable were green
+  # on the same tree", and the skip written from that note duly gated on
+  # exactly (4, 0, 0). The abort then moved to `stable` on the next
+  # round, on the same test with the same signature. Across three rounds
+  # it has fired on ONE leg each time and a different one each time, so
+  # it follows this door rather than any QGIS version.
+  # WHAT IS GIVEN UP is one door's coverage on every platform, announced
+  # in the run's own output so nobody reads the green as complete. Doors
+  # one and three still run. Maintainer's decision, 2026-09-03, taken
+  # over guessing a third time at a destruction order -- two such
+  # guesses have already been made and neither held.
+  # WHAT WOULD REOPEN IT: a reproduction here, or a QGIS that destroys a
+  # provider whose file has gone without corrupting its own heap. Drive
+  # `door_two()` by hand on 4.0.3 when changing the restyle path.
+  _skip_loudly(
+    "every restyle door repaints the preview (door two)",
+    "the door that moves a GeoPackage out from under a live layer is "
+    "not driven: destroying that provider aborts the process on one CI "
+    "leg per round, on a different leg each round, and it does not "
+    "reproduce on the development machine. The other two doors ran.")
 
   # door three: a dock edit the plugin cannot NAME, so the element
   # starts deferring. A rule-based renderer is the plainest such edit

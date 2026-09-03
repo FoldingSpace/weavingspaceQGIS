@@ -424,10 +424,13 @@ over a derived list -- it named `_settle` on its first run, which the
 three hand repairs had missed. That is the fifth candidate spent on a
 test repair.
 
-**AND THE 4.0.0 LEG ABORTED IN ITS HARNESS TEARDOWN, WHICH IS
-REPORTED RATHER THAN FIXED.** Exit 134, `corrupted double-linked
-list`, at `project.clear()`, on 4.0.0 alone with 4.0.3 green in the
-same round. Two local runs of the aborting neighbourhood passed 6 of 6
+**AND THE TEARDOWN ABORT IS NOT 4.0.0'S, WHICH IS A CORRECTION.** Exit 134, `corrupted double-linked
+list`, at `project.clear()`. It was recorded as 4.0.0's alone; on the
+next round it fired on `stable` instead, with 4.0.0 -- by then skipped
+-- green. One leg per round and a different leg each round, so it
+follows door two of `every restyle door repaints the preview` rather
+than any version. That door is skipped on every platform now
+(maintainer, 2026-09-03) and one catalogue entry was retired with it. Two local runs of the aborting neighbourhood passed 6 of 6
 and the bare-lambda family is ruled out, so there is a mechanism and
 no measurement of it; a site named by reading is a hypothesis. What is
 owed is a recurrence, and the ledger's Open section carries what to

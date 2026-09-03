@@ -8087,16 +8087,29 @@ MUTATIONS = [
            "preview may go on showing a colour the map does not "
            "contain -- the judgement somebody makes from that picture "
            "is made wrongly"),
-  dict(name="the-source-gone-restyle-repaints-the-preview", file=DIALOG,
-       old="""        self._refresh_preview_colours()
-        _dump("LIVE-GATE", "restyled-without-the-source")""",
-       new="""        _dump("LIVE-GATE", "restyled-without-the-source")""",
-       test="test_every_restyle_door_repaints_the_preview",
-       why="a restyle answered at the source-gone gate is four lines "
-           "from row 21's fix and was missing the same refresh, so a "
-           "ramp picked after the region file moved reached the map "
-           "and never the preview -- a person iterating judged their "
-           "design by colours the map no longer draws"),
+  # `the-source-gone-restyle-repaints-the-preview` STOOD HERE AND WAS
+  # RETIRED ON 2026-09-03, because its DOOR is no longer driven. It
+  # mutated the refresh at the source-gone gate -- a restyle answered
+  # after the region file has moved -- and the only thing that drove
+  # that gate was door two of `every restyle door repaints the
+  # preview`, which moves a GeoPackage out from under a live layer.
+  # That door is skipped on every platform now (maintainer's decision,
+  # 2026-09-03): destroying such a provider aborts the process with
+  # `corrupted double-linked list` on one CI leg per round, a different
+  # leg each round, and it does not reproduce on the development
+  # machine.
+  # MEASURED RATHER THAN ASSUMED, the same day and in the same run as
+  # its two siblings: `the-button-restyle-repaints-the-preview` and
+  # `the-deferring-door-repaints-the-preview` both came back `caught`
+  # and this one came back SURVIVED. An entry that can only ever be red
+  # is worth less than a retirement that says why.
+  # THE CODE STAYS AND IS NOT SUSPECTED: the refresh it guarded was a
+  # real fix, four lines from row 21's, and nothing here says otherwise
+  # -- what went is the only test that reached it.
+  # WHAT WOULD REOPEN IT: any journey that reaches the source-gone gate
+  # without moving a file out from under a live provider, or a QGIS
+  # that can destroy such a provider without corrupting its heap. Then
+  # re-aim this entry at that journey rather than at the old door.
   dict(name="a-dock-edit-reaches-the-group-record", file=DIALOG,
        old="""    # not one per signal.
     self._queue_group_restamp()""",

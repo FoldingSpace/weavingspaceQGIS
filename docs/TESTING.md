@@ -5023,3 +5023,45 @@ no information at all. `_why_the_topology_tab_is_busy` reads all four
 still up, a preview rebuild pending -- and both premise sites now
 carry its answer. A premise that fires on a machine nobody can log
 into is the one place where the message IS the measurement.
+
+## A PREDICTION IS AN AXIS, AND A WRONG AXIS IS OBEYED FAITHFULLY
+
+2026-09-03, and it is the best argument this file has for writing down
+HOW a thing was measured rather than only what was concluded.
+
+An abort in the harness's own teardown -- `corrupted double-linked
+list`, exit 134, at `check`'s `project.clear()` on the line after a test
+PASSED -- was recorded on 2026-09-01 as belonging to QGIS 4.0.0: "the
+abort is 4.0.0's alone -- 4.0.3 and stable were green on the same
+tree". The same note predicted, in advance and admirably, that if it
+returned the honest next step was to skip BY VERSION rather than to
+guess again at a destruction order.
+
+IT RETURNED, AND THE PREDICTION WAS OBEYED EXACTLY. The skip was written
+gated on `(4, 0, 0)`, deliberately narrow, failing toward RUNNING the
+test on an unknown version. On the next round the abort fired on
+`stable` instead, on the same test with the same signature, while 4.0.0
+went green because it was skipped.
+
+THREE ROUNDS, THREE SINGLE LEGS, A DIFFERENT ONE EACH TIME. That is the
+shape of something INTERMITTENT following the door -- a provider whose
+GeoPackage was moved out from under it, destroyed in a shared teardown
+-- rather than something belonging to a version. Two data points had
+been read as a version fact, and every later step inherited it: the
+gate, its comment, three documents, and a candidate's worth of
+attention.
+
+**A PREDICTION NAMES AN AXIS AS WELL AS AN ACTION.** "Skip by version"
+carries a claim -- that version is what varies -- and the action can be
+implemented perfectly while the claim is wrong. So when you write down
+what to do if something recurs, write down WHAT WOULD HAVE TO BE TRUE
+for that to be the right thing, and check it when the day comes. Here
+one question would have done it: has this ever fired on more than one
+leg, and were those legs the same version?
+
+**AND RETIRING A DOOR RETIRES WHAT STOOD ON IT.** Skipping that door
+left `the-source-gone-restyle-repaints-the-preview` unable to fail:
+measured the same day, SURVIVED in the same run that its two siblings
+came back `caught`. It was retired with its measurement and with what
+would reopen it. When a test stops driving a journey, judge every entry
+whose site that journey was the only route to.
