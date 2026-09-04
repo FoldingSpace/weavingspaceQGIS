@@ -2677,9 +2677,16 @@ against the region's geometry before a tile polygon exists, cutting
 `Tiling()` and the overlay together. A narrower version of the same idea
 -- assign the tiles lying wholly inside one zone and clip only the rest
 -- was measured EXACT (zero tiles assigned differently) and worth about
-a sixth. The full account, the profile it rests on, and one unexplained
-factor of seven that must be settled first are in docs/PERFORMANCE.md;
-the instrument is `tools/probes/what_the_tiled_map_costs.py`.
+a sixth. WHAT MUST BE WEIGHED AGAINST IT, measured 2026-09-03 and the
+reason this is not obviously the best place to spend the effort, is that
+the tiling is not where the time goes: at spacing 150 the QGIS side
+costs more than the library does, `gdf_to_layer` alone taking 1.728s
+against `Tiling()` at 1.231s and `get_tiled_map` at 0.865s. The full
+account, the profile it rests on, the disc's own arithmetic and the two
+reductions available with rotation allowed for are in
+docs/PERFORMANCE.md; the instruments are
+`tools/probes/what_the_tiled_map_costs.py` and, for the stages around
+it, `tools/probes/what_a_generate_spends_its_time_on.py`.
 
 **AND A THIRD, MEASURED 2026-08-31: THE JOIN LOOKUP IS A PYTHON LOOP.**
 `tile_map.py` builds the tile-to-region lookup with
