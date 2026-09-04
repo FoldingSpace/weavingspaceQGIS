@@ -50,6 +50,39 @@ project's own rule is that a comparison across two runs on a busy
 machine is not a measurement; the sharper form is that a series of sizes
 inside ONE run is not a series of measurements.
 
+## And the tiling is not the largest cost -- the QGIS side is
+
+Measured 2026-09-03 on the same data, one size per process, timing the
+three stages a Generate actually performs:
+
+    spacing    tiles   Tiling()  get_tiled_map  gdf_to_layer   drawn features
+        500    8,932     0.157s        0.147s        0.173s            2,759
+        250   32,436     0.491s        0.372s        0.627s           10,526
+        150   86,768     1.231s        0.865s        1.728s           28,619
+
+CONVERTING THE RESULT INTO QGIS LAYERS IS THE BIGGEST SINGLE TERM --
+45% at spacing 150 against 32% for the tiling and 23% for the map --
+and it runs at a steady 60 microseconds per DRAWN feature.
+
+WHICH DECIDES WHAT THE GRID WORK IS WORTH. `gdf_to_layer` only ever
+sees tiles that survived clipping, so constricting the grid does not
+touch it: the 66% falls on `Tiling()` and the overlay alone, taking
+spacing 150 from about 3.8s to about 2.5s. Worth doing, and after it
+the layer conversion dominates by some distance.
+
+AND A FIXED COST SITS UNDER ALL OF IT, from
+`tools/probes/interaction_cost.py` at 612 tiles where the tiling is
+negligible: about 0.075s per render in `_add_output_layers`, of which
+`removeMapLayer` is 0.027s, plus about 0.073s in the signal cascade a
+layer change sets off -- `_layers_removed`, `_update_layer_exclusions`,
+`setExceptedLayerList` -- and about 0.042s rebuilding the preview. That
+is QGIS-side churn rather than cartography, and it is the floor under
+every run however small the map.
+
+WHAT IS NOT MEASURED HERE, and is owed before this counts as a full
+breakdown: renderer seeding, the no-data twin split, the layer-tree and
+stamping work, and the GeoPackage write on a Save.
+
 ## The overlay computes an argmax and throws its geometry away
 
 In the `prioritise_tiles` path -- the default -- the fragments exist

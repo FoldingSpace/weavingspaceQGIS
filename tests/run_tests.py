@@ -54266,7 +54266,15 @@ DOCUMENTED_COMMAND_DOCS = ["CLAUDE.md", "MAINTAINING.md", "README.md",
                            "ROADMAP.md",
                            os.path.join("docs", "TESTING.md"),
                            os.path.join("docs", "MUTATION-LOOP.md"),
-                           os.path.join("docs", "PUBLISHING.md")]
+                           os.path.join("docs", "PUBLISHING.md"),
+                           os.path.join("docs", "PERFORMANCE.md")]
+# WIDENED AGAIN 2026-09-03, in the commit that created
+# docs/PERFORMANCE.md rather than in an audit afterwards. That document
+# names a probe beside every figure it quotes, which is the whole point
+# of it, so it is exactly the kind of prose that rots into paths that no
+# longer exist. The lesson below was already written and the list was
+# still hand-kept; joining it in the same commit as the document is the
+# cheapest the boundary is ever going to be to mend.
 # WIDENED 2026-08-18. README.md and ROADMAP.md were outside this list
 # and both quote commands: the README is the first thing a stranger
 # reads, and the roadmap tells somebody how to check the ledger. The
