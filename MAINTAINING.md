@@ -107,6 +107,7 @@ Files you will actually touch:
 | `tools/make_site_images.py` | Retakes the published images: maps from the current release gallery, plus a fresh grab of the dialog. |
 | `docs/MUTATION-LOOP.md`, `tools/loop/` | The runbook and scripts for re-running the whole mutation-score improvement campaign: cycle driver, health check, triage taxonomy, stopping rule. |
 | `docs/PUBLISHING.md` | The release procedure end to end, and what still stands between here and the QGIS plugin repository. |
+| `docs/PERFORMANCE.md` | Where a map's time actually goes, with the probe behind every figure; which speed-ups were taken, which were refused for changing the map, and what is still open. |
 | `tools/mutate_auto.py` | Generates mutants from the syntax tree at random and measures how many the suite catches — the honest counterpart to the hand-picked catalogue above. Read `docs/MUTATION-TESTING.md` before quoting or chasing a score; the rules there are what keep it from becoming a vanity metric. |
 | `weavingspace_qgis/catalog.py` | The tiling/weave menu: a verbatim copy of the web app's dictionary, plus two library extras (stripes, grid) appended by a loop after it. Sync the literal against the app; add further extras to the loop. |
 | `weavingspace_qgis/deps.py` | Checks/downloads Python dependencies on QGIS builds that lack them. Version floors and pinned candidates at the top. |

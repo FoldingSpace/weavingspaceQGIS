@@ -2666,6 +2666,21 @@ supersedes the first, which blamed a commit wrongly), and the WEAVE
 half of the element-id ceiling above, which is upstream's decision
 rather than ours now that the tiling half is built.
 
+**AND EXPLOITING THE TILING'S OWN PERIODICITY, RAISED BY THE
+MAINTAINER 2026-09-03 AND MEASURED THE SAME DAY.** Two thirds of the
+tiles generated at a realistic spacing lie wholly OUTSIDE the region --
+11,786 of 17,248 on the packaged Auckland data -- built, carried into
+the overlay, clipped away and discarded. The tiling is periodic and
+nothing exploits it: integer division and modulus on the lattice vectors
+say which cell a point falls in, so whole cells could be excluded
+against the region's geometry before a tile polygon exists, cutting
+`Tiling()` and the overlay together. A narrower version of the same idea
+-- assign the tiles lying wholly inside one zone and clip only the rest
+-- was measured EXACT (zero tiles assigned differently) and worth about
+a sixth. The full account, the profile it rests on, and one unexplained
+factor of seven that must be settled first are in docs/PERFORMANCE.md;
+the instrument is `tools/probes/what_the_tiled_map_costs.py`.
+
 **AND A THIRD, MEASURED 2026-08-31: THE JOIN LOOKUP IS A PYTHON LOOP.**
 `tile_map.py` builds the tile-to-region lookup with
 `.agg(pd.Series.idxmax)`, and passing the FUNCTION defeats pandas'
