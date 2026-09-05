@@ -324,21 +324,79 @@ DEFERRING ANY OF THESE IS THE MAINTAINER'S DECISION and is made by
 moving the entry to a later section; nothing here moves one on their
 behalf. What follows the list still describes what 0.24.4 DELIVERS.
 
-### Owed: one suite failure, not yet diagnosed
+### Owed: one suite failure of two, the other closed
 
-**THE TOPOLOGY MATRIX FAILS ONE CELL OF THIRTY-ONE**, on the full suite
-of 2026-09-04 at `e8e1762`:
+**THE SUITE REPORTED TWO FAILURES, NOT ONE**, and reading the shards
+separately is what said so: 260 passed, 259 passed, and 257 passed with
+2 failed. The three totals agree at 778, so the slice was a partition.
+
+**THE VENDORING TOOL FAILURE IS CLOSED**, and it was this session's
+work rather than upstream's. `the vendoring tool reproduces the current
+vendor` went red at 0.1s because two pairs of patches CHAIN -- patch 6
+anchors on the block patch 3 produces and renames what it binds, and
+patch 5b rewrites the tail of the method patch 4b produces -- so on the
+tool's own fixed-point check, where every patch must report "already
+present" against our own vendor, patches 3 and 4b reported ANCHOR NOT
+FOUND and the tool exited 1. That is the sentence reserved for an
+anchor UPSTREAM has moved, and it is the one message a re-vendorer has
+to be able to trust. Measured both ways: at `a3efb48`, the commit
+before patch 4, the tool is its own fixed point at 5 patches and 0
+needing attention; at `319a087` it exited 1. A re-vendor from pristine
+upstream was never affected, which is why nothing else could see it.
+`targeted` takes `superseded_by` and `landed` together now, with two
+assertions keeping such a mark honest and both watched firing, and the
+repair carries `a-superseded-patch-is-found-by-its-own-mark`, proved
+`caught`.
+
+**THE TOPOLOGY MATRIX FAILS ONE CELL OF THIRTY-ONE**, and this is what
+is still open:
 
     crosses 4 n=4 / after re-Generate / rotate_edge:
     the tab neither built a topology nor said why not, so somebody is
     left in front of a panel that never answers
 
-The other two shards were green -- 260 and 259 passed with none failed.
-IT IS NOT KNOWN whether this session's tiling patches caused it; they
-touch the grid and the overlay rather than the tab, but that is a
-READING and this project does not accept a site named by reading. The
-first step is to run that one test at `e8e1762` and at the commit
-before patch 4 and compare, which costs one test and settles it.
+**THE MECHANISM IS MEASURED AND IT IS NOT WHAT IT LOOKED LIKE.** At the
+moment of failure, driven alone on an idle machine at CONTENTION 1.0:
+
+    NEVER ANSWERED after 72.7s
+    manager: count=1 active=1 'WeavingSpace topology' Queued
+    global thread pool: active=0 max=8
+    python threads: ['MainThread']
+
+The build is QUEUED AND NEVER STARTED, WITH THE POOL IDLE. So it is not
+a slow build, not a worker holding a thread and not the plugin looping:
+QGIS's task manager never runs it, and the dialog waits on a
+`_topology_task` nothing will ever clear while the tab says "Working
+out the design's structure…" for ever. Later dialogs' builds answer in
+1.4s while that one sits there, and the queued tasks accumulate.
+
+**TWO CORRECTIONS, BOTH TO THIS PROJECT'S OWN FIRST REPORTS OF IT, and
+both the same fault -- a rate quoted from too few draws.** It is
+INTERMITTENT rather than deterministic: 3 failures in 34 attempts on a
+quiet machine, then 0 in 16. AND A TWO-ARM SPLIT OF 2 OF 8 AT HEAD
+AGAINST 0 OF 8 AT `a3efb48` IS NOT EVIDENCE about this session's tiling
+patches, because HEAD then produced 0 of 16 on its own. The follow-up
+staged under load was void for a different reason worth keeping: HEAD
+met a load average of 13 and the control met 250, so the two arms did
+not measure the same machine, and a comparison whose conditions are not
+reported is not one anybody can check.
+
+WHAT SETTLES THE OWNER is the discriminator now running rather than a
+rate: at the stall the probe adds a SECOND task and reads whether the
+stuck one starts. If it does, the manager merely never re-ran its
+queue, which is a scheduling stall the plugin can defend against; if it
+does not, the manager is refusing the task, which is a different fault
+with a different owner. The instrument is
+`how_often_the_cell_never_answers.py` and it reports a RATE rather than
+a verdict, deliberately -- a probe that stops at its first clean
+attempt measures the machine's mood.
+
+AND THE PLUGIN OWES A DEFENCE WHOEVER OWNS THE STALL, which is worth
+saying before the diagnosis lands so it is not read as a consequence of
+it: `showEvent`'s zombie-task recovery covers `_task` and has no twin
+for `_topology_task`, and it counts Queued as ALIVE, so neither half of
+it can reach this. A tab that never answers is the reported failure
+whatever QGIS is doing.
 
 ### Owed: five field reports against 0.24.4rc15
 
