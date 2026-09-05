@@ -6947,3 +6947,35 @@ here, and the decision to add one is the maintainer's. Recorded
   The hazard was written in the aimer's own docstring and only one of
   its two paths acted on it. WHEN A DOCSTRING NAMES A HAZARD, CHECK
   EVERY PATH THROUGH THAT FUNCTION HONOURS IT.
+
+- **A PATCH THAT REWRITES ANOTHER PATCH'S OUTPUT TAKES ITS MARKER WITH
+  IT.** (2026-09-04, found by the suite rather than by reading.)
+  `vendor_weavingspace.py` decides whether a patch is already in a file
+  by looking for its own `new` text, which doubles as the marker. Patch
+  6 anchors on the block patch 3 produces and renames the frame it
+  binds; patch 5b rewrites the tail of the method patch 4b produces. So
+  on the tool's own fixed-point check -- our vendor fed back as its
+  upstream, where every patch must report "already present" -- both
+  earlier patches reported ANCHOR NOT FOUND, which is the sentence
+  reserved for an anchor UPSTREAM has moved and the one message a
+  re-vendorer has to be able to trust. A re-vendor from pristine
+  upstream was never affected, and that is exactly why nothing else
+  could see it: measured at the commit before patch 4 the tool is its
+  own fixed point, 5 patches and 0 needing attention, and at HEAD it
+  exited 1.
+  THE MARKER IS THE SMALLER PIECE THE LATER PATCH LEAVES STANDING, named
+  beside the patch that made it necessary, and it is kept honest by two
+  assertions rather than by a list: it must be text this patch writes,
+  and it must NOT be text the anchor already carries -- without the
+  second, the patch reads as already present against pristine upstream
+  and silently never applies. Both refusals were watched firing.
+  AND THE FIRST REPORT WORDING CLAIMED A HISTORY IT COULD NOT KNOW:
+  "already present (in the form patch 6 leaves)" fires just as well on a
+  tree where patch 6 has not run, because the mark is in both forms.
+  Say which QUESTION was asked, not which past is assumed -- a report is
+  read by somebody who has no other way to tell that the narrower check
+  was the one that ran.
+  THE GENERAL FORM: when one transformation's output is another's input,
+  the earlier one's "have I already done this" test is about text the
+  later one owns. Ask of any idempotence check whether anything
+  downstream is entitled to rewrite the thing it looks for.

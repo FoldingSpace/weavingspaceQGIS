@@ -79,6 +79,10 @@ PUBLISH_CANDIDATE = "tools/publish_candidate.py"
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
 VENDOR_TILE_MAP = ("weavingspace_qgis/vendor/weavingspace/tile_map.py")
+# the re-vendoring tool: the one instrument standing between a new
+# upstream and a silently broken vendored library, so the question it
+# asks about whether a patch is already in a file earns a proof
+VENDOR_TOOL = "tools/vendor_weavingspace.py"
 
 # name, file, exact source to replace, replacement, test that must fail
 MUTATIONS = [
@@ -10630,6 +10634,25 @@ MUTATIONS = [
            "Save box on the file it was saved AWAY from, so the next "
            "press overwrites the older version with newer work while "
            "the file just written goes stale, with nothing said"),
+  dict(name="a-superseded-patch-is-found-by-its-own-mark",
+       file=VENDOR_TOOL,
+       # ANCHORED ON THE CHOICE OF MARKER, which is the whole decision:
+       # the mutation restores the question the tool asked before
+       # 2026-09-04, "is my complete patched form in the file", which
+       # is unanswerable for a patch a LATER one has rewritten around.
+       # It leaves every other line standing -- the assertions, the
+       # note, both patches' declarations -- so what is measured is the
+       # question and not the machinery round it.
+       old="""  marker = new if landed is None else landed""",
+       new="""  marker = new  # mutation: ask about the whole patched form""",
+       test="test_the_vendoring_tool_reproduces_the_current_vendor",
+       why="the tool being able to say that a chained patch is already "
+           "in our own vendor. Patches 3 and 6 touch one block and 4b "
+           "and 5b one method, so the earlier of each pair leaves text "
+           "the later one rewrites; asked about its whole patched form "
+           "it answers 'anchor not found', which is the sentence "
+           "reserved for an anchor UPSTREAM has moved and is the one "
+           "message a re-vendorer has to be able to trust"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

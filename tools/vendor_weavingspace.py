@@ -79,7 +79,7 @@ def report(name, applied, detail=""):
   print(f"  [{mark}] {name}" + (f" — {detail}" if detail else ""))
 
 
-def targeted(path, name, old, new):
+def targeted(path, name, old, new, superseded_by=None, landed=None):
   """Apply one exact-anchor patch; report instead of raising when the
   anchor no longer exists in the new upstream.
 
@@ -90,10 +90,47 @@ def targeted(path, name, old, new):
     old: the upstream text to find, character for character. The
       exactness is the point: a fuzzy match would let a changed
       upstream be patched in a way nobody had read.
-    new: the text that replaces it. It doubles as the "already
-      patched" marker, so it must be the complete patched form and
-      must not appear in unpatched upstream, or a re-vendor would
-      either skip a needed patch or apply it twice.
+    new: the text that replaces it. It ordinarily doubles as the
+      "already patched" marker, so it must be the complete patched
+      form and must not appear in unpatched upstream, or a re-vendor
+      would either skip a needed patch or apply it twice.
+    superseded_by: the label of a LATER patch in this file that
+      rewrites the text this one leaves behind, e.g. "6". Given only
+      with `landed`, and required with it, because the pair is the
+      whole explanation a reader needs.
+    landed: what to look for INSTEAD of `new` when deciding whether
+      this patch is already in the file. See below.
+
+  WHY A PATCH MAY NEED A MARKER OF ITS OWN. Patches here are applied
+  in order and two of them CHAIN: patch 6 rewrites the block patch 3
+  produces, and patch 5b rewrites the tail of the method patch 4b
+  produces. Each pair is fine on a re-vendor, since the earlier patch
+  runs first and the later one anchors on its output. What it breaks
+  is the cheap self-check -- run this tool with OUR OWN vendor as its
+  upstream and every patch should say "already present", which is what
+  catches a hand-edited vendored file. A superseded patch cannot say
+  that about `new`, because `new` is no longer in the file; it
+  reported "anchor not found" instead, which reads exactly like an
+  anchor upstream has moved and is the one message a re-vendorer must
+  be able to trust. Measured 2026-09-04: patches 3 and 4b both, on a
+  vendor the tool had itself produced.
+
+  So a superseded patch names the SMALLER piece of its own work that
+  the later patch leaves standing -- the thing the patch exists to
+  put there. The two assertions below are what keep such a marker
+  honest without anybody having to keep a list: it must be text this
+  patch itself writes, and it must not be text the anchor already
+  carries, or the patch would report "already present" against
+  pristine upstream and silently never apply.
+
+  AND THE MARK IS A WEAKER TEST THAN `new`, which is worth knowing
+  before adding a third. `new` is the whole patched form, so nothing
+  short of the complete patch satisfies it; a mark is one line or one
+  idiom, so a hand edit that removed the REST of a superseded patch
+  and left its mark standing would still read as already present.
+  That is the price of the chain, it falls only on the two patches
+  that are chained, and each one's mark is chosen to be the thing the
+  patch cannot exist without.
 
   Returns:
     Nothing. Rewrites path in place when the anchor is present and the
@@ -103,9 +140,32 @@ def targeted(path, name, old, new):
     as copied. Every path reports, so the patch lands in OK or FAILED
     and never passes unnoticed.
   """
+  if (superseded_by is None) != (landed is None):
+    raise AssertionError(
+      f"patch {name}: superseded_by and landed are given together or "
+      f"not at all -- the marker is meaningless without the patch that "
+      f"made it necessary, and naming that patch without a marker "
+      f"changes nothing")
+  marker = new if landed is None else landed
+  if landed is not None:
+    assert landed in new, (
+      f"patch {name}: its landed marker is not text this patch writes, "
+      f"so nothing here can put it in the file")
+    assert landed not in old, (
+      f"patch {name}: its landed marker is already in the upstream "
+      f"anchor, so this patch would report itself already present "
+      f"against pristine upstream and never apply at all")
   text = path.read_text()
-  if new in text:
-    report(name, True, "already present")
+  if marker in text:
+    # SAY WHICH QUESTION WAS ASKED, not which history is assumed. This
+    # branch fires whenever the mark is in the file, which is true of a
+    # tree where the later patch has run and of one where it has not,
+    # so a note claiming the superseding form would be false half the
+    # time -- and a re-vendorer reading this report has no other way to
+    # tell that the check here was the narrower one.
+    report(name, True, "already present"
+           + (f" (by its own mark, since patch {superseded_by} rewrites"
+              f" the rest of it)" if superseded_by else ""))
     return
   if old not in text:
     report(name, False, f"anchor not found in {path.name}")
@@ -361,7 +421,13 @@ def main():
           .agg(pd.Series.idxmax)][["joinUID", id_var]]""",
            """        lookup = overlaps \\
           .iloc[overlaps.groupby("joinUID")[area_name] \\
-          .agg("idxmax")][["joinUID", id_var]]""")
+          .agg("idxmax")][["joinUID", id_var]]""",
+           # PATCH 6 rewrites this block: it binds the same frame under
+           # the name `straddlers` and concatenates the interior tiles
+           # onto it, so the three lines above do not survive it. What
+           # DOES survive is the string idiom that is the whole of this
+           # patch, so that is what says it landed.
+           superseded_by="6", landed='.agg("idxmax")][["joinUID", id_var]]')
 
 
   # PATCH 4 (four edits, one idea): the grid disc only has to reach the
@@ -405,7 +471,13 @@ def main():
 
   targeted(VENDOR_DIR / "tile_map.py", "4b a second, smaller extent",
            '  def _set_extent_in_grid_space(self) -> None:\n    """Set extent of the grid in grid generation space."""\n    corner = geom.Point(self.oriented_rect_to_tile.exterior.coords[0])\n    radius = self.centre.distance(corner)\n    self.extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)',
-           '  def _set_extent_in_grid_space(self) -> None:\n    """Set extent of the grid in grid generation space.\n\n    PLUGIN PATCH 4b adds a SECOND, smaller extent beside the first, and\n    the reason the first one stays is the whole of why this patch has\n    the shape it does.\n\n    THE DISC EXISTS so a tiling can be rotated about its centre and\n    still cover the region, and rotation about a point preserves\n    distance from that point -- so the radius that keeps that promise\n    in full is the furthest the buffered REGION reaches, not the\n    furthest its bounding rectangle\'s CORNER does. A region touches its\n    rectangle\'s edges by construction and its corners only by\n    coincidence, which is ground no rotation can ever need.\n\n    BUT THE EXTENT ALSO SETS THE LATTICE\'S PHASE. `_get_grid` takes its\n    meshgrid origin from `extent_in_grid_space.bounds`, so shrinking\n    that polygon SHIFTS EVERY TILE by a sub-cell offset. Measured\n    2026-09-04 on `crosses 4` at spacing 500: both radii drew 2,772\n    tiles and 2,622 of them differed, every one still touching the\n    region -- nothing lost, the whole pattern moved. That is a\n    different map rather than a cheaper one, and this project calls\n    that a cartographic ruling rather than an optimisation.\n\n    So the original extent is kept UNTOUCHED to phase the lattice, and\n    the smaller one decides only which cells are WANTED. The two jobs\n    were one polygon and are now two.\n    """\n    corner = geom.Point(self.oriented_rect_to_tile.exterior.coords[0])\n    radius = self.centre.distance(corner)\n    self.extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)\n    coords = shapely.get_coordinates(self.buffered_region)\n    wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,\n                                   coords[:, 1] - self.centre.y)))\n    self.wanted_extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(wanted), self.to_grid_space)')
+           '  def _set_extent_in_grid_space(self) -> None:\n    """Set extent of the grid in grid generation space.\n\n    PLUGIN PATCH 4b adds a SECOND, smaller extent beside the first, and\n    the reason the first one stays is the whole of why this patch has\n    the shape it does.\n\n    THE DISC EXISTS so a tiling can be rotated about its centre and\n    still cover the region, and rotation about a point preserves\n    distance from that point -- so the radius that keeps that promise\n    in full is the furthest the buffered REGION reaches, not the\n    furthest its bounding rectangle\'s CORNER does. A region touches its\n    rectangle\'s edges by construction and its corners only by\n    coincidence, which is ground no rotation can ever need.\n\n    BUT THE EXTENT ALSO SETS THE LATTICE\'S PHASE. `_get_grid` takes its\n    meshgrid origin from `extent_in_grid_space.bounds`, so shrinking\n    that polygon SHIFTS EVERY TILE by a sub-cell offset. Measured\n    2026-09-04 on `crosses 4` at spacing 500: both radii drew 2,772\n    tiles and 2,622 of them differed, every one still touching the\n    region -- nothing lost, the whole pattern moved. That is a\n    different map rather than a cheaper one, and this project calls\n    that a cartographic ruling rather than an optimisation.\n\n    So the original extent is kept UNTOUCHED to phase the lattice, and\n    the smaller one decides only which cells are WANTED. The two jobs\n    were one polygon and are now two.\n    """\n    corner = geom.Point(self.oriented_rect_to_tile.exterior.coords[0])\n    radius = self.centre.distance(corner)\n    self.extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)\n    coords = shapely.get_coordinates(self.buffered_region)\n    wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,\n                                   coords[:, 1] - self.centre.y)))\n    self.wanted_extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(wanted), self.to_grid_space)',
+           # PATCH 5b rewrites the tail of this method, replacing the
+           # disc with a union over the declared rotations, so 4b's own
+           # closing lines do not survive it. The ASSIGNMENT does, and
+           # adding that second extent is what this patch is for.
+           superseded_by="5b",
+           landed='    self.wanted_extent_in_grid_space = \\\n')
 
   targeted(VENDOR_DIR / "tile_map.py", "4c filter on the smaller extent",
            '    return (gpd.GeoSeries(\n      [p for p in pts if p.within(self.extent_in_grid_space)])\n        .affine_transform(self.to_map_space))',

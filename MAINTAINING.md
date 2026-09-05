@@ -2148,6 +2148,33 @@ re-vendor report.
 | **5a-5d** | a caller may DECLARE which rotations it will ask for; default `None` is today's behaviour exactly | the same note |
 | **6** | the overlay clips only the tiles that straddle a zone boundary | `docs/process/upstream-note-the-overlay-clips-what-it-already-knows.md` |
 
+**AND TWO PAIRS OF THEM CHAIN, which decides how the tool reads.**
+Patch 6 anchors on the block patch 3 produces, and patch 5b on the
+tail of the method patch 4b produces. That is fine on a re-vendor --
+patches run in order and each later one anchors on its predecessor's
+output -- and it broke the CHEAP SELF-CHECK, which is the thing worth
+knowing here. Run the tool with our OWN vendor as its upstream and
+every patch should report "already present"; that is what catches a
+vendored file somebody has hand-edited, and
+`test_the_vendoring_tool_reproduces_the_current_vendor` asserts it.
+A superseded patch cannot say that about its whole patched form,
+because a later patch has rewritten it, so patches 3 and 4b reported
+"anchor not found" instead -- the sentence reserved for an anchor
+UPSTREAM has moved, and the one message a re-vendorer has to be able
+to trust. Measured 2026-09-04, on a vendor the tool had itself
+produced.
+
+So `targeted` takes `superseded_by` and `landed` TOGETHER: the label
+of the later patch, and the smaller piece of its own work that the
+later one leaves standing. The tool asserts that such a mark is text
+the patch itself writes and is NOT text the anchor already carries --
+without the second, a patch would read as already present against
+pristine upstream and silently never apply -- so a badly chosen mark
+fails on the first run rather than sitting there. The report says
+which question it asked. A mark is a WEAKER test than the whole
+patched form, and that price is stated at the function; it falls only
+on the two patches that are chained.
+
 WHAT TO DO WHEN ONE OF THEM FAILS TO APPLY. The tool NAMES the patch
 rather than writing a broken vendor, and for the performance family the
 honest first question is whether upstream has taken it -- in which case
