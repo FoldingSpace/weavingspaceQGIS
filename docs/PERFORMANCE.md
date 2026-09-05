@@ -348,14 +348,39 @@ what says the method is sound: the generation profile above reached the
 same figure through cProfile on a different frame, and this probe
 reaches it on the wall clock.
 
-WHAT IT WOULD BE WORTH END TO END IS DIVISION RATHER THAN MEASUREMENT
-and should not be quoted without building it: `gdf_to_layer` is 45% of
-a Generate at spacing 150, so removing 56% of it is about a quarter off
-the whole. IT IS NOT BUILT. The change is four edits to one function in
-`bridge.py`, it is ours rather than upstream's, and what it needs
-before it ships is a registered test asserting the two layers agree
-feature by feature -- the probe's own oracle -- and a catalogue entry
-on each of the two changes that carry it.
+**AND IT IS BUILT, MEASURED ON ITS OWN AFTERWARDS.** All four went
+into `bridge.gdf_to_layer` on 2026-09-04. Re-run against the shipped
+function, the probe's own baseline column is what says so: 0.270 to
+0.286s across six children where it read 0.617 to 0.658 before, at 26.6
+microseconds per feature against 60.4 -- and the all-four arm now
+scores 0.97x, because it and the shipped function are the same code.
+Every arm is still identical feature by feature.
+
+WHAT IT IS WORTH END TO END IS STILL DIVISION RATHER THAN MEASUREMENT
+and is not quoted as a figure: `gdf_to_layer` was 45% of a Generate at
+spacing 150, so removing 56% of it is about a quarter off the whole.
+The tables ABOVE describe the old function and are left as the
+measurement they were -- a Generate has not been re-profiled end to end
+since, and that is owed before any of those rows is quoted as current.
+
+THE GUARD IS `test_the_faster_conversion_draws_the_same_layer`, which
+compares the rewrite against the previous implementation kept beside
+it, feature by feature over geometry bytes and every attribute. Its
+fixture reaches what the tiling data could not: a MultiPolygon, a
+GeometryCollection carrying a polygon, one carrying none, an empty
+geometry, a missing one, and a null in each of three column kinds --
+because the arms were measured on tiles that are all plain polygons
+with no nulls, so every other branch would otherwise have shipped
+unproved.
+
+AND THREE CATALOGUE ENTRIES STAND ON IT, one per property the rewrite
+put at risk rather than one per change that made it faster: the plain
+polygon's promotion to multi, a WKB landing at its own row's index so a
+skipped row cannot shift the rows after it, and the attributes landing
+in the order the fields were declared. Each is aimed at the line where
+the answer is DECIDED, and each was proved `caught` on 2026-09-04.
+The middle one is the characteristic failure of this software wearing a
+batch conversion: a map that looks entirely plausible and is wrong.
 
 AND THE ARMS CONTAMINATED EACH OTHER UNTIL THEY WERE SEPARATED. Run in
 one process, every arm keeps a ten-thousand-feature memory layer with a

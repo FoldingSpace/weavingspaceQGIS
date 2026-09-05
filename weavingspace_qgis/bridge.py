@@ -599,6 +599,7 @@ def gdf_to_layer(gdf, name: str) -> QgsVectorLayer:
   only the polygonal parts are kept.
   """
   import pandas as pd
+  import shapely
   from shapely.geometry import MultiPolygon, Polygon
 
   crs_str = ""
@@ -632,34 +633,84 @@ def gdf_to_layer(gdf, name: str) -> QgsVectorLayer:
   provider.addAttributes([_make_field(c, kinds[c]) for c in columns])
   layer.updateFields()
 
+  # The per-feature work below is what a large map spends its QGIS-side
+  # time on -- measured 2026-09-04 at about 60 microseconds per drawn
+  # feature, the largest single term of a Generate. Four changes take
+  # that to 26, and each lifts one term OUT of the per-feature loop; the
+  # decomposition, the probe and the exactness check are in
+  # docs/PERFORMANCE.md under "Converting the frame into QGIS layers".
+  # Every one is answer-preserving: the layer is identical feature by
+  # feature, geometry and attributes alike, which is asserted by
+  # test_the_faster_conversion_draws_the_same_layer rather than assumed.
+  fields = layer.fields()
+  geoms = gdf.geometry.values
+
+  # shapely 2 answers these for the whole column in C rather than one
+  # Python call per object. Type ids are OGC's: 3 is Polygon, 6 is
+  # MultiPolygon, and anything else takes the per-object path below.
+  type_ids = shapely.get_type_id(geoms)
+  missing = shapely.is_missing(geoms)
+  empty = shapely.is_empty(geoms)
+
+  # (1) One shapely call for the whole column's WKB. `to_wkb` refuses a
+  # missing geometry, so it is asked only where there is one, and the
+  # answers are put back at their own row's index -- a row the frame
+  # skips must not shift the rows after it.
+  wkbs = [None] * len(geoms)
+  wanted = [i for i in range(len(geoms))
+            if not missing[i] and not empty[i]]
+  if wanted:
+    produced = shapely.to_wkb(geoms[wanted])
+    for slot, i in enumerate(wanted):
+      wkbs[i] = produced[slot]
+
+  # (2) The null-and-cast question decided once per COLUMN. A column has
+  # one dtype, so which cast applies is a fact about the column; asking
+  # it per value costs three type checks on every attribute of every
+  # feature. None stands in for QGIS's NULL until the row is built.
+  cols = []
+  for c in columns:
+    kind = kinds[c]
+    cast = str if kind is str else (int if kind is int else float)
+    cols.append([None if v is None or v is pd.NA
+                 or (isinstance(v, float) and math.isnan(v)) else cast(v)
+                 for v in gdf[c].tolist()])
+
   feats = []
-  geoms = gdf.geometry.tolist()
-  col_values = {c: gdf[c].tolist() for c in columns}
-  for i, shp in enumerate(geoms):
-    if shp is None or shp.is_empty:
+  for i in range(len(geoms)):
+    if wkbs[i] is None:
       continue
-    if isinstance(shp, Polygon):
-      shp = MultiPolygon([shp])
-    elif not isinstance(shp, MultiPolygon):
-      polys = [g for g in getattr(shp, "geoms", [])
+    tid = type_ids[i]
+    if tid == 3 or tid == 6:
+      # (3) A plain polygon is promoted to multi by QGIS, in C++,
+      # rather than by building a shapely MultiPolygon around it and
+      # taking its WKB. `convertToMultiType` is the same normalisation
+      # this layer has always applied -- a QGIS layer holds ONE
+      # geometry type and a tiling yields both.
+      geom = QgsGeometry()
+      geom.fromWkb(wkbs[i])
+      if tid == 3:
+        geom.convertToMultiType()
+    else:
+      # A GeometryCollection -- what clipping leaves -- keeps its
+      # polygonal parts only, which is a per-object question and stays
+      # on the old path. An object with no parts at all (a stray point
+      # or line) contributes no feature.
+      polys = [g for g in getattr(geoms[i], "geoms", [])
                if isinstance(g, Polygon)]
       if not polys:
         continue
-      shp = MultiPolygon(polys)
-    feat = QgsFeature(layer.fields())
-    geom = QgsGeometry()
-    geom.fromWkb(shp.wkb)
+      geom = QgsGeometry()
+      geom.fromWkb(MultiPolygon(polys).wkb)
+    feat = QgsFeature(fields)
     feat.setGeometry(geom)
-    for c in columns:
-      v = col_values[c][i]
-      if v is None or (isinstance(v, float) and math.isnan(v)) or v is pd.NA:
-        feat[c] = NULL
-      elif kinds[c] is int:
-        feat[c] = int(v)
-      elif kinds[c] is float:
-        feat[c] = float(v)
-      else:
-        feat[c] = str(v)
+    # (4) Attributes set POSITIONALLY. `feat[c] = v` looks the field
+    # name up on every attribute of every feature; `setAttributes`
+    # takes them in field order, which is the order `columns` declared
+    # them in above -- the two cannot drift because the same list
+    # builds the fields and the row.
+    feat.setAttributes([NULL if col[i] is None else col[i]
+                        for col in cols])
     feats.append(feat)
   provider.addFeatures(feats)
   layer.updateExtents()

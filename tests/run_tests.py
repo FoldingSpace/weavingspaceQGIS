@@ -1711,6 +1711,203 @@ def test_awkward_geometry():
   assert len(tiled) > 0 and set(tiled["tile_id"]) == set("abcd")
 
 
+
+def _gdf_to_layer_the_old_way(gdf, name):
+  """The conversion exactly as it stood before 2026-09-04.
+
+  Args:
+    gdf: the frame to convert.
+    name: the layer name to give the result.
+
+  Returns:
+    A memory layer, built the per-feature way the shipped function used
+    to build one. This is the ORACLE for the rewrite beside it and is
+    deliberately a SECOND IMPLEMENTATION rather than a restatement of
+    the new one: the two share the schema decisions above the loop and
+    nothing at all inside it, so a disagreement is a defect by
+    construction. Keep it in step with the CRS and field handling of
+    `bridge.gdf_to_layer`, which is what it copies; the loop is what it
+    must not copy.
+  """
+  import math
+  import pandas as pd
+  from shapely.geometry import MultiPolygon, Polygon
+  from qgis.core import QgsCoordinateReferenceSystem, NULL
+  from weavingspace_qgis.bridge import _make_field
+
+  crs_str = ""
+  if gdf.crs is not None:
+    authid = gdf.crs.to_authority()
+    crs_str = f"?crs={authid[0]}:{authid[1]}" if authid \
+      else f"?crs=wkt:{gdf.crs.to_wkt()}"
+  layer = QgsVectorLayer(f"MultiPolygon{crs_str}", name, "memory")
+  if gdf.crs is None:
+    layer.setCrs(QgsCoordinateReferenceSystem())
+  provider = layer.dataProvider()
+
+  columns = [c for c in gdf.columns if c != gdf.geometry.name]
+  kinds = {}
+  for c in columns:
+    if pd.api.types.is_integer_dtype(gdf[c]):
+      kinds[c] = int
+    elif pd.api.types.is_float_dtype(gdf[c]):
+      kinds[c] = float
+    else:
+      kinds[c] = str
+  provider.addAttributes([_make_field(c, kinds[c]) for c in columns])
+  layer.updateFields()
+
+  feats = []
+  geoms = gdf.geometry.tolist()
+  col_values = {c: gdf[c].tolist() for c in columns}
+  for i, shp in enumerate(geoms):
+    if shp is None or shp.is_empty:
+      continue
+    if isinstance(shp, Polygon):
+      shp = MultiPolygon([shp])
+    elif not isinstance(shp, MultiPolygon):
+      polys = [g for g in getattr(shp, "geoms", [])
+               if isinstance(g, Polygon)]
+      if not polys:
+        continue
+      shp = MultiPolygon(polys)
+    feat = QgsFeature(layer.fields())
+    geom = QgsGeometry()
+    geom.fromWkb(shp.wkb)
+    feat.setGeometry(geom)
+    for c in columns:
+      v = col_values[c][i]
+      if v is None or (isinstance(v, float) and math.isnan(v)) or v is pd.NA:
+        feat[c] = NULL
+      elif kinds[c] is int:
+        feat[c] = int(v)
+      elif kinds[c] is float:
+        feat[c] = float(v)
+      else:
+        feat[c] = str(v)
+    feats.append(feat)
+  provider.addFeatures(feats)
+  layer.updateExtents()
+  return layer
+
+
+def _read_every_feature(layer):
+  """Everything a caller could read back off a layer, in order.
+
+  Args:
+    layer: the memory layer to read.
+
+  Returns:
+    A list of `(geometry WKB, [attributes])`, one entry per feature. The
+    WKB is compared rather than the geometry object because two
+    QgsGeometry instances covering identical ground are not equal to
+    each other, and the bytes are what a GeoPackage and a project file
+    actually carry.
+  """
+  rows = []
+  for f in layer.getFeatures():
+    rows.append((f.geometry().asWkb().data(), list(f.attributes())))
+  return rows
+
+
+def test_the_faster_conversion_draws_the_same_layer():
+  """gdf_to_layer was rewritten for speed on 2026-09-04 -- one shapely
+  call for the column's WKB, QGIS promoting a polygon to multi in C++,
+  attributes set positionally, and the null-and-cast decision taken once
+  per column. Measured 2.29x on 10,526 tiles (docs/PERFORMANCE.md).
+
+  A conversion that changes what the map HOLDS is a cartographic ruling
+  rather than an optimisation, so this asserts the two agree FEATURE BY
+  FEATURE -- geometry bytes and every attribute -- against the previous
+  implementation kept above as an oracle.
+
+  The fixture is built to reach every branch rather than to be
+  realistic, and it asserts that it did: a plain polygon and a
+  multipolygon take the two fast paths, a GeometryCollection carrying a
+  polygon takes the per-object path that clipping produces, a collection
+  with NO polygonal part contributes nothing, and an empty and a missing
+  geometry are skipped -- and a skipped row must not shift the rows
+  after it, which is the fault a batched conversion invites.
+
+  It guards ground nobody has fallen through, which is why it carries no
+  Regression line: the branches it reaches are ones the MEASUREMENT
+  could not, since a tiled frame is all plain polygons with no nulls, so
+  a rewrite proved on that data alone would ship every other branch
+  unexamined. It was watched failing on two plausible defects -- WKB
+  written back at the wrong index, and a plain polygon never promoted to
+  multi -- rather than trusted because it passed.
+  """
+  import geopandas as gpd
+  import pandas as pd
+  import shapely
+  import shapely.geometry as sg
+  from weavingspace_qgis import bridge
+
+  square = sg.box(0, 0, 10, 10)
+  multi = sg.MultiPolygon([sg.box(20, 0, 25, 5), sg.box(30, 0, 35, 5)])
+  # what clipping leaves: polygonal parts beside a line
+  mixed = sg.GeometryCollection(
+    [sg.box(40, 0, 45, 5), sg.LineString([(40, 8), (45, 8)])])
+  # a collection with nothing polygonal in it at all
+  no_polygons = sg.GeometryCollection(
+    [sg.LineString([(50, 0), (55, 0)]), sg.Point(52, 2)])
+  geoms = [square, multi, mixed, no_polygons,
+           sg.Polygon(), None, sg.box(60, 0, 65, 5)]
+
+  frame = gpd.GeoDataFrame(
+    {"count": pd.array([1, 2, 3, 4, 5, 6, None], dtype="Int64"),
+     "value": [1.5, float("nan"), 3.5, 4.5, 5.5, 6.5, 7.5],
+     "label": ["a", "b", None, "d", "e", "f", "g"]},
+    geometry=geoms, crs="EPSG:3857")
+
+  # PREMISE: the fixture reaches the branches this test is about.
+  kinds = [shapely.get_type_id(g) if g is not None else -1 for g in geoms]
+  assert 3 in kinds, "PREMISE: no plain polygon, so the C++ promotion is unrun"
+  assert 6 in kinds, "PREMISE: no multipolygon"
+  assert 7 in kinds, "PREMISE: no GeometryCollection, so the old path is unrun"
+  assert any(g is None for g in geoms), "PREMISE: no missing geometry"
+  assert any(g is not None and g.is_empty for g in geoms), \
+    "PREMISE: no empty geometry, so the index-shifting case is unreachable"
+
+  now = bridge.gdf_to_layer(frame, "now")
+  before = _gdf_to_layer_the_old_way(frame, "before")
+  mine, theirs = _read_every_feature(now), _read_every_feature(before)
+
+  # Three of the seven rows draw nothing: the collection with no
+  # polygonal part, the empty geometry and the missing one.
+  assert len(theirs) == 4, \
+    f"PREMISE: the oracle drew {len(theirs)} features, not the expected 4"
+  assert len(mine) == len(theirs), \
+    f"the rewrite drew {len(mine)} features where the old one drew " \
+    f"{len(theirs)} -- a skipped row has shifted the rows after it"
+
+  compared = 0
+  for i, (a, b) in enumerate(zip(mine, theirs)):
+    assert a[0] == b[0], f"feature {i}: the geometry bytes differ"
+    assert a[1] == b[1], \
+      f"feature {i}: attributes {a[1]} against the old {b[1]}"
+    compared += 1
+  assert compared == 4, \
+    f"nothing was compared ({compared} features), so the equality above " \
+    f"proves nothing"
+
+  # The nulls must arrive AS nulls rather than as zeros: an Int64 gap, a
+  # NaN and a None each fall in a different column and a different row.
+  nulls = sum(1 for _wkb, attrs in mine for v in attrs
+              if v is None or (hasattr(v, "isNull") and v.isNull()))
+  assert nulls >= 2, \
+    f"the drawn features carry {nulls} nulls; the fixture's gaps have " \
+    f"been cast to numbers, which is a silent edit of somebody's data"
+
+  # AND A FRAME WITH NO CRS KEEPS NONE. A memory layer whose URI names
+  # no CRS is given EPSG:4326 by QGIS, which would ship coordinates in
+  # the thousands labelled as degrees (settled rule, 2026-08-09).
+  bare = gpd.GeoDataFrame({"count": [1]}, geometry=[square])
+  assert bare.crs is None, "PREMISE: the fixture arrived carrying a CRS"
+  assert not bridge.gdf_to_layer(bare, "bare").crs().isValid(), \
+    "a frame with no CRS must not acquire one on the way into QGIS"
+
+
 def test_renderer_seeding():
   """Each style produces the QGIS renderer it should.
 
@@ -85672,6 +85869,8 @@ def main():
   check("layer <-> GeoDataFrame roundtrip", test_bridge_roundtrip)
   check("awkward geometry (invalid, holed, multipart, null)",
         test_awkward_geometry)
+  check("the faster conversion draws the same layer",
+        test_the_faster_conversion_draws_the_same_layer)
   check("real-world data end to end (Auckland IMD)",
         test_real_world_data)
   check("renderer seeding (graduated + categorized)", test_renderer_seeding)

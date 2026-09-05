@@ -165,6 +165,60 @@ MUTATIONS = [
            "which was exact: colour had an adoption path into the "
            "record and the bounds had none, so every route ended at "
            "the same missing one"),
+  dict(name="a-plain-polygon-arrives-as-a-multipolygon", file=BRIDGE,
+       # ANCHORED ON THE PROMOTION ITSELF, which is where the answer is
+       # decided. The faster conversion stopped building a shapely
+       # MultiPolygon around every plain polygon and asks QGIS to
+       # promote in C++ instead; delete that call and the layer holds a
+       # Polygon where its own URI declares MultiPolygon.
+       old="""      if tid == 3:
+        geom.convertToMultiType()""",
+       new="""      if False:
+        geom.convertToMultiType()""",
+       test="test_the_faster_conversion_draws_the_same_layer",
+       why="a QGIS layer holds ONE geometry type and a tiling yields "
+           "both Polygon and MultiPolygon, so the normalisation is "
+           "what makes the layer legal at all. The rewrite of "
+           "2026-09-04 moved it from shapely into QGIS for 1.38x, and "
+           "the risk that move introduces is exactly this: the "
+           "conversion is now a separate CALL rather than a "
+           "consequence of how the geometry was built, so it can be "
+           "dropped without anything else changing shape"),
+  dict(name="a-skipped-row-never-shifts-the-rows-after-it", file=BRIDGE,
+       # ANCHORED ON THE WRITE-BACK, not on the `wanted` list above it:
+       # what is at stake is that a WKB lands at its own ROW's index.
+       # Mutating the list comprehension would prove which rows are
+       # converted; this proves where their answers go.
+       old="""      wkbs[i] = produced[slot]""",
+       new="""      wkbs[i] = produced[min(slot + 1, len(produced) - 1)]""",
+       test="test_the_faster_conversion_draws_the_same_layer",
+       why="taking the whole column's WKB in one shapely call means "
+           "the answers come back positionally over the rows that HAD "
+           "a geometry, while the loop below walks every row -- so a "
+           "missing or empty geometry, which a clipped tiling "
+           "produces, silently shifts every geometry after it onto "
+           "the wrong feature. It is the characteristic failure of "
+           "this software wearing a batch conversion: a map that "
+           "looks entirely plausible and is wrong"),
+  dict(name="attributes-land-in-the-order-the-fields-were-declared",
+       file=BRIDGE,
+       # ANCHORED ON THE ROW, because `setAttributes` takes attributes
+       # by POSITION and the fields were added from the same `columns`
+       # list a few lines above. Reversing the row is the plausible
+       # wrong implementation rather than a mutation of the right one.
+       old="""    feat.setAttributes([NULL if col[i] is None else col[i]
+                        for col in cols])""",
+       new="""    feat.setAttributes([NULL if col[i] is None else col[i]
+                        for col in reversed(cols)])""",
+       test="test_the_faster_conversion_draws_the_same_layer",
+       why="setting attributes by POSITION is 1.28x faster than "
+           "`feat[c] = v`, which looks the field name up on every "
+           "attribute of every feature -- and it trades a lookup for "
+           "an ORDERING that nothing in the language enforces. The "
+           "two lists cannot drift while both come from `columns`, "
+           "which is the reason the code is safe and also the reason "
+           "a later edit could make it unsafe without touching this "
+           "line at all"),
   dict(name="a-coverage-spacing-never-follows-the-locale", file=BRIDGE,
        # ANCHORED ON THE CONVERSION, not on the rstrip beside it: the
        # trimming is the same in either version and a mutation of it
