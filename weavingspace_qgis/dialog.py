@@ -450,6 +450,13 @@ SWATCH_STRIPES = 8
 # What separates two notices sharing the dialog's single note line
 # when there is no QGIS message bar to stack them in. See
 # WeavingSpaceDialog._report_quietly.
+# HOW MANY TILED FRAMES ARE HELD AT ONCE, keyed by what a tiling
+# depends on. Two answers the journey this exists for -- change a
+# variable, look, change it back -- while an unbounded cache on a long
+# session is a leak wearing an optimisation's clothes: a frame at
+# spacing 100 is 191,184 rows carrying every column the layer has.
+_TILED_FRAMES_HELD = 2
+
 NOTE_SEPARATOR = "  |  "
 
 # The "Edit colours" column. Appended after the columns that were
@@ -3237,6 +3244,33 @@ class WeavingSpaceDialog(QDialog):
     # in CLAUDE.md. Putting it in the working state would carry one
     # person's appetite for experiments into another person's project
     # through a saved file.
+    # HOLDING THE TILES BETWEEN RUNS, so that changing which variable
+    # an element shows need not lay the tiling out again. The join
+    # behind a map computes an argmax on AREA and keeps a tile id
+    # against a zone id, so it gives the same answer whatever attribute
+    # is displayed: 1.034s of a 1.36s Generate at spacing 250, and
+    # about 2.1s of 3.8s at 150.
+    #
+    # A SWITCH RATHER THAN A HEURISTIC. (Maintainer's ruling,
+    # 2026-09-05.) The frame is carried FULL WIDTH -- every column the
+    # layer has -- because guessing which one somebody will reach for
+    # is the one thing a cache like this cannot do, and the price is
+    # memory on a wide table at a fine spacing. Whoever cannot afford
+    # it turns this off and pays a re-tile per switch, which is what
+    # they had before it existed. A MISS IS ALWAYS SAFE: it costs a
+    # regenerate and nothing else.
+    #
+    # IT IS A PREFERENCE ABOUT THE PLUGIN AND NOT A FACT ABOUT A MAP,
+    # so it belongs here beside the other preferences and NOT in a
+    # group's working state -- the two-relationships framing, and the
+    # same reason the experimental box is not stored with a map.
+    self.opt_cache_tiles = QCheckBox("Keep tiles between runs")
+    self.opt_cache_tiles.setToolTip(
+      "Reuses the tiling when only the displayed variable changes.")
+    self.opt_cache_tiles.setChecked(True)
+    self.opt_cache_tiles.toggled.connect(self._forget_the_tiled_frames)
+    olayout.addWidget(self.opt_cache_tiles)
+
     self.opt_experimental = QCheckBox("Experimental features")
     self.opt_experimental.setToolTip(
       "Unlocks features that are being designed and tested.")
@@ -15772,6 +15806,133 @@ class WeavingSpaceDialog(QDialog):
       layer.setSubsetString(hand_subset)
     self._no_data_layer_ids[tile_id] = layer.id()
 
+  def _fields_worth_joining(self, assignments) -> list:
+    """Which of the layer's columns to carry onto the tiles: ALL of them.
+
+    Args:
+      assignments: the rows as `_assignments` reports them, so that a
+        variable somehow absent from the layer's own field list is
+        still carried rather than silently dropped.
+
+    Returns:
+      Every column name the layer offers, plus anything mapped.
+
+    FULL WIDTH, BECAUSE GUESSING WHICH COLUMN SOMEBODY WILL REACH FOR
+    IS THE ONE THING THIS CANNOT DO. (Maintainer's ruling, 2026-09-05.)
+    A first draft carried the mapped variables plus the numeric,
+    non-identifier fields, capped -- and every one of those filters is
+    a prediction about a person's next click. A text column can be a
+    categorical variable, an identifier-looking name can be the thing
+    somebody wants to map, and a cap makes the twelfth column the one
+    that always re-tiles for no reason anybody could see.
+
+    THE COST IS MEMORY AND A WIDER JOIN, and it is answered by the
+    switch on Map options rather than by a heuristic here: somebody
+    with a very wide table and a fine spacing turns caching off and
+    pays a re-tile per switch, which is exactly what they got before
+    this existed. A guess cannot be turned off, and would be wrong
+    quietly.
+
+    IT DOES NOT REACH THE FILE. `_only_this_elements_data` is an
+    allowlist over these columns, so an element's layer keeps its own
+    variable and the identifiers whatever the frame carries -- ruling 6
+    of 2026-08-25 held by construction rather than by this function
+    remembering to.
+    """
+    mapped = {a["var"] for a in assignments if a.get("var")}
+    return sorted(mapped | set(self._layer_fields() or ()))
+
+  def _forget_the_tiled_frames(self, *_args) -> None:
+    """Drop whatever tiles are being held.
+
+    Returns:
+      None. Called when the switch moves, in BOTH directions: turning
+      it off must release the memory the person turned it off for, and
+      turning it on must not resurrect frames from before -- they were
+      built under a key that was true then, and the honest way back is
+      to tile once and hold that.
+    """
+    self._tiled_frames = {}
+
+  def _caching_is_on(self) -> bool:
+    """Whether intermediate tiles may be held between runs.
+
+    Returns:
+      True unless somebody has turned it off on Map options, and True
+      where the box does not exist -- a dialog built without it should
+      behave as the default does rather than quietly stop caching.
+
+    A SWITCH RATHER THAN A HEURISTIC. (Maintainer's ruling,
+    2026-09-05.) The frame is carried FULL WIDTH because guessing which
+    column somebody will map is the one thing this cannot do, and the
+    price of that is memory on a wide table at a fine spacing. A guess
+    about who can afford it would be wrong silently; a switch is wrong
+    only where somebody has decided it should be.
+    """
+    box = getattr(self, "opt_cache_tiles", None)
+    return True if box is None else box.isChecked()
+
+  def _tiled_frame_for(self, key, fields):
+    """A tiled frame already built for this key, or None.
+
+    Args:
+      key: `_geometry_signature(without_variables=True)`.
+      fields: the columns this run needs on the tiles.
+
+    Returns:
+      A COPY of the held frame where one exists for this key and
+      carries every column asked for, else None. A copy because
+      `count_units_without_tiles` strips a column off the frame it is
+      given: handing out the held object would let the first consumer
+      edit what every later one reads.
+
+    A MISS IS ALWAYS ALLOWED, and that is what keeps this safe. The
+    only way to be wrong is to HIT when the tiles have moved, which is
+    the key's business; missing costs a re-tile and nothing else.
+    """
+    if not self._caching_is_on():
+      return None
+    held = getattr(self, "_tiled_frames", {}).get(key)
+    if held is None:
+      return None
+    if any(name not in held.columns for name in fields):
+      return None
+    return held.copy()
+
+  def _keep_the_tiled_frame(self, key, fields, frame) -> None:
+    """Hold this run's tiles so a variable switch need not re-tile.
+
+    Args:
+      key: `_geometry_signature(without_variables=True)`.
+      fields: what was joined onto them, kept for the docstring's sake
+        rather than used -- the frame's own columns are the truth.
+      frame: the tiled frame, held by REFERENCE and copied on the way
+        out.
+
+    Returns:
+      None.
+
+    HELD IN MEMORY AND NOWHERE ELSE, which is what keeps the privacy
+    ruling. This is a plain attribute on the dialog: `_save_the_map`
+    writes by iterating element ids, QGIS serialises layers rather
+    than a dialog's attributes, and neither can reach this. That is
+    ruling 6 held by construction rather than by every writer
+    remembering -- the maintainer's requirement of 2026-09-05.
+
+    BOUNDED, because a frame at spacing 100 is 191,184 rows: two keys
+    is enough to answer switching back and forth, which is the journey
+    this is for, and an unbounded cache on a long session is a leak
+    wearing an optimisation's clothes.
+    """
+    if frame is None or not self._caching_is_on():
+      self._tiled_frames = {}
+      return
+    if not hasattr(self, "_tiled_frames"):
+      self._tiled_frames = {}
+    self._tiled_frames[key] = frame
+    while len(self._tiled_frames) > _TILED_FRAMES_HELD:
+      self._tiled_frames.pop(next(iter(self._tiled_frames)))
+
   def _only_this_elements_data(self, frame, variable, mapped_variables):
     """Drop every other element's data column from one element's tiles.
 
@@ -16941,7 +17102,7 @@ class WeavingSpaceDialog(QDialog):
           "QGIS, or choose another layer.")
       return
 
-    fields = sorted({a["var"] for a in assignments if a["var"]})
+    fields = self._fields_worth_joining(assignments)
     # WHAT CAME FROM THE USER'S DATA, remembered so the landing can
     # trim by an ALLOWLIST rather than by guessing from what happens to
     # be mapped. Ruling 6 of 2026-08-25 says an element's table carries
@@ -17072,6 +17233,12 @@ class WeavingSpaceDialog(QDialog):
     join_proto = self.opt_join_prototiles.isChecked()
     retain = self.opt_retain.isChecked()
     ragged = not self.opt_clip.isChecked()
+    # TAKEN ON THIS THREAD, because it reads widgets and the worker may
+    # not. `_geometry_signature` asks the combos, the spin boxes and
+    # the table; touching a QWidget from a QgsTask is the fault that
+    # segfaults QGIS, and this project already keeps CRS work off the
+    # worker for the same class of reason.
+    tiling_key = self._geometry_signature(without_variables=True)
 
     def work(task):
       from weavingspace import Tiling
@@ -17088,6 +17255,30 @@ class WeavingSpaceDialog(QDialog):
       # reduced, so about half the original. If this plugin ever passes
       # a rotation to `get_tiled_map`, this argument must go with it or
       # the map comes back short at the edges.
+      # THE TILING IS THE SAME WHATEVER IS DISPLAYED, so a frame built
+      # for one set of variables answers for another. `get_tiled_map`'s
+      # overlay computes an argmax on AREA and keeps a tile id against
+      # a zone id; nothing in it asks which attribute a person is
+      # looking at. Measured: 1.034s of a 1.36s Generate at spacing
+      # 250, and about 2.1s of 3.8s at 150.
+      #
+      # SERVED HERE, INSIDE THE WORKER, deliberately. Skipping the task
+      # altogether would mean a second route to the landing, and the
+      # landing is where this project has put most of its rulings --
+      # two doors into it is the shape that has cost it most often. The
+      # work is what gets cheap; nothing downstream can tell.
+      #
+      # A COPY GOES OUT, because `count_units_without_tiles` strips a
+      # column off the frame it is handed. Handing out the cached
+      # object would let the first consumer edit what every later one
+      # reads, which is a cache that answers with a map of something
+      # that has been quietly changed.
+      held = self._tiled_frame_for(tiling_key, fields)
+      if held is not None:
+        task.setProgress(90)
+        coverage["missing"] = bridge.count_units_without_tiles(
+          held, unit_id_column, unit_count)
+        return None if task.isCanceled() else held
       tiling = Tiling(unit, region, as_icons=as_icons, rotations=(0.0,))
       if task.isCanceled():
         return None
@@ -17101,6 +17292,15 @@ class WeavingSpaceDialog(QDialog):
       # still carries the tracing column; the same call strips the
       # column off again. Measured at 1% of the run on the packaged
       # Auckland data (tools/measure_coverage_warning.py)
+      # A COPY, TAKEN BEFORE THE COUNT. `count_units_without_tiles`
+      # STRIPS the tracing column off the frame it is handed -- its own
+      # comment says so -- so holding this by reference would put a
+      # frame into the cache that is missing a column every later run
+      # needs, and the run served from it would die before the landing.
+      # Measured 2026-09-05 by the differential below: served from a
+      # cache held by reference, the element layers were never rebuilt
+      # at all and went on showing the PREVIOUS variable.
+      self._keep_the_tiled_frame(tiling_key, fields, tm.map.copy())
       coverage["missing"] = bridge.count_units_without_tiles(
         tm.map, unit_id_column, unit_count)
       return None if task.isCanceled() else tm.map

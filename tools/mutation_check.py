@@ -10775,6 +10775,23 @@ MUTATIONS = [
            "on that path either way, so the failure is silent: the "
            "gesture works, the amplitude changes, and the count simply "
            "never moves"),
+  dict(name="a-held-tiling-is-a-copy-not-the-frame-itself",
+       file=DIALOG,
+       # AIMED AT THE COPY, which is the whole of whether the cache is
+       # safe to serve. `count_units_without_tiles` strips the tracing
+       # column off the frame it is handed, so a cache holding the
+       # object rather than a copy stores a frame that is missing a
+       # column -- and the run served from it dies before the landing,
+       # leaving the PREVIOUS variable's layers on screen. Measured
+       # 2026-09-05: this is the defect the differential caught.
+       old="""      self._keep_the_tiled_frame(tiling_key, fields, tm.map.copy())""",
+       new="""      self._keep_the_tiled_frame(tiling_key, fields, tm.map)""",
+       test="test_a_cached_switch_draws_what_a_retile_draws",
+       why="a map of the variable somebody switched AWAY from. The "
+           "cache would hand back a frame a later consumer had already "
+           "edited, the landing would not rebuild the element layers, "
+           "and the old columns would stay on screen under the new "
+           "variable's name -- a wrong map that looks entirely right"),
   dict(name="the-tiling-key-forgets-which-variables-are-mapped",
        file=DIALOG,
        # AIMED AT THE BLANKING, which is the only thing that makes the

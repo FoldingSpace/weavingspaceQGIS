@@ -56080,6 +56080,165 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_a_cached_switch_draws_what_a_retile_draws():
+  """A variable switch served from the cache is byte-for-byte the map.
+
+  (Maintainer's ruling, 2026-09-05: hold the tiles between runs, full
+  width, with a switch on Map options and a plain regenerate on a
+  miss.) The join behind a map computes an argmax on AREA and keeps a
+  tile id against a zone id, so it answers the same whatever attribute
+  is displayed -- which is why the tiling can be reused at all, and
+  worth 1.034s of a 1.36s Generate at spacing 250.
+
+  THIS IS THE ONLY TEST THAT MATTERS FOR IT. A cache is wrong in one
+  direction only: by HITTING when the tiles have moved, and then the
+  map is silently of something else. So the same switch is driven
+  twice -- once served from the cache, once with the cache turned off
+  so it re-tiles -- and the two maps are compared feature by feature.
+  Anything the cache changes shows up here.
+
+  AND THE HIT IS ASSERTED, not assumed. `_tiled_frame_for` is WRAPPED
+  rather than replaced, which is this suite's own rule: a spy that
+  stands in for the thing under test measures the spy. Without this
+  the test would pass just as well against a cache that never hits and
+  quietly re-tiles every time.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  path = os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg")
+  layer = QgsVectorLayer(path, "auckland", "ogr")
+  assert layer.isValid(), "PREMISE: the packaged data will not open"
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+
+  def drawn():
+    """Every element layer's tiles, as (id, wkb, value) triples."""
+    seen = {}
+    for tid, layer_id in sorted(dlg._element_layer_ids.items()):
+      element = QgsProject.instance().mapLayer(layer_id)
+      if element is None:
+        continue
+      # THE FIELD NAMES ARE PART OF THE READING, not a detail. Values
+      # alone would compare one layer's `population` against another's
+      # `imd` and call the map wrong when what differs is WHICH COLUMN
+      # SURVIVED -- which is a different fault and a different fix.
+      names = sorted(f.name() for f in element.fields())
+      rows = []
+      for feature in element.getFeatures():
+        values = tuple((name, feature[name]) for name in names)
+        rows.append((bytes(feature.geometry().asWkb()), values))
+      seen[tid] = sorted(rows)
+    return seen
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+    dlg.spacing_spin.setValue(900)          # coarse: this is not about count
+    _tick(300)
+    def chooser():
+      # RE-READ EVERY TIME, NEVER CAPTURED. A run rebuilds the
+      # assignment table, so a combo held from before is a widget that
+      # has been reparented away: setting its text changes nothing the
+      # dialog reads, and the run that follows is one nobody asked
+      # for. Same hazard as the Topology tab's parameter boxes, met
+      # here for the third time in a day.
+      widget = dlg.table.cellWidget(0, 1)
+      assert widget is not None, "PREMISE: row 0 has no variable chooser"
+      return widget
+
+    combo = chooser()
+    assert combo is not None, "PREMISE: row 0 offers no variable chooser"
+    first = combo.currentText()
+    # A REAL VARIABLE, not the first thing on the list. The chooser
+    # offers `fid` and `id` before anything worth mapping, and
+    # switching to an identifier is declined -- so a test that took
+    # the first available option drove a run that never launched, and
+    # then blamed the cache for not being asked.
+    offered = [combo.itemText(i) for i in range(combo.count())]
+    second = next((name for name in offered
+                   if name not in ("", "---", first)
+                   and name.lower() not in ("fid", "id", "objectid",
+                                            "gid", "ogc_fid", "name")
+                   and dlg._field_is_numeric(name)), None)
+    assert second, f"PREMISE: nothing else worth mapping: {offered}"
+
+    # ---- WITH THE CACHE. Draw once, then switch and draw again.
+    dlg.opt_cache_tiles.setChecked(True)
+    _generate_and_wait(dlg)
+    # SAY WHICH STEP FAILED. `_generate_and_wait` returns at once when
+    # no task launched -- a declined run or the restyle fast path --
+    # so without this the next assertion blames the cache for a map
+    # that was never drawn.
+    assert dlg._element_layer_ids, (
+      "PREMISE: the first Generate drew no element layers, so nothing "
+      "was tiled and there is no cache to test")
+    assert getattr(dlg, "_tiled_frames", None), (
+      "PREMISE: the first Generate tiled but held nothing, so the "
+      "cache never stored and the switch below cannot hit")
+    hits = []
+    plain = dlg._tiled_frame_for
+
+    def counted(key, fields):
+      answer = plain(key, fields)
+      hits.append(answer is not None)
+      return answer
+
+    dlg._tiled_frame_for = counted
+    was = dlg._geometry_signature()
+    chooser().setCurrentText(second)
+    _tick(300)
+    assert dlg._geometry_signature() != was, (
+      f"PREMISE: switching row 0 from {first!r} to {second!r} did not "
+      f"move the signature, so no run follows and nothing asks the "
+      f"cache")
+    _generate_and_wait(dlg)
+    dlg._tiled_frame_for = plain
+    cached = drawn()
+    assert any(hits), (
+      "the switch was not served from the cache at all, so this test "
+      "would pass against a cache that never hits: the tiling was "
+      f"laid out again. Asked {len(hits)} time(s)")
+
+    # ---- WITHOUT IT. The same switch, tiled from nothing.
+    dlg.opt_cache_tiles.setChecked(False)
+    _tick(100)
+    chooser().setCurrentText(first)
+    _tick(300)
+    _generate_and_wait(dlg)
+    chooser().setCurrentText(second)
+    _tick(300)
+    _generate_and_wait(dlg)
+    fresh = drawn()
+
+    assert set(cached) == set(fresh), (
+      f"the cached run drew elements {sorted(cached)} and the re-tiled "
+      f"run {sorted(fresh)}")
+    for tid in sorted(cached):
+      if cached[tid] != fresh[tid]:
+        # SAY WHICH TERM DIFFERS, not merely that something does. The
+        # counts can agree while the values do not, and the difference
+        # between a wrong map and a changed dtype is the whole
+        # diagnosis.
+        odd = next(((one, two) for one, two in zip(cached[tid], fresh[tid])
+                    if one != two), None)
+        detail = ""
+        if odd is not None:
+          one, two = odd
+          detail = (f" First row to differ: geometry same="
+                    f"{one[0] == two[0]}, cached values {one[1]!r} "
+                    f"against re-tiled {two[1]!r}")
+        raise AssertionError(
+          f"element {tid!r} differs between a cached switch and a "
+          f"re-tiled one: {len(cached[tid])} tiles against "
+          f"{len(fresh[tid])}.{detail} A cache that hits when the "
+          f"tiles have moved draws a map of something else, and this "
+          f"is the only way to see it")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_the_tiling_key_ignores_variables_and_nothing_else():
   """What a TILING depends on, and a variable switch does not.
 
@@ -88711,6 +88870,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("a cached switch draws what a retile draws",
+        test_a_cached_switch_draws_what_a_retile_draws)
   check("the tiling key ignores variables and nothing else",
         test_the_tiling_key_ignores_variables_and_nothing_else)
   check("the zigzag ghost passes through its handle",

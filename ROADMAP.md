@@ -1244,9 +1244,31 @@ joins every candidate variable cannot leak one onto a layer and from
 there into the file. That is ruling 6 held by construction rather than
 by the cache remembering to.
 
-WHAT IS LEFT is the cache itself: hold the tiled frame per key, widen
-the join to every usable field so a switch can be served from it, and
-serve a hit by projecting rather than re-tiling.
+**AND THE CACHE IS BUILT, 2026-09-05.** The frame is held per key on
+the dialog, served inside the worker so every piece of the landing
+machinery is untouched, and carried FULL WIDTH -- every column the
+layer has -- because guessing which one somebody will reach for is the
+one thing a cache like this cannot do (maintainer's ruling). The price
+of full width is memory on a wide table at a fine spacing, and it is
+answered by a switch on Map options, `Keep tiles between runs`,
+defaulting ON: whoever cannot afford it turns it off and pays a
+re-tile per switch, which is what they had before. A MISS IS ALWAYS
+SAFE -- it costs a regenerate and nothing else -- so correctness never
+depends on the width, the bound, or the switch.
+
+THE DIFFERENTIAL IS THE ONLY TEST THAT MATTERS FOR IT, and it earned
+its place immediately. `a cached switch draws what a retile draws`
+drives the same variable switch twice, once served from the cache and
+once with caching off, and compares the element layers feature by
+feature INCLUDING THE FIELD NAMES. It caught a real defect before this
+ever ran: the frame was held BY REFERENCE, and
+`count_units_without_tiles` strips the tracing column off the frame it
+is handed -- so the cache stored a frame missing a column, the run
+served from it died before the landing, and the element layers went on
+showing THE VARIABLE SOMEBODY HAD SWITCHED AWAY FROM. A wrong map that
+looks entirely right, invisible to every other test in the suite. It
+holds a copy taken before the count now, and the catalogue entry
+`a-held-tiling-is-a-copy-not-the-frame-itself` breaks exactly that.
 
 SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache as a
 dialog-held object, which needs no ruling and takes the worker out of a
