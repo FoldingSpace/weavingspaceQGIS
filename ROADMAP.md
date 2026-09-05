@@ -332,14 +332,30 @@ state: this project's own correction about rates quoted from too few
 draws, pointing the other way for once, since 86 attempts inside one
 twenty-minute window is itself too few.
 
-SO THE PROBE MAY HAVE BEEN ASKING THE WRONG CONDITION ALL ALONG. It
-drives ONE dialog at a time on an idle machine, which is the least
-likely state to catch a scheduling fault; and the other thing measured
+AND THE OBVIOUS HYPOTHESIS IS REJECTED TOO. The probe drives ONE
+dialog at a time on an idle machine, which is the least likely state
+in which to catch a scheduling fault, and the other thing measured
 this day is that an oversubscribed machine widens exactly the kind of
-window a manager can be caught in -- three-shard contention was what
-made the harness race land, and the race passed alone every time. THE
-ARM NOT YET TRIED IS THE STALL HUNTED UNDER LOAD, three concurrent
-copies of the probe rather than one, and it is the next thing to run.
+window a manager can be caught in -- three-shard contention is what
+made the harness race land, and that race passed alone every time. So
+the stall was hunted UNDER LOAD as well: three concurrent copies, 45
+attempts each, 135 more draws. NONE STALLED EITHER.
+
+452 ATTEMPTS ACROSS BOTH CONDITIONS, THEN, AND NO REPRODUCTION. That
+is the point at which trying harder to provoke it stops being the
+cheapest move, so the effort moves from REPRODUCING it to CATCHING it:
+the next occurrence will be in the wild, on a runner nobody can log
+into, and it has to arrive already diagnosed.
+
+SO THE SUITE'S STALL MESSAGE NOW NAMES WHAT QGIS'S OWN MANAGER HOLDS
+-- the count, the active count, and every task's description and
+status. Until 2026-09-05 `_why_the_topology_tab_is_busy` reported four
+DIALOG-SIDE terms alone, so it could say a build was in flight and not
+whether it was RUNNING or sitting Queued with the pool idle, which is
+the whole of the difference between a slow machine and this defect.
+Guarded by `a topology wait that gives up says why`, whose first
+version walked only the no-panel path -- the catalogue entry SURVIVED
+and said so, which is what a catalogue is for.
 
 NONE OF THIS IS EVIDENCE THE STALL HAS GONE. Nothing in this week's
 work touches the task manager, the defence is unchanged, and a defect

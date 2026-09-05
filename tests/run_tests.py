@@ -10898,6 +10898,42 @@ def test_topology_edits_survive_the_working_state():
     second.close()
 
 
+def _what_the_task_manager_holds() -> str:
+  """QGIS's own view of the tasks it has been given, in one sentence.
+
+  Returns:
+    The manager's count and active count with each task's description
+    and status, or a note saying why it could not be read. Never
+    raises: this is called from inside a failure message, and a
+    diagnostic that throws replaces the diagnosis with its own
+    traceback.
+
+  WHY IT IS WORTH THE LINES. A topology build that never answers has
+  three shapes needing three repairs -- running slowly, finished but
+  not reported, or accepted and never started -- and only the manager
+  tells them apart. The open defect under 0.24.4 was measured as the
+  third: one task reading `Queued`, `countActiveTasks` at one, and the
+  global thread pool at zero active, for 72.7 seconds.
+  """
+  try:
+    from qgis.core import QgsApplication
+    status_names = {0: "Queued", 1: "OnHold", 2: "Running",
+                    3: "Complete", 4: "Terminated"}
+    manager = QgsApplication.taskManager()
+    rows = []
+    for task in manager.tasks():
+      try:
+        rows.append(f"{task.description()!r} "
+                    f"{status_names.get(task.status(), task.status())}")
+      except RuntimeError:
+        rows.append("<deleted task wrapper>")
+    return (f"the task manager holds count={manager.count()} "
+            f"active={manager.countActiveTasks()}"
+            + (f", {'; '.join(rows)}" if rows else ", no tasks"))
+  except Exception as trouble:                          # noqa: BLE001
+    return f"the task manager could not be read ({trouble})"
+
+
 def _why_the_topology_tab_is_busy(dlg) -> str:
   """Which of the four outstanding things is still true, in words.
 
@@ -10920,7 +10956,8 @@ def _why_the_topology_tab_is_busy(dlg) -> str:
   """
   panel = getattr(dlg, "topology_panel", None)
   if panel is None:
-    return "there is no topology panel at all"
+    return ("there is no topology panel at all, and "
+            + _what_the_task_manager_holds())
   label = getattr(panel, "working", None)
   timer = getattr(dlg, "_preview_timer", None)
   outstanding = []
@@ -10935,6 +10972,19 @@ def _why_the_topology_tab_is_busy(dlg) -> str:
     outstanding.append(
       f"a preview rebuild is pending ({timer.interval()} ms)")
   held = getattr(panel, "_topology", None)
+  # AND WHAT QGIS'S OWN MANAGER HOLDS, which is the half that tells a
+  # STALL from a slow build and was missing until 2026-09-05. The four
+  # terms above are all dialog-side: they say a build is in flight and
+  # cannot say whether it is RUNNING or sitting Queued with the thread
+  # pool idle, which is the whole of the difference between "this
+  # machine is slow" and the open defect under 0.24.4.
+  # IT IS HERE RATHER THAN IN A PROBE BECAUSE THE PROBE CANNOT CATCH
+  # IT. 452 attempts on 2026-09-05 -- 317 on an idle machine and 135
+  # under three-way contention -- produced no stall at all, which
+  # rejects the recorded 4-in-86 rate and both hypotheses about how to
+  # provoke it. So the next occurrence will be in the wild, on a
+  # runner nobody can log into, and it has to carry its own diagnosis.
+  outstanding.append(_what_the_task_manager_holds())
   return (", ".join(outstanding) or "none of the four is outstanding") + \
     f"; the panel holds {'a topology' if held is not None else 'none'}"
 
@@ -56489,10 +56539,37 @@ def test_a_topology_wait_that_gives_up_says_why():
     assert "topology panel" in words, (
       f"the waiter gave up without saying what it found, so the "
       f"message names an assertion rather than a cause: {words!r}")
+    # AND IT NAMES WHAT QGIS'S MANAGER HOLDS, which is the half that
+    # tells a stall from a slow build. Without it the message says a
+    # build is in flight and cannot say whether it is RUNNING or
+    # sitting Queued with the pool idle -- and 452 hunted attempts on
+    # 2026-09-05 say the next occurrence will be in the wild, on a
+    # machine nobody can log into, so it has to arrive diagnosed.
+    assert "task manager" in words, (
+      f"the message does not say what QGIS's own task manager holds, "
+      f"so a stall and a slow build read identically: {words!r}")
   else:
     raise AssertionError(
       "the waiter gave up silently on a dialog that can never answer, "
       "so the twenty-one premises that rest on it still name no cause")
+
+  # AND ON THE PATH A REAL STALL TAKES, which is the one that matters
+  # and the one the first version of this test missed. A dialog with
+  # no panel returns early; a dialog WITH a panel walks the four
+  # dialog-side terms, and it was possible to strip the manager from
+  # THAT path with this test still passing -- caught by the catalogue
+  # entry surviving, which is what it is for.
+  panelled = types.SimpleNamespace(
+    topology_panel=types.SimpleNamespace(working=None, _topology=None),
+    _topology_task=object(), _topology_wanted=False, _preview_timer=None)
+  said = _why_the_topology_tab_is_busy(panelled)
+  assert "a build is in flight" in said, (
+    f"PREMISE: the stub does not reach the four dialog-side terms, so "
+    f"this arm is not walking the path a real stall takes: {said!r}")
+  assert "task manager" in said, (
+    f"a dialog with a panel reported the dialog's side alone, so a "
+    f"build sitting Queued with the pool idle reads exactly like a "
+    f"slow one: {said!r}")
 
   # AND IT STAYS QUIET WHERE A CALLER ASKED IT TO. The matrix cell
   # reports a stall as a RESULT rather than failing on it, so it wants

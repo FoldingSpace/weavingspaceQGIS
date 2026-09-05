@@ -10822,6 +10822,20 @@ MUTATIONS = [
            "ON the first peak so its place along the edge IS the "
            "count; a ghost drawn to a different pitch makes the "
            "drawing argue with itself"),
+  dict(name="a-stall-report-names-what-the-task-manager-holds",
+       file="tests/run_tests.py",
+       # AIMED AT THE MANAGER'S HALF. Without it the message says a
+       # build is in flight and cannot say whether it is RUNNING or
+       # sitting Queued with the pool idle -- which is the whole of the
+       # difference between a slow machine and the open defect.
+       old="""  outstanding.append(_what_the_task_manager_holds())""",
+       new="""  pass  # mutation: report the dialog's side alone""",
+       test="test_a_topology_wait_that_gives_up_says_why",
+       why="a stall and a slow build reading identically in the one "
+           "message anybody will see. 452 hunted attempts on "
+           "2026-09-05 caught no stall at all, so the next occurrence "
+           "is in the wild on a machine nobody can log into, and it "
+           "has to arrive already diagnosed"),
   dict(name="a-topology-wait-that-gives-up-says-why",
        file="tests/run_tests.py",
        # AIMED AT THE EXPLANATION, which is the only thing this path
