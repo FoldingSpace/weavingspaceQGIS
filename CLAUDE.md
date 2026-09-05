@@ -3530,6 +3530,29 @@ here, and the decision to add one is the maintainer's. Recorded
      dial. It also walks AWAY from `rotate_edge` and `scale_edge`,
      which live at the far end, so report 4's crowding is relieved
      rather than moved.
+  5. THE WAVE IS GHOSTED ON THE EDGE, AND FOUR CUES SAY WHAT THE TWO
+     AXES DO. (Maintainer's ideas, 2026-09-05, and the second answers
+     the first's limit.) The 12px seat cannot carry this: eight
+     oscillations inside it are a smudge and every amplitude past about
+     a third saturates, so a glyph could show CHANGE but never VALUE --
+     while its own comment claimed it drew "at the amplitude it is
+     about to make it in" and drew a fixed shape, which is the same
+     species of false claim as the 60px zero above, in the same glyph.
+     So the wave is ghosted along the EDGE, where ~94px of room shows
+     both honestly, only while the zigzag is the chosen manipulation,
+     and it CRESTS AT THE HANDLE -- a ghost peaking elsewhere would be
+     one fact drawn in two places.
+     THE FOUR CUES ARE PAINTED AND NEVER CLICKED, which is the only
+     reason four of them fit: a clickable glyph needs 26px from its
+     neighbour and the edge is ~40px on hex-slice 6. Each is a
+     MINIATURE OF WHAT IT PRODUCES -- deeper, shallower, tighter,
+     wider -- so it reads without a vocabulary to learn, and each sits
+     outside `_HANDLE_REACH`, since something drawn inside the catch
+     radius invites a click that does nothing.
+     AND IT IS COMPUTED AT PAINT TIME AND STORED NOWHERE, deliberately:
+     a derived picture has no actor that clears it, so it cannot be
+     left describing a state that has moved on. That is the snap-back
+     sweep's own rule applied while building rather than afterwards.
   4. AND THE ALONG-POSITION IS CLAMPED clear of both vertices, about
      15px, because at n=8 on a 40px edge the peak is 2.5px from the
      start vertex and handles are tested before vertices -- a handle on

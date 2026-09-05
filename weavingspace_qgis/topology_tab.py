@@ -739,6 +739,7 @@ class TopologyView(QWidget):
     if self._preview is None:
       frame = self._edge_frame(self._chosen_thing) \
           if self._chosen[0] == "edge" else None
+      self._draw_the_zigzag_it_would_make(painter)
       for key, where, shape in self.handles():
         lit = (key in (self._hover_handle, self._held_handle))
         self._draw_handle(painter, key, where, frame, lit)
@@ -809,6 +810,155 @@ class TopologyView(QWidget):
         corners.append(QPointF(middle.x() + math.cos(turn) * radius,
                                middle.y() - math.sin(turn) * radius))
       painter.drawPolygon(QPolygonF(corners))
+
+  def _draw_the_zigzag_it_would_make(self, painter):
+    """Ghost the wave the current numbers would put on this edge.
+
+    Args:
+      painter: the active QPainter, or None to compute the wave
+        without drawing it, which is how its geometry is asserted.
+
+    Returns:
+      The wave's points, or None where there is nothing to draw. The
+      SECOND of them is the first peak, which is where the handle sits.
+      Drawn only when an edge is chosen AND the chosen
+      manipulation is the zigzag, which is when "what would this do"
+      is the question somebody is actually asking. (Maintainer's
+      decision, 2026-09-05.)
+
+    WHY THE GLYPH COULD NOT CARRY THIS. The seat is 12px and its
+    drawing radius about 9.5px, so eight oscillations inside it are a
+    smudge and every amplitude above about a third saturates to the
+    same picture -- it could show CHANGE but never VALUE. The edge is
+    ~94px on the designs measured here, which is room enough for both.
+    The glyph's own comment claimed it drew "at the amplitude it is
+    about to make it in" and drew a fixed shape; that claim becomes
+    true here instead, where there is space to keep it.
+
+    IT PASSES THROUGH THE HANDLE, and that is a requirement rather than
+    a nicety: the handle sits on the wave's FIRST PEAK by ruling 3, so
+    a ghost whose first peak fell anywhere else would be one fact drawn
+    twice in two places -- this project's commonest defect, wearing
+    paint. `test_the_zigzag_ghost_passes_through_its_handle` holds it.
+
+    IT IS COMPUTED HERE AND STORED NOWHERE, which is deliberate after
+    this morning's sweep: a picture that is derived at paint time has
+    no actor that clears it and therefore cannot be left describing a
+    state that has moved on.
+
+    AND IT IS THE WAVE'S SHAPE, NOT THE LIBRARY'S EXACT OUTPUT.
+    `zigzag_edge` smooths through a spline of its own, so the landing
+    draws a rounder line than this. Said plainly because a cue that
+    quietly differs from the result is worse than none: what this
+    answers is more-or-less, and the drag preview and the landing are
+    what answer exactly.
+    """
+    if not self._zigzag_readout or len(self._zigzag_readout) < 3:
+      return None
+    count, height, chosen = self._zigzag_readout[:3]
+    if not chosen:
+      return None
+    edge = self._chosen_edge_on_screen()
+    if edge is None:
+      return None
+    start, finish, reach = edge
+    count = max(1, int(round(count)))
+    rise = float(height) * reach
+    if rise < 0.5:
+      return None               # nothing a person could see
+    along = ((finish.x() - start.x()) / reach,
+             (finish.y() - start.y()) / reach)
+    normal = (-along[1], along[0])
+
+    # THE PEAKS, at `length / (2n)` and every `length / n` after it,
+    # which is what puts the first one under the handle.
+    points = [start]
+    step = reach / (2.0 * count)
+    for index in range(2 * count):
+      at = step * (index + 1)
+      side = 1 if index % 2 == 0 else -1
+      if index == 2 * count - 1:
+        break                   # the last peak is the edge's own end
+      points.append(QPointF(
+        start.x() + along[0] * at + normal[0] * rise * side,
+        start.y() + along[1] * at + normal[1] * rise * side))
+    points.append(finish)
+
+    if painter is None:
+      return points
+    ghost = QPen(QColor(_HANDLE_INK), 1.2)
+    ghost.setStyle(Qt.PenStyle.DashLine)
+    painter.setPen(ghost)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    for first, second in zip(points, points[1:]):
+      painter.drawLine(first, second)
+    self._draw_what_the_two_axes_do(painter, points[1] if len(points) > 1
+                                    else start, along, normal)
+    return points
+
+  def _draw_what_the_two_axes_do(self, painter, at, along, normal):
+    """Four cues saying what dragging each way would do.
+
+    Args:
+      painter: the active QPainter, or None to compute without drawing.
+      at: the handle's own place, which the four sit around.
+      along: the edge's unit direction, in widget coordinates.
+      normal: its perpendicular, likewise.
+
+    Returns:
+      The four (QPointF, count, height) the cues are drawn at, so a
+      test can assert where they sit without reading pixels.
+
+    EACH CUE IS A MINIATURE OF WHAT IT PRODUCES -- a deeper wave for
+    further out, a tighter one for further along -- which is the
+    maintainer's own standard that a handle's shape must make sense for
+    what it does. A person reads "that way makes this" without being
+    told, and without the arrow-plus-label vocabulary that has to be
+    learnt.
+
+    THEY ARE PAINTED AND NEVER CLICKED, which is what makes four of
+    them affordable at all. (Maintainer's decision, 2026-09-05.) A
+    clickable glyph needs 26px of clearance from its neighbour to be
+    separately hittable, and the edges here measure ~94px on the
+    packaged fixture and ~40px on hex-slice 6 -- so four more targets
+    do not fit, and putting them off the edge would stop them belonging
+    to it. As cues they compete for nothing and cost the same on any
+    edge.
+
+    THEY SIT BEYOND THE CATCH RADIUS, deliberately: something drawn
+    inside `_HANDLE_REACH` of the seat looks like part of the control
+    and invites a click that does nothing, which is worse than no cue.
+    """
+    out = _HANDLE_REACH + 7.0
+    places = (
+      # further out: deeper. Further in: shallower.
+      (QPointF(at.x() + normal[0] * out, at.y() + normal[1] * out), 2, 3.4),
+      (QPointF(at.x() - normal[0] * out, at.y() - normal[1] * out), 2, 1.2),
+      # further along: a shorter wavelength, so more of them.
+      (QPointF(at.x() + along[0] * out, at.y() + along[1] * out), 4, 2.2),
+      (QPointF(at.x() - along[0] * out, at.y() - along[1] * out), 1, 2.2),
+    )
+    if painter is None:
+      return places
+    faint = QPen(QColor(_HANDLE_INK), 1.0)
+    painter.setPen(faint)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    for centre, count, height in places:
+      span = 9.0
+      step = span / (2.0 * count)
+      marks = [QPointF(centre.x() - along[0] * span / 2.0,
+                       centre.y() - along[1] * span / 2.0)]
+      for index in range(2 * count - 1):
+        side = 1 if index % 2 == 0 else -1
+        reach_here = -span / 2.0 + step * (index + 1)
+        marks.append(QPointF(
+          centre.x() + along[0] * reach_here + normal[0] * height * side,
+          centre.y() + along[1] * reach_here + normal[1] * height * side))
+      marks.append(QPointF(centre.x() + along[0] * span / 2.0,
+                           centre.y() + along[1] * span / 2.0))
+      for first, second in zip(marks, marks[1:]):
+        painter.drawLine(first, second)
+    return places
 
   def _draw_handle(self, painter, key, where, frame, lit):
     """Draw one handle AS A PICTURE OF WHAT IT DOES.
@@ -1168,11 +1318,15 @@ class TopologyView(QWidget):
     """Tell the view what the zigzag handle has to say.
 
     Args:
-      values: (count, amplitude) where the chosen manipulation is a
-        zigzag, or None where it is not. Amplitude is the fraction of
-        the edge's own length that `zigzag_edge` takes as `h`, so the
-        handle's offset is that fraction of the edge's SCREEN length
-        and the same gesture means the same shape on any edge.
+      values: (count, amplitude, chosen), or None. Amplitude is the
+        fraction of the edge's own length that `zigzag_edge` takes as
+        `h`, so the handle's offset is that fraction of the edge's
+        SCREEN length and the same gesture means the same shape on any
+        edge. `chosen` says whether the zigzag is the manipulation now
+        selected: the HANDLE is drawn either way, because a handle is
+        the choice of manipulation, while the ghost of the wave is
+        drawn only when somebody is actually asking what a zigzag
+        would do.
 
     Returns:
       None. Repaints where the value moved, because the handle's place
@@ -2311,10 +2465,12 @@ class TopologyPanel(QWidget):
     # in before it got a rail. So: the boxes where they are the
     # zigzag's, the manipulation's declared defaults otherwise, and the
     # handle then always shows the zigzag the current settings describe.
-    args = (self._arguments() if self.how_combo.currentData() == "zigzag_edge"
+    chosen = self.how_combo.currentData() == "zigzag_edge"
+    args = (self._arguments() if chosen
             else {name: default for name, _label, _low, _high, default, _step
                   in edits_module.MANIPULATIONS["zigzag_edge"]["args"]})
-    self.view.set_zigzag_readout((args.get("n", 2.0), args.get("h", 0.0)))
+    self.view.set_zigzag_readout(
+      (args.get("n", 2.0), args.get("h", 0.0), chosen))
     # AND WHERE THE CLAMP HAS BITTEN, THE BOX SAYS SO. Deliberately the
     # BOX's tooltip and not the panel's note line: the note is written
     # by refusals and by the build's own messages, so a second writer
@@ -2696,7 +2852,8 @@ class TopologyPanel(QWidget):
     # The count SNAPS here, visibly, which is the point -- the stops a
     # person sees are the counts they can have.
     if key == "zigzag_edge":
-      self.view.set_zigzag_readout((args.get("n", 2.0), args.get("h", 0.0)))
+      self.view.set_zigzag_readout(
+        (args.get("n", 2.0), args.get("h", 0.0), True))
     try:
       # THROUGH THE SAME COERCION THE COMMIT USES. Every parameter box
       # is a QDoubleSpinBox, so `n` and `smoothness` arrive as floats

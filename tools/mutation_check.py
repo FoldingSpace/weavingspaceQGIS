@@ -10775,6 +10775,20 @@ MUTATIONS = [
            "on that path either way, so the failure is silent: the "
            "gesture works, the amplitude changes, and the count simply "
            "never moves"),
+  dict(name="the-zigzag-ghost-crests-where-its-handle-sits",
+       file=TOPOLOGY_TAB,
+       # AIMED AT THE AGREEMENT between the two pictures. A ghost that
+       # crests anywhere else is one fact -- where the wave peaks --
+       # drawn in two places, which is this project's commonest defect
+       # arriving in paint rather than in a record.
+       old="""    step = reach / (2.0 * count)""",
+       new="""    step = reach / (2.0 * count + 1)  # mutation: crest elsewhere""",
+       test="test_the_zigzag_ghost_passes_through_its_handle",
+       why="the ghosted wave and the handle disagreeing about where "
+           "the zigzag crests. Ruling 3 of 2026-09-05 puts the handle "
+           "ON the first peak so its place along the edge IS the "
+           "count; a ghost drawn to a different pitch makes the "
+           "drawing argue with itself"),
   dict(name="a-topology-wait-that-gives-up-says-why",
        file="tests/run_tests.py",
        # AIMED AT THE EXPLANATION, which is the only thing this path

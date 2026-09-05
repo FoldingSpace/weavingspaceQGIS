@@ -56080,6 +56080,81 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_the_zigzag_ghost_passes_through_its_handle():
+  """The ghost wave and the handle are ONE fact drawn once.
+
+  (Maintainer's decisions, 2026-09-05.) While the zigzag is the chosen
+  manipulation the view ghosts the wave the current numbers would make,
+  because the 12px seat could never show it: eight oscillations inside
+  it are a smudge and every amplitude above about a third saturates.
+  The edge has room -- ~94px on this fixture, ~40px on hex-slice 6 --
+  and that is where the cue goes.
+
+  ITS FIRST PEAK MUST BE THE HANDLE. Ruling 3 puts the handle ON the
+  first peak, so a ghost whose first peak fell anywhere else would be
+  one fact drawn twice in two places, which is this project's
+  commonest defect wearing paint. That is what this asserts.
+
+  AND THE FOUR AXIS CUES SIT OUTSIDE THE CATCH RADIUS, because
+  something drawn within `_HANDLE_REACH` of the seat reads as part of
+  the control and invites a click that does nothing. They are painted
+  and never hit-tested, which is the only reason four of them fit at
+  all: a clickable glyph needs 26px from its neighbour, and the edge
+  does not have four such gaps.
+  """
+  from qgis.PyQt.QtCore import QPointF
+  from weavingspace_qgis import topology_tab
+
+  view = topology_tab.TopologyView()
+
+  # An edge lying along x, 100px on screen, so the arithmetic is
+  # legible: at n=2 the first peak is at 25 along and h*100 out.
+  start, finish = QPointF(0.0, 0.0), QPointF(100.0, 0.0)
+  view._chosen_edge_on_screen = lambda: (start, finish, 100.0)
+  view._zigzag_readout = (2.0, 0.25, True)
+
+  # THE CLAIM THIS TEST IS NAMED FOR, asserted rather than assumed.
+  points = view._draw_the_zigzag_it_would_make(None)
+  assert points and len(points) > 1, \
+    f"the ghost drew nothing at all: {points}"
+  peak = points[1]
+  view._chosen = ("edge", "a")
+  seat = None
+  for key, where, _shape in view.handles() or []:
+    if key == "zigzag_edge":
+      seat = where
+  if seat is not None:
+    apart = ((peak.x() - seat.x()) ** 2 + (peak.y() - seat.y()) ** 2) ** 0.5
+    assert apart < 0.6, (
+      f"the ghost's first peak sits {apart:.2f}px from the handle, so "
+      f"one fact -- where the wave crests -- is drawn in two places")
+  assert abs(peak.x() - 25.0) < 0.6 and abs(peak.y() - 25.0) < 0.6, (
+    f"at n=2 and h=0.25 on a 100px edge the first peak belongs at "
+    f"(25, 25), being length/(2n) along and h*length out; it is at "
+    f"({peak.x():.1f}, {peak.y():.1f})")
+
+  places = view._draw_what_the_two_axes_do(
+    None, QPointF(25.0, 25.0), (1.0, 0.0), (0.0, 1.0))
+  assert len(places) == 4, f"there are not four cues: {len(places)}"
+  for centre, _count, _height in places:
+    away = ((centre.x() - 25.0) ** 2 + (centre.y() - 25.0) ** 2) ** 0.5
+    assert away > topology_tab._HANDLE_REACH, (
+      f"a cue sits {away:.1f}px from the handle, inside the "
+      f"{topology_tab._HANDLE_REACH}px catch radius, so it reads as "
+      f"part of the control and invites a click that does nothing")
+
+  # THE FOUR SAY DIFFERENT THINGS, which is the whole point of there
+  # being four: two differ in amplitude, two in wavelength.
+  heights = {height for _c, _n, height in places}
+  counts = {count for _c, count, _h in places}
+  assert len(heights) > 1, (
+    f"the cues all draw the same amplitude, so two of them say "
+    f"nothing about which way is deeper: {heights}")
+  assert len(counts) > 1, (
+    f"the cues all draw the same wavelength, so two of them say "
+    f"nothing about which way is tighter: {counts}")
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -88565,6 +88640,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("the zigzag ghost passes through its handle",
+        test_the_zigzag_ghost_passes_through_its_handle)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

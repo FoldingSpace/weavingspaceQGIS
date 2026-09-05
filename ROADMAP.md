@@ -432,6 +432,22 @@ the drag-and-landing fixes, so none of these is a stale build.
    arms driven -- along, and across at nine degrees off perpendicular,
    which is the arm that would have caught the 1.003 scale fault -- and
    two catalogue entries proved `caught`.
+   **AND THE WAVE IS GHOSTED ON THE EDGE, WITH FOUR CUES SAYING WHAT
+   THE TWO AXES DO** (maintainer, 2026-09-05, answering "what if there
+   were visual cues for greater vs lesser amplitude and frequency" and
+   then "what if the glyph were four glyphs"). The 12px seat could
+   carry neither: eight oscillations in it are a smudge and amplitude
+   saturates past about a third, so it could show change and never
+   value -- and its own comment already claimed to draw "at the
+   amplitude it is about to make it in" while drawing a fixed shape,
+   which is the 60px zero error's twin, in the same glyph. The ghost
+   goes on the edge where there is room, only while the zigzag is
+   chosen, and crests AT the handle. The four cues are painted and
+   never clicked, which is the only reason four fit -- a clickable
+   glyph needs 26px from its neighbour and these edges are ~40px on
+   hex-slice 6 -- and each is a miniature of what it produces. Guarded
+   by `the zigzag ghost passes through its handle`, entry proved
+   `caught`.
    THE READING THAT PRECEDED IT: it is a GAP rather than a decision,
    and the
    reading is one line. `_parameter_from_drag` returns `"h",
