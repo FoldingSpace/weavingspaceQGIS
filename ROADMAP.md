@@ -736,6 +736,38 @@ was blocking the version: three are measurements rather than
 defect-finding, and the fourth is a study whose answer is written
 at its own entry.
 
+**THE LIVE-UPDATE SWITCH BELONGS ON THE TOPOLOGY TAB AS WELL, AS A
+SECOND VIEW OF ONE FACT.** (Maintainer's idea, 2026-09-05.) The tab
+already live-updates its OWN drawing; what it cannot do is stop the
+whole-layer re-tile in QGIS without going back to the first tab. So a
+box at the foot of the Topology tab toggles the same live update the
+Design tab's box does, and the two hold the same state.
+
+WHY IT IS WANTED IS MEASURABLE RATHER THAN A MATTER OF TASTE: a
+topology edit IS a geometry change by `_geometry_signature`, so every
+Apply re-tiles the map -- 1.36s at spacing 250 and 3.8s at 150 --
+while somebody making a few edits in a row wants none of them until
+they are done. The switch is currently two tabs away from the work.
+
+AND IT IS NOT THE TWO-CONTROLS-ONE-FACT FAULT, though it looks like it,
+and the difference is the whole of whether this is safe to build. What
+failed on 2026-08-29 (C-43) was two controls with DIFFERENT SEMANTICS
+armed at one outcome -- a ONE-SHOT "Create new" beside a STANDING
+"Create as new group" preference -- so the readers disagreed and five
+sites asked only one of them. This is two VIEWS of a single fact, which
+this project already does correctly: dataset and group are bound
+symmetrically, each selecting the other, with signals blocked as
+`_sync_pin_controls` does, or setting a control right fires the handler
+that set it right.
+
+SO THE CONDITIONS TO BUILD IT UNDER, and they are the ones that make
+the difference above real: ONE OWNER of the fact -- the existing
+`live_check` -- with the new box a view that reads and writes it and
+never a second store; the sync blocked in both directions; and no
+reader anywhere allowed to ask the new box instead of the owner. A test
+that ticks each and reads the other, and asserts that nothing else
+holds a copy, is what stops it drifting into C-43's shape.
+
 **THREE TABS ASKED FOR ON 2026-08-29, and they are wants with no code
 yet rather than work deferred from 0.24.4.** Each changes the shape of
 the interface, so each gets `/grill-me` before anything is written --
@@ -1074,6 +1106,32 @@ measured here already; but it is still a QGIS object a person can see,
 rename, reorder or delete, and a name a user can edit is not an
 identity. A cache somebody can drag out of a group is a cache that
 vanishes without saying so.
+
+**AND CAN THE `gdf_to_layer` TIME BE SKIPPED TOO?** (Maintainer,
+2026-09-05.) It is the biggest single term once the tiling is cached --
+0.239s at spacing 250 and 1.728s at 150, a steady 60 microseconds per
+DRAWN feature -- so it is the right thing to ask about next. There is a
+route and there is a fact in the way, and the fact is worth knowing
+before anybody designs around it.
+
+WHAT IS IN THE WAY: `split_out_the_no_data` puts the rows a graduated
+renderer cannot draw into a PAIRED layer, and which rows those are
+depends on the field, its floor and its ceiling. So a variable switch
+changes layer MEMBERSHIP and not merely values, which is why it cannot
+be answered by rewriting attributes alone.
+
+THE ROUTE, THEREFORE, IS TWO STEPS RATHER THAN ONE: rewrite the value
+column IN PLACE through the provider -- which skips re-encoding every
+geometry, and geometry is what the 60 microseconds is mostly made of --
+and then move only the tiles that CROSS the no-data boundary between
+the element layer and its twin.
+
+AND ITS WORTH TURNS ON A NUMBER NOBODY HAS: how many tiles change side
+on an ordinary variable switch. If most stay, this is nearly all of the
+0.239s; if a switch reshuffles the map, it is worth little and the
+honest answer is to rebuild. A probe over the packaged Auckland data,
+switching each variable against each other one and counting the tiles
+that cross, settles it in minutes and should come before any design.
 
 SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache as a
 dialog-held object, which needs no ruling and takes the worker out of a
