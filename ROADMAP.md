@@ -998,6 +998,68 @@ GeoPackage comparison ZERO. That last axis never executed, so a green
 run said nothing whatever about the exported file while looking like
 full coverage. (R-53.)
 
+**CACHE THE TILE-TO-ZONE LOOKUP, SO CHANGING WHICH VARIABLE AN ELEMENT
+SHOWS STOPS BEING A RE-TILE.** (Maintainer's question, 2026-09-05.)
+Recorded rather than started, and the reading behind it is done.
+
+WHY IT IS POSSIBLE AT ALL, which is the part worth having: the join is
+NOT about the variable. `get_tiled_map`'s overlay computes an argmax on
+AREA and keeps `["joinUID", id_var]` -- a tile id against a zone id --
+throwing the fragments away. So the expensive half of a Generate is
+purely geometric and gives the same answer whatever attribute is
+displayed. `_geometry_signature` says the opposite in its own
+docstring, "a new variable does need new geometry", and that is true of
+the CODE as it stands rather than of the problem.
+
+WHAT IT WOULD SAVE, measured 2026-09-03/04 rather than projected. At
+spacing 250 with 10,502 drawn tiles a Generate spends 1.034s in the
+worker -- `Tiling.__init__` 0.654s, overlay and join 0.378s -- against
+0.322s in the landing. At spacing 150 it is about 2.1s of 3.8s. All of
+the worker's share is what a cached lookup would let a variable switch
+skip; what would remain is attaching the new values to the cached
+lookup, and `gdf_to_layer` at 0.239s, which is 60 microseconds per
+drawn feature and the largest single term once the tiling is gone.
+
+AND THE SECOND HALF OF THE QUESTION IS THE INTERESTING ONE. If the
+element layer CARRIED every candidate column rather than one, a switch
+would not even rebuild the layer: it is a renderer change, `seed_
+renderer` at 0.030s, which is the "light redraw" this project already
+has for ramps and class counts arriving at variables too.
+
+WHICH IS WHERE IT MEETS A SETTLED RULING AND MUST BE GRILLED. Ruling 6
+of 2026-08-25 trims element tables to the symbolised variable, and
+accepted "switching a variable RE-TILES from the source" as the price;
+the colleague's argument for carrying every column was refused there.
+THE TWO HALVES OF THIS ARE NOT THE SAME QUESTION, though, and the
+ruling only answers one:
+- IN MEMORY, for the session, touches no file and no ruling. Nothing
+  is written, nothing can reach a colleague's copy, and the privacy
+  argument that carries ruling 8 does not apply. This half is
+  unblocked and is where most of the measured prize is.
+- IN THE FILE, or on the layer QGIS holds, is ruling 6's ground and
+  reopens it. The maintainer asks whether that wastes storage; the
+  honest answer is that SIZE IS NOT WHAT THE RULING RESTS ON. Geometry
+  dominates attributes in a GeoPackage, so k numeric columns against
+  one is a modest addition -- measurable, and worth measuring before
+  anybody argues from it. What ruling 6 rests on is PRIVACY: a file
+  somebody sends on should not carry columns they never displayed,
+  which is ruling 8's "value-laden records never cross" seen from the
+  other side.
+
+SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache, which
+needs no ruling and takes the worker out of a variable switch, and put
+the carry-every-column question to a grilling on its own, with the file
+size measured first so the argument is about privacy rather than about
+a number nobody has.
+
+WHAT WOULD HAVE TO BE TRUE FOR THE CACHE TO BE SAFE, since a cache that
+is wrong is worse than a slow map: it is keyed by everything
+`_geometry_signature` already names EXCEPT the mapped variables, and
+that key is the whole of its correctness. A topology edit, a modifier,
+a spacing change, a new region layer or a re-tile of moved data must
+all miss it -- and the fingerprint this project already computes for a
+layer's contents is what would tell it that the data underneath moved.
+
 **Sampling the six unsampled assignment-lookup copies.** Deferred here
 from 0.24.2 deliberately: it is measurement rather than
 defect-finding, and the night of 2026-08-13 put mutation sampling at
