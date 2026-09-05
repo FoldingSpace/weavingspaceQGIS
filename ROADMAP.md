@@ -292,7 +292,28 @@ the drag-and-landing fixes, so none of these is a stale build.
    for, which agrees with the change list, where reverting would show a
    design the list denies. It wants a state rather than a timer. (R-72.)
 
-2. **A ZIGZAG DOES NOT STICK.** Not investigated.
+2. **A ZIGZAG DOES NOT STICK.** READ, NOT YET DRIVEN, 2026-09-05. ONE
+   MECHANISM SURVIVES READING and it fits the words exactly: a drag
+   previews continuously, and on release `_commit_the_drag` asks
+   `_drag_moved`, which for `zigzag_edge` is `abs(h) > 0.01` -- one per
+   cent of the edge's own length. Below that the preview is cleared and
+   NOTHING IS RECORDED, so a shallow zigzag is drawn while the pointer
+   is down and gone when it comes up, with no sentence anywhere. That
+   is a click choosing a class, which is the intended behaviour; what
+   is unproved is whether the threshold sits where a person's "I meant
+   that" does, and amplitude is the one parameter whose useful values
+   start small.
+   ONE CANDIDATE IS ELIMINATED, recorded so nobody re-reads it: the
+   drag does NOT drop the count. `args = dict(self._arguments())` seeds
+   every parameter from the boxes and the drag overrides one key, so
+   `n` travels with the edit.
+   TO DRIVE IT: record the h a real gesture produces at the zoom the
+   tab opens at, against 0.01. If a comfortable zigzag lands under the
+   threshold the number is wrong; if it lands well over, the fault is
+   elsewhere and the next suspects are the refusal path in `apply`
+   (which returns sentences the tab may not be showing) and
+   `_make_drawable`, since zigzag is the manipulation that emits
+   coincident vertices.
 3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** READ, NOT
    YET DRIVEN, 2026-09-05: it is a GAP rather than a decision, and the
    reading is one line. `_parameter_from_drag` returns `"h",
