@@ -293,10 +293,24 @@ the drag-and-landing fixes, so none of these is a stale build.
    design the list denies. It wants a state rather than a timer. (R-72.)
 
 2. **A ZIGZAG DOES NOT STICK.** Not investigated.
-3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** Not
-   investigated. The drawing offers amplitude; whether the count is
-   reachable only through the numeric boxes is the question, and if so
-   whether that is a gap or a decision.
+3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** READ, NOT
+   YET DRIVEN, 2026-09-05: it is a GAP rather than a decision, and the
+   reading is one line. `_parameter_from_drag` returns `"h",
+   abs(across) / length` for `zigzag_edge` and nothing else, so a drag
+   carries AMPLITUDE alone, while the library's `zigzag_edge` takes `n`
+   as well -- the notebook drives it at `n=2, h=0.25`. So the count is
+   reachable only through the numeric boxes.
+   WHAT MAKES IT A GAP rather than a tolerable limit is this version's
+   own instruction that every manipulation be reachable on the drawing
+   (maintainer, 2026-08-31: "all interactions in that topology image,
+   not just one"), which `push_vertex` got a rail for. A parameter of a
+   reachable manipulation was not in view when that was settled.
+   HOW TO CLOSE IT IS A DESIGN QUESTION and therefore a grilling: a
+   second handle for the count, or one handle whose ALONG-edge travel
+   sets `n` while its ACROSS travel sets `h` -- which is free, since
+   `along` is already computed on that path and discarded. The second
+   is cheaper and makes one handle say two things, which is exactly
+   what the refusal of the merged end handle ruled against.
 4. **THE ZIGZAG HANDLE SITS TOO FAR FROM ITS EDGE.** This is a real
    complaint against a fix for a different real problem: turn and
    zigzag are pushed along one normal from an edge's end and its
@@ -305,10 +319,31 @@ the drag-and-landing fixes, so none of these is a stale build.
    until they were moved apart. The answer is a third arrangement
    rather than moving one back.
 5. **"MAP THE DUAL" ERRORS WHILE THE TAB DRAWS A DUAL PERFECTLY WELL.**
-   Not investigated, and the maintainer's "this doesn't make sense" is
-   the right instinct: the tab's drawing and the checkbox reach the
-   dual by different code, which is this project's commonest defect
-   shape -- one fact, two stores, mended in one.
+   READ, NOT YET DRIVEN, 2026-09-05. The two paths are confirmed
+   different and the difference is not one store against another but
+   TWO SUBJECTS: the tab builds its topology from the UN-MODIFIED motif
+   (ruling 1, and the tab says so on its face), while `_build_unit`
+   runs rotate, scale, skew and both insets and only THEN calls
+   `topology_edits.build(unit)` -- whose own docstring says "unit: the
+   Tileable, before modifiers". An inset opens gaps, a gapped design
+   has no topology, and the notice reads "This design has no dual to
+   tile with" for a design whose dual is on screen.
+   AND THE COLLISION IS A RULING RATHER THAN A BUG: the comment at that
+   call argues the opposite case deliberately -- "the dual of a
+   rotated, inset unit is what somebody ticking this asks for" -- so
+   ruling 1 and that intent give one act two answers, which is the
+   shape "Conflicts to settle by grilling" exists for.
+   WHAT THIS DOES NOT YET EXPLAIN is the report itself, and that is
+   said plainly rather than glossed: every modifier default is zero or
+   identity and `_build_unit` skips identities, so on the DEFAULT
+   design `build` does receive the un-modified unit and this asymmetry
+   cannot fire. Either the reporting session had a modifier set, or
+   "errors" means a raise rather than that notice. It needs driving
+   before anything is repaired -- a harm named by reading is a
+   hypothesis. The extra gates the mapping path carries and the drawing
+   path does not are `_lattice_of`, the shallow copy and
+   `get_prototile_from_vectors`; `_lattice_of` reads sound for a
+   periodic tiling.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.
