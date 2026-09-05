@@ -423,6 +423,56 @@ feature across two runs while the shipped baseline held steady. One arm
 per process settles it, and the shipped column staying inside 0.617 to
 0.658 across six children is what says so.
 
+## The three columns, measured 2026-09-04
+
+`tools/probes/what_the_proposed_grid_filters_would_keep.py` measures
+the two proposed reductions at ONE spacing rather than borrowing the
+figures taken at another, and the before/now columns were taken with
+ONE INSTRUMENT over both arms -- the pre-rewrite `bridge.py` from
+7004e23 run under today's probe -- because quoting the old table's own
+numbers would compare two INSTRUMENTS rather than two versions, and
+that instrument was wrong in the two ways recorded above.
+
+    spacing 250, 10,502 drawn        before      now   proposed
+    worker                           1.101s   1.152s     ~0.37s
+      Tiling.__init__ (total)        0.687s   0.698s     ~0.24s
+        _TileGrid (lays the grid)    0.414s   0.411s     ~0.14s
+      get_tiled_map (overlay)        0.412s   0.451s     ~0.13s
+    landing: _add_output_layers      0.736s   0.331s      0.331s
+      gdf_to_layer                   0.633s   0.246s      0.246s
+    preview: _rebuild_unit           0.025s   0.025s      0.025s
+    save: _save_the_map              0.601s   0.559s      0.559s
+      write_gpkg_layers              0.430s   0.424s      0.424s
+
+    a Generate (worker+landing+preview)
+                                     1.862s   1.508s     ~0.73s
+
+THE UNTOUCHED ROWS ARE THE CONTROL, and they are what says the first
+two columns differ by the code rather than by the machine: the grid at
+0.414 against 0.411, the twins at 0.006 against 0.007, the combo at
+0.027 against 0.026, the preview identical, the write at 0.430 against
+0.424. That spread is also the noise floor -- about 10% on the worker
+rows, which is why `get_tiled_map` reads HIGHER after a change that
+cannot touch it, and why no conclusion is drawn from a difference
+smaller than that.
+
+**THE THIRD COLUMN IS ARITHMETIC AND MUST NOT BE QUOTED AS A
+MEASUREMENT.** What is measured is the FACTORS, on this data at this
+spacing: 8,109 grid placements today, 6,402 (78.9%) keeping the
+promise to serve any rotation, 2,791 (34.4%) where the rotation is
+known to be zero, which for this plugin it always is; and route A at
+0.296s against route B at 0.228s with ZERO tiles assigned differently,
+60.1% of the touching tiles being interior. The column composes them
+by assuming the constructor's cost is proportional to placements and
+the overlay's to the tiles reaching it. NOTHING IS BUILT, and the
+assumption is the part a first attempt would find wrong.
+
+THE LANDING AND THE SAVE DO NOT MOVE, which is the useful half of the
+projection: `gdf_to_layer` only ever sees tiles that survived clipping,
+so constricting the grid cannot touch it. The whole of the remaining
+prize is in the worker, and after it the largest term this repository
+owns outright is the Save's write at 0.424s -- never decomposed.
+
 ## What has already been taken, and what was refused
 
 **TAKEN: the join lookup's pandas idiom** (patch 3 in
