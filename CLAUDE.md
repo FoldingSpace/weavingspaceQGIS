@@ -1286,7 +1286,11 @@ renderer, found by a hunt hours after the carry-over was written.)
 - **AND THE OPPOSITE EDIT IS QUIETER: A SECOND DEFINITION REPLACES THE
   FIRST AND NOTHING GOES MISSING.** Also 2026-08-16, hours later.
   Widening `_label_for` for the three kinds of absence was done by
-  writing a NEW method below the old one instead of changing it. (C-24.)
+  writing a NEW method below the old one instead of changing it. WHEN A
+  HELPER MUST ANSWER DIFFERENTLY FOR TWO CALLERS, that is the signal to
+  look at the callers, not to write a second helper: the parentheses
+  that mark the categorical catch-all now live at that call site, and
+  the one method answers plainly. (C-24.)
 - **A SIGNAL CONNECTED TO THE PROJECT OUTLIVES THE WINDOW THAT MADE IT,
   AND SO DOES A COMBO.** 0.24.3 added two hooks onto
   `QgsProject.instance()` -- `_settle_layer_choice` and the pair around
@@ -1987,7 +1991,8 @@ Confirmed with the user via an explicit design review:
   (Maintainer's ruling, 2026-08-29, overruling a repair of the day
   before.) With live update on, changing the design arms the live timer,
   and a press inside that window used to write the map on screen -- the
-  one the person had just changed away from. (C-45.)
+  one the person had just changed away from. ASK OF ANY REFUSAL WHAT IT
+  COSTS THE PERSON WHO DOES NOT READ IT. (C-45.)
 
 - **AND THE SECOND ONE FOUND A COLLISION BETWEEN TWO SETTLED RULES.**
   (2026-08-27, the run over the three rulings.)
@@ -2100,7 +2105,9 @@ Confirmed with the user via an explicit design review:
   and the region from the launch snapshot when it is given one and from
   the LIVE CONTROLS when it is not -- which was harmless while landings
   were the only writers, and became three defects the day round nine
-  added two writers that never stand at a landing. (C-49.)
+  added two writers that never stand at a landing. ASK OF ANY WRITER
+  THAT COPIES A RECORD: which moment is each field about, and does this
+  writer stand at that moment? (C-49.)
 
 - **A GREEN SUBSET IS NOT A GREEN SUITE, AND THIS PROJECT BELIEVED ONE
   TWICE IN ONE DAY.** (2026-08-26.) Round nine was verified by
@@ -2123,7 +2130,8 @@ Confirmed with the user via an explicit design review:
   separators -- and it was applied faithfully to output PATHS while
   seven sites went on comparing LAYER SOURCES with `==`. A source only
   looks like an opaque token; it is a path plus `|layername=`, and a
-  project save respells the path half. (C-50.)
+  project save respells the path half. ASK OF ANY IDENTIFIER WHETHER A
+  FILESYSTEM EVER TOUCHED IT. (C-50.)
 
 - **ATTRIBUTION BEATS DELTA, AND THREE NARROW GUARDS ARE THE SIGNAL TO
   STOP PATCHING ROUTES.** (2026-08-26, ledger row 48, and it is the
@@ -2133,7 +2141,9 @@ Confirmed with the user via an explicit design review:
   over an unreadable class source makes that question lie: `expected`
   falls back to automatic colours while the map honestly wears the
   template, so the template's own colours were adopted as a person's
-  hand-picks and outranked the template forever. (C-51.)
+  hand-picks and outranked the template forever. THE RULE: when the
+  third narrow guard leaks, stop asking which route is missing and ask
+  whether the question is right. (C-51.)
 
 - **EVERY EXIT FROM A LONG METHOD NAMES ITSELF, AND A MODAL REFUSAL
   IS THE QUIETEST OF ALL.** (2026-08-26.) Live update has named its
@@ -2155,7 +2165,8 @@ Confirmed with the user via an explicit design review:
   taught.) A regression showed that taking a group over while a run was
   IN FLIGHT erased the evidence the landing was about to read, so
   `self._task is not None` was added to `_bind_group_to_dataset`.
-  (C-52.)
+   THE HABIT: when a guard goes in, grep for every caller of the thing
+  it protects and ask which of them can be in the same state. (C-52.)
 
 - **A HARM NAMED BY READING IS A HYPOTHESIS, EXACTLY LIKE A SITE.**
   (2026-08-26, judging nine hunt claims.) This file already says that a
@@ -2329,14 +2340,16 @@ Confirmed with the user via an explicit design review:
   front of every `embed_style` exit, so a break retyped in QGIS reached
   the map, the project and the .qgz and never the GeoPackage a colleague
   opens -- since 2026-08-10, and invisible because the map was right.
-  (C-67.)
+   THE HABIT: at every early `return`, `continue` or `break`, name what
+  the guard is FOR and then read what lies below it. (C-67.)
 
 - **A REPRODUCTION CAN STOP REPRODUCING BECAUSE A NEIGHBOURING RULE
   CHANGED, AND THE DEFECT IS NOT DEAD -- ITS DOOR HAS MOVED.**
   2026-08-18, writing the guard for `_restyle_only`. Its committed probe
   reached pin retirement by moving the Classes spinner, and that route
   had been REFUSED hours earlier when a class count stopped being
-  allowed to destroy a pin. (C-68.)
+  allowed to destroy a pin. ASK WHICH DOOR THE PROBE USED AND WHETHER
+  THAT DOOR IS STILL OPEN. (C-68.)
 
 - **CLEARING IS RIGHT WHEN THE USER LET SOMETHING GO, AND WRONG WHEN THE
   PLUGIN MERELY STOPPED DECIDING.** (2026-08-18, three defects in the
@@ -2749,14 +2762,18 @@ here, and the decision to add one is the maintainer's. Recorded
   REPLACED its cache dict on every miss, on the sound reasoning that a
   stale fingerprint's values must never sit there being wrong -- and
   replacing it threw away every OTHER column's entry at the same time.
-  (C-94.)
+   WHEN A FIX IS ABOUT STALENESS, ASK WHAT ELSE IT DISCARDS -- the
+  safety property here needed only that entries whose fingerprint has
+  moved go, not that everything go. (C-94.)
 
 - **A COPY REPRODUCES THE WHOLE CLASSIFICATION, AND THE RECORD GREW
   UNDER IT.** (2026-08-19, ledger rows 21 and 22.)
   `_copy_classification` built its record from breaks and pin flags and
   never read `floor` or `ceiling`, then wrote that record WHOLESALE --
   so a copy left the source's range behind AND destroyed the target's.
-  (C-95.)
+   WHEN A RECORD GAINS A KEY, GREP EVERY SITE THAT ENUMERATES ITS KEYS.
+   WHEN A FIX MOVES A CHANGE FROM ONE PATH ONTO ANOTHER, ASK WHAT THE
+  OLD PATH WAS DOING FOR IT BESIDES THE OBVIOUS. (C-95.)
 
 - **A GITHUB RELEASE BODY PRESERVES SINGLE NEWLINES, so NEVER hard-wrap
   one.** Release notes written at the usual 72 columns arrive as literal
@@ -2802,7 +2819,9 @@ here, and the decision to add one is the maintainer's. Recorded
   it was valid and its provider whether it was valid, and its own
   Returns block promised that caught "a layer whose file has been
   deleted ... including the case where the layer itself still claims to
-  be valid". (C-101.)
+  be valid". THE HABIT: when a guard asks a dependency whether something
+  is still true, ask what would have to HAPPEN for that answer to be
+  refreshed. (C-101.)
 - **AND ITS TEST HAD BEEN EXERCISING THE HONEST PATH ALL ALONG.** The
   sibling guard called `reload()` in its own setup before asking
   anything -- which is the one act that makes QGIS tell the truth, and
@@ -2922,7 +2941,10 @@ here, and the decision to add one is the maintainer's. Recorded
   COMPLAINS.** (2026-08-27.) An element may take its classes from
   another element's LAYER, and the choice is stored as `layer:<layer
   id>` -- while a re-tile gives every element a new layer with a new id.
-  (C-119.)
+   WHAT IS STILL OPEN, and is a ruling rather than a defect: a donor
+  that MOVES is followed one run late, because the landing reads its
+  template from the donor's outgoing layer while the donor is being
+  re-seeded in the same pass. (C-119.)
 
 - **BREAK EVERY ROUTE AT ONCE, OR THE CATALOGUE MEASURES THE OTHER
   ONE.** (2026-08-27, three times in a day.) A fix written as two guards
@@ -3084,7 +3106,9 @@ here, and the decision to add one is the maintainer's. Recorded
   Every resume test in this suite unticks live update, which is ON by
   default -- so the whole family was driven at a setting nobody has, and
   pressing Load with the default re-tiled the opened map into memory a
-  second later and emptied the saved file. (C-134.)
+  second later and emptied the saved file. ASK OF ANY TEST FAMILY WHICH
+  CONTROL IT HOLDS CONSTANT, and whether a person holds it there.
+  (C-134.)
 - **A RECORD SEEDED BY ADOPTION IS A RECORD THAT ASSUMES A PROJECT.**
   (2026-08-28.) The stale-table drop took its candidates from the
   session's own record of what it had written, plus the tables of
@@ -3093,7 +3117,9 @@ here, and the decision to add one is the maintainer's. Recorded
 - **AN INTERMITTENT FAILURE UNDER LOAD CAN BE THE SUITE INTERMITTENTLY
   REACHING A REAL DEFECT.** (2026-08-28.) A per-test coverage re-record
   failed one test of 645, in a shard running beside two others on a
-  loaded machine. (C-136.)
+  loaded machine. ASK OF ANY DEFECT WHETHER THE JOURNEY THAT REACHES IT
+  IS ONE A PERSON CAN DRIVE, and measure that as separately as you
+  measure the mechanism. (C-136.)
 
 - **A REPORT ABOUT A VERSION OR A BEHAVIOUR IS FIRST A QUESTION ABOUT
   WHICH BUILD IS INSTALLED.** (2026-08-29.) The maintainer reported that
@@ -3101,7 +3127,10 @@ here, and the decision to add one is the maintainer's. Recorded
 - **A CLAIM'S MECHANISM IS USUALLY RIGHT AND ITS HARM USUALLY IS NOT,
   AND THE DOOR IT NAMES IS WHEREVER THE HUNT WAS STANDING.**
   (2026-08-29, taking sixteen owed claims to the end.) This file already
-  says a harm named by reading is a hypothesis. (C-138.)
+  says a harm named by reading is a hypothesis. AND TWO OF THE FOURTEEN
+  ARE STILL OWED A GUARD AT THEIR OWN DOOR, having been closed by a fix
+  written for another claim: a claim that has stopped reproducing is not
+  a claim that is tested. (C-138.)
 
 - **A CALLABLE THAT OUTLIVES ITS DIALOG MUST ASK BEFORE IT TOUCHES IT,
   AND A LAMBDA IS NOT A BOUND METHOD.** (2026-08-29, a reproducible
@@ -3143,7 +3172,11 @@ here, and the decision to add one is the maintainer's. Recorded
   call the save's write loop makes is one of QGIS's or OGR's own
   per-layer APIs, and each opens the GeoPackage, so the seconds grow
   with the layers already in the file: 134 of them at the 256-element
-  ceiling, with a 50 ms heartbeat recording ZERO beats. (C-144.)
+  ceiling, with a 50 ms heartbeat recording ZERO beats. WHEN A
+  JUSTIFICATION ENUMERATES THE DOORS IT CLOSES, COUNT THE DOORS -- and
+  count them again whenever the interface gains one, because a sentence
+  naming two controls goes on reading correctly for ever while a third
+  sits beside them. (C-144.)
 
 - **`isVisible` IS FALSE IN A WINDOW NOBODY HAS SHOWN, SO IT CANNOT ASK
   WHETHER SOMETHING IS HIDDEN.** (2026-08-29.) A guard for the save's
@@ -3166,7 +3199,9 @@ here, and the decision to add one is the maintainer's. Recorded
 - **THE EIGHTEENTH WATCHER FAULT: A WORK LINE THAT CANNOT SHOW A DEAD
   WORKER.** (2026-08-29.) The five-minute beat reported running work
   through `ps | ... | head -2`, so with a release parent and THREE test
-  shards it showed the parent and ONE shard. (C-148.)
+  shards it showed the parent and ONE shard. ASK OF ANY WATCHER WHETHER
+  ITS OUTPUT CAN EXPRESS THE FAILURE, not merely whether it is correct
+  about what it shows. (C-148.)
 
 - **AND THE FIFTEENTH, COPIED FORWARD WITHOUT ITS REASON.** The same
   beat carried `owed=$(grep -c ... || echo "?")`, which is the exact
@@ -3183,7 +3218,8 @@ here, and the decision to add one is the maintainer's. Recorded
   EQUIVALENT.** (Same day, and it is why the four repairs above each
   looked finished.) The guard for the ceiling measured
   `minimumSizeHint()`; the tests that were failing measure `dlg.width()`
-  after `show()`. (C-151.)
+  after `show()`. ASK OF ANY GUARD: is this the number the red run
+  prints? (C-151.)
 
 - **A GUARD ON A PyQGIS CALL THAT RETURNS A TUPLE CAN NEVER FIRE.**
   (2026-08-30, and it cost this project categorical colour on every text
@@ -3227,7 +3263,10 @@ here, and the decision to add one is the maintainer's. Recorded
   tabs -- and 640px was the PAGE WIDTH. Those pages had never been
   current, so nothing in them had been through a layout pass and every
   child reported its parent's size, which reads exactly like a control
-  with no width of its own. (C-156.)
+  with no width of its own. SO: `setCurrentIndex`, pump, THEN measure --
+  and the same caution reaches any stacked widget, any collapsed dock
+  and anything else whose children Qt does not lay out until somebody
+  looks at it. (C-156.)
 - **A `processEvents()` LOOP LETS NO WALL TIME PASS, so a QgsTask never
   finishes.** (Same day.) A probe pumped four hundred iterations waiting
   for the topology build and concluded no topology could be built -- on
@@ -3260,7 +3299,8 @@ here, and the decision to add one is the maintainer's. Recorded
   manipulation moved anything a person could see, and it asked
   `shapely.equals_exact`, which compares COORDINATE SEQUENCES: two rings
   covering identical ground read as different the moment one of them
-  begins at another vertex. (C-162.)
+  begins at another vertex. ASK OF ANY COMPARATOR WHAT IT IS ACTUALLY
+  COMPARING -- the thing, or the way the thing is written down. (C-162.)
 
 - **AND AN EXACT QUESTION MUST NOT BE ASKED WITH A TOLERANCE.** (Same
   day, the other half of the same defect.) Whether a design holds the
@@ -3356,7 +3396,11 @@ here, and the decision to add one is the maintainer's. Recorded
 - **AN ARMED TIMER IS NOT A RUN THAT WILL START.** (2026-08-31.)
   `_queue_live` arms the live timer on every output-affecting change
   WHATEVER the checkbox says, and `_maybe_live_generate` then declines
-  at its second gate. (C-175.)
+  at its second gate. THE RULE THIS JOINS is the project's own about
+  deferred work: ask what CONSUMES a remembered intent, and whether that
+  consumer can DECLINE for a reason having nothing to do with the act
+  deferred. AND WHEN A PROJECT DOCUMENTS ONE READING AS "A SECOND
+  READING OF ONE QUESTION", DIFF THE TWO TERM BY TERM. (C-175.)
 
 - **A GATE THAT OPENS A DOOR MUST ASK FOR WHAT IS BEHIND IT.**
   (2026-08-31, found by two hunts independently.) `opt_experimental`
@@ -3453,7 +3497,8 @@ here, and the decision to add one is the maintainer's. Recorded
   so the three backticks stayed in the prose, and three is ODD. The span
   pattern pairs positionally over the whole document, so from that line
   to the end of the file every backtick pairs with the wrong neighbour.
-  (C-188.)
+   SO: DESCRIBE A DELIMITER, DO NOT QUOTE IT, which is the rule this
+  project already keeps for a path that no longer exists. (C-188.)
 
 - **`lines[-1]` ON A FILE ENDING IN A NEWLINE REPLACES THE EMPTY STRING,
   SO THE EDIT APPENDS INSTEAD OF REPLACING.** (2026-08-31, and it
@@ -3476,7 +3521,8 @@ here, and the decision to add one is the maintainer's. Recorded
   day.) The Topology tab's drawing had a 180px floor and got exactly
   180px of an 825px window, because the column of controls beside it
   claims its own preferred width first -- so the floor was not a floor
-  but the whole allowance. (C-192.)
+  but the whole allowance. ASK OF ANY SIZE FLOOR WHERE THE ROOM COMES
+  FROM, and measure the neighbour in the same breath. (C-192.)
 - **TWO SUFFICIENT FIXES TO ONE OUTCOME MAKE EVERY SINGLE-SITE ENTRY
   SURVIVE, AND THAT IS INFORMATION.** (Same day, four attempts before
   the question was put the right way round.) Two independent repairs
@@ -3517,7 +3563,8 @@ here, and the decision to add one is the maintainer's. Recorded
   by a hunt from the pixels and verified here from the numbers.) The
   Topology view fits to what it is drawing, and during a drag that is
   the PREVIEW; a drag freezes its origin and the unit's span at the
-  press and reads later positions as fractions of that frame. (C-198.)
+  press and reads later positions as fractions of that frame. ASK OF ANY
+  PAINT-TIME FIT WHETHER A GESTURE'S FROZEN ORIGIN OUTLIVES IT. (C-198.)
 
 - **THE DESIGN A CLAIM IS DRIVEN ON CAN REFUTE A REAL DEFECT.**
   (2026-09-01, twice in one afternoon, both mine.) A vertex drag past
@@ -3539,7 +3586,10 @@ here, and the decision to add one is the maintainer's. Recorded
   wrong while somebody is dragging: a topology build finishing under
   their hand put the un-edited design back, dropped the highlight saying
   what they were aiming at, and left the drop to commit an edit out of a
-  record they could no longer see. (C-201.)
+  record they could no longer see. ASK OF ANY BACKGROUND RESULT WHETHER
+  IT MAY LAND ON A GESTURE, and where an intermittent failure is on a
+  PREMISE rather than an assertion, suspect something erasing the state
+  the premise is about rather than a slow machine. (C-201.)
 
 - **THE SIX DECISIONS OF 2026-09-01, SETTLED BY GRILLING.** All four
   approved features go into 0.24.4 on the maintainer's decision, and
@@ -3625,7 +3675,9 @@ here, and the decision to add one is the maintainer's. Recorded
   SAY SO.** (2026-09-01, from a colleague reading the symmetry note.)
   Their two comments were "I have no idea what code it's running to find
   that the hex 7-colouring is especially egregious" and "what did it do
-  with the rough implementations it claims to have written". (C-202.)
+  with the rough implementations it claims to have written". THE RULE:
+  when a document quotes a measurement, name the code that made it in
+  the same sentence, and re-run it before quoting it again. (C-202.)
 
 - **THE TWENTY-SECOND WATCHER FAULT WAS CAUGHT BEFORE ARMING, WHICH IS
   THE FIRST TIME.** (2026-09-01.) `gh` reads the repository from the
@@ -3752,7 +3804,9 @@ here, and the decision to add one is the maintainer's. Recorded
   since 2026-08-19. Read off `.github/workflows/mutation.yml` rather
   than off the prose about it: both measuring steps carry
   `continue-on-error`, so no survivor can redden that workflow and the
-  decision of 2026-08-11 holds exactly as written. (C-217.)
+  decision of 2026-08-11 holds exactly as written. THE HABIT: when a
+  gate's behaviour surprises you, open the gate, not the document that
+  describes it. (C-217.)
 
 - **CHECK YOUR OWN ARITHMETIC BEFORE REPORTING A PARTITION AS
   BROKEN.** (Same day.) I read a summary log and made the shards sum
@@ -3795,7 +3849,9 @@ here, and the decision to add one is the maintainer's. Recorded
   day.) `_drag_moved` answers "did this gesture ask for anything" per
   manipulation, because each has its own idea of nothing -- zero travel
   for a nudge, half a degree for a rotation, one per cent for a scale.
-  (C-223.)
+   WHEN A HANDLE LIST, A VERB LIST OR A MODE LIST GAINS A MEMBER, GREP
+  EVERY TABLE KEYED BY THAT LIST -- and guard the SHAPE, so the next
+  member is covered by whoever adds it. (C-223.)
 - **A PREDICATE THAT MERGES TWO FACTS IS RIGHT FOR A WAIT AND WRONG FOR
   A QUESTION.** (2026-09-02, found by two hunts independently and from
   opposite directions, which is the strongest confirmation this method
@@ -3916,7 +3972,8 @@ here, and the decision to add one is the maintainer's. Recorded
   up, and `gesture_in_progress()` is true from the press to the release
   -- so the window between the CLICK that chooses a class and the PRESS
   that grabs its handle is uncovered, and a landing there applies at
-  once. (C-240.)
+  once. WHEN A DOCSTRING NAMES A HAZARD, CHECK EVERY PATH THROUGH THAT
+  FUNCTION HONOURS IT. (C-240.)
 
 - **A PATCH THAT REWRITES ANOTHER PATCH'S OUTPUT TAKES ITS MARKER WITH
   IT.** (2026-09-04, found by the suite rather than by reading.)
@@ -3928,7 +3985,9 @@ here, and the decision to add one is the maintainer's. Recorded
   PUBLISHED TWO.** (2026-09-04, chasing the topology matrix's one
   failing cell.) The cell reproduced on the second of two attempts, and
   I reported it as DETERMINISTIC; the next run of the same probe
-  answered in 1.43s both times. (C-242.)
+  answered in 1.43s both times. THE HABIT: before reporting a rate, ask
+  how many draws would be needed to tell it from zero, and print the
+  conditions of every arm beside its verdict. (C-242.)
 
 - **A GUARD CAN BE AIMED AT A STATE WITHOUT KNOWING WHAT PRODUCES IT.**
   (Same day, and it is the other half of the entry above.) The stall's
@@ -3942,4 +4001,6 @@ here, and the decision to add one is the maintainer's. Recorded
   against 0.24.4rc15 confirmed and repaired.) `_commit_the_drag` opened
   by clearing the drag preview, which reads as tidy -- the gesture is
   over, so put the transient thing away -- and the answer that replaces
-  it arrives SECONDS LATER off another thread. (C-244.)
+  it arrives SECONDS LATER off another thread. THE RULE: a transient
+  picture is cleared by the thing that REPLACES it, not by the act that
+  requested the replacement. (C-244.)

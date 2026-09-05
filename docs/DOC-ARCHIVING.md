@@ -40,6 +40,19 @@ Two tests, in order:
    a defect in the save path is not something the next twelve sessions
    need in front of them.
 
+**AND THE RULE IS OFTEN THE LAST SENTENCE, NOT THE FIRST.** This is
+the mistake the first pass made thirty-eight times, and it is the one
+to guard against, because it inverts the whole practice. An entry here
+usually narrates first and generalises last: it opens with the day and
+the defect and closes with `ASK OF ANY WATCHER WHETHER ITS OUTPUT CAN
+EXPRESS THE FAILURE`, or `THE HABIT: when a gate's behaviour surprises
+you, open the gate, not the document that describes it`. A cut that
+keeps the opening keeps the STORY and archives the RULE -- which is
+exactly backwards, and leaves a live document that reads as a bug diary
+while the transferable sentences sit in a file nobody opens. Read to
+the END of an entry before deciding what it is. `python3
+tools/doc_archive.py --stranded` finds this shape after the fact.
+
 The headline is what does the work here, and it survives because these
 documents are written rule-first: the bold lead states the finding and
 the body proves it. Where a headline is a noun phrase or a slogan that
@@ -79,8 +92,9 @@ not us.
 
 ## Doing a pass
 
-    python3 tools/doc_archive.py --suggest    # where the length is
-    python3 tools/doc_archive.py              # what is inconsistent
+    python3 tools/doc_archive.py --suggest     # where the length is
+    python3 tools/doc_archive.py --stranded    # rules a pass took by mistake
+    python3 tools/doc_archive.py               # what is inconsistent
 
 `--suggest` lists the longest entries and sections in each live
 document. It is a starting point and not a verdict: length is a symptom,
@@ -100,6 +114,12 @@ Then, for each entry you take:
 4. Run `python3 tools/doc_archive.py`. It will tell you about a pointer
    with no account, an account with no pointer, and a document still
    over its budget.
+5. Run `python3 tools/doc_archive.py --stranded` against the pass you
+   have just made, and read every paragraph it names. It reports an
+   archived account whose closing sentences instruct a later reader in
+   words that appear nowhere in the live half. It is a report and not a
+   check: it finds the shape this project has actually got wrong, not
+   every way of getting it wrong, and a hit is a paragraph to judge.
 
 ## When a pass happens
 
@@ -124,11 +144,14 @@ check pass is a check that has been switched off.
 
 | Document | Before | After | Accounts archived |
 |---|---|---|---|
-| CLAUDE.md | 7,048 | 3,945 | 244 |
-| docs/TESTING.md | 5,238 | 2,528 | 118 |
-| ROADMAP.md | 3,095 | 1,053 | 71 |
-| MAINTAINING.md | 2,422 | 2,414 | 1 |
-| docs/PUBLISHING.md | 1,193 | 892 | 5 |
+| CLAUDE.md | 7,048 | 4,007 | 244 |
+| docs/TESTING.md | 5,238 | 2,556 | 118 |
+| ROADMAP.md | 3,095 | 1,073 | 71 |
+| MAINTAINING.md | 2,422 | 2,416 | 1 |
+| docs/PUBLISHING.md | 1,193 | 903 | 5 |
+
+("After" is after the audit below put the archived rules back, so each
+figure is about sixty lines above what the cut alone left.)
 
 The two documents with almost nothing taken are the finding, not the
 omission: MAINTAINING.md is architecture, and docs/PUBLISHING.md is a
@@ -136,6 +159,36 @@ runbook whose sections are mostly the procedure itself. What was taken
 from PUBLISHING was five accounts of what things cost — the first three
 CI rounds, what a release stopped doing, a candidate number spent on a
 test repair.
+
+## What the audit of 2026-09-05 found, and put back
+
+The pass above was made from OUTLINES for three of the five documents
+-- section titles and sizes and a sample, not the prose -- which is a
+thing to say plainly rather than to let a results table imply. Read
+properly afterwards, it had three faults, all the same fault wearing
+three coats: **the cut kept each entry's head, and these entries state
+their rule last.**
+
+| What was wrong | How many | Where |
+|---|---|---|
+| A generalised instruction archived, its incident left live | 38 | CLAUDE 33, TESTING 3, ROADMAP 1, PUBLISHING 1 |
+| An entry promising an enumeration and delivering one item | 3 | R-54, T-15, R-33 |
+| A live cross-reference pointing at a fact that had moved | 1 | P-3, from "Coverage is NOT among them any more" |
+
+All of them are repaired: the rules are back in the live halves, T-15
+(which is procedure end to end and should never have been cut at all)
+is restored whole, and R-54's unclosed parenthesis -- made by the cut
+itself -- is closed. The archives were left exactly as they were, so
+they remain a verbatim record of what the pass took; a restored rule
+therefore appears in both halves, which is the honest cost of mending
+a cut rather than pretending it was never made.
+
+**What this says about the practice, and not just about one pass.** A
+mechanical cutter cannot do this, and the first pass half-believed it
+could. Length is a symptom and the tool may point at it, but every
+entry has to be READ TO ITS END by somebody deciding what is rule and
+what is account. That is the whole of the judgement, and it is why the
+budget is a trigger for a person rather than a job.
 
 Still owed from that pass, and named here so the next one does not have
 to rediscover it.

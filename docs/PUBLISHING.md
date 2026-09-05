@@ -476,7 +476,17 @@ again. **The new-code mutation guard** ran fifty minutes and reached
 lines, which docs/MUTATION-TESTING.md says never to do; it could not
 finish inside the window it gated, two mutants timing out at twenty-one
 minutes each; and its red meant "write tests over the next few days",
-which is a work list rather than a gate. (P-3.)
+which is a work list rather than a gate. THE THREE WERE the new-code
+mutation guard, the per-test coverage record (22 minutes, whose only
+consumer had left) and the coverage report itself (24 to 31 minutes,
+read zero times across six candidates in one night). WHAT DID NOT LEAVE
+IS THE CONTRAST: the visual gallery costs 7 seconds and the colourspace
+comparison 16, and both catch a WRONG MAP, which is this software's
+characteristic failure. THE TEST TO APPLY TO ANY STAGE IN A RELEASE
+PATH: who reads its output, and what would they do differently? If the
+honest answer is nobody, or nothing before the artefact ships, it
+belongs somewhere else -- on demand, or on somebody else's machine,
+reporting. (P-3.)
 
 ## A release candidate, first
 

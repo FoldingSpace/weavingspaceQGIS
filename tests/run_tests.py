@@ -55913,6 +55913,73 @@ def test_the_archived_documents_agree_with_their_live_halves():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_a_rule_archived_by_mistake_is_reported():
+  """The report that catches an archiving pass running BACKWARDS.
+
+  The pass of 2026-09-05 archived thirty-eight generalised instructions
+  and left their incidents live, which inverts the practice: the live
+  half is supposed to keep the rule and lose the account. It happened
+  because these entries narrate first and generalise last -- an entry
+  opens with a day and a defect and closes with `ASK OF ANY GUARD: is
+  this the number the red run prints?` -- so a cut that keeps the
+  opening keeps the story and archives the rule.
+
+  `doc_archive.stranded()` reports that shape: an archived account
+  whose CLOSING sentences instruct a later reader in words the live
+  half does not contain. It gates nothing, which is why it is tested
+  here -- a report nobody has watched fail is a report that quietly
+  finds nothing, and this one is a regex over prose, which is the most
+  perishable thing in the repository.
+
+  THE POSITIVE CONTROL IS THE POINT. The negative arm alone would pass
+  against a function that returned zero unconditionally.
+  """
+  import io
+  import contextlib
+  import shutil
+  import tempfile
+
+  root = tempfile.mkdtemp(prefix="doc-stranded-")
+  try:
+    def write(page, body):
+      with open(os.path.join(root, page), "w", encoding="utf-8") as handle:
+        handle.write(body)
+
+    module = _doc_archive_module(root)
+    module.PAIRS = [("X.md", "X-archived.md", "X", 500)]
+
+    def run():
+      caught = io.StringIO()
+      with contextlib.redirect_stdout(caught):
+        total = module.stranded()
+      return total, caught.getvalue()
+
+    # THE RULE IS LIVE, WHICH IS THE HEALTHY CASE.
+    write("X.md", "# A document\n\nSee X-archived.md.\n\n"
+                  "- **A defect happened.** The account of it. THE HABIT: "
+                  "read the whole entry before cutting it. (X-1.)\n")
+    write("X-archived.md",
+          "# Archive: X.md\n\n### X-1 — A defect happened\n\n"
+          "The long account of it, with its measurements. THE HABIT: "
+          "read the whole entry before cutting it.\n")
+    total, said = run()
+    assert total == 0, \
+      f"a rule that IS in the live half was reported as stranded: {said}"
+
+    # AND THE SAME PAIR WITH THE RULE CUT OUT OF THE LIVE HALF.
+    write("X.md", "# A document\n\nSee X-archived.md.\n\n"
+                  "- **A defect happened.** The account of it. (X-1.)\n")
+    total, said = run()
+    assert total == 1, \
+      "an archiving pass kept the incident and archived the rule, and " \
+      "the report did not notice -- which is the exact mistake of " \
+      f"2026-09-05, made thirty-eight times: {said}"
+    assert "X-1" in said, \
+      f"the report found a stranded rule but did not say which: {said}"
+  finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+
 def test_every_archived_document_is_watched_by_the_check():
   """The check's SCOPE is the half of it that goes wrong quietly.
 
@@ -87776,6 +87843,8 @@ def main():
         test_the_archived_documents_agree_with_their_live_halves)
   check("every archived document is watched by the check",
         test_every_archived_document_is_watched_by_the_check)
+  check("a rule archived by mistake is reported",
+        test_a_rule_archived_by_mistake_is_reported)
   check("the release refuses a tree it did not measure",
         test_the_release_refuses_a_tree_it_did_not_measure)
   check("the release watchdog measures the whole tree",

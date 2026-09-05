@@ -204,6 +204,62 @@ def suggest():
             f"{title.strip()[:70]}")
 
 
+# A sentence written to be CARRIED FORWARD: an instruction addressed to
+# whoever reads it next, rather than a fact about what happened once.
+# These are the sentences a live document exists to hold, and they are
+# the ones an archiving pass is most likely to take by accident --
+# because an entry here usually narrates first and generalises LAST, so
+# a cut that keeps the opening keeps the story and archives the rule.
+CARRIED = re.compile(
+  r"^(ASK OF ANY|ASK WHICH|ASK WHAT|THE RULE:|THE HABIT|SO: |"
+  r"THE TEST TO APPLY|TWO THINGS TO CHECK|THE ONE THING TO CARRY|"
+  r"WHEN A [A-Z]{2,})")
+
+
+def stranded():
+  """Rules that ended up in an archive with no copy in the live half.
+
+  Prints, for each pair, any archived account whose CLOSING sentences
+  are an instruction to a later reader whose words appear nowhere in
+  the live document. Each one is a cut that ran backwards: the account
+  was supposed to move and the rule was supposed to stay.
+
+  It is a report and not a check. The pattern reads the sentences this
+  project happens to write instructions in, so it finds a kind of
+  mistake rather than all of them, and a hit is a paragraph to go and
+  read rather than a verdict. Run it at the end of an archiving pass,
+  against the pass you have just made.
+
+  Returns:
+    The number of stranded rules found, so a caller can print a total.
+  """
+  total = 0
+  for live, archive, prefix, _budget in PAIRS:
+    if not os.path.exists(os.path.join(ROOT, archive)):
+      continue
+    flat = " ".join(read(live).split()).lower()
+    accounts = re.split(r"^### ([A-Z]-\d+) — .*$", read(archive), flags=re.M)
+    hits = []
+    for index in range(1, len(accounts), 2):
+      ident, body = accounts[index], accounts[index + 1]
+      if not ident.startswith(prefix + "-"):
+        continue
+      body = re.sub(r"<sub>.*?</sub>", "", body, flags=re.S)
+      sentences = [" ".join(one.split())
+                   for one in re.split(r"(?<=[.!?])\s+", body) if one.strip()]
+      for sentence in sentences[-5:]:
+        if not 40 <= len(sentence) <= 300 or not CARRIED.match(sentence):
+          continue
+        if sentence.lower()[:60] not in flat:
+          hits.append((ident, sentence))
+          break
+    total += len(hits)
+    print(f"\n{live} — {len(hits)} rule(s) that live only in {archive}")
+    for ident, sentence in hits:
+      print(f"  {ident:<7} {sentence[:110]}")
+  return total
+
+
 def main():
   """Check the split, or say what the next pass would look at.
 
@@ -217,9 +273,17 @@ def main():
   parser.add_argument("--suggest", action="store_true",
                       help="print what the next archiving pass would "
                            "look at, instead of checking")
+  parser.add_argument("--stranded", action="store_true",
+                      help="print rules that a pass archived by "
+                           "mistake, instead of checking")
   args = parser.parse_args()
   if args.suggest:
     suggest()
+    return 0
+  if args.stranded:
+    found = stranded()
+    print(f"\n{found} rule(s) to read, and each is a paragraph to "
+          f"judge rather than a fault to fix.")
     return 0
   problems = check()
   for problem in problems:

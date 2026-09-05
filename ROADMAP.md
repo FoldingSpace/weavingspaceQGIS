@@ -632,7 +632,10 @@ Save & open, Help. (R-32.)
 **A MESSAGES TAB -- SHIPPED EXPERIMENTAL IN 0.24.4, and what is left
 here is the part that did not ship.** The tab exists: everything the
 plugin has said this session, newest first, with the answer beside any
-question, behind the Experimental features box. (R-33.)
+question, behind the Experimental features box. WHAT NEEDS DECIDING is
+whether the plugin's own message-bar helper becomes the single door
+everything passes through -- it very nearly is already -- and what
+happens to a message issued while the tab does not yet exist. (R-33.)
 
 **A LEGEND DESIGN TAB, and a two-way question at the end of it that
 needs research before any of it is built.** A chooser of legend styles,
@@ -784,7 +787,8 @@ doubling up of coordinates happening". The second half is this project's
 own measurement arriving from the side that wrote the manipulation,
 which is agreement rather than correction; the first half is a function
 ALREADY IN OUR VENDOR that does the job better than the repair written
-here. (R-42.)
+here. THE HABIT WORTH CARRYING: before writing a repair for a
+dependency's output, grep the dependency for one. (R-42.)
 
 **AND CLICK-AND-DRAG IS AFFORDABLE, which the first reading of the cost
 said it was not.** One edit costs 1.23s end to end on the fastest design
@@ -822,7 +826,11 @@ memory.) There is no topology extension to GeoPackage, adopted or
 community: the registry lists WKT for CRS, Tiled Gridded Coverage and
 Related Tables as the official three, and a dozen community ones for
 vector tiles, styling, 3D tiles and the rest, with nothing for a
-node/edge/face model. (R-47.)
+node/edge/face model. THE ONE THING TO CARRY FORWARD IS THE NAME: a tab
+called "Topology" will be read by some GIS users as promising the
+node/edge/face kind, and it does not, so wherever it is called that it
+has to say early and plainly that it describes the repeating unit and
+not the map. (R-47.)
 
 **AND THE MAINTAINER'S OWN FRAMING SHARPENS ALL OF THAT: this project
 has THREE kinds of layer -- the original data, the tiling over the whole
@@ -860,7 +868,9 @@ than a rule. That is exactly what rotted that day: a test asserted `"no
 value" in said`, the maintainer reworded the notice to "do not have
 finite numeric data", and the test failed on every platform while
 looking like a Windows fault -- a second copy of the wording with no
-mechanism keeping the two in step. (R-52.)
+mechanism keeping the two in step. SO THE RECOMMENDATION IS TO DELETE
+THIS ENTRY, keeping the practice where it already is -- compose the
+expected text from the function the product uses. (R-52.)
 
 **Give the stochastic hunt an exported-file invariant that RUNS.** Added
 2026-08-16. A hunt over 105 checked steps reported its five axes: holes
@@ -879,7 +889,13 @@ the lookup, so a future mutant has one place to land.
 them about tools that produce numbers people then believe. (The fourth
 landed on 2026-08-15: `check_standards` now reads every catalogue entry
 with `ast` and fails when its anchor is absent, after seven entries were
-found anchored on text that no longer existed. (R-54.)
+found anchored on text that no longer existed; a sweep run by hand
+still gets no preflight, and that is the part of the fourth that
+stands.) TWO OF THE THREE ARE STILL OWED, and naming them is the point
+of the entry: three `EQUIVALENT` catalogue entries exclude nothing, and
+a stall must not count toward a printed rate until it has been re-judged
+alone -- a stall counts as caught, so a false one flatters the score.
+(R-54.)
 
 **SHOULD A CATALOGUE ENTRY BE ABLE TO BREAK TWO SITES?** Raised
 2026-08-28 while deciding the drifted entries, and recorded rather than
@@ -1035,7 +1051,10 @@ rather than started, because it is a session's work and the case for it
 is an argument about where effort pays rather than a defect waiting to
 be fixed. The plugin describes the same state in several places that
 must agree -- the table, the design preview, the generated map, the
-colour editor, and the saved project. (R-70.)
+colour editor, and the saved project. PART OF THIS IS NOW BUILT, which
+narrows what is left rather than closing it; what still needs deciding
+is what a disagreement between two of those views would MEAN, which is
+the part that is not coding. (R-70.)
 
 **THE TEXT-REVIEW QUEUE SHOWS THE MAINTAINER THINGS THEY CANNOT JUDGE.**
 (Maintainer's observation, 2026-08-26: an SQL statement -- `DELETE FROM

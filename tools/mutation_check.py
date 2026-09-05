@@ -10744,6 +10744,21 @@ MUTATIONS = [
            "nothing leading to it -- and the next archiving pass reads "
            "that ground as unarchived and takes it a second time, "
            "because the only record that it was done is the pointer"),
+  dict(name="a-rule-archived-by-mistake-is-reported",
+       file=DOC_ARCHIVE,
+       # AIMED AT THE COMPARISON WITH THE LIVE HALF, which is the only
+       # thing that makes this a report of a MISTAKE rather than a list
+       # of every instruction in the archives. Without it the report is
+       # noise, and a noisy report is one nobody runs twice.
+       old="""        if sentence.lower()[:60] not in flat:""",
+       new="""        if False:  # mutation: no rule is ever stranded""",
+       test="test_a_rule_archived_by_mistake_is_reported",
+       why="a rule ending up in an archive with no copy in the live "
+           "half. The pass of 2026-09-05 did this thirty-eight times, "
+           "because these entries narrate first and generalise last, so "
+           "a cut that keeps the head keeps the story and archives the "
+           "rule -- leaving a live document that reads as a bug diary "
+           "while the transferable sentences sit where nobody looks"),
   dict(name="a-document-over-its-budget-is-reported",
        file=DOC_ARCHIVE,
        # AIMED AT THE COMPARISON, not at the number: a budget nobody

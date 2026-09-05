@@ -237,8 +237,30 @@ missed its anchor. (T-14.)
 Thirteen guards were written in one sitting on 2026-08-18, and the
 recurring difficulty was not what to assert but WHERE THE EXPECTED VALUE
 MAY COME FROM. Three answers earned their place, in descending
-preference. **From the fixture and the settings**, which is the standing
-rule. (T-15.)
+preference.
+
+**From the fixture and the settings**, which is the standing rule. A pin
+of 6e-10 typed into a box must read back as 6e-10; a copied ladder's
+interior breaks must still be in the record. Nothing is asked of the
+code under test.
+
+**From a PROPERTY of the domain that holds whatever the code believes.**
+Used where every function that could answer is downstream of the defect:
+a sequential ramp runs light to dark, so a forward ladder has its palest
+class FIRST -- read off the rendered colours, true whatever the plugin
+thinks, and usable as an oracle precisely because the plugin has no say
+in it.
+
+**From a second implementation the defect does not touch**, so that a
+disagreement is a defect by construction. Where the fix and the
+comparison share code, that arm must fall back to the fixture's own
+colour instead.
+
+AND WHERE NONE OF THE THREE IS AVAILABLE, SAY SO RATHER THAN INVENTING
+ONE. An honest gap in a record is worth more than a guard that measures
+nothing: a test asserting the guide's wording would pin the WORDS rather
+than the truth, and would fail the next time somebody rewrote the
+sentence correctly. (T-15.)
 
 ## Instrument WHICH rebuild writes the record, and the fourth attempt lands
 
@@ -247,7 +269,8 @@ sessions, and the difference at the end was not cleverness. Three
 attempts reasoned about where a stale value came from -- a flag read in
 `_refresh_table`, a table cleared on project change, cell widgets
 removed -- and each was reverted, one after running ten minutes without
-reaching the case. (T-16.)
+reaching the case. WHEN A FIX HAS BEEN REVERTED ONCE, STOP FIXING AND
+START MEASURING. (T-16.)
 
 ## THE SECOND TRIGGER: when a fix AND its test are in, hunt that ground again
 
@@ -1426,7 +1449,9 @@ product now refuses, so its comparison could not move whatever the
 mutation did -- came back `caught` from the mutation catalogue, twice,
 on a quiet machine. THREE EXPLANATIONS WERE TRIED AND TWO WERE
 COMFORTABLE. Contention, ruled out by running it with nothing else on
-the machine. (T-54.)
+the machine. THE HABIT, and it is cheap: when a tool and a hand-run
+disagree, RUN THE TOOL'S INNER COMMAND YOURSELF with nothing suppressed.
+(T-54.)
 
 ## A TEST WHOSE SETUP REFRESHES THE THING UNDER TEST PASSES FOREVER
 
@@ -1444,7 +1469,9 @@ number, and only after a reload does the provider admit False. (T-55.)
 2026-08-20, and it is the third face of a shape this file already
 carries twice. A hunt claimed that a second signal adopts colours a
 first correctly declined. The probe written to check it drove the edit,
-waited, fired a bare repaint, and read the record: clean. (T-56.)
+waited, fired a bare repaint, and read the record: clean. AND THE
+CHEAPEST CURE IS THE ONE THIS FILE ALREADY PRESCRIBES: assert the
+premise. (T-56.)
 
 ## TWO DEAD AXES OUT OF TWENTY-SIX, AND BOTH WERE SUBSUMED
 
