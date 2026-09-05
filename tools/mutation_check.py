@@ -83,6 +83,10 @@ VENDOR_TILE_MAP = ("weavingspace_qgis/vendor/weavingspace/tile_map.py")
 # upstream and a silently broken vendored library, so the question it
 # asks about whether a patch is already in a file earns a proof
 VENDOR_TOOL = "tools/vendor_weavingspace.py"
+# the checker that holds the split binding documents together: the live
+# half's pointers and the archived half's accounts are joined by nothing
+# but ids, and both directions rot without showing up in a diff
+DOC_ARCHIVE = "tools/doc_archive.py"
 
 # name, file, exact source to replace, replacement, test that must fail
 MUTATIONS = [
@@ -10725,6 +10729,35 @@ MUTATIONS = [
            "it answers 'anchor not found', which is the sentence "
            "reserved for an anchor UPSTREAM has moved and is the one "
            "message a re-vendorer has to be able to trust"),
+  dict(name="an-archived-account-nobody-points-at-is-reported",
+       file=DOC_ARCHIVE,
+       # THE ORPHAN ARM IS THE QUIET HALF of the split's two failures.
+       # A pointer with no account is met by a reader who goes looking;
+       # an account with no pointer is met by nobody, which is why it
+       # needs a gate rather than a habit.
+       old="""    orphans = sorted(set(defined) - quoted)""",
+       new="""    orphans = []  # mutation: nothing is ever stranded""",
+       test="test_the_archived_documents_agree_with_their_live_halves",
+       why="an archived account still being reachable from the document "
+           "it was cut out of. When a rule is deleted or rewritten "
+           "without its pointer, its account stays in the archive with "
+           "nothing leading to it -- and the next archiving pass reads "
+           "that ground as unarchived and takes it a second time, "
+           "because the only record that it was done is the pointer"),
+  dict(name="a-document-over-its-budget-is-reported",
+       file=DOC_ARCHIVE,
+       # AIMED AT THE COMPARISON, not at the number: a budget nobody
+       # compares against is the state this practice was in before the
+       # pass of 2026-09-05, when 19,000 lines accumulated across five
+       # documents and nothing anywhere said so.
+       old="""    if lines > budget:""",
+       new="""    if False:  # mutation: no document is ever too long""",
+       test="test_the_archived_documents_agree_with_their_live_halves",
+       why="the archiving pass happening at all. The budget is the only "
+           "thing that ASKS for one; without it the practice goes back "
+           "to depending on somebody noticing that a document has got "
+           "long, and the documents that most need the pass are the "
+           "ones a long session has no room left to read"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

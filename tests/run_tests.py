@@ -55033,12 +55033,29 @@ def test_the_vendoring_tool_reproduces_the_current_vendor():
     shutil.rmtree(root, ignore_errors=True)
 
 
-DOCUMENTED_COMMAND_DOCS = ["CLAUDE.md", "MAINTAINING.md", "README.md",
-                           "ROADMAP.md",
-                           os.path.join("docs", "TESTING.md"),
-                           os.path.join("docs", "MUTATION-LOOP.md"),
-                           os.path.join("docs", "PUBLISHING.md"),
-                           os.path.join("docs", "PERFORMANCE.md")]
+LIVE_COMMAND_DOCS = ["CLAUDE.md", "MAINTAINING.md", "README.md",
+                     "ROADMAP.md",
+                     os.path.join("docs", "TESTING.md"),
+                     os.path.join("docs", "MUTATION-LOOP.md"),
+                     os.path.join("docs", "PUBLISHING.md"),
+                     os.path.join("docs", "PERFORMANCE.md"),
+                     os.path.join("docs", "DOC-ARCHIVING.md")]
+# The archived halves of the split documents (docs/DOC-ARCHIVING.md).
+# Their commands are checked exactly like the live ones -- an account
+# somebody is sent to read is a document like any other, and a command
+# in it rots the same way -- but they are exempt from the
+# every-document-contributes floor below, because an archive that
+# happens to quote no command is not a document that has been gutted.
+ARCHIVED_COMMAND_DOCS = ["CLAUDE-archived.md", "MAINTAINING-archived.md",
+                         "ROADMAP-archived.md",
+                         os.path.join("docs", "TESTING-archived.md"),
+                         os.path.join("docs", "PUBLISHING-archived.md")]
+DOCUMENTED_COMMAND_DOCS = LIVE_COMMAND_DOCS + ARCHIVED_COMMAND_DOCS
+# WIDENED AGAIN 2026-09-05, in the commit that split these documents
+# into a live half and an archived half. Roughly half the prose that
+# was inside this gate moved into the archives in one edit, and a gate
+# whose SCOPE follows the text out of the file it was watching is the
+# failure this list has already had twice.
 # WIDENED AGAIN 2026-09-03, in the commit that created
 # docs/PERFORMANCE.md rather than in an audit afterwards. That document
 # names a probe beside every figure it quotes, which is the whole point
@@ -55797,6 +55814,140 @@ def test_the_documents_numbers_match_the_code():
     f"{complaints!r}")
 
 
+def _doc_archive_module(root=None):
+  """tools/doc_archive.py, optionally reading a throwaway tree.
+
+  Args:
+    root: a directory to read documents from instead of this
+      repository. The module derives its own ROOT from its file's
+      location, so a copy loaded from anywhere still reads the real
+      documents unless this is set.
+
+  Returns:
+    The loaded module, with ROOT pointed where the caller asked.
+  """
+  import importlib.util
+  path = os.path.join(ROOT, "tools", "doc_archive.py")
+  spec = importlib.util.spec_from_file_location("_doc_archive", path)
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  if root is not None:
+    module.ROOT = root
+  return module
+
+
+def test_the_archived_documents_agree_with_their_live_halves():
+  """A pointer into an archive leads somewhere, and nothing is stranded.
+
+  The binding documents were split on 2026-09-05: the live half keeps
+  the rule and quotes an id, the archived half holds the account under
+  that id (docs/DOC-ARCHIVING.md). The split is held together by
+  nothing but those ids, so it rots in two directions and neither shows
+  up in a diff. A pointer whose account has been renumbered away sends
+  a reader to a file that does not mention it. An account nothing
+  points at is unreachable except by reading the whole archive, and the
+  next pass will archive the same ground again because nothing records
+  that it was done.
+
+  THE REAL TREE IS ASSERTED FIRST, because that is the claim anybody
+  cares about. Then every arm is driven in a throwaway tree, since a
+  checker that has only ever been watched agree is a checker nobody has
+  seen work -- and each of these arms is one `if` in a loop, which is
+  exactly the shape that goes quietly dead.
+  """
+  import shutil
+  import tempfile
+
+  live = _doc_archive_module()
+  assert live.check() == [], (
+    "the archived documents and their live halves disagree: "
+    + "; ".join(live.check()))
+
+  root = tempfile.mkdtemp(prefix="doc-archive-")
+  try:
+    def write(page, body):
+      with open(os.path.join(root, page), "w", encoding="utf-8") as handle:
+        handle.write(body)
+
+    good_live = ("# A document\n\nIts accounts are in X-archived.md.\n\n"
+                 "- **A rule.** (X-1.)\n")
+    good_archive = ("# Archive: X.md\n\n## Section\n\n"
+                    "### X-1 — A rule\n\nThe account.\n")
+    module = _doc_archive_module(root)
+    module.PAIRS = [("X.md", "X-archived.md", "X", 50)]
+
+    write("X.md", good_live)
+    write("X-archived.md", good_archive)
+    assert module.check() == [], \
+      f"PREMISE: the staged pair is already unhappy: {module.check()}"
+
+    # A POINTER WITH NO ACCOUNT.
+    write("X.md", good_live.replace("(X-1.)", "(X-2.)"))
+    assert any("X-2" in one for one in module.check()), \
+      "a pointer into the archive named an account that is not there " \
+      "and nothing said so"
+
+    # AN ACCOUNT WITH NO POINTER.
+    write("X.md", good_live)
+    write("X-archived.md", good_archive
+          + "\n### X-9 — Stranded\n\nNobody points here.\n")
+    assert any("X-9" in one for one in module.check()), \
+      "an archived account that nothing points at was not reported, " \
+      "so the next pass will archive its ground a second time"
+
+    # THE TWO HALVES MUST NAME EACH OTHER.
+    write("X-archived.md", good_archive)
+    write("X.md", good_live.replace("Its accounts are in X-archived.md.",
+                                    "Its accounts are elsewhere."))
+    assert any("does not name" in one for one in module.check()), \
+      "a document stopped naming its own archive and the check passed; " \
+      "its ids then point at a file the reader cannot guess"
+
+    # AND THE BUDGET, which is what makes the pass regular rather than
+    # remembered.
+    write("X.md", good_live + "\nfiller\n" * 60)
+    assert any("budget" in one for one in module.check()), \
+      "a live document went past its budget without being reported, " \
+      "so nothing would ever ask for an archiving pass again"
+  finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+
+def test_every_archived_document_is_watched_by_the_check():
+  """The check's SCOPE is the half of it that goes wrong quietly.
+
+  `doc_archive.PAIRS` is hand-kept, and this project has now had the
+  same failure three times in other checkers: the contents are watched
+  and the boundary is not, so a thing added later is outside the gate
+  and nothing fails. An archive nobody registered gets no pointer
+  check, no orphan check and no budget, while looking exactly like the
+  four that do.
+
+  So the tree is asked instead of the list: every `*-archived.md` in
+  the repository must appear in PAIRS, and every document PAIRS names
+  must exist.
+  """
+  module = _doc_archive_module()
+  registered = {archive for _live, archive, _prefix, _budget
+                in module.PAIRS}
+  found = set()
+  for folder in (ROOT, os.path.join(ROOT, "docs")):
+    for name in sorted(os.listdir(folder)):
+      if name.endswith("-archived.md"):
+        found.add(os.path.relpath(os.path.join(folder, name), ROOT))
+  assert found, \
+    "no archived documents were found at all, so this test is " \
+    "asserting nothing; either the split was undone or the search is " \
+    "looking in the wrong places"
+  missing = sorted(found - registered)
+  assert not missing, (
+    f"{', '.join(missing)} exist but tools/doc_archive.py does not "
+    f"list them, so nothing checks that their accounts are reachable")
+  for live, archive, _prefix, _budget in module.PAIRS:
+    assert os.path.exists(os.path.join(ROOT, live)), \
+      f"doc_archive.py lists {live}, which does not exist"
+
+
 def test_every_documented_command_still_exists():
   """The maintenance documents' commands are real commands.
 
@@ -55848,7 +55999,7 @@ def test_every_documented_command_still_exists():
   scripts = {script for _doc, _n, _text, script, _flags in commands}
   assert len(scripts) >= 15, \
     f"only {len(scripts)} distinct scripts were quoted: {sorted(scripts)}"
-  for document in DOCUMENTED_COMMAND_DOCS:
+  for document in LIVE_COMMAND_DOCS:
     assert any(doc == document for doc, *_rest in commands), \
       f"{document} contributed no commands at all; it has either been " \
       f"renamed or is no longer telling anyone what to run"
@@ -87621,6 +87772,10 @@ def main():
         test_nothing_asks_whether_a_file_exists_before_removing_it)
   check("every documented command still exists",
         test_every_documented_command_still_exists)
+  check("the archived documents agree with their live halves",
+        test_the_archived_documents_agree_with_their_live_halves)
+  check("every archived document is watched by the check",
+        test_every_archived_document_is_watched_by_the_check)
   check("the release refuses a tree it did not measure",
         test_the_release_refuses_a_tree_it_did_not_measure)
   check("the release watchdog measures the whole tree",

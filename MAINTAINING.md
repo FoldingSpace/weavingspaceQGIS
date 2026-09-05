@@ -4,6 +4,10 @@ A guide for whoever keeps this working, whether cartographer,
 student, or AI assistant; it assumes no particular software
 engineering background.
 
+The full accounts of things this file states briefly are in
+`MAINTAINING-archived.md`, by the ids it quotes (M-1). This file is
+architecture, so most of it stays here; see docs/DOC-ARCHIVING.md.
+
 ## Long jobs are sharded by default
 
 Anything that takes more than a few minutes and is made of
@@ -27,31 +31,20 @@ EMPTY project, which is the rule that makes a failure name the test
 that is actually broken -- so a slice is a legitimate subset rather
 than a different suite. It took the suite from 32 minutes to 11.
 
-**AND A SHARD'S VERDICT IS NOT ITS LAST LINE.** (2026-08-30.) A watcher
-reporting `tail -1` showed a GDAL warning where a shard had in fact
-finished — "231 passed, 0 failed" sits several lines above, because
-OGR writes an auxiliary-file warning on the way out. Read for the
-verdict LINE, not for the end of the file, and where there is no
-verdict line say so in those words: a shard that died and a shard
-whose last line is noise look identical to a naive tail, and only one
-of them is a problem.
+**AND A SHARD'S VERDICT IS NOT ITS LAST LINE.** (2026-08-30.) Read for
+the verdict LINE, not for the end of the file, and where there is no
+verdict line say so in those words: a shard that died and a shard whose
+last line is noise look identical to a naive tail, and only one of them
+is a problem.
 
 **AND A SHARD CAN DIE AT STARTUP, WHICH LOOKS LIKE NOTHING AT ALL.**
-(2026-08-28.) Recording per-test coverage three ways, shard 0 was gone
-before it ran a single test: `main()` cleared its scenario record with
-`if os.path.exists(x): os.remove(x)`, all three recorders saw the
-file, two removed it, and the third met FileNotFoundError. The other
-two ran on perfectly, the progress total climbed, and the record would
-have been missing a third of the suite -- which overstates survivors,
-since a test absent from the record is never offered the chance to
-notice a mutant. Both sites suppress the error now, and a family test
-scans `tests/` and `tools/` for the shape.
-SO READ SHARDS SEPARATELY, NEVER ONLY THEIR SUM. The fault was visible
-as an asymmetry -- nineteen, thirty, and nothing -- and invisible in
-the total. `tools/merge_coverage_shards.py` is the backstop rather
-than the detector: it counts the files against the total each one
-names and refuses a partial set, which is why this cost an hour of
-machine time rather than a wrong measurement.
+(2026-08-28.) One of three coverage recorders met FileNotFoundError
+before it ran a single test; the other two ran on and the progress total
+climbed. SO READ SHARDS SEPARATELY, NEVER ONLY THEIR SUM -- the fault
+was visible as an asymmetry (nineteen, thirty, and nothing) and
+invisible in the sum. `tools/merge_coverage_shards.py` is the backstop
+rather than the detector: it counts the files against the total each one
+names and refuses a partial set. Both faults in full: M-1.
 
 Three things make it trustworthy rather than merely fast. Each shard
 prints how many tests it was OFFERED, and those totals must agree:

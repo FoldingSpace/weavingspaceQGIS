@@ -54,6 +54,16 @@ INCLUDE = ["weavingspace_qgis", "tests", "tools", "docs"]
 # check the vendored-version claim a user is shown.
 INCLUDE_FILES = ["release.py", "build.py", "LICENSE.md", "CLAUDE.md",
                  "MAINTAINING.md", "README.md", "ROADMAP.md"]
+# AND THE ARCHIVED HALVES TRAVEL WITH THEIR LIVE ONES, BY A RULE
+# RATHER THAN BY NAME. The split of 2026-09-05 put the accounts behind
+# these documents in `<NAME>-archived.md` beside them, and the suite
+# reads those too -- for the commands they quote, and to check that
+# every pointer into one leads somewhere. Adding the three names by
+# hand would have been the FOURTH widening of this list by the same
+# discovery, each found by a catalogue entry coming back UNJUDGEABLE.
+# A rule cannot be forgotten when the next document is split.
+INCLUDE_FILES += sorted(name for name in os.listdir(ROOT)
+                        if name.endswith("-archived.md"))
 # what it does not, and what would make the copy slow
 EXCLUDE = {"reports", "dist", ".venv-reference", "__pycache__", ".git",
            "libs", "wheels"}
