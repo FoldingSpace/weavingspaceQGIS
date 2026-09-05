@@ -224,25 +224,17 @@ them, because polling somebody's endpoint unattended is not a thing to
 do behind their back. A layer with QGIS's own auto-refresh enabled is
 followed, since switching that on is the user saying the data moves.
 
-**A CHANGE OF DATASET HAS ITS OWN CONTRACT**, settled across
-2026-08-21 and 24 and recorded as rulings in CLAUDE.md. In brief for
-a maintainer: `switched_from_work` in `_on_layer_changed` decides
-what counts as one (leaving a dataset this session has BUILT from --
-a recovery, a combo auto-landing and a pre-generate fiddle are all
-first choices); `_begin_new_dataset` clears the output path, arms a
-fresh group and asks the design-floor question; and
-`_swap_dataset_memory` keeps every field-keyed record -- hand-picked
-colours, pinned bounds, the scheme shelf -- in PER-DATASET BANKS, so
-nothing keyed by one dataset's column names is readable, steering, or
-writable to file while another is chosen. Value-laden records never
-cross a shared column name; the style (mode, ramp, Reverse, class
-count) keeps by name as it always has.
-
-**AND THAT CONTRACT WAS REPLACED RATHER THAN PATCHED, on 2026-08-25.**
-Settled by a grilling after a colleague drove the old rules through a
-real demo of several datasets in a row, and BUILT the same day, so the
-paragraphs above describe machinery that still exists while this one
-describes what now governs it.
+**A CHANGE OF DATASET, AND THE OUTPUT GROUP THAT GOVERNS IT.** Settled
+by a grilling on 2026-08-25 and built the same day, REPLACING the
+contract of 2026-08-21 and 24 rather than patching it. What follows is
+what GOVERNS; the earlier machinery survives underneath and is what you
+will meet in the source -- `switched_from_work` in `_on_layer_changed`
+still decides what counts as a switch, `_begin_new_dataset` still
+clears the output path and asks the design-floor question, and
+`_swap_dataset_memory` still keeps every field-keyed record in
+PER-DATASET BANKS, so value-laden records never cross a shared column
+name while the style keeps by name. None of it decides where a run
+lands any more. (M-2.)
 
 THE OUTPUT GROUP IS THE UNIT OF WORK. A chooser sits beside the region
 chooser naming which map a run will land in, with a "create new"
