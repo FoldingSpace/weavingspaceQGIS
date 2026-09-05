@@ -10669,10 +10669,13 @@ MUTATIONS = [
        # `show_preview` was split from `show_topology` to prevent.
        # Anchored on the travel test's own clear, which is the path a
        # click takes.
-       old="""    if not self._drag_moved(key, args):
+       # RE-ANCHORED 2026-09-05, when `_drag_moved` gained the numbers
+       # the drag started from so a count-only gesture could be told
+       # from a click. The line moved; the behaviour it guards did not.
+       old="""    if not self._drag_moved(key, args, self._drag_started_with):
       self.view.show_preview(None)
       return""",
-       new="""    if not self._drag_moved(key, args):
+       new="""    if not self._drag_moved(key, args, self._drag_started_with):
       return      # mutation: keep a preview nothing was recorded from""",
        test="test_the_drop_keeps_the_picture_it_was_showing",
        why="the promise that the drawing never shows an edit the "
@@ -10744,6 +10747,34 @@ MUTATIONS = [
            "nothing leading to it -- and the next archiving pass reads "
            "that ground as unarchived and takes it a second time, "
            "because the only record that it was done is the pointer"),
+  dict(name="a-drag-across-an-edge-does-not-restep-the-count",
+       file="weavingspace_qgis/topology_tab.py",
+       # AIMED AT THE DEADBAND, which is the half that costs a user
+       # something: without it a gesture meant as an amplitude change
+       # silently re-counts the zigzags, and the count is the coarsest
+       # parameter on the tab.
+       old="""      if abs(along) >= _COUNT_DEADBAND * length:""",
+       new="""      if abs(along) >= 0:  # mutation: no deadband at all""",
+       test="test_a_drag_along_an_edge_sets_the_zigzag_count",
+       why="a drag aimed ACROSS an edge stepping the zigzag count, "
+           "because a real gesture nine degrees off perpendicular "
+           "still resolves to travel along the edge. `scale_edge` was "
+           "measured committing a scale of 1.003 from exactly that on "
+           "2026-08-30, and a whole number is the more expensive place "
+           "for it to happen"),
+  dict(name="along-edge-travel-sets-the-zigzag-count",
+       file="weavingspace_qgis/topology_tab.py",
+       # AIMED AT THE MAPPING ITSELF. Without it the drag carries the
+       # amplitude alone, which is the state field report 3 described:
+       # the count reachable only through the numeric boxes.
+       old="""        changes["n"] = max(_COUNT_FLOOR,""",
+       new="""        changes["_n"] = max(_COUNT_FLOOR,  # mutation: n never set""",
+       test="test_a_drag_along_an_edge_sets_the_zigzag_count",
+       why="the zigzag's count being unreachable from the drawing, "
+           "which is field report 3 against rc15. `along` is computed "
+           "on that path either way, so the failure is silent: the "
+           "gesture works, the amplitude changes, and the count simply "
+           "never moves"),
   dict(name="a-landing-keeps-the-numbers-somebody-typed",
        file="weavingspace_qgis/topology_tab.py",
        # AIMED AT THE RESTORE, not at the remembering. Remembering

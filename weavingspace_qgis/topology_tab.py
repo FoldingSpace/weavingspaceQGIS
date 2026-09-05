@@ -179,6 +179,21 @@ _HANDLE_REACH = 13.0
 # READOUT, and that is said out loud rather than left to be discovered:
 # `zigzag_readout_is_exact` answers it. (Ruling 4 of 2026-09-05.)
 _CLEAR_OF_VERTEX = 15.0
+# HOW FAR ALONG AN EDGE A DRAG MUST TRAVEL BEFORE IT MOVES THE COUNT,
+# as a fraction of that edge's own length. A gesture aimed ACROSS an
+# edge still resolves to a little travel ALONG it -- `scale_edge` was
+# measured on 2026-08-30 committing a scale of 1.003 from what was
+# meant as a click -- and the count is the coarsest parameter here, so
+# an accidental step is the most expensive. SIZED FROM THE GLYPH: a
+# tenth of the edge is just under one 12px seat on the 94px edges
+# measured on 2026-09-05, so a gesture that never leaves the handle's
+# own drawn shape cannot change the count. (Ruling 2 of that day.)
+_COUNT_DEADBAND = 0.10
+# The count's declared range, mirrored here because the drag clamps to
+# it before `_within_the_box` ever sees the value -- and a drag that
+# ran past the box's range once recorded a number the box would not
+# show (archimedean 4.8.8, 2026-09-01).
+_COUNT_FLOOR, _COUNT_CEILING = 1, 8
 
 
 def _point_to_segment(point, start, finish) -> float:
@@ -1586,6 +1601,9 @@ class TopologyPanel(QWidget):
     # rather than guessing while it is.
     self._marks = []
     self._drag_from = None
+    # The numbers as they stood when the handle was grabbed; see
+    # `_on_grabbed`.
+    self._drag_started_with = {}
     # WHAT IS SELECTED, as (target, labels) -- the one owner, which
     # the combo, the tick list and the drawing all follow.
     self._selection = ("", "")
@@ -2468,11 +2486,18 @@ class TopologyPanel(QWidget):
       if self.how_combo.itemData(index) == key:
         if index != self.how_combo.currentIndex():
           self.how_combo.setCurrentIndex(index)
-        return
+        break
+    # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that
+    # moves only the COUNT can be told from one that moved nothing.
+    # `_drag_moved` asks whether a gesture asked for anything, and it
+    # can only ask that of a parameter by comparing with where the
+    # parameter started -- a count of 3 is not "no movement" merely
+    # because 3 is what the box holds after the drag put it there.
+    self._drag_started_with = dict(self._arguments())
 
   # ------------------------------------------------------------ drag
 
-  def _drag_argument(self, key, frame, dx, dy, span):
+  def _drag_argument(self, key, frame, dx, dy, span, current=None):
     """What a drag on an edge means for the chosen manipulation.
 
     Args:
@@ -2483,10 +2508,17 @@ class TopologyPanel(QWidget):
       dy: travel bottom to top, as the same fraction.
       span: the unit's own width, to turn those fractions back into
         unit coordinates so they can be compared with the edge.
+      current: what the parameter boxes say now, or None. A parameter
+        that is a POSITION has to be moved from where it already is,
+        and the zigzag's count is one: the glyph sits on the first
+        peak, so the drag carries it from that peak rather than from
+        nothing.
 
     Returns:
-      (argument name, value), or (None, None) where this manipulation
-      takes nothing a drag can supply.
+      A mapping of argument name to value -- possibly more than one,
+      since a zigzag's glyph carries both its count and its amplitude
+      -- or an empty mapping where this manipulation takes nothing a
+      drag can supply.
 
     A DRAG SUPPLIES THE PARAMETER OF THE MANIPULATION ALREADY CHOSEN,
     rather than a gesture vocabulary of its own. The alternative
@@ -2503,11 +2535,35 @@ class TopologyPanel(QWidget):
     along = (dx * ax + dy * ay) * span
     across = (-dx * ay + dy * ax) * span
     if key == "zigzag_edge":
-      # Amplitude relative to the edge's own length, so the same
-      # gesture means the same shape on a long edge and a short one.
-      # This one was ALREADY a position: the diamond sits off the
-      # middle, and how far off it now is IS the amplitude.
-      return "h", abs(across) / length
+      # ACROSS IS THE AMPLITUDE AND ALONG IS THE COUNT, which is the
+      # whole of ruling 2 of 2026-09-05. Both are relative to the
+      # edge's own length, so the same gesture means the same shape on
+      # a long edge and a short one, and both are POSITIONS: the glyph
+      # sits on the first peak of the wave, `length / (2n)` along and
+      # `h` of the length out, so where the person has taken it IS the
+      # pair of numbers.
+      changes = {"h": abs(across) / length}
+      # THE DEADBAND IS NOT OPTIONAL. `scale_edge` was measured on
+      # 2026-08-30 committing a scale of 1.003 from a drag meant as a
+      # click, because a gesture mostly ACROSS an edge still resolves
+      # to a little travel ALONG it -- and here that would silently
+      # change the count, which is the coarsest parameter on the tab.
+      # SIZED FROM THE GLYPH RATHER THAN GUESSED: a tenth of the edge
+      # is just under one 12px seat on the 94px edges measured here, so
+      # a gesture that never leaves the handle's own drawn shape cannot
+      # move the count. (`h` needs no such guard: it is continuous, and
+      # a small amplitude is a small amplitude.)
+      if abs(along) >= _COUNT_DEADBAND * length:
+        was = float(current.get("n", 2.0)) if current else 2.0
+        here = length / (2.0 * max(1.0, was))
+        moved = here + along
+        # NEAREST WHOLE COUNT TO WHERE THE HANDLE NOW IS. Dragging
+        # toward the edge's start shortens the wavelength and so RAISES
+        # the count, which is what the drawing shows: the peaks crowd.
+        wanted = length / (2.0 * moved) if moved > 1e-9 else _COUNT_CEILING
+        changes["n"] = max(_COUNT_FLOOR,
+                           min(_COUNT_CEILING, round(wanted)))
+      return changes
     # A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED.
     # (Maintainer's instruction, 2026-08-31: the interaction has to be
     # easy to use, easy to learn, and perceivable. This is the audit's
@@ -2531,10 +2587,10 @@ class TopologyPanel(QWidget):
     half = length / 2.0 or 1.0
     out = half + along          # the handle's distance along the axis
     if key == "rotate_edge":
-      return "angle", math.degrees(math.atan2(across, out))
+      return {"angle": math.degrees(math.atan2(across, out))}
     if key == "scale_edge":
-      return "sf", math.hypot(out, across) / half
-    return None, None
+      return {"sf": math.hypot(out, across) / half}
+    return {}
 
   def _on_dragging(self, dx, dy):
     """Preview the chosen manipulation while the pointer moves.
@@ -2601,12 +2657,20 @@ class TopologyPanel(QWidget):
       frame = self.view.grabbed_edge()
       if frame is None:
         return
-      name, value = self._drag_argument(
-        key, frame, dx, dy, self.view.unit_span())
-      if name is None:
+      changes = self._drag_argument(
+        key, frame, dx, dy, self.view.unit_span(), current=args)
+      if not changes:
         return
-      args[name] = self._within_the_box(name, value)
+      for name, value in changes.items():
+        args[name] = self._within_the_box(name, value)
     self._drag_from = dict(args)
+    # THE GLYPH FOLLOWS THE GESTURE, because its position is the pair
+    # of numbers: a handle that stayed put while the wave under it
+    # changed would be a readout that lies for the length of a drag.
+    # The count SNAPS here, visibly, which is the point -- the stops a
+    # person sees are the counts they can have.
+    if key == "zigzag_edge":
+      self.view.set_zigzag_readout((args.get("n", 2.0), args.get("h", 0.0)))
     try:
       # THROUGH THE SAME COERCION THE COMMIT USES. Every parameter box
       # is a QDoubleSpinBox, so `n` and `smoothness` arrive as floats
@@ -2769,13 +2833,23 @@ class TopologyPanel(QWidget):
     # rather than editing anything. The test is on what the drag
     # actually asked for, per manipulation, because "nothing moved"
     # is a different number for an angle than for a fraction.
-    if not self._drag_moved(key, args):
+    if not self._drag_moved(key, args, self._drag_started_with):
       self.view.show_preview(None)
       return
     self._record({"classes": data[1], "how": key, "args": args})
 
-  def _drag_moved(self, key, args) -> bool:
+  def _drag_moved(self, key, args, started=None) -> bool:
     """Did this drag ask for anything?
+
+    Args:
+      key: the manipulation the drag is for.
+      args: the parameters the drag produced.
+      started: what the boxes said when the handle was grabbed, or
+        None. Passed IN rather than read off `self`, because this is
+        called unbound as a pure function by
+        `test_every_handle_a_drag_offers_commits_what_it_previewed` --
+        which is a fair thing for a test to do of a function that is
+        about its arguments, and the reason to keep it that way.
 
     Args:
       key: the manipulation.
@@ -2806,7 +2880,18 @@ class TopologyPanel(QWidget):
       # in, and both become map units at `in_map_units`.
       return abs(args.get("push_d", 0.0)) > 1e-4
     if key == "zigzag_edge":
-      return abs(args.get("h", 0.0)) > 0.01
+      # EITHER PARAMETER COUNTS. The amplitude is continuous, so its
+      # own smallest meaningful change guards it; the count is whole,
+      # and any step of it is a step somebody made past the deadband.
+      # Before the count was draggable this asked about `h` alone, and
+      # a gesture that moved only the count would have been discarded
+      # as a click -- which is the "nothing happened" this tab has
+      # already been reported for once.
+      started = (started or {}).get("n")
+      stepped = (started is not None
+                 and round(float(args.get("n", started)))
+                 != round(float(started)))
+      return stepped or abs(args.get("h", 0.0)) > 0.01
     if key == "rotate_edge":
       return abs(args.get("angle", 0.0)) > 0.5
     if key == "scale_edge":

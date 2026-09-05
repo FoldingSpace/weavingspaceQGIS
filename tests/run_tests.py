@@ -56008,6 +56008,95 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_a_drag_along_an_edge_sets_the_zigzag_count():
+  """Along-edge travel sets the count; travel across it does not.
+
+  (Ruling 2 of 2026-09-05, on field report 3: the count was reachable
+  only through the numeric boxes, while `along` was computed on the
+  drag path and thrown away.) The glyph sits on the first peak, so
+  dragging it toward the edge's start shortens the wavelength and
+  raises the count -- and the count is whole, so it snaps.
+
+  THE DEADBAND IS THE HALF WORTH GUARDING. A gesture aimed ACROSS an
+  edge still resolves to a little travel ALONG it: `scale_edge` was
+  measured on 2026-08-30 committing a scale of 1.003 from what was
+  meant as a click, and the count is the coarsest parameter here, so
+  an accidental step is the most expensive. Both arms are driven, and
+  the across-only arm is the one that would have caught that fault.
+
+  IT IS ASKED OF THE FUNCTION, NOT OF A GESTURE, deliberately: this is
+  arithmetic about an edge's own axes, the pointer is not involved, and
+  a test that drove real presses here would be measuring the view's
+  hit-testing a second time rather than this.
+  """
+  from weavingspace_qgis import topology_tab
+
+  panel = topology_tab.TopologyPanel
+  # (mid_x, mid_y, along_x, along_y, length): an edge lying along x,
+  # of length 100, which keeps the arithmetic legible.
+  frame = (0.0, 0.0, 1.0, 0.0, 100.0)
+  span = 100.0
+  at_two = {"n": 2.0, "h": 0.25, "smoothness": 3.0}
+
+  # ACROSS ONLY: a clean perpendicular gesture must not touch the count.
+  across = panel._drag_argument(None, "zigzag_edge", frame,
+                                0.0, 0.30, span, current=at_two)
+  assert "h" in across, f"an across drag gave no amplitude: {across}"
+  assert "n" not in across, (
+    f"a drag straight across the edge changed the count to "
+    f"{across.get('n')}, so an amplitude gesture silently re-counts "
+    f"the zigzags")
+
+  # AND A SLOPPY ONE, which is the case the deadband is really for: a
+  # gesture mostly across, with the small along-component a real hand
+  # produces. 0.30 across against 0.05 along is about 9.5 degrees off
+  # perpendicular, and 5% of the edge is inside the deadband.
+  sloppy = panel._drag_argument(None, "zigzag_edge", frame,
+                                0.05, 0.30, span, current=at_two)
+  assert "n" not in sloppy, (
+    f"a gesture 9.5 degrees off perpendicular stepped the count to "
+    f"{sloppy.get('n')}; the deadband is not holding, which is the "
+    f"1.003 scale fault arriving at a whole number")
+
+  # ALONG, PAST THE DEADBAND: the count moves, and in the direction the
+  # drawing shows -- toward the start is a shorter wavelength, so MORE.
+  # From n=2 the peak is at 25; dragging 10 back along puts it near 15,
+  # and 100/(2*15) is 3.3, which rounds to 3.
+  raised = panel._drag_argument(None, "zigzag_edge", frame,
+                                -0.10, 0.0, span, current=at_two)
+  assert raised.get("n") == 3, (
+    f"dragging the peak toward the edge's start did not raise the "
+    f"count as the wavelength shortened: {raised}")
+
+  lowered = panel._drag_argument(None, "zigzag_edge", frame,
+                                 0.15, 0.0, span, current=at_two)
+  assert lowered.get("n") == 1, (
+    f"dragging the peak toward the edge's middle did not lower the "
+    f"count as the wavelength grew: {lowered}")
+
+  # AND IT IS CLAMPED TO WHAT THE BOX WOULD ACCEPT, because a drag that
+  # ran past a control's range once recorded a number the box would not
+  # show (archimedean 4.8.8, 2026-09-01).
+  far = panel._drag_argument(None, "zigzag_edge", frame,
+                             -0.49, 0.0, span, current=at_two)
+  assert topology_tab._COUNT_FLOOR <= far.get("n") <= \
+      topology_tab._COUNT_CEILING, (
+    f"a long drag put the count at {far.get('n')}, outside the "
+    f"{topology_tab._COUNT_FLOOR} to {topology_tab._COUNT_CEILING} the "
+    f"box will show")
+
+  # A COUNT-ONLY DRAG IS STILL A DRAG. Before the count was draggable,
+  # `_drag_moved` asked about the amplitude alone, so a gesture that
+  # moved only the count would have been thrown away as a click.
+  assert panel._drag_moved(None, "zigzag_edge", {"h": 0.0, "n": 3.0},
+                           {"n": 2.0}), (
+    "a drag that stepped the count and left the amplitude alone was "
+    "read as a click, so it would record nothing at all")
+  assert not panel._drag_moved(None, "zigzag_edge", {"h": 0.0, "n": 2.0},
+                               {"n": 2.0}), (
+    "PREMISE: a drag that moved neither parameter was read as a drag")
+
+
 def test_a_build_landing_does_not_eat_the_numbers_you_typed():
   """The topology tab's parameter boxes survive a build landing.
 
@@ -88213,6 +88302,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("a drag along an edge sets the zigzag count",
+        test_a_drag_along_an_edge_sets_the_zigzag_count)
   check("a build landing does not eat the numbers you typed",
         test_a_build_landing_does_not_eat_the_numbers_you_typed)
   check("the zigzag handle is where its numbers say",
