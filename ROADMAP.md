@@ -288,6 +288,30 @@ SO THE NEXT OCCURRENCE DIAGNOSES ITSELF, which is what the cause needs:
 the shape of the answer decides where to look, and until now every
 occurrence has cost a reproduction to learn nothing.
 
+**AND THE VERY NEXT RUN ANSWERED IT, AND IT IS NOT THE STALL.** The
+armed failure printed: "The panel says ''; it holds a topology; the
+change list holds 1 edit(s); A BUILD IS STILL IN FLIGHT". So the waiter
+had returned while the rebuild was running, and the topology the caller
+then measured was the PREVIOUS one -- neither a stall nor a refusal,
+but a HARNESS RACE.
+
+`_settle_topology` returned on a single tick with no `_topology_task`,
+and that is true in the window between an edit being RECORDED and its
+build being QUEUED, while the panel holds the old topology throughout.
+It is the fault this suite's own `_wait_for_the_topology` was written
+to fix, left standing in its sibling -- a fix applied to the instance
+somebody found rather than made a rule -- and it accounts for all three
+intermittents, since all three settle that way. Under three-shard
+contention the window is wide enough to land in; alone it is not, which
+is why every one of them passed in isolation.
+
+QUIET MUST NOW PERSIST: three consecutive clear checks, 600ms, longer
+than the queueing gap and far shorter than a build at 0.75s on the
+cheapest design. All three tests pass. THE PRODUCT STALL OF R-4 IS
+UNTOUCHED AND STILL OPEN -- it was measured with the pool idle and the
+task Queued, which is a different thing. What has changed is that the
+suite no longer reports a race as though it were that stall.
+
 ### The sweep for the snap-back: done, one fault found
 
 **A TRANSIENT PICTURE IS CLEARED BY THE THING THAT REPLACES IT, NOT BY

@@ -15754,6 +15754,48 @@ class WeavingSpaceDialog(QDialog):
       layer.setSubsetString(hand_subset)
     self._no_data_layer_ids[tile_id] = layer.id()
 
+  def _only_this_elements_data(self, frame, variable, mapped_variables):
+    """Drop every other element's data column from one element's tiles.
+
+    Args:
+      frame: this element's slice of the tiled frame.
+      variable: the column this element displays, or None.
+      mapped_variables: the variables some element displays, used only
+        as the fallback when nothing has recorded what the frame's
+        source columns were.
+
+    Returns:
+      The frame with the identifiers, the geometry and THIS element's
+      variable, and none of the other data columns.
+
+    RULING 6 OF 2026-08-25 IS WHAT THIS HOLDS: an element's table
+    carries the variable it displays and the identifiers, so a file
+    somebody sends on does not carry columns they never displayed.
+    `tile_id` and `prototile_id` stay -- they are what the map IS
+    rather than what it shows, and adoption, the stale-table drop and
+    anybody reading the file expect them.
+
+    AND IT IS AN ALLOWLIST OVER THE SOURCE'S COLUMNS, NOT A BLOCKLIST
+    OVER THE MAPPED ONES. (2026-09-05.) The older form dropped
+    `column in mapped_variables` and kept everything else, which is
+    this project's own "enumerate what a clear site LEAVES, not what
+    it clears": a column the frame carried that nobody had mapped
+    sailed through onto the layer, and from the layer into the
+    GeoPackage at the next Save. The two forms agree today, because
+    the frame is joined with the mapped variables and nothing else.
+    They part company the moment anything joins a column for its own
+    reasons -- the cache under 0.24.5 that would hold every candidate
+    variable so a switch need not re-tile is the case being designed
+    for -- and the blocklist parts in the direction of a privacy
+    ruling.
+    """
+    unwanted = set(getattr(self, "_source_columns_in_the_frame", None)
+                   or mapped_variables or ())
+    if not unwanted:
+      return frame
+    return frame[[column for column in frame.columns
+                  if column not in unwanted or column == variable]]
+
   def _bind_the_live_switches(self) -> None:
     """Make the Topology tab's live-update box a view of `live_check`.
 
@@ -16882,6 +16924,13 @@ class WeavingSpaceDialog(QDialog):
       return
 
     fields = sorted({a["var"] for a in assignments if a["var"]})
+    # WHAT CAME FROM THE USER'S DATA, remembered so the landing can
+    # trim by an ALLOWLIST rather than by guessing from what happens to
+    # be mapped. Ruling 6 of 2026-08-25 says an element's table carries
+    # the variable it displays and the identifiers; this is the term
+    # that lets the landing hold that line whatever the frame arrives
+    # carrying.
+    self._source_columns_in_the_frame = list(fields)
     try:
       region = bridge.layer_to_gdf(layer, fields)
     except Exception as e:
@@ -24933,10 +24982,24 @@ class WeavingSpaceDialog(QDialog):
       # the set of mapped variables is a GEOMETRY change and always
       # has been -- rather than reading a column carried along just in
       # case. Rulings 5 and 6 close together or not at all.
-      if mapped_variables:
-        sub = sub[[column for column in sub.columns
-                   if column not in mapped_variables
-                   or column == a.get("var")]]
+      #
+      # AND IT IS AN ALLOWLIST OVER THE SOURCE'S COLUMNS, not a
+      # blocklist over the MAPPED ones. (2026-09-05.) The older form
+      # dropped `column in mapped_variables` and kept everything else,
+      # which is exactly this file's own "enumerate what a clear site
+      # LEAVES, not what it clears": a column the frame carries that
+      # nobody has mapped sailed through it and onto the layer, and
+      # from the layer into the GeoPackage at the next Save. Today the
+      # frame is joined with the mapped variables and nothing else, so
+      # the two forms agree; the moment anything joins a column for
+      # its own reasons -- a cache holding every candidate variable so
+      # a switch need not re-tile is the one being designed -- they
+      # part company, and the blocklist parts in the direction of a
+      # privacy ruling. `_source_columns_in_the_frame` names what came
+      # from the user's data, so what is not this element's variable
+      # goes whether anybody mapped it or not.
+      sub = self._only_this_elements_data(sub, a.get("var"),
+                                          mapped_variables)
       # ROWS A GRADUATED RENDERER CANNOT PLACE COME OUT HERE.
       # QgsGraduatedSymbolRenderer has no class for a missing value --
       # no default, no-data, else or fallback symbol anywhere in its

@@ -11019,6 +11019,14 @@ def _the_topology_tab_is_quiet(dlg, seconds: float = 90.0) -> bool:
   return False
 
 
+# HOW MANY CONSECUTIVE CLEAR CHECKS MEAN A BUILD HAS ENDED rather than
+# not yet begun. Three at 200ms is 600ms of quiet, against the window
+# between an edit being recorded and its build being queued, which is
+# one or two ticks. Sized to be longer than that gap and far shorter
+# than a build, which is 0.75s on the cheapest design here.
+_QUIET_TICKS_THAT_MEAN_ENDED = 3
+
+
 def _settle_topology(dlg, seconds: int = 30):
   """Wait for a topology build to finish, or give up saying so.
 
@@ -11052,12 +11060,40 @@ def _settle_topology(dlg, seconds: int = 30):
   # drag is measured in the frame it began in` sat out a ninety-second
   # ceiling on CI's 4.0.3 leg, 771 passed and 1 failed, while the next
   # topology test on that runner passed in 4.3 seconds.
+  # AND QUIET HAS TO HOLD, NOT MERELY HAPPEN. (2026-09-05, caught by a
+  # three-shard run whose failure was made to print its terms: "it
+  # holds a topology; the change list holds 1 edit(s); A BUILD IS
+  # STILL IN FLIGHT".) `_topology_task` is None in the window between
+  # an edit being recorded and its build being QUEUED, and the panel
+  # still holds the PREVIOUS topology throughout it -- so a single
+  # no-task tick beside a stale answer read as "the build has landed",
+  # and the caller measured the design before the edit.
+  #
+  # That is the very fault this helper's own docstring records
+  # `_wait_for_the_topology` as existing to fix, left standing in the
+  # sibling: A FIX APPLIED TO THE INSTANCE SOMEBODY FOUND IS NOT A
+  # RULE. It cost three tests one intermittent failure each across
+  # three-shard runs -- `the drop keeps the picture it was showing`,
+  # `a design that cannot carry its edits still draws`, `a QGIS
+  # symbology edit reaches the plugin on every shape` -- every one of
+  # them passing alone, because alone the window is too narrow to land
+  # in.
+  #
+  # REQUIRING THE QUIET TO PERSIST closes it without changing what any
+  # caller means: a build that is coming appears within a tick or two,
+  # so three consecutive clear checks is the difference between a gap
+  # and an ending.
+  clear = 0
   for _ in range(int(seconds * 5 * CONTENTION)):
     _tick(200)
     if getattr(dlg, "_topology_task", None) is not None:
+      clear = 0
       continue
     if panel is None:
       return
+    clear += 1
+    if clear < _QUIET_TICKS_THAT_MEAN_ENDED:
+      continue
     if panel._topology is not None or (panel.note.text() or "").strip():
       return
 
@@ -56044,6 +56080,77 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_an_element_keeps_only_its_own_data_column():
+  """The trim is an ALLOWLIST, so a column nobody mapped still goes.
+
+  Ruling 6 of 2026-08-25 gives an element's table the variable it
+  displays and the identifiers, so a file somebody sends on does not
+  carry columns they never displayed. Until 2026-09-05 that was held by
+  a BLOCKLIST -- drop the columns some element maps, keep everything
+  else -- which is this project's own "enumerate what a clear site
+  LEAVES, not what it clears" waiting to happen.
+
+  THE TWO FORMS AGREE TODAY and part company the moment anything joins
+  a column for its own reasons. The cache under 0.24.5 would do exactly
+  that: hold every candidate variable so a variable switch need not
+  re-tile. Under the blocklist those columns reach the layer, and from
+  the layer the GeoPackage at the next Save, which is the privacy
+  ruling breached by an optimisation nobody thought was about privacy.
+
+  SO THE PLANTED COLUMN IS THE POINT. `secret_code` is mapped by
+  nobody, so a blocklist keeps it and an allowlist drops it -- and that
+  is the only arm here that can tell the two apart.
+  """
+  import geopandas as gpd
+  import shapely
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    squares = [shapely.geometry.box(x, 0, x + 1, 1) for x in range(3)]
+    frame = gpd.GeoDataFrame(
+      {"tile_id": ["a", "a", "b"],
+       "prototile_id": [0, 1, 0],
+       "v1": [1.0, 2.0, 3.0],
+       "v2": [4.0, 5.0, 6.0],
+       "secret_code": ["x", "y", "z"]},
+      geometry=squares, crs="EPSG:3857")
+
+    # WHAT THE RUN RECORDED THE SOURCE AS CARRYING, which is what the
+    # allowlist is over. All three data columns came from the layer;
+    # only two of them are mapped.
+    dlg._source_columns_in_the_frame = ["v1", "v2", "secret_code"]
+    kept = dlg._only_this_elements_data(frame, "v1", {"v1", "v2"})
+    columns = set(kept.columns)
+
+    assert "v1" in columns, \
+      f"the element lost the very column it displays: {sorted(columns)}"
+    assert "v2" not in columns, (
+      f"another element's variable stayed on this element's tiles, "
+      f"which ruling 6 exists to prevent: {sorted(columns)}")
+    assert "secret_code" not in columns, (
+      f"a column NOBODY mapped stayed on the element's tiles: "
+      f"{sorted(columns)}. A blocklist over the mapped variables keeps "
+      f"it and an allowlist over the source's columns drops it, and "
+      f"this is the arm that tells them apart -- it would reach the "
+      f"GeoPackage at the next Save")
+    for identifier in ("tile_id", "prototile_id", "geometry"):
+      assert identifier in columns, (
+        f"the trim took {identifier}, which is what the map IS rather "
+        f"than what it shows; adoption, the stale-table drop and "
+        f"anybody reading the file expect it: {sorted(columns)}")
+
+    # AND WITH NOTHING RECORDED it falls back to the mapped set, which
+    # is what every run before this change did.
+    dlg._source_columns_in_the_frame = None
+    older = set(dlg._only_this_elements_data(frame, "v1", {"v1", "v2"}).columns)
+    assert "v2" not in older and "v1" in older, (
+      f"the fallback stopped behaving as the older form did: "
+      f"{sorted(older)}")
+  finally:
+    dlg.close()
+
+
 def test_a_topology_wait_that_gives_up_says_why():
   """The stall premise names a cause, and this proves it can.
 
@@ -88458,6 +88565,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("an element keeps only its own data column",
+        test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",
         test_a_topology_wait_that_gives_up_says_why)
   check("one live update switch seen from two tabs",

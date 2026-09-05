@@ -8023,14 +8023,14 @@ MUTATIONS = [
   # follows the new names.
   dict(name="an-element-table-is-trimmed-to-what-it-displays",
        file=DIALOG,
-       old="""      if mapped_variables:
-        sub = sub[[column for column in sub.columns
-                   if column not in mapped_variables
-                   or column == a.get("var")]]""",
-       new="""      if False:  # mutation: every element carries every variable
-        sub = sub[[column for column in sub.columns
-                   if column not in mapped_variables
-                   or column == a.get("var")]]""",
+       # RE-ANCHORED 2026-09-05, when the trim was lifted out of
+       # `_add_output_layers` into `_only_this_elements_data` and
+       # turned from a blocklist over the MAPPED variables into an
+       # allowlist over the SOURCE's columns. The behaviour it guards
+       # did not move; the lines did.
+       old="""    return frame[[column for column in frame.columns
+                  if column not in unwanted or column == variable]]""",
+       new="""    return frame  # mutation: every element carries every variable""",
        test="test_an_element_table_carries_only_what_it_displays",
        why="the file a user sends on carried attributes the map never "
            "drew -- a probe found a column named secret_code in all "
