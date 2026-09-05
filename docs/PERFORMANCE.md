@@ -244,6 +244,127 @@ would not, so whatever replaces it is compared tile by tile rather than
 in aggregate -- which is what the split above did, and why its zero is
 worth more than its seconds.
 
+## The four stages nothing had measured, 2026-09-04
+
+The breakdown above stops at the tiling and the layer building. The
+stages around them -- seeding renderers, the preview rebuild, and the
+GeoPackage write a Save performs -- had never been measured at all.
+`tools/probes/what_a_generate_spends_its_time_on.py` drives a real
+dialog Generate and then a real Save on the packaged Auckland data and
+attributes cumulative profiler time to named stages, ONE SPACING PER
+PROCESS for the reason the section above gives.
+
+        spacing 500 (2,753 drawn)               generate     save
+        worker: Tiling() + get_tiled_map          0.363s
+          get_tiled_map (overlay and join)        0.155s
+        landing: _add_output_layers               0.241s
+          gdf_to_layer (frame -> QGIS layer)      0.159s
+          seed_renderer (symbology)               0.028s
+        preview: _rebuild_unit                    0.022s
+        save: _save_the_map                                  0.304s
+          write_gpkg_layers                                  0.144s
+          point_layer_at                                     0.035s
+
+        spacing 250 (10,502 drawn)              generate     save
+        worker: Tiling() + get_tiled_map          1.071s
+          get_tiled_map (overlay and join)        0.402s
+        landing: _add_output_layers               0.666s
+          gdf_to_layer (frame -> QGIS layer)      0.587s
+          seed_renderer (symbology)               0.027s
+        preview: _rebuild_unit                    0.022s
+        save: _save_the_map                                  0.588s
+          write_gpkg_layers                                  0.433s
+          point_layer_at                                     0.043s
+
+THE SYMBOLOGY IS NOT A COST, which is the plainest finding and the one
+that stops an optimisation nobody needed: seeding four renderers costs
+hundredths of a second and does not grow with the map, because the work
+is per element rather than per tile. `_rebuild_unit` behind the preview
+is 0.022s at both sizes for the same reason. Neither is worth touching.
+
+THE SAVE IS ROUGHLY THREE QUARTERS WRITING, and `point_layer_at` is
+0.035s for eight layers at both spacings -- flat because the ELEMENT
+count is flat, which is consistent with the 2026-09-01 measurement that
+the repointing is the residue the single-session rewrite deliberately
+left. It is the term that goes quadratic at the 256-element ceiling,
+not at eight.
+
+**THE FIRST VERSION OF THIS TABLE DROVE BOTH SPACINGS IN ONE PROCESS**,
+which is the trap the section above this one exists to record, made by
+somebody who had just written it down. The rows are re-measured; what
+the correction was worth is a METHOD rather than a number, since single
+samples on a busy machine move by more than the difference did.
+
+AND ONE FIGURE IS OPEN: `Tiling.__init__` reports TWO calls against the
+worker's one, while `dialog.py` holds exactly one construction site.
+The matcher was suspected first and cleared -- it now refuses to sum
+two functions of one name and did not fire, so this is one function
+entered twice rather than a child double-counted into its parent. The
+quoted rows do not depend on it, the top-level rows being exclusive.
+
+## Converting the frame into QGIS layers, measured 2026-09-04
+
+`gdf_to_layer` is the largest single term at spacing 150, so
+`tools/probes/what_gdf_to_layer_spends_its_time_on.py` asks what its
+microseconds are. It builds a real tiled frame through the product's
+own door, then times the shipped function against a parametrised copy,
+ONE ARM PER PROCESS with each arm's own shipped baseline beside it, and
+compares the two layers FEATURE BY FEATURE -- geometry WKB and every
+attribute -- because a conversion that changes what the map holds is a
+cartographic decision rather than an optimisation.
+
+    10,526 tiles, 13 attribute columns, spacing 250
+
+    arm                    shipped      arm   us/feat   against control
+    shipped gdf_to_layer    0.636s        --     60.4   --
+    none (control)              --    0.715s     67.9   1.00x
+    + batched WKB               --    0.664s     63.1   1.08x
+    + multi in C++              --    0.519s     49.3   1.38x
+    + positional attributes     --    0.559s     53.1   1.28x
+    + per-column casts          --    0.681s     64.7   1.05x
+    all four                    --    0.274s     26.0   2.61x
+
+EVERY ARM IS EXACT: identical feature by feature, at 10,526 features,
+on every row. That is what makes this an optimisation rather than a
+ruling.
+
+TWO CHANGES CARRY IT AND TWO DO NOT. Not constructing a shapely
+MultiPolygon for every plain polygon -- QGIS converts in C++ through
+`convertToMultiType` -- is the largest single term at 1.38x, and
+setting attributes POSITIONALLY through `setAttributes` rather than
+`feat[c] = v`, which does a field-name lookup per attribute per
+feature, is 1.28x. Batching the WKB into one shapely call is 1.08x and
+deciding the null-and-cast question once per COLUMN is 1.05x; neither
+would be worth a line on its own, and both compose.
+
+THE CONTROL IS THE ROW TO READ THE OTHERS AGAINST, not the shipped
+function. The parametrised copy is about 12% SLOWER than what ships,
+because it pays for its own flag checks -- so the individual arms are
+quoted against it and the honest end-to-end figure is the 2.29x the
+all-four arm scores against the shipped function in the same process.
+
+AND THE 60 MICROSECONDS PER FEATURE REPRODUCES INDEPENDENTLY, which is
+what says the method is sound: the generation profile above reached the
+same figure through cProfile on a different frame, and this probe
+reaches it on the wall clock.
+
+WHAT IT WOULD BE WORTH END TO END IS DIVISION RATHER THAN MEASUREMENT
+and should not be quoted without building it: `gdf_to_layer` is 45% of
+a Generate at spacing 150, so removing 56% of it is about a quarter off
+the whole. IT IS NOT BUILT. The change is four edits to one function in
+`bridge.py`, it is ours rather than upstream's, and what it needs
+before it ships is a registered test asserting the two layers agree
+feature by feature -- the probe's own oracle -- and a catalogue entry
+on each of the two changes that carry it.
+
+AND THE ARMS CONTAMINATED EACH OTHER UNTIL THEY WERE SEPARATED. Run in
+one process, every arm keeps a ten-thousand-feature memory layer with a
+spatial index alive for the exactness check, so later arms pay for
+earlier ones: the all-four arm read 27.5 then 40.3 microseconds per
+feature across two runs while the shipped baseline held steady. One arm
+per process settles it, and the shipped column staying inside 0.617 to
+0.658 across six children is what says so.
+
 ## What has already been taken, and what was refused
 
 **TAKEN: the join lookup's pandas idiom** (patch 3 in
