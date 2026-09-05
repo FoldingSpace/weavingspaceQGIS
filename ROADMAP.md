@@ -1046,11 +1046,40 @@ ruling only answers one:
   which is ruling 8's "value-laden records never cross" seen from the
   other side.
 
-SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache, which
-needs no ruling and takes the worker out of a variable switch, and put
-the carry-every-column question to a grilling on its own, with the file
-size measured first so the argument is about privacy rather than about
-a number nobody has.
+**AND THE PRIVACY RULING IS TO BE PRESERVED** (maintainer, 2026-09-05),
+which decides the shape: the cache is a PLAIN PYTHON OBJECT ON THE
+DIALOG -- never a layer, never a layer field -- so the ruling holds BY
+CONSTRUCTION rather than by a guard somebody has to remember at every
+writer, which is the failure mode this project keeps paying for.
+THREE FACTS MAKE THAT AIRTIGHT, all of them already true.
+`_save_the_map` builds its write list by iterating ELEMENT IDS (`for
+step, tid in enumerate(order, 1)`) rather than the group's children, so
+it cannot write something it does not know about. QGIS serialises
+LAYERS into a `.qgz`, not a dialog's attributes. And the precedent is
+exact: `_classification_values` and the dissolved-extent cache are
+already fingerprint-keyed, memory-only and per-layer, with the
+cache-of-one lesson recorded at them -- keep other layers' entries,
+because replacing the whole dict on a miss gave a twenty-three element
+design a hit rate of zero.
+
+BOTH ALTERNATIVES FAIL, and the reasons differ. COLUMNS ON THE ELEMENT
+LAYER leak and self-defeat: `write_gpkg_layers` reads each layer
+through its own provider so every field reaches the file, and
+`point_layer_at` repoints the layer at the GeoPackage afterwards, so
+the extra columns vanish at the first Save -- the cache would die
+silently exactly when somebody saves. A HIDDEN LAYER IN THE OUTPUT
+GROUP is safer than it looks, since the save would not write it and a
+memory layer round-trips through a `.qgz` with no features, both
+measured here already; but it is still a QGIS object a person can see,
+rename, reorder or delete, and a name a user can edit is not an
+identity. A cache somebody can drag out of a group is a cache that
+vanishes without saying so.
+
+SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache as a
+dialog-held object, which needs no ruling and takes the worker out of a
+variable switch, and put the carry-every-column question to a grilling
+on its own, with the file size measured first so the argument is about
+privacy rather than about a number nobody has.
 
 WHAT WOULD HAVE TO BE TRUE FOR THE CACHE TO BE SAFE, since a cache that
 is wrong is worse than a slow map: it is keyed by everything
