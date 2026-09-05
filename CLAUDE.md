@@ -3474,6 +3474,53 @@ here, and the decision to add one is the maintainer's. Recorded
   PREMISE rather than an assertion, suspect something erasing the state
   the premise is about rather than a slow machine. (C-201.)
 
+- **THE ZIGZAG HANDLE: FOUR RULINGS OF 2026-09-05, SETTLED BY
+  GRILLING.** (On field reports 3 and 4 against rc15, which turned out
+  to be one question about one glyph. Into 0.24.4, on the maintainer's
+  decision, with the other reports.)
+  WHAT THE READING FOUND FIRST, because it turns a matter of taste into
+  a defect: the offset in `_EDGE_HANDLES` is a STATIC 60, so the
+  diamond's distance from its edge is `60px + amplitude x length` --
+  while the comment beside it claims that distance IS the amplitude,
+  under the ruling that a handle is a position and not a delta. A
+  zero-amplitude zigzag therefore parks its readout 60px off the edge,
+  which on a 40px edge is further away than the edge is long. That is
+  the "too far from its edge" the maintainer reported, and it is a 60px
+  zero error rather than a preference about spacing.
+  1. THE DISTANCE FROM THE EDGE IS THE AMPLITUDE, SO THE ZERO SITS ON
+     THE EDGE. The handle MOVES as the parameter changes, which is
+     accepted: it is not in the same place between edits, and at a
+     large amplitude it is far out again for a reason a person can now
+     see. This forces `_handle_at` from FIRST-WINS to NEAREST-WINS,
+     since at zero amplitude the glyph is half an edge-length from
+     `scale_edge` -- 20.4px measured, inside the 26px at which two 13px
+     catch areas overlap -- which is the old bug with a new pair.
+  2. ALONG-EDGE TRAVEL OF THE SAME HANDLE SETS THE COUNT, with a
+     deadband and visible snapping. `n` is 1 to 8 and whole, so the
+     glyph SNAPS, and that is a feature: the stops are the counts.
+     THE DEADBAND IS NOT OPTIONAL -- `scale_edge` was measured on
+     2026-08-30 committing a scale of 1.003 from a drag meant as a
+     click, because a gesture mostly ACROSS an edge still resolves to a
+     little travel ALONG it, and here that would silently change the
+     count. IT DOES NOT DISTURB THE REFUSAL OF THE MERGED END HANDLE:
+     that refused one glyph naming two MANIPULATIONS, and
+     `nudge_vertex` already takes two parameters from one drag.
+  3. THE HANDLE SITS ON THE WAVEFORM'S FIRST PEAK -- along =
+     `length / (2n)` from the edge's start, across = the amplitude --
+     so the glyph is ON the thing it draws, the preview passes through
+     it, and the count is read off the wavelength rather than off a
+     dial. It also walks AWAY from `rotate_edge` and `scale_edge`,
+     which live at the far end, so report 4's crowding is relieved
+     rather than moved.
+  4. AND THE ALONG-POSITION IS CLAMPED clear of both vertices, about
+     15px, because at n=8 on a 40px edge the peak is 2.5px from the
+     start vertex and handles are tested before vertices -- a handle on
+     a vertex makes that vertex unclickable, which is why the far-side
+     offset was refused on 2026-08-31. ABOVE THE COUNT WHERE THE CLAMP
+     BITES THE READOUT IS NO LONGER EXACT, and that must be LEGIBLE
+     rather than silent, or somebody meets a handle that has stopped
+     responding. A readout that stops being one says so.
+
 - **THE SIX DECISIONS OF 2026-09-01, SETTLED BY GRILLING.** All four
   approved features go into 0.24.4 on the maintainer's decision, and
   each was put with a measurement rather than an opinion; the

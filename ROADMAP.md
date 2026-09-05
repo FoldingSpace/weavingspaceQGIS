@@ -314,8 +314,14 @@ the drag-and-landing fixes, so none of these is a stale build.
    (which returns sentences the tab may not be showing) and
    `_make_drawable`, since zigzag is the manipulation that emits
    coincident vertices.
-3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** READ, NOT
-   YET DRIVEN, 2026-09-05: it is a GAP rather than a decision, and the
+3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** SETTLED BY
+   GRILLING 2026-09-05 AND OWED TO 0.24.4: along-edge travel of the
+   zigzag handle sets the count, with a deadband and visible snapping,
+   and the handle sits on the waveform's first peak so the count is
+   read off the wavelength. The four rulings and what each is for are
+   in CLAUDE.md; this entry closes when they are built and guarded.
+   THE READING THAT PRECEDED IT: it is a GAP rather than a decision,
+   and the
    reading is one line. `_parameter_from_drag` returns `"h",
    abs(across) / length` for `zigzag_edge` and nothing else, so a drag
    carries AMPLITUDE alone, while the library's `zigzag_edge` takes `n`
@@ -332,8 +338,16 @@ the drag-and-landing fixes, so none of these is a stale build.
    `along` is already computed on that path and discarded. The second
    is cheaper and makes one handle say two things, which is exactly
    what the refusal of the merged end handle ruled against.
-4. **THE ZIGZAG HANDLE SITS TOO FAR FROM ITS EDGE.** This is a real
-   complaint against a fix for a different real problem: turn and
+4. **THE ZIGZAG HANDLE SITS TOO FAR FROM ITS EDGE.** SETTLED BY
+   GRILLING 2026-09-05 AND OWED TO 0.24.4, and it is a DEFECT rather
+   than a matter of spacing: the offset in `_EDGE_HANDLES` is a static
+   60, so the glyph's distance from its edge is `60px + amplitude x
+   length` while the code beside it claims that distance IS the
+   amplitude. The zero moves onto the edge, which forces `_handle_at`
+   from first-wins to nearest-wins. Rulings in CLAUDE.md.
+   THE ORIGINAL ENTRY, kept because it is the argument the rulings had
+   to beat: this is a real complaint against a fix for a different real
+   problem: turn and
    zigzag are pushed along one normal from an edge's end and its
    middle, and at equal offsets their separation is half the edge's
    screen length, which cost twenty-three edges their zigzag handle
