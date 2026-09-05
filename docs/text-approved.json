@@ -2484,6 +2484,11 @@
   "excerpt": "![Sixteen tiling and weave families, each mapping the same f",
   "where": "README.md"
  },
+ "fb370142c62aa568": {
+  "approved": "2026-09-05",
+  "excerpt": "Reuses the tiling when only the displayed variable changes.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "fba454af033d04ad": {
   "approved": "2026-08-09",
   "excerpt": "Element '{}' now follows the '{}' ramp chosen in QGIS.",
