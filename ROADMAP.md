@@ -309,11 +309,81 @@ Lower and Upper columns, offset by about a row, on scrolling.
 
 ## 0.24.4 — next
 
-**NOTHING OUTSTANDING.** (The maintainer's declaration, 2026-09-01.)
-Nothing outstanding in code for this version: everything below
-describes what 0.24.4 DELIVERS and how it was measured, rather than
-work still owed. What remains outside the software is named under
-"Needs the maintainer" above and does not hold a candidate.
+**WORK IS OUTSTANDING AGAIN, AND THE EARLIER DECLARATION IS RETIRED
+RATHER THAN CONTRADICTED.** The maintainer declared this section clear
+on 2026-09-01, and that was true of what was known then. Five field
+reports against `0.24.4rc15` and one suite failure arrived on
+2026-09-04, so the declaration is struck HERE rather than left standing
+beside a list of owed work -- the release gate reads this section for
+that phrase, and a section that both declares itself clear and lists
+defects would clear a candidate while the defects were live. That is
+this project's own "a gate can be satisfied by a sentence denying it",
+which it has already paid for once.
+
+DEFERRING ANY OF THESE IS THE MAINTAINER'S DECISION and is made by
+moving the entry to a later section; nothing here moves one on their
+behalf. What follows the list still describes what 0.24.4 DELIVERS.
+
+### Owed: one suite failure, not yet diagnosed
+
+**THE TOPOLOGY MATRIX FAILS ONE CELL OF THIRTY-ONE**, on the full suite
+of 2026-09-04 at `e8e1762`:
+
+    crosses 4 n=4 / after re-Generate / rotate_edge:
+    the tab neither built a topology nor said why not, so somebody is
+    left in front of a panel that never answers
+
+The other two shards were green -- 260 and 259 passed with none failed.
+IT IS NOT KNOWN whether this session's tiling patches caused it; they
+touch the grid and the overlay rather than the tab, but that is a
+READING and this project does not accept a site named by reading. The
+first step is to run that one test at `e8e1762` and at the commit
+before patch 4 and compare, which costs one test and settles it.
+
+### Owed: five field reports against 0.24.4rc15
+
+Reported by the maintainer on 2026-09-04, driving the DEFAULT design
+(`laves 3.3.4.3.4`, four elements) on the packaged Auckland data. The
+installed build was checked before any code was read: both profiles
+carry `0.24.4rc15` from commit `09b6ef2`, which CONTAINS all three of
+the drag-and-landing fixes, so none of these is a stale build.
+
+1. **A DROP PUTS THE UN-EDITED DESIGN BACK FOR A SECOND. CONFIRMED AND
+   MEASURED; NOT FIXED.** `_commit_the_drag` clears the preview at the
+   drop while the rebuild is asynchronous, so the drawing falls back to
+   the topology it still holds -- the one from before the edit -- until
+   the build lands. Measured on the default design: the old design
+   stays up for 1.676s, and the settled drawing is IDENTICAL to what
+   the preview had been showing, so the correct picture was on screen
+   and was thrown away and recomputed. On the catalogue's heaviest
+   design a build is about twenty-one seconds.
+   IT IS NOT WHAT THE THREE FIXES IN rc15 ADDRESS. Those cover a
+   landing arriving DURING a gesture and the window between the click
+   and the press; this is the window AFTER the drop, which none of them
+   touches -- so "still there" was exactly right and it had never been
+   fixed.
+   THE REPAIR is to keep the preview standing on the path that RECORDS
+   an edit and let the landing clear it, which it already does; the
+   discard paths must still clear at once. What needs deciding is the
+   journey where no rebuild follows, and it wants a state rather than a
+   timer.
+2. **A ZIGZAG DOES NOT STICK.** Not investigated.
+3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** Not
+   investigated. The drawing offers amplitude; whether the count is
+   reachable only through the numeric boxes is the question, and if so
+   whether that is a gap or a decision.
+4. **THE ZIGZAG HANDLE SITS TOO FAR FROM ITS EDGE.** This is a real
+   complaint against a fix for a different real problem: turn and
+   zigzag are pushed along one normal from an edge's end and its
+   middle, and at equal offsets their separation is half the edge's
+   screen length, which cost twenty-three edges their zigzag handle
+   until they were moved apart. The answer is a third arrangement
+   rather than moving one back.
+5. **"MAP THE DUAL" ERRORS WHILE THE TAB DRAWS A DUAL PERFECTLY WELL.**
+   Not investigated, and the maintainer's "this doesn't make sense" is
+   the right instinct: the tab's drawing and the checkbox reach the
+   dual by different code, which is this project's commonest defect
+   shape -- one fact, two stores, mended in one.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.

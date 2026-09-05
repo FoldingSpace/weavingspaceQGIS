@@ -5065,3 +5065,75 @@ measured the same day, SURVIVED in the same run that its two siblings
 came back `caught`. It was retired with its measurement and with what
 would reopen it. When a test stops driving a journey, judge every entry
 whose site that journey was the only route to.
+
+
+## A PROBE WITH LIVE UPDATE OFF MEASURES A JOURNEY NOBODY TAKES
+
+2026-09-04, verifying a field report that an edit's drawing reverts for
+a second after the drop. The probe reported something stronger and
+wrong: that the edit never reached the drawing at all.
+
+The kit's own dialog helper switches live update OFF and says at its
+docstring that this is a decision to revisit, because the product's
+default is ON. With it off nothing rebuilds, so the edit sat in the
+record and the drawing never moved -- a journey the person reporting
+the defect was not on.
+
+**THE TELL WAS THE DISAGREEMENT WITH THE REPORT.** They said it
+corrects itself after a few seconds; the probe said it never corrects.
+Where a measurement contradicts the person holding the failure, suspect
+the measurement first -- this file already says a reproduction that
+will not reproduce is a signal about the DIFFERENCE between two
+sessions, and a control the harness holds at a value nobody holds is
+the commonest such difference.
+
+## AND A WAITER THAT RETURNS WHEN THE PANEL HOLDS AN ANSWER NEVER WAITS
+## FOR ONE TO ARRIVE
+
+Same probe, same run, and the two faults together produced one
+confident wrong answer. The settle asked "is a build in flight, is one
+queued, does the panel hold a topology" -- and the panel was still
+holding the one from BEFORE the drag, while the rebuild had not yet
+been queued. So it returned at once and the reading was taken before
+anything could have happened.
+
+**WAIT FOR THE THING TO MOVE, BOUNDED BY A HANG-CATCHER**, not for the
+absence of outstanding work. Rewritten to wait until the drawn
+fingerprint differs from the one taken before the press, the same probe
+measured the revert exactly: the old design stays up for 1.676s and the
+settled drawing is IDENTICAL to what the preview had been showing all
+along.
+
+This is the fifth site of one mechanism in this suite and the first
+found from a field report rather than from a runner.
+
+## AN INERT MUTATION AND A WEAK TEST BOTH REPORT SURVIVED, AND ONE ROUND
+## PRODUCED BOTH
+
+2026-09-04, proving two entries over one patch. They needed opposite
+repairs and reading either alone would have suggested the wrong one.
+
+**THE INERT ONE WAS RESCUED BY THE PATCH'S OWN GUARD.** The entry
+widened a spatial predicate so that tiles which merely touch a zone
+would be treated as lying inside it. That makes the join's key
+non-unique, which trips the patch's own overlapping-zones fallback, so
+the split declines and the answer is unchanged. It bit only when the
+predicate and the guard were mutated TOGETHER -- break every route at
+once rather than writing a fifth entry.
+
+**THE WEAK ONE WAS TELLING THE TRUTH ABOUT THE TEST.** Dropping the
+interior tiles from the lookup leaves them joined to no zone and they
+vanish from the map -- and the guard could not see it, because it
+asserted that every DRAWN tile was assigned correctly and never that
+every tile the clip would place was DRAWN. A shorter map is still a
+correct one tile for tile. It asserts completeness now.
+
+**AND ITS ANCHOR NEEDED A RAW STRING.** The line it stands on ends in a
+backslash, and a non-raw anchor collapses that into a line
+continuation, so the entry matched nothing and reported SURVIVED about
+a mutation it had never applied. Recorded 2026-08-29 and now paid for
+twice.
+
+THE ORDER TO ASK IN, when an entry survives: did the mutation remove
+the behaviour at all; is the behaviour held redundantly; is the test
+reaching that journey; and only then, is the assertion weak.

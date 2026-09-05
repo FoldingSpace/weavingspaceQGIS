@@ -3708,6 +3708,76 @@ Confirmed with the user via an explicit design review:
   discovered, which is also what the QGIS plugin repository's
   reviewers will want to see.
 
+- **A GUARD YOU HAVE NOT WATCHED FIRE IS A GUARD YOU HAVE NOT GOT, AND
+  AN EDIT CAN REPORT SUCCESS WITHOUT LANDING.** (2026-09-04.) A stage
+  table reported TWO calls to a constructor against its parent's one.
+  The matcher was suspected, a guard was written to refuse two
+  functions of one name, the probe was re-run, the guard did not fire
+  -- and docs/PERFORMANCE.md then recorded the matcher as CLEARED on
+  the strength of that silence. The guard was never in the file: not in
+  the commit that claimed it, not in HEAD, not in the working tree. The
+  edit script asserted its anchors, printed its success line, and the
+  result did not persist.
+  WRITTEN FOR REAL IT FIRED AT ONCE, and the row had been summing a
+  CHILD constructor into its parent -- 1.059s claimed where the
+  constructor costs 0.654s of which the grid is 0.388s. This file
+  already says a test that passes is not a test that works; what this
+  adds is that the same is true of an EDIT, and that the absence of a
+  complaint is not a verdict. VERIFY THE EDIT LANDED -- grep the file
+  for the thing you just wrote -- rather than trusting the script that
+  wrote it, which is the assert-the-postcondition rule arriving one
+  level up.
+- **A STAGE, A ROW OR A KEY THAT NAMES A FUNCTION WHICH DOES NOT EXIST
+  REPORTS NOTHING, AND THAT READS AS COSTING NOTHING.** (Same day.) A
+  generation profile listed a stage under a name no function has -- the
+  no-data split is not called what the probe called it -- so the row
+  never appeared, its work read as free, and docs/PERFORMANCE.md
+  honestly listed that split as UNMEASURED the whole time the probe
+  claimed to measure it. It refuses such a stage now, asked of the
+  SOURCE rather than of the profile, because a function that exists and
+  was not called on this journey is a legitimate absence and only a
+  name that cannot exist is a fault. This is "a check that can only
+  confirm is not a check" arriving inside an instrument.
+  AND ITS DISAMBIGUATOR REPEATED THE FAULT ONE LAYER DOWN. Telling two
+  same-named methods apart by a hard-coded LINE NUMBER worked until the
+  next edit above them shifted it, after which both rows matched
+  nothing and printed nothing. A line number written down is a
+  hand-kept number; resolve it by parsing for the class.
+- **A WORK LINE THAT CANNOT SHOW A DEAD WORKER, MADE AGAIN.** (Same
+  day, and this file has carried it since 2026-08-29.) A process list
+  piped through a three-line tail, against four-plus matching
+  processes, silently dropped a shard -- and its absence was read as an
+  aborted worker, with a diagnosis about which known teardown abort it
+  might be built on top before anything checked. All three shards were
+  alive with healthy cpu. LIST EVERY WORKER, and when a worker seems to
+  have gone, ask the process table without a cap before asking what
+  killed it.
+- **ONE POLYGON DOING TWO JOBS CHANGES BOTH WHEN YOU SHRINK IT.** (Same
+  day, patch 4.) The tiling grid's extent said which cells were WANTED
+  and also PHASED the lattice, since the meshgrid origin comes from its
+  own bounds. Shrinking it moved every tile: one design drew 2,772
+  tiles both ways with 2,622 differing, every one still touching the
+  region. Nothing was lost and the whole pattern moved, which is a
+  different map rather than a cheaper one. The repair is two polygons,
+  one per job.
+  AND HALF OF ALL DESIGNS HID IT. The origin is the centre less half
+  the ceiling of twice the radius, so a phase shift appears only when
+  that ceiling moves by an ODD amount. A guard written on a design
+  where the two radii agree reported the phase fault as INERT -- which
+  reads exactly like a test too weak to notice one. When a fault turns
+  on an arithmetic parity, the fixture must be named and the reason
+  written at it.
+- **A PROJECTION IS NOT A MEASUREMENT, AND ITS DIRECTION OF ERROR IS
+  KNOWABLE IN ADVANCE.** (Same day.) A third column of a performance
+  table was published as arithmetic -- the factors measured, their
+  composition not -- and put a Generate at about 0.73s against the
+  1.038s later measured, because each avoided tile was costed at the
+  average tile's share of the work. That is fair for a term that scales
+  with tiles and too generous for one where the per-object geometry is
+  uniform and the assembly is not. Quote a division as a division, say
+  which way it is likely to be wrong, and replace it with a
+  measurement rather than quietly swapping the number.
+
 ## Cross-version compatibility targets
 
 QGIS 4+ only (PyQt6, Python 3.12+), on the major platforms. Enums in
