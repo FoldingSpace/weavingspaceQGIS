@@ -56080,6 +56080,77 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_the_tiling_key_ignores_variables_and_nothing_else():
+  """What a TILING depends on, and a variable switch does not.
+
+  The overlay behind a map computes an argmax on AREA and keeps a tile
+  id against a zone id, throwing the fragments away -- so the
+  expensive half of a Generate gives the same answer whatever
+  attribute is displayed. `_geometry_signature(without_variables=True)`
+  is that half, and it is the key a cache of tiled frames would use.
+
+  IT IS THE SIGNATURE ITSELF AND NOT A COPY. "What changes the tiles"
+  has been widened three times here -- for a topology edit, for the
+  dual, for the per-element split's own field -- and each fix landed
+  in that one function. A second enumeration elsewhere would have to
+  be widened a fourth time by somebody who did not know it existed,
+  which is how a cache starts answering with a map of something else.
+
+  SO BOTH HALVES ARE ASSERTED. Changing a variable must move the full
+  signature and NOT the key -- otherwise the cache never hits and buys
+  nothing. Changing anything else must move BOTH -- otherwise it hits
+  when it should not, and hands back the tiles of a different design.
+  The second is the half that would draw a wrong map.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  path = os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg")
+  layer = QgsVectorLayer(path, "auckland", "ogr")
+  assert layer.isValid(), "PREMISE: the packaged data will not open"
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+    dlg.spacing_spin.setValue(600)
+    _tick(300)
+
+    def key():
+      return dlg._geometry_signature(without_variables=True)
+
+    was_key, was_sig = key(), dlg._geometry_signature()
+    assert dlg.table.rowCount() > 0, "PREMISE: the table has no rows"
+
+    # A VARIABLE SWITCH: the signature moves, the key does not.
+    combo = dlg.table.cellWidget(0, 1)
+    assert combo is not None, "PREMISE: row 0 offers no variable chooser"
+    before = combo.currentText()
+    other = next((combo.itemText(i) for i in range(combo.count())
+                  if combo.itemText(i) not in ("", "---", before)), None)
+    assert other, f"PREMISE: only one variable is on offer: {before!r}"
+    combo.setCurrentText(other)
+    _tick(400)
+    assert dlg._geometry_signature() != was_sig, (
+      "PREMISE: changing an element's variable did not move the full "
+      "signature, so this fixture cannot tell the two apart")
+    assert key() == was_key, (
+      "changing which variable an element displays moved the TILING "
+      "key, so a cache of tiled frames would miss on the one case it "
+      "exists for and buy nothing")
+
+    # ANYTHING ELSE: both move. Spacing is the cheapest such thing.
+    dlg.spacing_spin.setValue(450)
+    _tick(400)
+    assert key() != was_key, (
+      "changing the spacing left the tiling key alone, so a cache "
+      "would hand back the tiles of a DIFFERENT design -- a wrong map "
+      "drawn from a hit that should have missed")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_the_zigzag_ghost_passes_through_its_handle():
   """The ghost wave and the handle are ONE fact drawn once.
 
@@ -88640,6 +88711,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("the tiling key ignores variables and nothing else",
+        test_the_tiling_key_ignores_variables_and_nothing_else)
   check("the zigzag ghost passes through its handle",
         test_the_zigzag_ghost_passes_through_its_handle)
   check("an element keeps only its own data column",

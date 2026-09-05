@@ -1224,6 +1224,30 @@ cross, and fall back to a rebuild above a share to be measured once
 both paths exist. Correctness never depends on the rate; only the
 saving does.
 
+**GROUNDWORK BUILT, 2026-09-05, in two pieces that stand on their own.**
+THE KEY: `_geometry_signature(without_variables=True)` blanks the two
+terms that say which variables are mapped and which element carries
+which, and keeps everything else -- the grid, the unit, the modifiers,
+the layer's fingerprint and data version. That is what a TILING depends
+on and a variable switch does not. It is the signature ITSELF rather
+than a copy, because "what changes the tiles" has been widened three
+times and each fix landed in that one function; a second enumeration
+would have to be widened a fourth time by somebody who did not know it
+existed, which is how a cache starts answering with a map of something
+else. Guarded by `the tiling key ignores variables and nothing else`,
+which asserts BOTH halves -- a variable switch moves the signature and
+not the key, anything else moves both -- with the second being the half
+that would draw a wrong map. Entry proved `caught`.
+THE TRIM: `_only_this_elements_data` is an allowlist over the source's
+columns rather than a blocklist over the mapped ones, so a cache that
+joins every candidate variable cannot leak one onto a layer and from
+there into the file. That is ruling 6 held by construction rather than
+by the cache remembering to.
+
+WHAT IS LEFT is the cache itself: hold the tiled frame per key, widen
+the join to every usable field so a switch can be served from it, and
+serve a hit by projecting rather than re-tiling.
+
 SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache as a
 dialog-held object, which needs no ruling and takes the worker out of a
 variable switch, and put the carry-every-column question to a grilling

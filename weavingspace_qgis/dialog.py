@@ -14956,7 +14956,7 @@ class WeavingSpaceDialog(QDialog):
       colours[a["id"]] = colour.name(QColor.NameFormat.HexArgb)
     return colours
 
-  def _geometry_signature(self):
+  def _geometry_signature(self, without_variables: bool = False):
     """Everything that changes the TILES, as one comparable tuple.
 
     The dividing line that makes restyling cheap: family, spacing,
@@ -14967,10 +14967,26 @@ class WeavingSpaceDialog(QDialog):
     colour, class source, outline. Those change only how existing
     tiles are painted.
 
+    Args:
+      without_variables: blank the two terms that say WHICH variables
+        are mapped and which element carries which. Everything else
+        stays, including the layer's fingerprint and data version. The
+        result is what a TILING depends on and a variable switch does
+        not -- the grid, the unit, the modifiers, the region's own
+        contents -- which is the key a cache of tiled frames wants.
+
     Returns:
       A tuple to compare with the last run's. Equal means the tiles
       on screen are still the right tiles, and a style change can be
       answered by re-seeding renderers instead of tiling again.
+
+    THE CACHE KEY IS THIS FUNCTION AND NOT A COPY OF IT. "What changes
+    the tiles" has been got wrong and widened three times -- a topology
+    edit, the dual, the per-element split's own field -- and each time
+    the fix landed here. A second enumeration somewhere else would
+    have to be widened a fourth time by somebody who did not know it
+    existed, which is how a cache starts answering with a map of
+    something else.
     """
     layer = self.layer_combo.currentLayer()
     kwargs = self._unit_kwargs()
@@ -15010,6 +15026,7 @@ class WeavingSpaceDialog(QDialog):
       # edit did until 2026-08-30.
       self.opt_map_dual.isChecked(),
       self.gpkg_widget.filePath().strip() or None,
+      None if without_variables else
       tuple(sorted(a["var"] for a in self._assignments() if a["var"])),
       # WHETHER EACH ELEMENT NEEDS ITS TILES SPLIT, which is geometry
       # and not style however much it looks like styling. Only a full
@@ -15072,6 +15089,7 @@ class WeavingSpaceDialog(QDialog):
       # same reason, and the note beside the first two says it: a term
       # coarser than the thing it stands for cannot see that thing
       # move. A set could not see a permutation.
+      None if without_variables else
       tuple((a["id"], a.get("var"), self._needs_a_no_data_split(a),
              self._limits_key(a))
             for a in self._assignments()),

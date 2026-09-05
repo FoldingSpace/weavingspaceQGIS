@@ -10775,6 +10775,22 @@ MUTATIONS = [
            "on that path either way, so the failure is silent: the "
            "gesture works, the amplitude changes, and the count simply "
            "never moves"),
+  dict(name="the-tiling-key-forgets-which-variables-are-mapped",
+       file=DIALOG,
+       # AIMED AT THE BLANKING, which is the only thing that makes the
+       # key a TILING key rather than a second copy of the signature.
+       # Without it a cache of tiled frames misses on every variable
+       # switch -- the one case it exists for -- and buys nothing while
+       # looking as though it works.
+       old="""      None if without_variables else
+      tuple(sorted(a["var"] for a in self._assignments() if a["var"])),""",
+       new="""      tuple(sorted(a["var"] for a in self._assignments() if a["var"])),""",
+       test="test_the_tiling_key_ignores_variables_and_nothing_else",
+       why="a cache keyed on the tiling missing every time somebody "
+           "changes which variable an element shows, which is the "
+           "only case it is for. The failure is silent: the map stays "
+           "correct and the second and a third of work the cache was "
+           "built to save goes on being spent"),
   dict(name="the-zigzag-ghost-crests-where-its-handle-sits",
        file=TOPOLOGY_TAB,
        # AIMED AT THE AGREEMENT between the two pictures. A ghost that
