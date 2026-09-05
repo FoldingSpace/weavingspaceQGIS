@@ -263,23 +263,45 @@ discriminator that would settle it rides in
 adds a second task and reads whether the stuck one then starts -- and
 the stall has not yet been caught with it armed.
 
-### Owed: a sweep for the snap-back, wherever else it lives
+### The sweep for the snap-back: done, one fault found
 
 **A TRANSIENT PICTURE IS CLEARED BY THE THING THAT REPLACES IT, NOT BY
 THE ACT THAT REQUESTED THE REPLACEMENT** -- C-244, paid for by field
-report 1, where the drop cleared the preview while the rebuild was
-asynchronous and the un-edited design came back for 1.676s. ONE
-INSTANCE MENDED IS NOT A RULE ENFORCED. (Maintainer's instruction,
-2026-09-05.) Enumerate every place the UI clears, resets or re-reads
-something whose replacement arrives asynchronously -- the preview, the
-handles, the note line, the assignment table's cell widgets, the design
-view, the progress text, the message bar -- and for each ask who clears
-it and whether that actor stands at the moment the replacement lands.
-The zigzag handle of the rulings above is a candidate by construction,
-since its position follows a parameter while the topology behind it
-rebuilds off the main thread; so is anything that repaints on a
-`layerChanged` re-emit. What makes this a sweep rather than a hunt is
-that the question is the same at every site and needs no oracle.
+report 1. ONE INSTANCE MENDED IS NOT A RULE ENFORCED (maintainer's
+instruction, 2026-09-05), so every store in this interface whose
+replacement arrives asynchronously was enumerated and asked the same
+two questions: WHO empties it, and does that actor stand where the
+replacement lands.
+
+THE ONE FAULT IS FIXED AND WAS FOUND AT THE FIRST SITE. The Topology
+tab's PARAMETER BOXES were torn down and rebuilt at their defaults by
+every build that landed -- `set_unit` to `_refresh_classes` to
+`_refresh_manipulations` to `_rebuild_arguments` -- so `n` typed as 6
+and `h` as 0.6 came back 2 and 0.25 on an ordinary journey. That is
+field report 2. Values are remembered per manipulation now, guarded,
+and the catalogue entry is proved `caught`.
+
+| store | who empties it | verdict |
+|---|---|---|
+| Topology parameter boxes | a build landing, via `_rebuild_arguments` | **WAS THE FAULT.** Fixed: remembered per manipulation |
+| `view._preview` | `show_topology` (the landing) and the discard paths | sound -- the replacer clears it, and a path recording nothing has no landing coming |
+| Topology `note` | `set_unit` writes it | sound -- the landing is the writer |
+| Topology `working` sentence | `set_unit` empties it | sound -- and deliberately, as the one place every route to an answer passes through |
+| `symmetry_note` | `_say_what_the_symmetry_is`, inside the landing | sound |
+| The zigzag handle's readout | pushed by `_rebuild_arguments`, box changes and the drag | sound -- it holds its last value across a rebuild rather than blanking, so there is no window where the glyph is missing |
+| `live_note` | the run's own `finally`, and the live gate before it decides | sound -- the gate only drops a "paused" line that has stopped being true |
+| Progress text | the progress handler | sound -- the reporter is the writer |
+| `_pending_colour_note`, `_pending_duplicate_note` | taken and cleared at the point of use | sound -- set and consumed by one run |
+| The design preview | `_rebuild_unit`, on the main thread | sound -- synchronous, so there is no interval to be wrong in |
+| The assignment table's cell widgets | `_rebuild_unit` via the layer combo's re-emit after a landing | sound BY AN EXISTING RULE rather than by this sweep: Data & colours changes go through `_refresh_preview_colours`, and widget identity across the debounce is already guarded |
+
+WHAT THE SWEEP IS WORTH KEEPING FOR is the question rather than the
+table, which will age: for anything the interface shows and later
+replaces, name the actor that empties it and the actor that fills it,
+and where those differ, ask what happens in between. The fault it
+found was invisible to reading -- both halves are healthy code, and
+only the INTERVAL between them is wrong -- and it was caught by a test
+premise rather than by an eye.
 
 ### Owed: five field reports against 0.24.4rc15
 

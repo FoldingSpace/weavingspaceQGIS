@@ -3474,6 +3474,24 @@ here, and the decision to add one is the maintainer's. Recorded
   PREMISE rather than an assertion, suspect something erasing the state
   the premise is about rather than a slow machine. (C-201.)
 
+- **NAME THE ACTOR THAT EMPTIES A THING AND THE ACTOR THAT FILLS IT,
+  AND WHERE THEY DIFFER, ASK WHAT HAPPENS IN BETWEEN.** (Maintainer's
+  instruction, 2026-09-05, to sweep for the shape field report 1 was
+  one instance of; C-244 is the rule it generalises.) The sweep found
+  one fault in eleven stores, and it was invisible to reading: the
+  Topology tab's parameter boxes were torn down and rebuilt at their
+  DEFAULTS by every build that landed, so `n` typed as 6 came back 2 on
+  an ordinary journey. Both halves are healthy code -- a landing
+  refreshing its controls, and a rebuild seeding boxes from the
+  catalogue -- and only the INTERVAL between them is wrong, which is
+  why an eye passes over it and a test premise does not.
+  WHAT MAKES THIS CHEAP TO ASK is that the answer is usually "the same
+  actor", and the table of the ten that were sound is in ROADMAP.md
+  under the sweep. What makes it worth asking at all is that the two
+  faults of this shape found here so far -- a preview reverted for
+  1.676s, and a typed number replaced in silence -- both reached a
+  user, and neither showed up as an error anywhere.
+
 - **THE ZIGZAG HANDLE: FOUR RULINGS OF 2026-09-05, SETTLED BY
   GRILLING.** (On field reports 3 and 4 against rc15, which turned out
   to be one question about one glyph. Into 0.24.4, on the maintainer's
