@@ -152,13 +152,26 @@ branch name and not a tag. The artefact a CI result belongs to is
 carried by the commit and by the tag (`v0.24.4rc15`), which are exact;
 the branch name was only ever a convenience.
 
-**WHICH CONVENTION 0.24.5 FOLLOWS IS THE MAINTAINER'S TO DECIDE**, and
-it is one sentence either way. Cut a fresh `pre-<version>rc<N>` per
-candidate and the original rule is true again, at the cost of a branch
-per candidate. Name the line for the version and the name stays true,
-at the cost of a CI result naming its candidate only by its tag. What
-must not stand is the arrangement that produced this: one branch, many
-candidates, and a name asserting otherwise.
+**THE MAINTAINER'S RULING, 2026-09-05: A FRESH `pre-<version>rc<N>` PER
+CANDIDATE.** The original rule stands and the branch-per-candidate cost
+is accepted, so a name goes on saying which artefact a CI result
+belongs to -- which was the point of it. The alternative considered and
+declined was naming the line for the VERSION: the name could not go
+stale, and the price was a CI result naming its candidate only by its
+tag.
+
+WHAT THAT MAKES A DUTY rather than a habit: **cut the next candidate's
+branch before building it, not after.** The condition the rule rests on
+is one candidate per branch, and it was broken by omission rather than
+by decision -- nobody cut a branch for rc8, and the eight that followed
+inherited rc7's name. Nothing enforces this; it is a step in the
+procedure, and its absence is invisible until somebody reads a name and
+believes it.
+
+THE TRANSITION IS RECORDED SO IT IS NOT READ AS THE RULE. `pre-0.24.4`
+carries the work between rc15 and the next candidate, and it is named
+for the version because the rename that produced it came first and the
+ruling second. The candidate branch is cut from it under the rule.
 
 AND IT MAY ALREADY EXIST, pointing at the commit that OPENED the
 version. `pre-<version>rc1` is usually created the moment the version

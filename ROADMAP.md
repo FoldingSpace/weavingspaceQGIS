@@ -747,6 +747,11 @@ WHY THE NAME MOVED AND WHAT IT COSTS is in docs/PUBLISHING.md, with the
 condition the old convention rested on: naming a branch for a candidate
 says which artefact a CI result belongs to only while that branch
 carries ONE candidate, and this one carried nine.
+THE MAINTAINER RULED ON 2026-09-05 that the convention stands -- a
+fresh `pre-<version>rc<N>` per candidate, the branch-per-candidate cost
+accepted -- so the next candidate's branch is CUT BEFORE IT IS BUILT
+rather than inherited. The rule was broken by omission, not by
+decision, and nothing enforces it.
 
 WHAT THE VERSION HAS. The twenty-five defects of the hunt round, each
 with a registered test and a proved catalogue entry; the Select all
