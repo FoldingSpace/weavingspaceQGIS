@@ -32,6 +32,7 @@ import cProfile
 import importlib.util
 import os
 import pstats
+import subprocess
 import sys
 import tempfile
 
@@ -138,7 +139,7 @@ def one_run(T, spacing, folder):
     if project.mapLayer(i) is not None)
 
   path = os.path.join(folder, f"map_{int(spacing)}.gpkg")
-  dlg.out_edit.setFilePath(path)
+  dlg.gpkg_widget.setFilePath(path)
   T._tick(200)
   save = cProfile.Profile()
   save.enable()
@@ -150,29 +151,66 @@ def one_run(T, spacing, folder):
   return pstats.Stats(generate), pstats.Stats(save), drawn
 
 
-def main():
-  """Two spacings, each in its own dialog, generate then save."""
-  assert os.path.exists(REGION), f"PREMISE: no region fixture at {REGION}"
+def one_spacing(spacing):
+  """Measure ONE size and print its block. Runs in a child process."""
   from qgis.core import QgsApplication
   QgsApplication.setPrefixPath(os.environ.get("QGIS_PREFIX_PATH", "/usr"), True)
   app = QgsApplication([], False)      # BOUND: an unbound one is collected
   app.initQgis()
   T = harness()
   T._no_modal_dialogs()
-
   folder = tempfile.mkdtemp(prefix="ws_generate_cost_")
+  gen, save, drawn = one_run(T, spacing, folder)
+  print(f"--- spacing {spacing}: {drawn} features drawn")
+  print(f"    {'stage':<38} {'generate':>10} {'save':>10}   calls")
+  shown = 0
+  for label, basename, name in STAGES:
+    g, gc = cumulative(gen, basename, name)
+    s_, sc = cumulative(save, basename, name)
+    if g > 0.002 or s_ > 0.002:
+      print(f"    {label:<38} {g:9.3f}s {s_:9.3f}s   {gc + sc}")
+      shown += 1
+  print(f"CHILD COMPLETE: spacing {spacing}, {shown} stage(s) over the floor")
+
+
+def main():
+  """One spacing per process, because a stage table run in one process
+  inflates with position -- 2.160s at spacing 350 where a fresh process
+  reports 0.250, measured 2026-09-03 and written up in
+  docs/PERFORMANCE.md. The first version of THIS probe drove both
+  spacings in one process and its second row was therefore not a
+  measurement; that is the same fault the sibling probe was already
+  built to avoid.
+
+  The child INHERITS this process's environment deliberately: it needs
+  the same QGIS interpreter and prefix, so a chosen-environment child
+  (the usual rule for subprocesses here) would not start at all.
+  """
+  assert os.path.exists(REGION), f"PREMISE: no region fixture at {REGION}"
+
+  if len(sys.argv) > 1:
+    one_spacing(float(sys.argv[1]))
+    return
+
+  print("generation stages, ONE SPACING PER PROCESS")
   for spacing in SPACINGS:
-    gen, save, drawn = one_run(T, spacing, folder)
-    print(f"\n--- spacing {spacing}: {drawn} features drawn")
-    print(f"    {'stage':<38} {'generate':>10} {'save':>10}   calls")
-    for label, basename, name in STAGES:
-      g, gc = cumulative(gen, basename, name)
-      s, sc = cumulative(save, basename, name)
-      if g > 0.002 or s > 0.002:
-        print(f"    {label:<38} {g:9.3f}s {s:9.3f}s   {gc + sc}")
+    finished = subprocess.run(
+      [sys.executable, os.path.abspath(__file__), str(spacing)],
+      capture_output=True, text=True, check=False)
+    body = [l for l in finished.stdout.split("\n")
+            if l.startswith("---") or l.startswith("    ")]
+    if any("CHILD COMPLETE" in l for l in finished.stdout.split("\n")):
+      print("\n" + "\n".join(body))
+    else:
+      # A child that says nothing is not a child that measured nothing.
+      print(f"\n--- spacing {spacing}: CHILD DID NOT COMPLETE "
+            f"(exit {finished.returncode})")
+      print(finished.stdout[-800:] or "(no stdout)")
+      print(finished.stderr[-800:] or "(no stderr)")
+
   print("\nShares rather than wall clock: the profiler inflates every "
         "figure, and the sibling probe measures the wall unprofiled.")
-  print("\nPROBE COMPLETE: both spacings reported, teardown next.")
+  print("\nPROBE COMPLETE: every spacing ran in its own process.")
 
 
 main()
