@@ -233,14 +233,33 @@ budget is a trigger for a person rather than a job.
 Still owed from that pass, and named here so the next one does not have
 to rediscover it.
 
-**MAINTAINING.md has not been read end to end against these two tests**,
-only sampled. Its long sections were checked and kept because they name
-live mechanisms; the scattered ten- and twenty-line episodes inside them
-have not been looked at one by one.
+**MAINTAINING.md HAS NOW BEEN READ END TO END** (2026-09-05, later the
+same day). It found one fault and it was not length: the dataset-switch
+contract of 2026-08-21 and 24 was set out in full, and the block
+beneath it opened by saying that contract had been REPLACED on
+2026-08-25 -- so a maintainer met the superseded rules first and the
+governing ones second, with nothing but reading order to tell them
+apart. The governing contract leads now and the earlier machinery is
+named in one clause, because it does survive in the source; the full
+earlier contract is M-2. Nothing else was taken. The file is
+architecture, and a document that is dense is not a document that is
+bloated.
 
-**docs/TOPOLOGY.md (725 lines) and docs/PERFORMANCE.md (604) were left
-whole on their outlines** -- section titles and sizes -- rather than on
-their prose. Both are topic documents of a size somebody can hold, read
-only when working on their ground, so they were last in the queue and
-the queue ran out. Neither has an archive, and neither should get one
-until somebody has read it.
+A SUPERSEDED CONTRACT STATED BEFORE THE ONE THAT GOVERNS is worth
+adding to the two tests as a thing to look for, since length does not
+reveal it and neither does `--suggest`: both blocks are healthy prose,
+and only reading them in order shows that the first is no longer true.
+
+**docs/TOPOLOGY.md (724) AND docs/PERFORMANCE.md (603) HAVE NOW BEEN
+READ, AND NEITHER GETS AN ARCHIVE.** They are topic documents: nobody
+reads them at the start of a session, only when working on their
+ground, so the measure that governs the five binding documents does not
+bind them in the same way -- what looks like an over-long account in
+CLAUDE.md is the entire point of a document somebody opened BECAUSE
+they wanted the evidence. Both were also checked for the fault
+MAINTAINING.md had, a superseded statement standing before the one that
+governs, and neither has it.
+
+WHAT WOULD CHANGE THAT is somebody being asked to read either at
+session start. If that happens they are binding documents and they get
+the same treatment as the other five.
