@@ -2132,9 +2132,38 @@ python3 release.py
 ```
 
 The script copies the upstream package into `vendor/weavingspace/` and
-re-applies every plugin patch, reporting each one. Only one family
-remains: making matplotlib and scipy optional, since QGIS bundles
-neither. (A convex-hull performance fix used to live here too; on
+re-applies every plugin patch, reporting each one.
+
+**THERE ARE FOUR FAMILIES NOW, and three of them are PERFORMANCE
+patches offered upstream.** That sentence used to say "only one family
+remains", which was true until 2026-08-31 and false from the moment
+`idxmax` landed; it is worth knowing what is carried before you read a
+re-vendor report.
+
+| family | what it does | offered upstream |
+|---|---|---|
+| **1a-1e** | matplotlib and scipy imports made optional, since QGIS bundles neither | no -- it is ours, about our packaging |
+| **3** | the join lookup's pandas idiom: `.agg("idxmax")` rather than the FUNCTION, which defeats the cython path | ROADMAP.md |
+| **4a-4d** | the grid disc reaches only what the region occupies, keeping the any-rotation promise | `docs/process/upstream-note-the-grid-disc-is-larger-than-it-needs.md` |
+| **5a-5d** | a caller may DECLARE which rotations it will ask for; default `None` is today's behaviour exactly | the same note |
+| **6** | the overlay clips only the tiles that straddle a zone boundary | `docs/process/upstream-note-the-overlay-clips-what-it-already-knows.md` |
+
+WHAT TO DO WHEN ONE OF THEM FAILS TO APPLY. The tool NAMES the patch
+rather than writing a broken vendor, and for the performance family the
+honest first question is whether upstream has taken it -- in which case
+retire the patch as patch 2 was retired, rather than re-anchoring it.
+Each carries its measurement and its probe in
+`docs/PERFORMANCE.md`, so "is this still worth carrying" is a question
+with an answer.
+
+AND PATCHES 4, 5 AND 6 ARE EXACT RATHER THAN MERELY FAST, which is what
+makes them safe to re-apply blind. Each has a committed probe that
+compares the map tile by tile -- 64 comparisons across four rotations
+for patch 4, 12 for patch 5 plus a negative control that must bite, and
+37,511 tiles for patch 6 -- and each has registered tests and catalogue
+entries. If a re-vendor makes one of them stop applying, run its probe
+before deciding what to do: a patch that no longer changes the output
+is one upstream has adopted. (A convex-hull performance fix used to live here too; on
 2026-08-07 upstream adopted the same optimisation, verified to tile
 identically, so the patch was retired rather than carried alongside
 an equivalent upstream one.) Upstream's modern
