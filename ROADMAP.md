@@ -263,6 +263,31 @@ discriminator that would settle it rides in
 adds a second task and reads whether the stuck one then starts -- and
 the stall has not yet been caught with it armed.
 
+**AND IT NOW HAS A ROUTE AND A VOICE, 2026-09-05.** THE ROUTE: running
+the suite three-sharded on this Mac reproduces it. Three full runs gave
+1, 0 and 2 failures -- `a QGIS symbology edit reaches the plugin on
+every shape`, `the drop keeps the picture it was showing`, `a design
+that cannot carry its edits still draws` -- every one of them a
+topology test, and every one passing alone. That is a cheaper
+reproduction than waiting for CI, and it is what the probe has been
+missing.
+
+THE VOICE: `_wait_for_the_topology` used to give up by returning False,
+so twenty-one tests reported whatever bare sentence each carried --
+several of them "PREMISE: no topology" -- and the two failures above
+could not say whether the build never started, was still running, or
+had REFUSED IN WORDS. That last is not a stall at all and would have
+been read as one. The waiter explains itself now, at the waiter rather
+than at the twenty-one callers, with `_why_the_topology_tab_is_busy`
+naming which term is still outstanding. Guarded by `a topology wait
+that gives up says why`, which is the positive control for a path that
+otherwise runs only on a rare failure, and its entry is proved
+`caught`.
+
+SO THE NEXT OCCURRENCE DIAGNOSES ITSELF, which is what the cause needs:
+the shape of the answer decides where to look, and until now every
+occurrence has cost a reproduction to learn nothing.
+
 ### The sweep for the snap-back: done, one fault found
 
 **A TRANSIENT PICTURE IS CLEARED BY THE THING THAT REPLACES IT, NOT BY

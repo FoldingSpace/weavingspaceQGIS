@@ -10775,6 +10775,22 @@ MUTATIONS = [
            "on that path either way, so the failure is silent: the "
            "gesture works, the amplitude changes, and the count simply "
            "never moves"),
+  dict(name="a-topology-wait-that-gives-up-says-why",
+       file="tests/run_tests.py",
+       # AIMED AT THE EXPLANATION, which is the only thing this path
+       # does. A waiter that gives up silently is what cost two
+       # three-shard runs their diagnosis, and the failure is read
+       # exactly once, by somebody who cannot reproduce it.
+       old="""  if explain:
+    raise AssertionError(""",
+       new="""  if False:  # mutation: give up in silence
+    raise AssertionError(""",
+       test="test_a_topology_wait_that_gives_up_says_why",
+       why="the stall premise naming no cause. Twenty-one tests rest "
+           "on this waiter, several with a bare 'PREMISE: no "
+           "topology', and when it fires on a runner nobody can drive "
+           "the sentence has to say whether the build never started, "
+           "is still running, or refused in words"),
   dict(name="the-two-live-update-switches-follow-each-other",
        file="weavingspace_qgis/dialog.py",
        # AIMED AT ONE DIRECTION OF THE BINDING. Either alone leaves the

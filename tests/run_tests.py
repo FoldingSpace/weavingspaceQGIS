@@ -3871,17 +3871,24 @@ def _topology_matrix_shapes():
   return builds + refuses
 
 
-def _wait_for_the_topology(dlg, seconds: float = 40.0) -> bool:
+def _wait_for_the_topology(dlg, seconds: float = 40.0,
+                           explain: bool = True) -> bool:
   """Wait until the tab has a topology, or has said why it has none.
 
   Args:
     dlg: the dialog.
     seconds: how long to wait before giving up.
+    explain: True (the default) to RAISE on giving up, with what the
+      tab is still waiting on named in the message; False to answer
+      plainly, for the one caller that reports a stall as a result
+      rather than failing on it.
 
   Returns:
     True where the panel now holds a topology or has said in words
-    that this design carries none; False where neither ever happened,
-    which is a real complaint rather than a slow machine.
+    that this design carries none. With `explain` it raises rather
+    than returning False, because twenty-one tests assert on this and
+    a premise that names no cause costs a reproduction to learn
+    nothing.
 
   `_settle_topology` WAITS ON THE ABSENCE OF A BUILD TASK, which is
   true before the build is QUEUED as well as after it lands -- so a
@@ -3900,13 +3907,28 @@ def _wait_for_the_topology(dlg, seconds: float = 40.0) -> bool:
   while _time.monotonic() < deadline:
     panel = getattr(dlg, "topology_panel", None)
     if panel is None:
-      return False
+      break                     # explained below, like every other giving up
     if panel._topology is not None:
       return True
     if (panel.note.text() or "").strip():
       return True
     _settle_topology(dlg, seconds=5)
     _tick(200)
+  # GIVING UP SAYS WHY, AT THE HELPER RATHER THAN AT THE CALLER.
+  # Twenty-one tests assert on this with a bare "PREMISE: no
+  # topology", and that sentence names no cause -- which is what a
+  # premise costs when it fires on a machine nobody can drive. It has
+  # now fired twice in three-shard runs here, passing alone both
+  # times, and neither message could say whether the build never
+  # started, was still running, or had refused in words. Mending the
+  # twenty-one call sites would be this project's own "a fix applied
+  # to the instances a search turns up is not a rule"; the question
+  # belongs to the waiter, so the waiter answers it.
+  if explain:
+    raise AssertionError(
+      "PREMISE: the Topology tab never answered -- it neither built a "
+      "topology nor said why not, which is the stall recorded as open "
+      f"under 0.24.4. {_why_the_topology_tab_is_busy(dlg)}")
   return False
 
 
@@ -3963,7 +3985,10 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
   # ASK ONLY ONCE THE PANEL CAN ANSWER. A design change queues a build
   # that takes 0.75-4.4s, and settling for quiet returns before it is
   # even asked for.
-  if not _wait_for_the_topology(dlg):
+  # `explain=False` HERE AND NOWHERE ELSE: this caller is the matrix
+  # cell that REPORTS the stall as a cell result rather than failing on
+  # it, so it wants the False rather than the sentence.
+  if not _wait_for_the_topology(dlg, explain=False):
     return ("the tab neither built a topology nor said why not, so "
             "somebody is left in front of a panel that never answers",
             "")
@@ -6343,10 +6368,21 @@ def test_the_drop_keeps_the_picture_it_was_showing():
     _tick(250)
     landed = getattr(panel, "_unit", None) or getattr(dlg, "_unit", None)
     settled = apart(started, landed)
+    # WHAT THE PANEL SAID IS PART OF THE FAILURE, not context to go
+    # looking for afterwards. `_settle_topology` returns on a topology
+    # OR on a sentence saying why not, so a REFUSED edit ends the wait
+    # with the design un-edited and looks exactly like a build that
+    # never landed. This failed twice in three-shard runs and passed
+    # alone both times, and the message could not tell the two apart --
+    # which is this suite's own rule that a failing premise must say
+    # which term was outstanding, met from the wrong side.
     assert settled is not None and settled > 0.5, (
       f"the landing put the design back where it started ({settled} "
       f"map units), so what the drop kept on screen was not what the "
-      f"edit produced")
+      f"edit produced. The panel says {(panel.note.text() or '')!r}; "
+      f"it holds {'a topology' if panel._topology is not None else 'NO topology'}; "
+      f"the change list holds {len(panel.edits())} edit(s); "
+      f"a build is {'still in flight' if getattr(dlg, '_topology_task', None) is not None else 'not running'}")
   finally:
     dlg.close()
 
@@ -56008,6 +56044,52 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_a_topology_wait_that_gives_up_says_why():
+  """The stall premise names a cause, and this proves it can.
+
+  `_wait_for_the_topology` is asserted on by twenty-one tests, and
+  until 2026-09-05 giving up produced whatever bare sentence each
+  caller happened to carry -- "PREMISE: no topology" at several of
+  them. It has now failed twice in three-shard runs on this machine,
+  passing alone both times, and neither message could say whether the
+  build never started, was still running, or had refused in words.
+  That is a premise costing a diagnosis, which is the thing
+  `_why_the_topology_tab_is_busy` was written to stop.
+
+  SO THE WAITER EXPLAINS ITSELF, and mending the twenty-one call sites
+  instead would have been this project's own "a fix applied to the
+  instances a search turns up is not a rule".
+
+  THIS IS THE POSITIVE CONTROL FOR A PATH THAT ONLY RUNS ON A RARE
+  FAILURE -- the worst kind of code to leave unexercised, since it is
+  read exactly once, by somebody already having a bad day.
+  """
+  import types
+
+  # A dialog that will never answer, waited on for almost no time.
+  never = types.SimpleNamespace(topology_panel=None)
+  try:
+    _wait_for_the_topology(never, seconds=0.01)
+  except AssertionError as said:
+    words = str(said)
+    assert "never answered" in words, (
+      f"the waiter gave up without naming what happened: {words!r}")
+    assert "topology panel" in words, (
+      f"the waiter gave up without saying what it found, so the "
+      f"message names an assertion rather than a cause: {words!r}")
+  else:
+    raise AssertionError(
+      "the waiter gave up silently on a dialog that can never answer, "
+      "so the twenty-one premises that rest on it still name no cause")
+
+  # AND IT STAYS QUIET WHERE A CALLER ASKED IT TO. The matrix cell
+  # reports a stall as a RESULT rather than failing on it, so it wants
+  # the False and not the sentence.
+  assert _wait_for_the_topology(never, seconds=0.01, explain=False) is False, (
+    "asked not to explain, the waiter must still answer False rather "
+    "than raising -- the matrix cell that reports stalls depends on it")
+
+
 def test_one_live_update_switch_seen_from_two_tabs():
   """The Topology tab's live-update box is a VIEW, never a second store.
 
@@ -88376,6 +88458,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("a topology wait that gives up says why",
+        test_a_topology_wait_that_gives_up_says_why)
   check("one live update switch seen from two tabs",
         test_one_live_update_switch_seen_from_two_tabs)
   check("a drag along an edge sets the zigzag count",
