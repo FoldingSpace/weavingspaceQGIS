@@ -318,16 +318,32 @@ same 0.0 map units. That commit predates the repair, so the Windows
 arm is a confirmation waiting to happen rather than an open question;
 the run on `fa3158d` is the one to read.
 
-**AND THE STALL DID NOT REPRODUCE IN 117 ATTEMPTS**, hunted the same
+**AND THE STALL DID NOT REPRODUCE IN 317 ATTEMPTS**, hunted the same
 day with the discriminator armed
-(`tools/probes/how_often_a_build_never_starts.py`, WS_ATTEMPTS=150,
-stopped at 117 when the session ended). Against the historical 4 in 86
-that is a rate low enough to be clustered rather than steady, which is
-what the original measurement already said. IT IS NOT EVIDENCE THE
-STALL HAS GONE -- nothing in the repair touches the task manager, and
-a defect that appeared four times in one twenty-minute window and not
-at all in runs of 30, 16 and now 117 is exactly the shape that
-punishes a conclusion drawn from a quiet afternoon. THE PRODUCT STALL OF R-4 IS
+(`tools/probes/how_often_a_build_never_starts.py`): 117 before a
+session ended and 200 after, none of them stalling.
+
+THE ARITHMETIC IS WORTH DOING RATHER THAN WAVING AT. If the recorded 4
+in 86 were the steady rate -- 4.65% -- then zero in 317 draws has
+probability `0.9535^317`, about 3 in ten million. That rate is
+REJECTED for the conditions of 2026-09-05. The original four were a
+CLUSTER, and a rate read off a cluster does not describe the steady
+state: this project's own correction about rates quoted from too few
+draws, pointing the other way for once, since 86 attempts inside one
+twenty-minute window is itself too few.
+
+SO THE PROBE MAY HAVE BEEN ASKING THE WRONG CONDITION ALL ALONG. It
+drives ONE dialog at a time on an idle machine, which is the least
+likely state to catch a scheduling fault; and the other thing measured
+this day is that an oversubscribed machine widens exactly the kind of
+window a manager can be caught in -- three-shard contention was what
+made the harness race land, and the race passed alone every time. THE
+ARM NOT YET TRIED IS THE STALL HUNTED UNDER LOAD, three concurrent
+copies of the probe rather than one, and it is the next thing to run.
+
+NONE OF THIS IS EVIDENCE THE STALL HAS GONE. Nothing in this week's
+work touches the task manager, the defence is unchanged, and a defect
+that clusters is one a quiet afternoon says nothing about. THE PRODUCT STALL OF R-4 IS
 UNTOUCHED AND STILL OPEN -- it was measured with the pool idle and the
 task Queued, which is a different thing. What has changed is that the
 suite no longer reports a race as though it were that stall.
