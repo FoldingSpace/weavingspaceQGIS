@@ -736,8 +736,16 @@ was blocking the version: three are measurements rather than
 defect-finding, and the fourth is a study whose answer is written
 at its own entry.
 
-**THE LIVE-UPDATE SWITCH BELONGS ON THE TOPOLOGY TAB AS WELL, AS A
-SECOND VIEW OF ONE FACT.** (Maintainer's idea, 2026-09-05.) The tab
+**THE LIVE-UPDATE SWITCH IS ON THE TOPOLOGY TAB AS WELL, AS A SECOND
+VIEW OF ONE FACT. BUILT AND GUARDED 2026-09-05.** `live_check` remains
+the single owner and the only thing any reader asks; the tab's box is
+bound to it symmetrically with signals blocked, in the dialog rather
+than in the panel, because a panel that reached back for the dialog's
+controls would be the second store this is written to avoid. Guarded by
+`one live update switch seen from two tabs`, which holds BOTH halves --
+that each box moves the other, and that no code anywhere asks the view
+what it holds -- with a catalogue entry proved `caught`. The reasoning
+follows. (Maintainer's idea, 2026-09-05.) The tab
 already live-updates its OWN drawing; what it cannot do is stop the
 whole-layer re-tile in QGIS without going back to the first tab. So a
 box at the foot of the Topology tab toggles the same live update the
@@ -1126,12 +1134,30 @@ geometry, and geometry is what the 60 microseconds is mostly made of --
 and then move only the tiles that CROSS the no-data boundary between
 the element layer and its twin.
 
-AND ITS WORTH TURNS ON A NUMBER NOBODY HAS: how many tiles change side
-on an ordinary variable switch. If most stay, this is nearly all of the
-0.239s; if a switch reshuffles the map, it is worth little and the
-honest answer is to rebuild. A probe over the packaged Auckland data,
-switching each variable against each other one and counting the tiles
-that cross, settles it in minutes and should come before any design.
+AND THE NUMBER IS NOW MEASURED, 2026-09-05, by
+`tools/probes/how_many_tiles_cross_on_a_variable_switch.py`, asked of
+`bridge.split_out_the_no_data` itself rather than of a second copy of
+its rule. IT TAKES TWO ARMS TO SAY ANYTHING, and the first alone would
+have been a lie:
+
+    packaged Auckland, spacing 250, 10,579 tiles     0.0% cross
+    each variable null in a different tenth          20.2% cross (worst pair)
+
+THE PACKAGED DATA CANNOT EXHIBIT THE CASE. Its nulls sit in the SAME
+six areas for every variable -- the one reported from the field in
+2026-08-16 that is null in everything -- so every pair crosses exactly
+zero tiles, and a design tuned on that number would meet a multi-source
+dataset and fall over. The synthetic arm is the honest shape for a
+census table joined to a health table joined to a crime table, each
+with its own suppressed cells.
+
+SO THE DESIGN MUST BE CORRECT AT ANY RATE AND FAST AT THE COMMON ONE.
+The crossing set is computable exactly and cheaply -- a set symmetric
+difference over the joined frame, which the cache already holds -- so
+the rule is: rewrite the column in place, move exactly the tiles that
+cross, and fall back to a rebuild above a share to be measured once
+both paths exist. Correctness never depends on the rate; only the
+saving does.
 
 SO THE RECOMMENDATION IS TO SPLIT IT: build the in-memory cache as a
 dialog-held object, which needs no ruling and takes the worker out of a

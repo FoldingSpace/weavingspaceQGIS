@@ -10775,6 +10775,19 @@ MUTATIONS = [
            "on that path either way, so the failure is silent: the "
            "gesture works, the amplitude changes, and the count simply "
            "never moves"),
+  dict(name="the-two-live-update-switches-follow-each-other",
+       file="weavingspace_qgis/dialog.py",
+       # AIMED AT ONE DIRECTION OF THE BINDING. Either alone leaves the
+       # two boxes able to disagree, which is the state C-43 records --
+       # one fact held twice, and readers taking whichever they asked.
+       old="""    here.toggled.connect(follow(here, self.live_check))""",
+       new="""    pass  # mutation: the tab's box no longer moves the owner""",
+       test="test_one_live_update_switch_seen_from_two_tabs",
+       why="the Topology tab's live-update box becoming a second store "
+           "rather than a view: ticked there it would show one thing "
+           "while `live_check` -- which every reader asks -- held "
+           "another, so a person would switch the map's redraw off and "
+           "watch it go on redrawing"),
   dict(name="a-landing-keeps-the-numbers-somebody-typed",
        file="weavingspace_qgis/topology_tab.py",
        # AIMED AT THE RESTORE, not at the remembering. Remembering

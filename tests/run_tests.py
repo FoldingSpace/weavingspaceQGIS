@@ -56008,6 +56008,80 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_one_live_update_switch_seen_from_two_tabs():
+  """The Topology tab's live-update box is a VIEW, never a second store.
+
+  (Maintainer's idea, 2026-09-05.) A topology edit IS a geometry change
+  by `_geometry_signature`, so every Apply re-tiles the whole map --
+  1.36s at spacing 250, 3.8s at 150 -- and somebody making several
+  edits wants none of them until they are done. The switch was two tabs
+  from the work, so the tab shows it too.
+
+  IT LOOKS LIKE THE FAULT C-43 RECORDS AND IS NOT, and the difference
+  is the whole of why this is safe. That one was two controls with
+  DIFFERENT SEMANTICS aimed at one outcome -- a one-shot "Create new"
+  entry beside a standing "Create as new group" preference -- so five
+  readers asked only the checkbox and one only the flag. This is two
+  views of ONE fact, which this project already does where dataset and
+  group select each other with signals blocked.
+
+  SO BOTH HALVES ARE ASSERTED, and the second is the one that keeps it
+  from drifting into C-43's shape over time: the boxes follow each
+  other, AND no code anywhere reads the view to decide anything.
+
+  Regression: none yet -- this guards a control added with the rule it has to keep. [user]
+  """
+  import re as _re
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    here = getattr(dlg.topology_panel, "live_here", None)
+    assert here is not None, \
+      "the Topology tab offers no live-update box at all"
+    assert here.isChecked() == dlg.live_check.isChecked(), (
+      f"the two boxes disagree before anybody has touched either: "
+      f"tab {here.isChecked()} against owner {dlg.live_check.isChecked()}")
+
+    # EACH DIRECTION, and the owner's value is what is read both times.
+    for value in (False, True, False):
+      dlg.live_check.setChecked(value)
+      _tick(20)
+      assert here.isChecked() == value, (
+        f"ticking the owner to {value} left the tab's box at "
+        f"{here.isChecked()}")
+    for value in (True, False, True):
+      here.setChecked(value)
+      _tick(20)
+      assert dlg.live_check.isChecked() == value, (
+        f"ticking the tab's box to {value} left the owner at "
+        f"{dlg.live_check.isChecked()}")
+
+    # AND NOTHING READS THE VIEW. A second reader is exactly how C-43
+    # happened: the fact was held twice and the readers disagreed. The
+    # only mentions allowed are where it is BUILT and where it is
+    # BOUND -- anything asking `live_here.isChecked()` to decide
+    # something has made it a store.
+    for name in ("weavingspace_qgis/dialog.py",
+                 "weavingspace_qgis/topology_tab.py"):
+      with open(os.path.join(ROOT, name), encoding="utf-8") as handle:
+        source = handle.read()
+      asked = [line.strip() for line in source.split("\n")
+               if "live_here" in line
+               and _re.search(r"live_here\s*\.\s*isChecked", line)
+               and not line.lstrip().startswith("#")]
+      assert not asked, (
+        f"{name} asks the Topology tab's live-update box what it "
+        f"holds. It is a VIEW: `live_check` is the owner and the only "
+        f"thing a reader may ask, or the two drift apart exactly as "
+        f"the group chooser and its checkbox did. Offending: {asked}")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_a_drag_along_an_edge_sets_the_zigzag_count():
   """Along-edge travel sets the count; travel across it does not.
 
@@ -88302,6 +88376,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("one live update switch seen from two tabs",
+        test_one_live_update_switch_seen_from_two_tabs)
   check("a drag along an edge sets the zigzag count",
         test_a_drag_along_an_edge_sets_the_zigzag_count)
   check("a build landing does not eat the numbers you typed",

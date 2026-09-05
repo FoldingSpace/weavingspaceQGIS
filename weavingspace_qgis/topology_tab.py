@@ -1785,6 +1785,32 @@ class TopologyPanel(QWidget):
       self.toggles[key] = box
     side.addWidget(show)
 
+    # THE MAP'S LIVE UPDATE, WHERE THE EDITING HAPPENS. (Maintainer's
+    # idea, 2026-09-05.) The tab redraws its OWN view on every edit
+    # whatever this says; what this switches is the WHOLE-LAYER re-tile
+    # in QGIS, which a topology edit triggers because an edit IS a
+    # geometry change -- 1.36s at spacing 250 and 3.8s at 150, on every
+    # Apply, while somebody making several edits in a row wants none of
+    # them until they are done. The switch was two tabs away from the
+    # work.
+    #
+    # IT IS A VIEW AND NEVER A STORE, which is the whole of what keeps
+    # it out of the fault C-43 records. That one was two controls with
+    # DIFFERENT SEMANTICS aimed at one outcome -- a one-shot entry
+    # beside a standing preference -- so five readers asked one and one
+    # asked the other. This box holds nothing: the dialog's own
+    # `live_check` is the single owner, the dialog binds the two
+    # symmetrically with signals blocked (as `_sync_pin_controls`
+    # already does, or setting a control right fires the handler that
+    # set it right), and NOTHING ANYWHERE MAY READ THIS BOX to decide
+    # anything. `test_one_live_update_switch_seen_from_two_tabs` holds
+    # both halves of that.
+    self.live_here = QCheckBox("Live update of the map")
+    self.live_here.setToolTip(
+      "Redraws the whole map as you edit. The view above always "
+      "follows your edits.")
+    side.addWidget(self.live_here)
+
     self.note = QLabel("")
     self.note.setWordWrap(True)
     side.addWidget(self.note)

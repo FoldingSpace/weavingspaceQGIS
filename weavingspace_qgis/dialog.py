@@ -3493,6 +3493,16 @@ class WeavingSpaceDialog(QDialog):
       "Draws and redraws the map as you change settings, without "
       "pressing Generate.")
     bottom.addWidget(self.live_check)
+    # AND THE TOPOLOGY TAB SHOWS THE SAME SWITCH, bound symmetrically.
+    # (Maintainer's idea, 2026-09-05.) `live_check` is the OWNER and
+    # the only thing any reader asks; the tab's box is a view of it.
+    # Bound here rather than in the panel because the panel is built
+    # without a dialog and must stay that way -- a panel that reached
+    # back for the dialog's controls would be a second store waiting to
+    # happen, which is the shape C-43 records.
+    # SIGNALS BLOCKED IN BOTH DIRECTIONS, or setting each right fires
+    # the handler that set it right and the two chase each other.
+    self._bind_the_live_switches()
     self.live_note = QLabel("")
     self.live_note.setStyleSheet("color: #888888;")
     bottom.addWidget(self.live_note)
@@ -15743,6 +15753,35 @@ class WeavingSpaceDialog(QDialog):
     if hand_subset:
       layer.setSubsetString(hand_subset)
     self._no_data_layer_ids[tile_id] = layer.id()
+
+  def _bind_the_live_switches(self) -> None:
+    """Make the Topology tab's live-update box a view of `live_check`.
+
+    Returns:
+      None. Ticking either box moves the other, and `live_check`
+      remains the one thing every reader asks -- `_maybe_live_generate`
+      included, which is what stops this becoming two stores.
+
+    THE BLOCK IS NOT OPTIONAL: `setChecked` emits `toggled`, so each
+    handler would re-enter the other. `_sync_pin_controls` carries the
+    same discipline for the same reason, and the ruling that dataset
+    and group select each other names it too.
+    """
+    tab = getattr(self, "topology_panel", None)
+    here = getattr(tab, "live_here", None)
+    if here is None:
+      return
+    here.setChecked(self.live_check.isChecked())
+
+    def follow(box, other):
+      def moved(checked):
+        was = other.blockSignals(True)
+        other.setChecked(checked)
+        other.blockSignals(was)
+      return moved
+
+    self.live_check.toggled.connect(follow(self.live_check, here))
+    here.toggled.connect(follow(here, self.live_check))
 
   def _restyle_only(self) -> bool:
     """Answer a style change by re-seeding the existing layers.
