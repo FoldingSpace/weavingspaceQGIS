@@ -363,6 +363,58 @@ def main():
           .iloc[overlaps.groupby("joinUID")[area_name] \\
           .agg("idxmax")][["joinUID", id_var]]""")
 
+
+  # PATCH 4 (four edits, one idea): the grid disc only has to reach the
+  # ground the REGION occupies.
+  #
+  # `_TileGrid` lays its placements over a disc so a tiling can be
+  # rotated about its centre and still cover the region -- upstream's
+  # own docstring says so, and eight of its example call sites really
+  # do pass a rotation. The radius was centre-to-CORNER of the region's
+  # oriented bounding rectangle. Rotation about a point PRESERVES
+  # DISTANCE FROM THAT POINT, so the radius that keeps the promise in
+  # full is the furthest the buffered region itself reaches; a region
+  # touches its rectangle's edges by construction and its corners only
+  # by coincidence.
+  #
+  # MEASURED 2026-09-04 on the packaged Auckland data, 8 designs x 2
+  # spacings x 4 rotations = 64 comparisons: placements fall to 77.3%
+  # on average (best 66.7%), the worker goes 1.152s -> 0.929s at
+  # spacing 250, and the overlay falls with it, 0.451s -> 0.366s,
+  # because fewer tiles reach it. NOT ONE TILE OF ANY MAP DIFFERS, at
+  # any rotation.
+  #
+  # THE FIRST ATTEMPT WAS NOT EXACT AND THE PROBE SAID SO, which is why
+  # this is four edits rather than one. `_get_grid` phases its meshgrid
+  # from `extent_in_grid_space.bounds`, so shrinking that polygon
+  # SHIFTS EVERY TILE by a sub-cell offset: `crosses 4` at spacing 500
+  # drew 2,772 tiles both ways and 2,622 of them differed, every one
+  # still touching the region. Nothing was lost; the whole pattern
+  # moved, which is a different map rather than a cheaper one. So the
+  # original extent still PHASES the lattice and the smaller one
+  # decides only which cells are WANTED -- two jobs that had been one
+  # polygon.
+  #
+  # WORTH SENDING UPSTREAM: it costs no API change and helps upstream's
+  # own rotating examples. Written up in
+  # docs/process/upstream-note-the-grid-disc-is-larger-than-it-needs.md
+  # and proved by tools/probes/the_smaller_disc_tiles_the_same_map.py.
+  targeted(VENDOR_DIR / "tile_map.py", "4a keep the buffered region",
+           '    hull = shapely.convex_hull(geom.GeometryCollection(region_to_tile.values))\n    return hull.buffer(diagonal).minimum_rotated_rectangle\n    # ---AI-suggested-code-ends---',
+           "    hull = shapely.convex_hull(geom.GeometryCollection(region_to_tile.values))\n    # ---AI-suggested-code-ends---\n    # PLUGIN PATCH 4a: keep the buffered hull. It is the ground a tiling\n    # actually has to cover; the rectangle round it supplies the grid's\n    # orientation and centre, and its CORNERS are ground nothing\n    # occupies. Patch 4b measures the wanted radius from this.\n    self.buffered_region = hull.buffer(diagonal)\n    return self.buffered_region.minimum_rotated_rectangle")
+
+  targeted(VENDOR_DIR / "tile_map.py", "4b a second, smaller extent",
+           '  def _set_extent_in_grid_space(self) -> None:\n    """Set extent of the grid in grid generation space."""\n    corner = geom.Point(self.oriented_rect_to_tile.exterior.coords[0])\n    radius = self.centre.distance(corner)\n    self.extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)',
+           '  def _set_extent_in_grid_space(self) -> None:\n    """Set extent of the grid in grid generation space.\n\n    PLUGIN PATCH 4b adds a SECOND, smaller extent beside the first, and\n    the reason the first one stays is the whole of why this patch has\n    the shape it does.\n\n    THE DISC EXISTS so a tiling can be rotated about its centre and\n    still cover the region, and rotation about a point preserves\n    distance from that point -- so the radius that keeps that promise\n    in full is the furthest the buffered REGION reaches, not the\n    furthest its bounding rectangle\'s CORNER does. A region touches its\n    rectangle\'s edges by construction and its corners only by\n    coincidence, which is ground no rotation can ever need.\n\n    BUT THE EXTENT ALSO SETS THE LATTICE\'S PHASE. `_get_grid` takes its\n    meshgrid origin from `extent_in_grid_space.bounds`, so shrinking\n    that polygon SHIFTS EVERY TILE by a sub-cell offset. Measured\n    2026-09-04 on `crosses 4` at spacing 500: both radii drew 2,772\n    tiles and 2,622 of them differed, every one still touching the\n    region -- nothing lost, the whole pattern moved. That is a\n    different map rather than a cheaper one, and this project calls\n    that a cartographic ruling rather than an optimisation.\n\n    So the original extent is kept UNTOUCHED to phase the lattice, and\n    the smaller one decides only which cells are WANTED. The two jobs\n    were one polygon and are now two.\n    """\n    corner = geom.Point(self.oriented_rect_to_tile.exterior.coords[0])\n    radius = self.centre.distance(corner)\n    self.extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)\n    coords = shapely.get_coordinates(self.buffered_region)\n    wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,\n                                   coords[:, 1] - self.centre.y)))\n    self.wanted_extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(wanted), self.to_grid_space)')
+
+  targeted(VENDOR_DIR / "tile_map.py", "4c filter on the smaller extent",
+           '    return (gpd.GeoSeries(\n      [p for p in pts if p.within(self.extent_in_grid_space)])\n        .affine_transform(self.to_map_space))',
+           '    # PLUGIN PATCH 4c: the meshgrid above is phased by the ORIGINAL\n    # extent, so every retained cell sits exactly where it always did;\n    # the smaller extent decides only which of them are wanted. Keeping\n    # the two apart is what makes this a saving rather than a shift.\n    return (gpd.GeoSeries(\n      [p for p in pts if p.within(self.wanted_extent_in_grid_space)])\n        .affine_transform(self.to_map_space))')
+
+  targeted(VENDOR_DIR / "tile_map.py", "4d declare the two new members",
+           '  extent_in_grid_space:geom.Polygon\n  """geometry of the circular extent of the tiling transformed into grid\n  generation space."""',
+           '  buffered_region:geom.Polygon\n  """the region\'s convex hull buffered by the tile unit\'s diagonal, in map\n  space: the ground a tiling must cover at any rotation (plugin patch 4)."""\n  wanted_extent_in_grid_space:geom.Polygon\n  """the smaller disc that decides which grid cells are wanted, in grid\n  space. The bigger one below still phases the lattice (plugin patch 4)."""\n  extent_in_grid_space:geom.Polygon\n  """geometry of the circular extent of the tiling transformed into grid\n  generation space."""')
+
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself
   # (commit 8235837), in its own variant — per-geometry convex hulls,

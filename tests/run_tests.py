@@ -1908,6 +1908,105 @@ def test_the_faster_conversion_draws_the_same_layer():
     "a frame with no CRS must not acquire one on the way into QGIS"
 
 
+
+def test_the_grid_disc_reaches_only_what_the_region_occupies():
+  """Plugin patch 4 shrinks the disc `_TileGrid` lays its placements
+  over. The disc exists so a tiling can be rotated about its centre and
+  still cover the region, and rotation about a point preserves distance
+  from that point -- so the radius that keeps that promise is the
+  furthest the buffered REGION reaches, not the furthest its bounding
+  rectangle's CORNER does.
+
+  TWO THINGS MUST HOLD TOGETHER and the second is the one a repair
+  breaks. Fewer placements must be kept, or the patch buys nothing; and
+  the map must be IDENTICAL, because `_get_grid` phases its meshgrid
+  from the original extent's bounds, so a smaller polygon used for both
+  jobs shifts every tile by a sub-cell offset. Measured on `crosses 4`
+  at spacing 500 while the patch was being written: both radii drew
+  2,772 tiles and 2,622 of them differed, every one still touching the
+  region -- nothing lost, the whole pattern moved, which is a different
+  map rather than a cheaper one.
+
+  The rotations are driven because the disc's entire purpose is to
+  serve a rotation nobody has asked for yet.
+  """
+  import geopandas as gpd
+  import shapely
+  from weavingspace import Tiling
+  from weavingspace import tile_map as tm
+  from weavingspace_qgis import catalog
+
+  region = gpd.read_file(
+    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"))
+  designs = catalog.TILINGS_BY_N[4]
+  # `crosses 4` RATHER THAN ANY DESIGN, and the reason is arithmetic.
+  # `_get_grid` sets its origin to `centre - ceil(2R)/2`, so shrinking
+  # the radius moves the lattice only when `ceil(2R)` changes by an ODD
+  # amount -- on about half of all designs the two radii coincide and a
+  # phase fault is INERT, which reads exactly like a test too weak to
+  # notice it. This design was measured shifting: 2,772 tiles both ways
+  # with 2,622 differing.
+  unit = catalog.make_unit(designs["crosses 4"], spacing=500.0,
+                           crs=region.crs.to_epsg())
+
+  def fingerprint(tiled):
+    return sorted((str(r.tile_id), shapely.to_wkb(r.geometry))
+                  for r in tiled.map.itertuples())
+
+  patched = tm._TileGrid._set_extent_in_grid_space
+
+  def without_the_patch(self):
+    """Upstream's own radius, with the wanted extent left at the full
+    one -- so the two arms differ by WHICH CELLS ARE KEPT and by
+    nothing else."""
+    patched(self)
+    self.wanted_extent_in_grid_space = self.extent_in_grid_space
+
+  try:
+    arms = {}
+    for label, fn in (("patched", patched), ("upstream", without_the_patch)):
+      tm._TileGrid._set_extent_in_grid_space = fn
+      tiling = Tiling(unit, region)
+      arms[label] = (len(tiling.grid.points),
+                     {rot: fingerprint(tiling.get_tiled_map(rotation=rot))
+                      for rot in (0.0, 30.0, 90.0)},
+                     {(round(pt.x, 6), round(pt.y, 6))
+                      for pt in tiling.grid.points})
+  finally:
+    tm._TileGrid._set_extent_in_grid_space = patched
+
+  kept, full = arms["patched"][0], arms["upstream"][0]
+  assert full > 0 and kept > 0, \
+    f"PREMISE: a grid of {full} and {kept} placements measures nothing"
+  assert kept < full, \
+    f"the patch kept {kept} placements of {full}, so it saves nothing"
+
+  # THE PHASE IS THE PROPERTY, said directly rather than only through
+  # the map. Every placement the patch KEEPS must sit exactly where it
+  # sat before -- a subset, not a re-laid lattice. Shrinking the
+  # polygon that phases the meshgrid moves all of them, which no count
+  # can show and which the map comparison below can only show
+  # indirectly.
+  assert arms["patched"][2] <= arms["upstream"][2], (
+    f"{len(arms['patched'][2] - arms['upstream'][2])} of "
+    f"{len(arms['patched'][2])} kept placements are not where they were: "
+    f"the lattice has been re-phased, so every tile has moved")
+
+  compared = 0
+  for rot in (0.0, 30.0, 90.0):
+    mine, theirs = arms["patched"][1][rot], arms["upstream"][1][rot]
+    assert len(theirs) > 100, \
+      f"PREMISE: only {len(theirs)} tiles at rotation {rot}"
+    assert mine == theirs, (
+      f"at rotation {rot} the smaller disc drew {len(mine)} tiles against "
+      f"{len(theirs)}, differing in "
+      f"{len(set(mine) ^ set(theirs))} -- if the counts match, the lattice "
+      f"phase has moved and every tile is in a new place")
+    compared += 1
+  assert compared == 3, \
+    f"only {compared} rotations were compared, so the equality proves little"
+
+
 def test_renderer_seeding():
   """Each style produces the QGIS renderer it should.
 
@@ -85871,6 +85970,8 @@ def main():
         test_awkward_geometry)
   check("the faster conversion draws the same layer",
         test_the_faster_conversion_draws_the_same_layer)
+  check("the grid disc reaches only what the region occupies",
+        test_the_grid_disc_reaches_only_what_the_region_occupies)
   check("real-world data end to end (Auckland IMD)",
         test_real_world_data)
   check("renderer seeding (graduated + categorized)", test_renderer_seeding)

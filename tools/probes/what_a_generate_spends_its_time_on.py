@@ -46,8 +46,10 @@ SPACINGS = (500, 250)
 # performs them.
 STAGES = [
   ("worker: Tiling() + get_tiled_map", "dialog.py", "work"),
-  ("  Tiling.__init__ (constructor total)", "tile_map.py", "__init__", 272),
-  ("  _TileGrid.__init__ (lays the grid)", "tile_map.py", "__init__", 112),
+  ("  Tiling.__init__ (constructor total)", "tile_map.py",
+   "Tiling.__init__"),
+  ("  _TileGrid.__init__ (lays the grid)", "tile_map.py",
+   "_TileGrid.__init__"),
   ("  get_tiled_map (overlay and join)", "tile_map.py", "get_tiled_map"),
   ("landing: _add_output_layers", "dialog.py", "_add_output_layers"),
   ("  gdf_to_layer (frame -> QGIS layer)", "bridge.py", "gdf_to_layer"),
@@ -117,6 +119,7 @@ def every_stage_names_a_real_function():
   wanted = {}
   for stage in STAGES:
     _label, basename, name = stage[0], stage[1], stage[2]
+    name = name.split(".")[-1]
     wanted.setdefault(basename, set()).add(name)
   missing = []
   for basename, names in wanted.items():
@@ -136,6 +139,41 @@ def every_stage_names_a_real_function():
     "these stages name functions that do not exist, so each would "
     "report NOTHING and read as a stage that costs nothing: "
     + ", ".join(missing))
+
+
+
+def def_line(basename, dotted):
+  """The line a `Class.method` is defined on, found by parsing.
+
+  Args:
+    basename: the file it lives in, e.g. "tile_map.py".
+    dotted: "Class.method", which is how a class is named to a profiler
+      that keys on (file, line, function) and knows nothing of classes.
+
+  Returns:
+    (bare_name, line). A LINE NUMBER WRITTEN DOWN IS A HAND-KEPT
+    NUMBER: the first version of this pinned 272 and 112 literally, and
+    the next edit to the file above them shifted both, so the two rows
+    silently stopped matching and printed nothing -- the very fault the
+    stage guard beside this was written to catch, arriving through the
+    disambiguator rather than through a name.
+  """
+  root = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+  cls, _, method = dotted.partition(".")
+  for folder in ("weavingspace_qgis",
+                 os.path.join("weavingspace_qgis", "vendor",
+                              "weavingspace")):
+    path = os.path.join(root, folder, basename)
+    if not os.path.exists(path):
+      continue
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    for node in ast.walk(tree):
+      if isinstance(node, ast.ClassDef) and node.name == cls:
+        for child in node.body:
+          if isinstance(child, ast.FunctionDef) and child.name == method:
+            return method, child.lineno
+  raise AssertionError(f"no {dotted} in {basename}")
 
 
 def cumulative(stats, basename, name, line=None):
@@ -245,6 +283,8 @@ def one_spacing(spacing):
   for stage in STAGES:
     label, basename, name = stage[0], stage[1], stage[2]
     at = stage[3] if len(stage) > 3 else None
+    if "." in name:
+      name, at = def_line(basename, name)
     g, gc = cumulative(gen, basename, name, at)
     s_, sc = cumulative(save, basename, name, at)
     if g < 0 or s_ < 0:

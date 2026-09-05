@@ -100,6 +100,12 @@ class _TileGrid:
   stored as a shapely.affinity transform tuple of 6 floats."""
   to_map_space:tuple[float,...]
   """the inverse transform from tiling grid space to map space."""
+  buffered_region:geom.Polygon
+  """the region's convex hull buffered by the tile unit's diagonal, in map
+  space: the ground a tiling must cover at any rotation (plugin patch 4)."""
+  wanted_extent_in_grid_space:geom.Polygon
+  """the smaller disc that decides which grid cells are wanted, in grid
+  space. The bigger one below still phases the lattice (plugin patch 4)."""
   extent_in_grid_space:geom.Polygon
   """geometry of the circular extent of the tiling transformed into grid
   generation space."""
@@ -152,8 +158,13 @@ class _TileGrid:
     # same effective result
     # previous versions buffered that complex region and were slower
     hull = shapely.convex_hull(geom.GeometryCollection(region_to_tile.values))
-    return hull.buffer(diagonal).minimum_rotated_rectangle
     # ---AI-suggested-code-ends---
+    # PLUGIN PATCH 4a: keep the buffered hull. It is the ground a tiling
+    # actually has to cover; the rectangle round it supplies the grid's
+    # orientation and centre, and its CORNERS are ground nothing
+    # occupies. Patch 4b measures the wanted radius from this.
+    self.buffered_region = hull.buffer(diagonal)
+    return self.buffered_region.minimum_rotated_rectangle
 
 
   def _get_transforms(self) -> tuple[tuple[float,...],tuple[float,...]]:
@@ -188,11 +199,42 @@ class _TileGrid:
 
 
   def _set_extent_in_grid_space(self) -> None:
-    """Set extent of the grid in grid generation space."""
+    """Set extent of the grid in grid generation space.
+
+    PLUGIN PATCH 4b adds a SECOND, smaller extent beside the first, and
+    the reason the first one stays is the whole of why this patch has
+    the shape it does.
+
+    THE DISC EXISTS so a tiling can be rotated about its centre and
+    still cover the region, and rotation about a point preserves
+    distance from that point -- so the radius that keeps that promise
+    in full is the furthest the buffered REGION reaches, not the
+    furthest its bounding rectangle's CORNER does. A region touches its
+    rectangle's edges by construction and its corners only by
+    coincidence, which is ground no rotation can ever need.
+
+    BUT THE EXTENT ALSO SETS THE LATTICE'S PHASE. `_get_grid` takes its
+    meshgrid origin from `extent_in_grid_space.bounds`, so shrinking
+    that polygon SHIFTS EVERY TILE by a sub-cell offset. Measured
+    2026-09-04 on `crosses 4` at spacing 500: both radii drew 2,772
+    tiles and 2,622 of them differed, every one still touching the
+    region -- nothing lost, the whole pattern moved. That is a
+    different map rather than a cheaper one, and this project calls
+    that a cartographic ruling rather than an optimisation.
+
+    So the original extent is kept UNTOUCHED to phase the lattice, and
+    the smaller one decides only which cells are WANTED. The two jobs
+    were one polygon and are now two.
+    """
     corner = geom.Point(self.oriented_rect_to_tile.exterior.coords[0])
     radius = self.centre.distance(corner)
     self.extent_in_grid_space = \
       affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)
+    coords = shapely.get_coordinates(self.buffered_region)
+    wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,
+                                   coords[:, 1] - self.centre.y)))
+    self.wanted_extent_in_grid_space = \
+      affine.affine_transform(self.centre.buffer(wanted), self.to_grid_space)
 
 
   def _get_grid(self) -> gpd.GeoSeries:
@@ -216,8 +258,12 @@ class _TileGrid:
     xs, ys = np.array(np.meshgrid(np.arange(w) + l,
                                   np.arange(h) + b)).reshape((2, w * h))
     pts = [geom.Point(x, y) for x, y in zip(xs, ys, strict = True)]
+    # PLUGIN PATCH 4c: the meshgrid above is phased by the ORIGINAL
+    # extent, so every retained cell sits exactly where it always did;
+    # the smaller extent decides only which of them are wanted. Keeping
+    # the two apart is what makes this a saving rather than a shift.
     return (gpd.GeoSeries(
-      [p for p in pts if p.within(self.extent_in_grid_space)])
+      [p for p in pts if p.within(self.wanted_extent_in_grid_space)])
         .affine_transform(self.to_map_space))
 
 

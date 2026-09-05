@@ -423,6 +423,41 @@ feature across two runs while the shipped baseline held steady. One arm
 per process settles it, and the shipped column staying inside 0.617 to
 0.658 across six children is what says so.
 
+## PATCH 4 IS BUILT: the grid disc, measured 2026-09-04
+
+The first of the two library-side reductions above is carried as patch
+4 in `tools/vendor_weavingspace.py` (four edits, one idea) and offered
+upstream in
+`docs/process/upstream-note-the-grid-disc-is-larger-than-it-needs.md`.
+
+    spacing 250                    before patch 4   after
+    worker                                 1.152s   0.929s
+      Tiling.__init__ (total)              0.698s   0.561s
+        _TileGrid (lays the grid)          0.411s   0.340s
+      get_tiled_map (overlay)              0.451s   0.366s
+    placements kept                          100%    77.3%
+
+THE OVERLAY FALLS WITHOUT BEING TOUCHED, which is the part worth
+keeping: the placements that are never laid are exactly the tiles the
+overlay would have clipped away and discarded, so the saving lands
+twice.
+
+EXACT AT EVERY ROTATION: 8 designs x 2 spacings x 4 rotations (0, 30,
+45, 90) is 64 comparisons and NOT ONE TILE DIFFERS, compared on id and
+geometry bytes by
+`tools/probes/the_smaller_disc_tiles_the_same_map.py`.
+
+**THE FIRST VERSION WAS NOT EXACT, AND HALF OF ALL DESIGNS WOULD HAVE
+HIDDEN IT.** `_get_grid` phases its meshgrid from the extent's own
+bounds, so one smaller polygon doing both jobs shifts every tile:
+`crosses 4` at spacing 500 drew 2,772 tiles both ways with 2,622
+differing, every one still touching the region -- nothing lost, the
+whole pattern moved. The origin is `centre - ceil(2R)/2`, so the shift
+appears only when `ceil(2R)` changes by an ODD amount, and on
+`hex-slice 4` the two radii happened to agree. A guard written on that
+design reported the phase fault as INERT, which reads exactly like a
+test too weak to notice it; the fixture names `crosses 4` and says why.
+
 ## The three columns, measured 2026-09-04
 
 `tools/probes/what_the_proposed_grid_filters_would_keep.py` measures

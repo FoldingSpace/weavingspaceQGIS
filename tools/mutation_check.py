@@ -78,6 +78,7 @@ PUBLISH_CANDIDATE = "tools/publish_candidate.py"
 # the ONE part of the vendored library that is ours: the
 # patch making matplotlib and scipy optional
 VENDOR_TILEABLE = ("weavingspace_qgis/vendor/weavingspace/tileable.py")
+VENDOR_TILE_MAP = ("weavingspace_qgis/vendor/weavingspace/tile_map.py")
 
 # name, file, exact source to replace, replacement, test that must fail
 MUTATIONS = [
@@ -165,6 +166,37 @@ MUTATIONS = [
            "which was exact: colour had an adoption path into the "
            "record and the bounds had none, so every route ended at "
            "the same missing one"),
+  dict(name="the-grid-keeps-only-the-cells-the-region-reaches",
+       file=VENDOR_TILE_MAP,
+       # ANCHORED ON THE FILTER, which is where the saving is decided.
+       # Reverting it to the phasing extent is upstream's own behaviour,
+       # so this asks whether the patch does anything at all.
+       old="""      [p for p in pts if p.within(self.wanted_extent_in_grid_space)])""",
+       new="""      [p for p in pts if p.within(self.extent_in_grid_space)])""",
+       test="test_the_grid_disc_reaches_only_what_the_region_occupies",
+       why="the disc is sized centre-to-CORNER of the region's oriented "
+           "rectangle, and a region touches its rectangle's edges by "
+           "construction and its corners only by coincidence -- so "
+           "roughly a quarter of the placements are laid over ground "
+           "nothing occupies, built, carried into the overlay, clipped "
+           "away and discarded. Measured at 77.3% of placements kept "
+           "and the worker at 0.929s against 1.152s"),
+  dict(name="the-lattice-is-phased-by-the-full-extent",
+       file=VENDOR_TILE_MAP,
+       # ANCHORED ON THE BOUNDS, which is the OTHER job the extent does
+       # and the one a repair silently breaks. This is the mutation that
+       # the first version of the patch actually was.
+       old="""    bb = self.extent_in_grid_space.bounds""",
+       new="""    bb = self.wanted_extent_in_grid_space.bounds""",
+       test="test_the_grid_disc_reaches_only_what_the_region_occupies",
+       why="`_get_grid` takes its meshgrid origin from the extent's "
+           "bounds, so a smaller polygon used for BOTH jobs shifts "
+           "every tile by a sub-cell offset. Measured while the patch "
+           "was being written, on `crosses 4` at spacing 500: both "
+           "radii drew 2,772 tiles and 2,622 of them differed, every "
+           "one still touching the region. Nothing was lost and the "
+           "whole pattern moved, which is a different map rather than "
+           "a cheaper one -- and it is invisible in any count"),
   dict(name="a-plain-polygon-arrives-as-a-multipolygon", file=BRIDGE,
        # ANCHORED ON THE PROMOTION ITSELF, which is where the answer is
        # decided. The faster conversion stopped building a shapely
