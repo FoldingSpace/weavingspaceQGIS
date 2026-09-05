@@ -166,6 +166,52 @@ MUTATIONS = [
            "which was exact: colour had an adoption path into the "
            "record and the bounds had none, so every route ended at "
            "the same missing one"),
+  dict(name="only-a-tile-inside-one-zone-skips-the-clip",
+       file=VENDOR_TILE_MAP,
+       # ANCHORED ON THE PREDICATE, which is the whole of the claim: a
+       # tile that merely TOUCHES a zone has no foregone argmax, and
+       # assigning it as though it did is a wrong zone rather than a
+       # missing one -- a map that looks entirely plausible.
+       # AND IT BREAKS THE FALLBACK IN THE SAME BREATH, because
+       # widening the predicate alone is INERT: a tile intersecting two
+       # zones makes `joinUID` non-unique, the overlap guard fires, the
+       # split declines and the answer is unchanged. Measured -- the
+       # entry SURVIVED until the two were mutated together, which is
+       # this project's own rule to break every route at once rather
+       # than write a fifth entry.
+       old="""          self.region, predicate = "within", how = "inner")[
+            ["joinUID", id_var]]
+        if not inside["joinUID"].is_unique:
+          inside = inside.iloc[0:0]""",
+       new="""          self.region, predicate = "intersects", how = "inner")[
+            ["joinUID", id_var]]
+        inside = inside.drop_duplicates(subset = ["joinUID"])""",
+       test="test_the_overlay_clips_only_the_tiles_that_straddle",
+       why="the split rests on a tile inside ONE zone having a known "
+           "answer -- the fragment is the tile and the winner is that "
+           "zone. Widen the predicate and a straddling tile is "
+           "assigned by whichever zone the join happened to return "
+           "rather than by the largest overlap, which is precisely the "
+           "cartographic decision the overlay exists to make"),
+  dict(name="the-interior-tiles-still-reach-the-lookup",
+       file=VENDOR_TILE_MAP,
+       # ANCHORED ON THE CONCAT. The predicate entry proves the tiles
+       # are chosen correctly; this proves they are not then dropped on
+       # the floor, which is a different failure with a different
+       # symptom -- tiles missing from the map rather than mislabelled.
+       # RAW, because the anchor spans a BACKSLASH-NEWLINE and a
+       # non-raw string collapses it into a line continuation, so the
+       # entry matched nothing and reported SURVIVED about a mutation
+       # it never applied.
+       old=r"""        lookup = pd.concat([inside, straddlers], ignore_index = True) \
+          if len(inside) else straddlers""",
+       new="""        lookup = straddlers""",
+       test="test_the_overlay_clips_only_the_tiles_that_straddle",
+       why="the interior tiles are the ones the split declines to "
+           "clip, so if they do not reach the lookup they are joined "
+           "to no zone and vanish from the map entirely -- 6,011 of "
+           "15,300 on `crosses 4` at spacing 250, which is most of the "
+           "interior of the map"),
   dict(name="a-declared-rotation-narrows-the-grid",
        file=VENDOR_TILE_MAP,
        # ANCHORED ON THE DECISION, which is the line that chooses

@@ -467,6 +467,43 @@ def main():
            '  buffered_region:geom.Polygon\n  """the region\'s convex hull buffered by the tile unit\'s diagonal, in map\n  space: the ground a tiling must cover at any rotation (plugin patch 4)."""\n  wanted_extent_in_grid_space:geom.Polygon\n  """the smaller disc that decides which grid cells are wanted, in grid\n  space. The bigger one below still phases the lattice (plugin patch 4)."""',
            '  rotations:tuple[float,...]|None\n  """the rotations this grid will be asked for, or None for any. Naming\n  them lets the grid ask the region\'s own shape rather than a disc\n  (plugin patch 5)."""\n  buffered_region:geom.Polygon\n  """the region\'s convex hull buffered by the tile unit\'s diagonal, in map\n  space: the ground a tiling must cover at any rotation (plugin patch 4)."""\n  wanted_extent_in_grid_space:geom.Polygon\n  """the smaller disc that decides which grid cells are wanted, in grid\n  space. The bigger one below still phases the lattice (plugin patch 4)."""')
 
+
+  # PATCH 6: the overlay computes an argmax and throws its geometry
+  # away, so a tile that already knows its answer need not be clipped.
+  #
+  # In the `prioritise_tiles` path the fragments exist only to carry an
+  # area: nothing downstream draws them. A tile lying wholly inside ONE
+  # zone has a FOREGONE argmax -- the fragment is the tile, its area is
+  # the tile's area, and the winner is that zone -- so clipping it
+  # computes something already known. Patch 6 assigns those by a
+  # `within` join and clips only what is left.
+  #
+  # MEASURED 2026-09-04 on the packaged Auckland data: 37,511 tiles
+  # compared across 6 designs and 2 spacings, NOT ONE assigned to a
+  # different zone, against an oracle written out independently rather
+  # than called. The share that needs no clip is 60.1% of the tiles
+  # that TOUCH the region at spacing 250, and rises with the map -- so
+  # it pays most exactly where the seconds are.
+  #
+  # THE COUNT IS QUOTED RATHER THAN THE SECONDS, because a machine
+  # under load is not a measurement: `crosses 4` at spacing 250 clips
+  # 9,289 tiles where it clipped 15,300, which is a fact about the work
+  # rather than about the afternoon.
+  #
+  # ITS GUARD IS THE WHOLE OF ITS SAFETY. If any tile lands inside two
+  # zones at once then the zones overlap, "interior" does not mean what
+  # this assumes, and the split falls back to clipping everything
+  # rather than guessing -- which is the same shape as the library's
+  # own fall-through when a provider refuses a subset.
+  #
+  # Offered upstream in
+  # docs/process/upstream-note-the-overlay-clips-what-it-already-knows.md
+  # and proved by
+  # tools/probes/the_overlay_split_assigns_the_same_zones.py.
+  targeted(VENDOR_DIR / "tile_map.py", "6 clip only what straddles",
+           '        overlaps = self.region.overlay(join_layer, make_valid = False)\n        if debug:\n          t3 = perf_counter()\n          print(f"STEP A2: overlay zones with tiling: {t3 - t2:.3f}")\n        overlaps[area_name] = overlaps.geometry.area\n        if debug:\n          t4 = perf_counter()\n          print(f"STEP A3: calculate areas: {t4 - t3:.3f}")\n        overlaps = overlaps.drop(columns = region_vars)\n        if debug:\n          t5 = perf_counter()\n          print(f"STEP A4: drop columns prior to join: {t5 - t4:.3f}")\n        # make a lookup by largest area tile to region id\n        lookup = overlaps \\\n          .iloc[overlaps.groupby("joinUID")[area_name] \\\n          .agg("idxmax")][["joinUID", id_var]]',
+           '        # PLUGIN PATCH 6: a tile lying wholly inside ONE zone has a\n        # FOREGONE argmax -- the fragment is the tile, its area is the\n        # tile\'s area, and the winner is that zone -- so clipping it\n        # computes something already known. Those are assigned by a\n        # `within` join and only what is left is clipped. Nothing\n        # downstream draws the fragments; they exist to carry an area.\n        #\n        # THE GUARD IS THE WHOLE OF ITS SAFETY. If any tile lands\n        # inside two zones at once then the zones overlap, "interior"\n        # does not mean what this assumes, and the split falls back to\n        # clipping everything rather than guessing.\n        inside = join_layer.sjoin(\n          self.region, predicate = "within", how = "inner")[\n            ["joinUID", id_var]]\n        if not inside["joinUID"].is_unique:\n          inside = inside.iloc[0:0]\n        rest = join_layer[~join_layer["joinUID"].isin(inside["joinUID"])]\n        overlaps = self.region.overlay(rest, make_valid = False)\n        if debug:\n          t3 = perf_counter()\n          print(f"STEP A2: overlay zones with tiling: {t3 - t2:.3f} "\n                f"({len(inside)} interior, {len(rest)} clipped)")\n        overlaps[area_name] = overlaps.geometry.area\n        if debug:\n          t4 = perf_counter()\n          print(f"STEP A3: calculate areas: {t4 - t3:.3f}")\n        overlaps = overlaps.drop(columns = region_vars)\n        if debug:\n          t5 = perf_counter()\n          print(f"STEP A4: drop columns prior to join: {t5 - t4:.3f}")\n        # make a lookup by largest area tile to region id\n        straddlers = overlaps \\\n          .iloc[overlaps.groupby("joinUID")[area_name] \\\n          .agg("idxmax")][["joinUID", id_var]]\n        lookup = pd.concat([inside, straddlers], ignore_index = True) \\\n          if len(inside) else straddlers')
+
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself
   # (commit 8235837), in its own variant — per-geometry convex hulls,

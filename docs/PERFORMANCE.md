@@ -481,6 +481,35 @@ edges in 12 of 12 cases at spacing 250. A small design at a coarse
 spacing does NOT show it -- `basket weave ab|cd` at 500 came back
 identical at 30 -- so the guard stages the fine case and says why.
 
+## PATCH 6 IS BUILT: the overlay clips only what straddles
+
+A tile wholly inside one zone has a foregone argmax, so it is assigned
+by a `within` join and only the rest is clipped.
+
+    `crosses 4`, spacing 250      tiles clipped
+    before                              15,300
+    after                                9,289
+
+EXACT: 37,511 tiles compared over 6 designs and 2 spacings, NOT ONE
+assigned to a different zone, against an oracle written out separately
+rather than calling the library's own lookup -- because a differential
+cannot see a fault its expected side shares.
+
+**THE SECONDS ARE OWED RATHER THAN QUOTED.** The machine carried a load
+average around 200 while this landed, from work that was not this
+session's, and a comparison across two runs on a busy machine is not a
+measurement -- a profile taken then read `gdf_to_layer` at 0.423s
+against 0.235s an hour earlier, on a stage this patch cannot touch. The
+count above is a fact about the work; the timing is owed on a quiet
+machine, together with a re-run of the three-column table.
+
+AND ITS OWN GUARD MAKES ONE MUTATION INERT, which is worth knowing
+before reading a survivor: widening the `within` predicate to
+`intersects` makes `joinUID` non-unique, which trips the
+overlapping-zones fallback, so the split declines and the answer is
+unchanged. The entry only bites when the predicate and the guard are
+broken together.
+
 ## The three columns, measured 2026-09-04
 
 `tools/probes/what_the_proposed_grid_filters_would_keep.py` measures

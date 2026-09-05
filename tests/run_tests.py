@@ -2101,6 +2101,99 @@ def test_a_declared_rotation_lets_the_grid_ask_the_regions_shape():
     f"it declares {ast.dump(declared[0].value)}, which is not (0.0,)"
 
 
+
+def test_the_overlay_clips_only_the_tiles_that_straddle():
+  """Plugin patch 6. The tile-to-zone lookup clips every tile against
+  every zone and keeps the fragment with the largest area -- an argmax
+  whose geometry is then thrown away, since nothing downstream draws
+  the fragments. A tile lying wholly inside ONE zone has a foregone
+  answer: the fragment is the tile and the winner is that zone. So
+  those are assigned by a `within` join and only what is left is
+  clipped.
+
+  WHAT IS ASSERTED IS THE ZONE EACH TILE TAKES ITS DATA FROM, keyed by
+  the tile's own geometry, because that is the whole of what this path
+  decides. Getting it wrong makes a map that looks entirely plausible
+  and reads the wrong numbers.
+
+  THE ORACLE IS WRITTEN OUT HERE rather than called, so the two sides
+  share no code and a disagreement is a defect by construction. That
+  matters more than usual: a differential cannot see a fault its
+  expected side shares, and calling the library's own lookup would
+  share the very branch under test.
+
+  AND THE SPLIT MUST ACTUALLY BE TAKEN, or the equality below is about
+  an optimisation that never ran -- so the interior share is asserted
+  as a premise.
+  """
+  import geopandas as gpd
+  import shapely
+  from weavingspace import Tiling
+  from weavingspace_qgis import catalog
+
+  region = gpd.read_file(
+    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"))
+  assert "id" in region.columns, "PREMISE: the region has no 'id' column"
+  designs = catalog.TILINGS_BY_N[4]
+  unit = catalog.make_unit(designs["crosses 4"], spacing=250.0,
+                           crs=region.crs.to_epsg())
+  tiling = Tiling(unit, region, rotations=(0.0,))
+
+  # PREMISE: enough tiles lie wholly inside one zone for the split to
+  # be doing anything at all.
+  inside = tiling.tiles.sjoin(region, predicate="within", how="inner")
+  assert len(inside) > 100, (
+    f"PREMISE: only {len(inside)} of {len(tiling.tiles)} tiles are "
+    f"interior, so the branch under test barely runs")
+
+  # THE ORACLE: clip everything, keep the largest fragment.
+  area = "my_ridiculous_area_name_42"
+  work = tiling.tiles[["geometry"]].copy()
+  work["joinUID"] = range(len(work))
+  overlaps = region.overlay(work, make_valid=False)
+  overlaps[area] = overlaps.geometry.area
+  best = overlaps.iloc[
+    overlaps.groupby("joinUID")[area].agg("idxmax")][["joinUID", "id"]]
+  by_uid = dict(zip(best["joinUID"], best["id"], strict=True))
+  want = {shapely.to_wkb(g): by_uid[u]
+          for g, u in zip(work.geometry, work["joinUID"], strict=True)
+          if u in by_uid}
+  assert len(want) > 1000, \
+    f"PREMISE: the oracle placed only {len(want)} tiles"
+
+  drawn = tiling.get_tiled_map(rotation=0.0).map
+  compared = wrong = unplaced = 0
+  for row in drawn.itertuples():
+    key = shapely.to_wkb(row.geometry)
+    if key not in want:
+      unplaced += 1
+      continue
+    compared += 1
+    if want[key] != row.id:
+      wrong += 1
+  assert compared > 1000, \
+    f"only {compared} tiles were compared, so the result says little"
+  assert unplaced == 0, \
+    f"{unplaced} drawn tiles the clip would not have placed at all"
+  assert wrong == 0, (
+    f"{wrong} of {compared} tiles take their data from a different zone "
+    f"than clipping would give them -- a plausible-looking map reading "
+    f"the wrong numbers")
+
+  # AND EVERY TILE THE CLIP WOULD PLACE MUST BE DRAWN. Checking only
+  # that the drawn tiles are RIGHT cannot see tiles that went missing,
+  # which is the other way this split fails: the interior tiles are
+  # exactly the ones it declines to clip, so dropping them from the
+  # lookup joins them to no zone and they vanish. Measured while this
+  # was written -- an entry doing precisely that SURVIVED against the
+  # assertions above, because a shorter map is still a correct one
+  # tile for tile.
+  assert compared == len(want), (
+    f"the map drew {compared} of the {len(want)} tiles clipping would "
+    f"place, so {len(want) - compared} have gone missing -- most likely "
+    f"the interior ones, which are the tiles the split does not clip")
+
+
 def test_renderer_seeding():
   """Each style produces the QGIS renderer it should.
 
@@ -86068,6 +86161,8 @@ def main():
         test_the_grid_disc_reaches_only_what_the_region_occupies)
   check("a declared rotation lets the grid ask the region's shape",
         test_a_declared_rotation_lets_the_grid_ask_the_regions_shape)
+  check("the overlay clips only the tiles that straddle",
+        test_the_overlay_clips_only_the_tiles_that_straddle)
   check("real-world data end to end (Auckland IMD)",
         test_real_world_data)
   check("renderer seeding (graduated + categorized)", test_renderer_seeding)

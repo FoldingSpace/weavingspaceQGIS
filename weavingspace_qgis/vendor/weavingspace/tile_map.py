@@ -474,10 +474,28 @@ class Tiling:
         # overlay(tiles) seems to be faster??
         # TODO: also... this part is performance-critical, think about fixes --
         # possibly including the above centroid-based approximation
-        overlaps = self.region.overlay(join_layer, make_valid = False)
+        # PLUGIN PATCH 6: a tile lying wholly inside ONE zone has a
+        # FOREGONE argmax -- the fragment is the tile, its area is the
+        # tile's area, and the winner is that zone -- so clipping it
+        # computes something already known. Those are assigned by a
+        # `within` join and only what is left is clipped. Nothing
+        # downstream draws the fragments; they exist to carry an area.
+        #
+        # THE GUARD IS THE WHOLE OF ITS SAFETY. If any tile lands
+        # inside two zones at once then the zones overlap, "interior"
+        # does not mean what this assumes, and the split falls back to
+        # clipping everything rather than guessing.
+        inside = join_layer.sjoin(
+          self.region, predicate = "within", how = "inner")[
+            ["joinUID", id_var]]
+        if not inside["joinUID"].is_unique:
+          inside = inside.iloc[0:0]
+        rest = join_layer[~join_layer["joinUID"].isin(inside["joinUID"])]
+        overlaps = self.region.overlay(rest, make_valid = False)
         if debug:
           t3 = perf_counter()
-          print(f"STEP A2: overlay zones with tiling: {t3 - t2:.3f}")
+          print(f"STEP A2: overlay zones with tiling: {t3 - t2:.3f} "
+                f"({len(inside)} interior, {len(rest)} clipped)")
         overlaps[area_name] = overlaps.geometry.area
         if debug:
           t4 = perf_counter()
@@ -487,9 +505,11 @@ class Tiling:
           t5 = perf_counter()
           print(f"STEP A4: drop columns prior to join: {t5 - t4:.3f}")
         # make a lookup by largest area tile to region id
-        lookup = overlaps \
+        straddlers = overlaps \
           .iloc[overlaps.groupby("joinUID")[area_name] \
           .agg("idxmax")][["joinUID", id_var]]
+        lookup = pd.concat([inside, straddlers], ignore_index = True) \
+          if len(inside) else straddlers
       # now join the lookup and from there the region data
       if debug:
         t6 = perf_counter()
