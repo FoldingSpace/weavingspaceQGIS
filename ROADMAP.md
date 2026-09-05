@@ -736,10 +736,17 @@ already selected, and what differs between runs is the selection at
 the press. That is timing, and it is what the same day's other repairs
 closed. All three suite legs and macOS are green on that commit.
 
-**ONE LINE CARRIES 0.24.4**, since the two branches were merged on
-2026-08-27: `for-0.24.4/copy-select-all`, which now holds the Save
-work as well. `for-0.24.4/saving-is-an-act` is an ancestor of it and
-is kept only so its history reads; nothing is owed on it.
+**ONE LINE CARRIES 0.24.4**, and it is `pre-0.24.4` -- renamed on
+2026-09-05 from `pre-0.24.4rc7`, which named a candidate NINE behind
+the tree and read to anybody glancing at it as a version. The work
+branches merged into it long ago: `for-0.24.4/copy-select-all` carried
+the Save work and `for-0.24.4/saving-is-an-act` is an ancestor of that;
+both are kept only so their history reads, and nothing is owed on
+either.
+WHY THE NAME MOVED AND WHAT IT COSTS is in docs/PUBLISHING.md, with the
+condition the old convention rested on: naming a branch for a candidate
+says which artefact a CI result belongs to only while that branch
+carries ONE candidate, and this one carried nine.
 
 WHAT THE VERSION HAS. The twenty-five defects of the hunt round, each
 with a registered test and a proved catalogue entry; the Select all

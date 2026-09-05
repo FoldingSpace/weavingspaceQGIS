@@ -598,6 +598,81 @@ the held landing is the one that draws. Both halves carry a catalogue
 entry, since either alone leaves a tab that either wipes a gesture or
 goes on drawing a design the plugin has already replaced.
 
+## What is drawn between the drop and the landing
+
+The section above is about a landing arriving DURING a gesture. This is
+the window AFTER it, which none of those repairs touches, and it is
+what the maintainer reported against 0.24.4rc15: "it reverts for a
+second and then a few seconds later updates correctly".
+
+`_commit_the_drag` opened with `show_preview(None)`, so the edited
+geometry was cleared AT THE DROP -- and the rebuild that answers an
+edit is asynchronous, so until it landed `_drawn` fell back to
+`_topology`, which is the UN-EDITED design. MEASURED on the default
+design, `laves 3.3.4.3.4`: the old design stood for **1.676 seconds**,
+and the settled drawing's fingerprint was IDENTICAL to what the preview
+had been showing -- the right picture was on screen, was thrown away,
+and was recomputed. Against the build costs in the first section of
+this document, on `hex-colouring 7` that is nineteen seconds of the
+wrong design under somebody's hand.
+
+**THE PREVIEW IS KEPT WHERE AN EDIT WAS RECORDED**, and the landing
+clears it: `show_topology` sets `_preview = None` as its own third
+line, and every route to an answer passes through it. So the preview
+stands exactly as long as there is nothing better to draw, which is
+what a preview is for.
+
+**AND EVERY PATH THAT RECORDS NOTHING STILL CLEARS AT ONCE.** There no
+landing is coming, so a preview left standing draws an edit the change
+list denies -- the fault `show_preview` was split from `show_topology`
+to prevent. That is why this is a decision per exit rather than one
+line moved, and the three exits are three JOURNEYS: a press that never
+grabbed anything leaves at the first, a selection the tab cannot act on
+at the second, a gesture with no travel at the third. An entry aimed at
+the third SURVIVED until the guard grew an arm that walked it, because
+its discard arm was a click -- which leaves at the first.
+
+WHAT IS LEFT OPEN DELIBERATELY is a record with no rebuild behind it:
+the preview then goes on showing what the person asked for, which
+agrees with the change list, where reverting would show a design the
+list denies.
+
+## A build the task manager never starts
+
+Measured 2026-09-04, from the topology matrix's one failing cell: "the
+tab neither built a topology nor said why not, so somebody is left in
+front of a panel that never answers".
+
+    manager: count=1 active=1 'WeavingSpace topology' Queued
+    global thread pool: active=0 max=8
+    python threads: ['MainThread']
+
+The build is QUEUED AND NEVER STARTED WITH THE POOL IDLE. Against the
+figures at the top of this document that is not a slow design and not a
+worker holding a thread: later dialogs' builds answered in 1.4s on the
+same design while that one sat for 133 seconds, and the queued tasks
+accumulated.
+
+**THE TAB SAYS SO NOW**, after `TOPOLOGY_START_CEILING_MS`. The
+sentence goes in the NOTE, which means "the answer, or why there is
+none", so every waiter that reads it gets a real answer instead of
+sitting out its ceiling on silence. It asks about STARTING and never
+about duration -- a build under way is `Running` however long it takes,
+so the nineteen seconds of `hex-colouring 7` cannot reach it -- and it
+SAYS rather than cancels, because a pool genuinely busy with another
+plugin's work is a legitimate reason to wait and the sentence is still
+true there.
+
+**THE CAUSE IS NOT KNOWN.** Four failures in eighty-six attempts here,
+clustered in one twenty-minute window and absent from runs of 30, 16
+and 12 afterwards, so it is not yet a condition anybody can stage --
+which is why the guard is aimed at the STATE the stall leaves, and its
+test stages that with a QgsTask never handed to the manager. The
+discriminator that would say who owns it rides in
+`tools/probes/how_often_a_build_never_starts.py`: at the stall it adds
+a second task and reads whether the stuck one then starts. It has not
+yet caught one.
+
 ## What the tab gained on 2026-09-01
 
 Four features were approved earlier, scoped into 0.24.4 by a grilling

@@ -136,6 +136,30 @@ for the run that will build `0.24.0rc5` -- so the name says which
 artefact the CI result belongs to. A bare `pre-release` tells nobody
 which release, and two of them at once tell nobody anything.
 
+**AND THAT RULE HOLDS ONLY WHILE A BRANCH CARRIES ONE CANDIDATE, which
+is the condition nobody wrote down.** 0.24.4's line was cut as
+`pre-0.24.4rc7` and then built rc7 through rc15 from it, so for nine
+candidates the name said which artefact a CI result belonged to and was
+WRONG about it -- and being wrong is worse than being silent, since a
+reader has no way to tell. Renamed on 2026-09-05 to `pre-0.24.4`, which
+names the VERSION and cannot go stale before 0.24.5.
+
+Nothing here parses a branch name, which is what makes either choice
+safe: `ci.yml` triggers on `pre-**`, and `mutation.yml` resolves the
+baseline it diffs against from the newest TAG the commit descends from
+-- deliberately, after a run failed in August on a default that was a
+branch name and not a tag. The artefact a CI result belongs to is
+carried by the commit and by the tag (`v0.24.4rc15`), which are exact;
+the branch name was only ever a convenience.
+
+**WHICH CONVENTION 0.24.5 FOLLOWS IS THE MAINTAINER'S TO DECIDE**, and
+it is one sentence either way. Cut a fresh `pre-<version>rc<N>` per
+candidate and the original rule is true again, at the cost of a branch
+per candidate. Name the line for the version and the name stays true,
+at the cost of a CI result naming its candidate only by its tag. What
+must not stand is the arrangement that produced this: one branch, many
+candidates, and a name asserting otherwise.
+
 AND IT MAY ALREADY EXIST, pointing at the commit that OPENED the
 version. `pre-<version>rc1` is usually created the moment the version
 does, so the push at this stage is a fast-forward rather than a

@@ -5137,3 +5137,101 @@ twice.
 THE ORDER TO ASK IN, when an entry survives: did the mutation remove
 the behaviour at all; is the behaviour held redundantly; is the test
 reaching that journey; and only then, is the assertion weak.
+
+## A RATE FROM TOO FEW DRAWS, PUBLISHED TWICE IN ONE HOUR
+
+(2026-09-04, chasing the topology matrix's one failing cell, and both
+were mine.)
+
+The cell reproduced on the SECOND of two attempts and was written up as
+DETERMINISTIC. The next run of the same probe answered in 1.43 seconds
+both times.
+
+Then a two-arm comparison came back 2 of 8 at HEAD against 0 of 8 at
+the commit before that session's tiling patches, which reads exactly
+like a verdict on those patches -- and HEAD then produced 0 of 16 on
+its own, which disposes of it. The final count was four failures in
+eighty-six attempts, about 4.7%: sixteen attempts at that rate EXPECT
+less than one, so the control arm was never capable of saying anything
+and the comparison was decorative from the moment it was drawn.
+
+**ASK HOW MANY DRAWS WOULD BE NEEDED TO TELL YOUR RATE FROM ZERO**
+before reporting one. It is one line of arithmetic and it is the
+difference between a measurement and a story.
+
+AND THE RUN STAGED TO SETTLE IT WAS VOID FOR A SEPARATE REASON. One arm
+met a load average of 13 and the other 250, because the load staged was
+not the only load on the machine. A comparison whose CONDITIONS are not
+printed beside its numbers is not one anybody can check -- so each arm
+prints its own load average now, and the arms are run twice in reversed
+order so drift falls on both equally.
+
+**AN INTERMITTENT DEFECT'S ARMS ARE THE LAST THING TO TRUST AND ITS
+MECHANISM THE FIRST.** What actually settled this was a single reading
+taken at the moment of failure -- the task `Queued`, the thread pool
+`active=0`, no Python worker thread alive -- which no amount of
+rate-chasing would have produced, and which is what the repair was then
+aimed at. Reach for the instrument that reads STATE at the failure
+before the one that counts failures.
+
+## A GUARD CAN BE AIMED AT A STATE WITHOUT KNOWING WHAT PRODUCES IT
+
+(Same day, and it is the other half of the entry above.)
+
+The stall's CAUSE is undiagnosed: QGIS accepts a topology build, leaves
+it Queued and never starts it, four times in eighty-six attempts and
+then not at all in thirty. A condition nobody can stage cannot be
+tested, and this project's rule is to close the window rather than
+count how often it opens -- so the window was not the target. The STATE
+it leaves was: a task the dialog believes is in flight, reading Queued.
+
+**THAT STATE IS STAGEABLE EVEN THOUGH THE CONDITION IS NOT.** A QgsTask
+never handed to the task manager reads Queued for ever, deterministic
+and free, and it is the state exactly. The guard was therefore measured
+before it was written, and its test asserts a property rather than
+waiting for weather.
+
+WHAT KEEPS SUCH A GUARD HONEST IS SCOPE AND WORDING, and all three
+matter. It asks about STARTING and never about duration, so nothing
+slow can reach it. It SAYS rather than cancels, so a pool busy with
+another plugin's work gets a sentence that is still true. And the
+OPPOSITE ANSWER IS ASSERTED SEPARATELY, because a rule with two answers
+is taken for one by whoever meets the first: a build under way must NOT
+be reported as never started, or the tab tells somebody their healthy
+nineteen-second design was abandoned. Two entries, one per answer.
+
+## A SURVIVOR NAMED THE ARM THAT WAS MISSING
+
+(2026-09-04, repairing the drop that cleared its own preview.)
+
+`_commit_the_drag` has three exits that record nothing, and each must
+clear the preview. An entry was aimed at the third -- the no-travel
+test, which is what a person meets when they take hold of a handle and
+think better of it -- and it came back SURVIVED.
+
+It was not a weak test. The test's discard arm was a CLICK on a vertex,
+which never grabs anything, so it leaves at the drop's FIRST exit and
+the mutated line is not on its route at all: an INERT mutation, wearing
+the appearance of a test too weak to notice one. This document already
+carries the discriminator for telling those apart; what this adds is
+the shape that produces them most often.
+
+**A FUNCTION'S EARLY EXITS ARE JOURNEYS, NOT LINES.** Three `return`s
+in one method looked like three lines of one path, and they are three
+different things a person can do. An arm that grabs a handle and lets
+go without moving walks the third, and the entry then catches. Before
+writing an entry on an early exit, ask which ACT reaches it, and check
+your test performs that act rather than a neighbouring one.
+
+## A CLAIM ABOUT AN INTERVAL IS READ INSIDE THE INTERVAL
+
+(Same day.) The drop's defect is that the wrong picture is drawn
+BETWEEN the release and the landing. A guard that settles first reads
+the answer that arrives afterwards -- which is correct in both arms --
+and passes whatever happened in between.
+
+So the reading is taken ONE PUMP after the release, and the landing is
+asked separately, afterwards, whether what was kept on screen was what
+the edit produced. Two readings at two moments, because the claim has
+two halves: the picture was right during the interval, and it was not a
+lie about where the design ended up.
