@@ -307,7 +307,27 @@ is why every one of them passed in isolation.
 
 QUIET MUST NOW PERSIST: three consecutive clear checks, 600ms, longer
 than the queueing gap and far shorter than a build at 0.75s on the
-cheapest design. All three tests pass. THE PRODUCT STALL OF R-4 IS
+cheapest design. All three tests pass, and a full three-shard run over
+`03d6ba7` was GREEN at 264, 264 and 264 -- 792 of 792, each shard
+naming the same total.
+
+**AND IT FIRED ON WINDOWS CI TOO**, which is worth knowing because it
+says the window is not a peculiarity of this Mac: `tests` went red on
+`2dc4d0b` with `the drop keeps the picture it was showing` and the
+same 0.0 map units. That commit predates the repair, so the Windows
+arm is a confirmation waiting to happen rather than an open question;
+the run on `fa3158d` is the one to read.
+
+**AND THE STALL DID NOT REPRODUCE IN 117 ATTEMPTS**, hunted the same
+day with the discriminator armed
+(`tools/probes/how_often_a_build_never_starts.py`, WS_ATTEMPTS=150,
+stopped at 117 when the session ended). Against the historical 4 in 86
+that is a rate low enough to be clustered rather than steady, which is
+what the original measurement already said. IT IS NOT EVIDENCE THE
+STALL HAS GONE -- nothing in the repair touches the task manager, and
+a defect that appeared four times in one twenty-minute window and not
+at all in runs of 30, 16 and now 117 is exactly the shape that
+punishes a conclusion drawn from a quiet afternoon. THE PRODUCT STALL OF R-4 IS
 UNTOUCHED AND STILL OPEN -- it was measured with the pool idle and the
 task Queued, which is a different thing. What has changed is that the
 suite no longer reports a race as though it were that stall.

@@ -704,6 +704,33 @@ So a ceiling now widens for a slow machine as well as for a sharded
 one -- which does not retire the rule above, since a declared factor
 is still somebody's guess about a machine they cannot see.
 
+## QUIET HAS TO HOLD, NOT MERELY HAPPEN
+
+2026-09-05, and it is "wait on the EVENT" caught being half-applied.
+`_wait_for_the_topology` exists because waiting on the ABSENCE of a
+build task is not waiting on the answer -- `_topology_task` is None
+before a build is queued as well as after it lands. Its sibling
+`_settle_topology` still had the fault, and returned on a SINGLE tick
+with no task while the panel held the PREVIOUS topology, so a caller
+measured the design before its own edit.
+
+IT COST THREE TESTS ONE INTERMITTENT FAILURE EACH, across three-shard
+runs on this Mac and once on Windows CI, every one of them passing
+alone -- because alone the window between an edit being recorded and
+its build being queued is too narrow to land in. Three green draws of
+each never settled it; what settled it was making the failure PRINT
+ITS TERMS, at which point it said "a build is still in flight" and the
+diagnosis took a minute.
+
+**A FIX APPLIED TO THE INSTANCE SOMEBODY FOUND IS NOT A RULE**, which
+is this file's oldest lesson arriving at its own helpers. The repair
+belongs at the waiter and not at the twenty-one tests that assert on
+it: quiet must persist for three consecutive checks, 600ms, longer
+than the queueing gap and far shorter than a build at 0.75s on the
+cheapest design. `_wait_for_the_topology` also RAISES with what the
+tab is still waiting on rather than returning a bare False, so the
+next occurrence names its own cause. (T-132.)
+
 ## Ceilings, and the two ways to get them wrong
 
 A watchdog exists to catch a HANG. It is not a performance budget, and

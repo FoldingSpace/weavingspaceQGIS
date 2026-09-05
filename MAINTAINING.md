@@ -1088,6 +1088,47 @@ where recovery lands on NOTHING the chooser still names another
 dataset, and capturing that would file the resumed group under a
 dataset it was not made from.
 
+## The tiled frame is held between runs, and what the key is made of
+
+A Generate is mostly the JOIN: the overlay computes an argmax on AREA
+and keeps a tile id against a zone id, throwing the fragments away --
+1.034s of a 1.36s run at spacing 250, about 2.1s of 3.8s at 150. That
+answer does not depend on WHICH attribute is displayed, so changing an
+element's variable was paying for a tiling it already had.
+
+`_tiled_frame_for` and `_keep_the_tiled_frame` hold it, `_caching_is_on`
+reads the switch on Map options, and `_forget_the_tiled_frames` drops
+it. THE KEY IS `_geometry_signature(without_variables=True)` -- the
+signature ITSELF with its two variable terms blanked, not a copy of it.
+That matters more than it looks: "what changes the tiles" has been
+widened three times here, for a topology edit, for the dual and for
+the per-element split's own field, and every one of those fixes landed
+in that one function. A second enumeration beside the cache would have
+to be widened a fourth time by somebody who did not know it existed,
+and a cache that has not heard about a new term hands back the tiles
+of a different design.
+
+IT IS A PLAIN PYTHON OBJECT ON THE DIALOG, never a layer and never a
+layer field, and that is what holds ruling 6 BY CONSTRUCTION rather
+than by every writer remembering to. `_save_the_map` builds its write
+list by iterating ELEMENT IDS rather than the group's children, so it
+cannot write what it does not know about; QGIS serialises layers into
+a .qgz and not a dialog's attributes; and `_only_this_elements_data`
+is an ALLOWLIST over the source's columns, so a column the cache joins
+for its own reasons cannot ride onto a layer and from there into
+somebody's file. That last was a blocklist until 2026-09-05 and the
+two forms agree only while nothing joins a column nobody mapped --
+which is precisely what this cache does.
+
+WHAT IT DOES NOT SKIP is `gdf_to_layer`, 0.239s at spacing 250 and
+1.728s at 150, because `split_out_the_no_data` puts the rows a
+graduated renderer cannot draw onto a PAIRED layer and which rows
+those are is the variable's business. A switch therefore changes layer
+MEMBERSHIP and not merely values -- measured at 0.0% of tiles on the
+packaged Auckland data, whose nulls sit in the same six areas for
+every variable, and 20.2% at worst on a multi-source shape. The design
+for closing that is in ROADMAP.md with its four hazards.
+
 ## Four queues, because a press, a tick, a save and a Load are not one fact
 
 One run at a time is settled, so anything asking for a run while one is

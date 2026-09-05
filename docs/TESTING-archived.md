@@ -162,6 +162,8 @@ quote them, do not renumber them.
 
 - **T-131** — The contention factor that knew about sharding and nothing about the platform  <sub>Lessons, in full</sub>
 
+- **T-132** — The three intermittents, the armed failure, and why the fix went to the waiter  <sub>Lessons, in full</sub>
+
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
 
@@ -4759,4 +4761,64 @@ phase is a real failure rather than an expired clock. The absolute cap
 that remains is a hang-catcher, sized well above the slowest figure
 ever measured, and the failure message now says which of the two
 happened.
+
+### T-132 — The three intermittents, the armed failure, and why the fix went to the waiter
+
+<sub>Written for `TESTING.md` on 2026-09-05, the day it was
+diagnosed.</sub>
+
+THE SYMPTOM. Three topology tests failed one at a time across
+three-shard runs on this Mac -- `the drop keeps the picture it was
+showing`, `a design that cannot carry its edits still draws`, `a QGIS
+symbology edit reaches the plugin on every shape` -- and a fourth
+occurrence came from Windows CI on `2dc4d0b`. Every one passed when
+run alone. Three full runs gave 1, 0 and 2 failures.
+
+WHAT IT WAS READ AS FIRST, and this is the part worth keeping: the
+open product stall of R-4, where QGIS accepts a topology build, leaves
+it Queued and never starts it with the thread pool idle. The shapes
+are near-identical from outside -- a panel that never answers -- and
+one of the two failing premises literally reads "the tab neither built
+a topology nor said why not". A whole afternoon could have gone into
+the wrong one.
+
+WHAT SETTLED IT was not another reproduction but making the failure
+say what it found. The assertion was widened to print the panel's
+note, whether it held a topology, how many edits the change list held,
+and whether a build was in flight. The very next three-shard run
+printed: "The panel says ''; it holds a topology; the change list
+holds 1 edit(s); A BUILD IS STILL IN FLIGHT." That is neither a stall
+nor a refusal.
+
+THE MECHANISM. `_settle_topology` returned as soon as one tick found
+`_topology_task` None and the panel holding a topology. Both are true
+in the window between an edit being RECORDED and its build being
+QUEUED, because the panel still holds the PREVIOUS topology
+throughout. So the caller measured the design before its own edit, and
+`apart(started, landed)` came back 0.0.
+
+WHY IT ONLY FIRED UNDER CONTENTION. Alone, the queueing window is a
+tick or two wide and nothing lands in it. Under three shards the
+machine is oversubscribed and the window widens enough to be hit --
+which is why every one of these passed in isolation, and why one green
+draw alone never settled anything. This project's own rule about
+rates from too few draws applies to the negative direction too.
+
+WHERE THE FIX WENT, AND WHY NOT TO THE CALLERS. Twenty-one tests
+assert on `_wait_for_the_topology`, several with a bare "PREMISE: no
+topology". Mending those twenty-one would have been the instance-fix
+this project keeps paying for, and the twenty-second written next
+month would carry the old silence. So quiet must PERSIST -- three
+consecutive clear checks, 600ms, sized longer than the queueing gap
+and far shorter than a build at 0.75s on the cheapest design -- and
+the waiter RAISES with `_why_the_topology_tab_is_busy` rather than
+returning a bare False. The one caller that reports a stall as a
+result rather than failing on it asks for silence explicitly.
+
+WHAT IT CHANGES ABOUT THE STALL. R-4 is untouched and still open: it
+was measured with the pool idle and the task Queued, which is a
+different thing. What has changed is that the suite no longer reports
+a race as though it were that stall, so the next real occurrence is
+recognisable as itself. A hunt of 117 attempts the same day, with the
+discriminator armed, caught none.
 
