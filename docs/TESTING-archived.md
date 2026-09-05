@@ -136,6 +136,32 @@ quote them, do not renumber them.
 
 
 ## Lessons about testing, in full
+- **T-119** — The 373 probes, the eleven doubled prefixes, and the four faults of one evening  <sub>Lessons, in full</sub>
+
+- **T-120** — The claim that ran the other way, and what went in the ledger instead  <sub>Lessons, in full</sub>
+
+- **T-121** — The three clean probes, and the memory URI that could not collide  <sub>Lessons, in full</sub>
+
+- **T-122** — What each differential instrument actually found, one by one  <sub>Lessons, in full</sub>
+
+- **T-123** — The three tests written around a defect, and what each pinned  <sub>Lessons, in full</sub>
+
+- **T-124** — The nineteen tests the reduction moved, and the one that knew why  <sub>Lessons, in full</sub>
+
+- **T-125** — The fixture accident test_metamorphic_variable_permutation was passing on  <sub>Lessons, in full</sub>
+
+- **T-126** — The three sibling-path defects of 2026-08-13, each in full  <sub>Lessons, in full</sub>
+
+- **T-127** — The 37-of-50 survivor breakdown behind the table-test shape  <sub>Lessons, in full</sub>
+
+- **T-128** — Why a table test flatters a mutation score, and the spacing default that proves it  <sub>Lessons, in full</sub>
+
+- **T-129** — The first test map's counts, kept as history  <sub>Lessons, in full</sub>
+
+- **T-130** — The 0.024ms ramp lookup that fitted the stall perfectly and was innocent  <sub>Lessons, in full</sub>
+
+- **T-131** — The contention factor that knew about sharding and nothing about the platform  <sub>Lessons, in full</sub>
+
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
 
@@ -4506,3 +4532,231 @@ different things a person can do. An arm that grabs a handle and lets
 go without moving walks the third, and the entry then catches. Before
 writing an entry on an early exit, ask which ACT reaches it, and check
 your test performs that act rather than a neighbouring one.
+
+### T-119 — The 373 probes, the eleven doubled prefixes, and the four faults of one evening
+
+<sub>Cut from `TESTING.md`, lines 30–45 of the 2026-09-05 revision.</sub>
+
+IT IS A CORRECTNESS TOOL RATHER THAN A CONVENIENCE, and the numbers
+are why. An audit on 2026-08-15 counted 373 one-shot probe scripts in
+one session, median 79 lines, roughly forty of them the same setup --
+and eleven hand-written wrappers all setting `QGIS_PREFIX_PATH` to a
+doubled path, so those hunts probed a QGIS with no colour ramps and
+none of them knew. A shared harness is wrong once instead of eleven
+times. The round of 2026-08-28 then produced four more of the same
+kind in one evening, every one of them mine and every one already
+written down somewhere in this file: a modal shim never installed, so
+a probe hung offscreen on a real QMessageBox; a message store read
+after the helper that blanks it; a `_temp_dir()` context manager
+garbage-collected out from under an open GeoPackage; and a fixture
+that cleared the very record its control arm depended on, forcing the
+defect into both arms.
+
+### T-120 — The claim that ran the other way, and what went in the ledger instead
+
+<sub>Cut from `TESTING.md`, lines 112–122 of the 2026-09-05 revision.</sub>
+
+2026-08-28. A hunt reported that a Save drops a no-data twin's table
+while its element's survives. Driving the same panel act -- delete one
+element's row from the group, press Save -- gave the OPPOSITE: the
+element's table went and the twin stayed, leaving a set of
+missing-value areas belonging to an element the map does not have.
+
+Same mechanism, same harm class, reversed. What was fixed and recorded
+is the direction that was MEASURED, and the claim's own direction is
+noted in the ledger as not reproduced.
+
+### T-121 — The three clean probes, and the memory URI that could not collide
+
+<sub>Cut from `TESTING.md`, lines 133–145 of the 2026-09-05 revision.</sub>
+
+Same day, three probes deep into one claim. The group chooser was
+reported to land on the OUTLINES layer, which is built on the region's
+own source, and so empty the region combo. Two probes came back clean
+on both arms.
+
+The fixture was the reason. `make_region_layer` is a MEMORY layer, and
+a memory URI is not something anything else can be built on -- so the
+two layers never shared a source string and the collision the claim is
+about could not arise. On the packaged Auckland GeoPackage it
+reproduced immediately, with a control arm (outlines off) staying
+clean.
+
+### T-122 — What each differential instrument actually found, one by one
+
+<sub>Cut from `TESTING.md`, lines 356–377 of the 2026-09-05 revision.</sub>
+
+The record: the docstring audit found TWO product defects in a
+session with no machine time, by reading documentation against code.
+The first Linux run found a defect invisible on any Mac, ramp names
+colliding by case. `install_and_load` found a fault the first time
+anything opened the artefact a user actually receives.
+UI-against-library caught three bugs every "a map appeared" assertion
+had walked past. The colourspace comparison against upstream's own
+renderer caught a categorical sampling error where a plausible
+derivation used `round()` for `int()`. Each is code against code,
+machine against machine, prose against behaviour, or our render
+against somebody else's.
+
+Mutation testing is not on that list, and should not be expected on
+it. It asks "would the suite have noticed?", which is a question about
+the TESTS. It is worth running for exactly that -- a catalogue sweep
+returning 173 caught and 1 accepted is real assurance that old tests
+still reach what they name -- but a campaign of 128 survivors yielded one product
+defect, and the sample did not find it; a differential probe did. Do
+not budget mutation triage as defect-hunting. Budget it as suite
+measurement, and spend the creative effort on new differentials.
+
+### T-123 — The three tests written around a defect, and what each pinned
+
+<sub>Cut from `TESTING.md`, lines 388–400 of the 2026-09-05 revision.</sub>
+
+as correct behaviour.** Three were found this way on 2026-08-13, all
+in one evening, and none of them looked wrong. One asserted
+`distinct >= k` before measuring, so the case where a column has fewer
+values than classes was excluded by the test that would otherwise have
+caught it. One switched from Quantiles to Equal intervals with a
+comment explaining that four values cannot exhibit nine classes -- and
+then asserted the nine ranges it got, five of which painted nothing.
+The third set the mode to Categorized on a row that was ALREADY
+Categorized, so the style flip it described never happened, and what
+it actually asserted was that a ramp picked on a categorized row gets
+thrown away: the defect, pinned as the contract.
+
+### T-124 — The nineteen tests the reduction moved, and the one that knew why
+
+<sub>Cut from `TESTING.md`, lines 401–416 of the 2026-09-05 revision.</sub>
+
+is the evidence.** On 2026-08-13 a real defect was fixed correctly --
+a graduated renderer drawing more classes than the column has distinct
+values, so swatches appear in the legend that no tile uses -- by the
+same reduction upstream applies. Nineteen tests moved. That number was
+the finding, not the inconvenience: the standard fixture gives four
+distinct values and the suite's graduated tests ask for five, so the
+whole suite sat on that boundary, and one of the nineteen said why in
+as many words. `test_metamorphic_variable_permutation` requires that
+"b must class exactly as a did", and an element LAYER holds only that
+element's tiles -- so the reduction made the class count depend on
+which tiles an element happened to receive, and two elements carrying
+the same variable could draw different numbers of classes. On a map
+whose purpose is reading elements against each other, that is a worse
+fault than the one being fixed.
+
+### T-125 — The fixture accident test_metamorphic_variable_permutation was passing on
+
+<sub>Cut from `TESTING.md`, lines 433–445 of the 2026-09-05 revision.</sub>
+
+a test that passes for a reason nobody chose.** The reduction above was
+put back on 2026-08-14, and putting it back exposed something older and
+worse: class breaks were cut from each ELEMENT layer, which holds only
+that element's tiles, so four elements carrying one variable drew four
+different legends and one colour meant four different numbers. That had
+been shipping. It survived every differential this project has because
+the standard fixture asks for five classes over a column with four
+distinct values -- and more classes than values collapses quantile
+breaks onto the values themselves, which makes the elements agree
+whatever the code does. `test_metamorphic_variable_permutation` was
+passing on that accident, not on the behaviour it names.
+
+### T-126 — The three sibling-path defects of 2026-08-13, each in full
+
+<sub>Cut from `TESTING.md`, lines 470–483 of the 2026-09-05 revision.</sub>
+
+its own sibling.** Three more defects came out on 2026-08-13, all
+found by reading one code path beside the twin that does the same job
+for the other styling mode, and asking what one does that the other
+does not. A class colour picked during a run was destroyed when the
+run landed, because the landing path re-read the categorical picks
+and not the graduated ones. QGIS's own Classify over a
+constant column raised IndexError inside a renderer signal handler,
+because the categorized branch guards a case its graduated twin
+walks straight into. A Reverse tick was discarded by any rebuild
+happening while the switch was greyed, because one part of the
+dialog preserved the record and another restored it from a report
+that had never been about the record.
+
+### T-127 — The 37-of-50 survivor breakdown behind the table-test shape
+
+<sub>Cut from `TESTING.md`, lines 547–554 of the 2026-09-05 revision.</sub>
+
+Evidence for the shape: across three batches, 37 of 50 survivors came
+from just two operators, "call removed" and "number changed", and
+almost every one was a default, a constant, a catalogue value or a
+configuration call. Fixing those individually took most of a day and
+covered only what had been sampled; the tables cover what has not
+been sampled yet.
+
+### T-128 — Why a table test flatters a mutation score, and the spacing default that proves it
+
+<sub>Cut from `TESTING.md`, lines 563–581 of the 2026-09-05 revision.</sub>
+
+That has a consequence for the mutation score, and it should be said
+out loud. A table kills numeric mutants very cheaply: `20 -> 21` dies
+because a line says 20, which is one step from asserting that 20
+equals 20. **The score rises further than the detection ability
+does.** When a round adds table tests, expect the rate to improve for
+two different reasons, and do not read the whole improvement as the
+suite getting better at noticing bugs. Where it matters, classify
+which mutants newly died: those caught by behavioural tests (the
+preview must draw, cancel must return the dialog, a ramp must produce
+its declared colours) are detection; those caught by a pinned
+constant are regression cover.
+
+Watch, too, what the environment supplies: the declared spacing
+default is 1000, but a dialog built with a layer present shows 500,
+because auto-spacing legitimately sized it to that layer. The table
+asserts what a user meets on a fresh dialog with an empty project,
+and the auto-spacing behaviour is a separate test.
+
+### T-129 — The first test map's counts, kept as history
+
+<sub>Cut from `TESTING.md`, lines 605–612 of the 2026-09-05 revision.</sub>
+
+As of the first map: 145 tests, 35 guarding a real
+defect. Those two numbers are the figures on the day the map
+was first generated and are left as history; the CURRENT ones
+are at the top of docs/TEST-MAP.md and docs/BUG-REGISTER.md,
+which are regenerated at every release. A count written into
+prose is true until somebody adds one.
+
+### T-130 — The 0.024ms ramp lookup that fitted the stall perfectly and was innocent
+
+<sub>Cut from `TESTING.md`, lines 651–662 of the 2026-09-05 revision.</sub>
+
+What actually explained it was in the timings nobody had looked at:
+the same test took 392s, 486s and 550s on three legs of ONE round, on
+identical code. The spread is the runner.
+
+A stack tells you where a process WAS, which is not why it was slow.
+Before accepting the obvious culprit, measure it -- and prefer
+evidence that varies independently of the suspect, like the same code
+timed on three machines. The cache was kept because it is right on
+its own terms, and labelled in its commit as not the cause, because
+the next person will otherwise read the fix as the diagnosis.
+
+### T-131 — The contention factor that knew about sharding and nothing about the platform
+
+<sub>Cut from `TESTING.md`, lines 666–688 of the 2026-09-05 revision.</sub>
+
+`test_ui_affordances_are_deliberate` sampled the progress bar for
+`10 * CONTENTION` seconds waiting for it to name its phase. CONTENTION
+was then `2.5 if SHARD_COUNT > 1 else 1.0` -- it knew about SHARDING
+and nothing about the PLATFORM, and CI runs the suite unsharded. So
+that was a flat ten seconds on runners where neighbouring tests take
+250.
+Windows saw the bare `%p%` after 18.7s and failed; macOS finished the
+whole test in 9.0s and passed. Same code, same assertion, two verdicts
+decided by nothing but the machine.
+
+Widening the constant would have been the obvious repair and the wrong
+one, because no constant is right for both. THE PHASE TEXT IS SET FROM
+THE FIRST PROGRESS REPORT, which the worker sends before any heavy
+work, so the question "has it appeared yet" is only meaningful WHILE
+THE RUN IS STILL GOING. Waiting on the task ending instead is faster
+on a quick machine (it breaks the moment the text appears), patient on
+a slow one, and STRICTER: a run that finishes having never named a
+phase is a real failure rather than an expired clock. The absolute cap
+that remains is a hang-catcher, sized well above the slowest figure
+ever measured, and the failure message now says which of the two
+happened.
+

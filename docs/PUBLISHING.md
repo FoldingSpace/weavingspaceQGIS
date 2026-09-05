@@ -27,7 +27,6 @@ install QGIS and hear the same answer. On 2026-08-29 a window-width
 regression cost one full round to discover and another to confirm the
 fix, which is what the probe exists to stop happening twice.
 
-
 The candidate's gates take about ninety minutes on this Mac; GitHub's
 amd64 runners finish the Linux matrix in about twenty. Run them in
 SERIES and you learn about a Linux fault ninety minutes after you

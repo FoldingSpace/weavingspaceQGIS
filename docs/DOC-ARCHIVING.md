@@ -17,6 +17,28 @@ So each of those documents is split in two. The five now hold 10,832 lines betwe
 
 **The live half keeps the rule. The archive keeps the account.**
 
+**THE MEASURE IS THE RULE PLUS ABOUT ONE CLAUSE OF EVIDENCE.**
+(Maintainer's ruling, 2026-09-05, with room to break it where the
+situation demands.) A rule stripped to a bare imperative degrades into
+a platitude nobody applies -- "assert the premise" means nothing to
+somebody who has never watched a premise fail green -- so the live
+entry keeps the sentence that makes it believable, and one clause of
+what it cost. Not the run, not the measurements, not the hypotheses
+tried first, not the superseded wording. If you find yourself keeping
+a second sentence of evidence, ask whether it is evidence for the same
+claim or a second claim wearing the first one's headline; if it is the
+second, that is a separate entry, and if it is the first, it belongs
+in the archive.
+
+WHAT BREAKING IT LOOKS LIKE, since the room to break it is part of the
+ruling. A RULING keeps its whole statement, because the section exists
+so nobody relitigates silently and a reader has to see what was decided
+without opening another file. A PROCEDURE keeps every step: an
+instruction with a step missing is worse than no instruction. A DEBT
+keeps whatever names what is owed. What none of those licenses is
+keeping the narrative -- the day, the wrong first hypothesis, the
+measurement -- and that is what the archive is for.
+
 The RULE is whatever changes what you do: the lesson's headline, the
 decision, the procedure, the command, the constraint. It stays where it
 was, in the order it was in, so the document still reads as a document.
@@ -144,14 +166,14 @@ check pass is a check that has been switched off.
 
 | Document | Before | After | Accounts archived |
 |---|---|---|---|
-| CLAUDE.md | 7,048 | 4,007 | 244 |
-| docs/TESTING.md | 5,238 | 2,556 | 118 |
-| ROADMAP.md | 3,095 | 1,073 | 71 |
-| MAINTAINING.md | 2,422 | 2,416 | 1 |
-| docs/PUBLISHING.md | 1,193 | 903 | 5 |
+| CLAUDE.md | 7,048 | 3,883 | 262 |
+| docs/TESTING.md | 5,238 | 2,481 | 131 |
+| ROADMAP.md | 3,095 | 1,051 | 72 |
+| MAINTAINING.md | 2,422 | 2,415 | 1 |
+| docs/PUBLISHING.md | 1,193 | 902 | 5 |
 
-("After" is after the audit below put the archived rules back, so each
-figure is about sixty lines above what the cut alone left.)
+("After" is after the audit below, which put the archived rules back
+and then made a second pass against the measure.)
 
 The two documents with almost nothing taken are the finding, not the
 omission: MAINTAINING.md is architecture, and docs/PUBLISHING.md is a
@@ -182,6 +204,24 @@ itself -- is closed. The archives were left exactly as they were, so
 they remain a verbatim record of what the pass took; a restored rule
 therefore appears in both halves, which is the honest cost of mending
 a cut rather than pretending it was never made.
+
+**AND A SECOND PASS FOLLOWED, ON THE MEASURE.** Once "the rule plus
+about one clause of evidence" was the standard rather than an
+instinct, the five documents were read against it and the entries that
+broke it were cut: the big grilling blocks, whose numbered rulings are
+the rule and whose surrounding narrative was not; the CI-parity
+practices, which carried their whole account beside a pointer to it;
+and the closed field report in ROADMAP.md, which kept a full
+measurement of finished work in the live ledger. Eighteen accounts
+moved, C-245 to C-262, T-119 to T-131 and R-72.
+
+WHAT THE SECOND PASS DID NOT TOUCH, and the reason is the ruling's own
+room to break the measure. MAINTAINING.md is architecture and stayed
+whole. The numbered rulings of the grillings kept every statement.
+Procedures kept every step -- the `check_before_push` block lost its
+account and not one line of its command. And the outstanding entries
+in ROADMAP.md were left exactly as they are, because a debt is not
+evidence.
 
 **What this says about the practice, and not just about one pass.** A
 mechanical cutter cannot do this, and the first pass half-believed it

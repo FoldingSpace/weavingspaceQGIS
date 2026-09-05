@@ -89,12 +89,13 @@ quote them, do not renumber them.
 
 
 ## Released versions, in full
+- **R-72** — The drop's preview: the 1.676s measurement, and why rc15's three fixes did not cover it  <sub>0.24.4: accounts of closed work</sub>
+
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
 
 <sub>Cut from `ROADMAP.md`, lines 186–308 of the
 2026-09-05 revision.</sub>
-
 
 Published as `v0.24.3` from `main`, promoted from candidate rc21 with
 its receipt rather than rebuilt. What follows is what the version
@@ -3030,3 +3031,39 @@ assert-a-shipped-string idea: run the candidate rule over the whole
 corpus of 312 approved pieces, count what it would have hidden, and
 only then decide. What must NOT happen is the queue being narrowed
 to make review pleasant, which is how a gate becomes decoration.
+
+### R-72 — The drop's preview: the 1.676s measurement, and why rc15's three fixes did not cover it
+
+<sub>Cut from `ROADMAP.md`, lines 286–316 of the 2026-09-05 revision.</sub>
+
+   AND A SURVIVOR NAMED THE ARM THAT WAS MISSING. The entry on the
+   no-travel exit survived at first, because the test's discard arm was
+   a CLICK -- which leaves at the drop's FIRST exit and never reaches
+   the travel test at all. An arm that grabs a handle and lets go
+   without moving walks that route, and the entry catches. Three exits
+   are three journeys, not three lines.
+   WHAT IS LEFT OPEN DELIBERATELY is the journey where no rebuild
+   follows: the preview then goes on showing what the person asked for,
+   which agrees with the change list, where reverting would show a
+   design the list denies. THE ORIGINAL REPORT AND ITS MEASUREMENTS
+   FOLLOW, kept because they are what a later session will not have.
+
+   **CONFIRMED AND MEASURED.** `_commit_the_drag` clears the preview at the
+   drop while the rebuild is asynchronous, so the drawing falls back to
+   the topology it still holds -- the one from before the edit -- until
+   the build lands. Measured on the default design: the old design
+   stays up for 1.676s, and the settled drawing is IDENTICAL to what
+   the preview had been showing, so the correct picture was on screen
+   and was thrown away and recomputed. On the catalogue's heaviest
+   design a build is about twenty-one seconds.
+   IT IS NOT WHAT THE THREE FIXES IN rc15 ADDRESS. Those cover a
+   landing arriving DURING a gesture and the window between the click
+   and the press; this is the window AFTER the drop, which none of them
+   touches -- so "still there" was exactly right and it had never been
+   fixed.
+   THE REPAIR is to keep the preview standing on the path that RECORDS
+   an edit and let the landing clear it, which it already does; the
+   discard paths must still clear at once. What needs deciding is the
+   journey where no rebuild follows, and it wants a state rather than a
+   timer.
+

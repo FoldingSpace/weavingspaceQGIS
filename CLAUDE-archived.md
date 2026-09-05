@@ -262,6 +262,42 @@ quote them, do not renumber them.
 
 
 ## Hard rules: the accounts behind them
+- **C-245** — A change of region dataset: what enforcing the seven rulings cost  <sub>Lessons learned here, in full</sub>
+
+- **C-246** — The three scopes answering one act, and the A-B-A probe behind the group rulings  <sub>Lessons learned here, in full</sub>
+
+- **C-247** — The two alternatives refused when the output group became the unit of work  <sub>Lessons learned here, in full</sub>
+
+- **C-248** — What converting fifty-eight Save presses cost, and the four defects it found  <sub>Lessons learned here, in full</sub>
+
+- **C-249** — The three grounds for _may_overwrite asking about the dataset rather than the group  <sub>Lessons learned here, in full</sub>
+
+- **C-250** — Numbers stored as text: the measurement, the cache, and the fixture blind spot  <sub>Design decisions already settled</sub>
+
+- **C-251** — What the doubled alphabet was measured at before it moved  <sub>Design decisions already settled</sub>
+
+- **C-252** — The chooser and the panel answering one fact two ways, and the six splitters  <sub>Design decisions already settled</sub>
+
+- **C-253** — The two registered tests that collided over a kept scheme  <sub>Design decisions already settled</sub>
+
+- **C-254** — The four regressions round nine shipped, and the leg that found them  <sub>Design decisions already settled</sub>
+
+- **C-255** — Why a modal refusal is the quietest exit, and harness fault eleven  <sub>Design decisions already settled</sub>
+
+- **C-256** — Windows running install-and-load alone, and the instruction that ended it  <sub>Required practices: the accounts behind them</sub>
+
+- **C-257** — The macos job missing from the check's own list, and the sixteen-day false sentence  <sub>Required practices: the accounts behind them</sub>
+
+- **C-258** — The eighteen red pushes across six hours, and why every local gate was green  <sub>Required practices: the accounts behind them</sub>
+
+- **C-259** — How release_notes.entry_for collapsed the categorized changelog shape  <sub>Required practices: the accounts behind them</sub>
+
+- **C-260** — The guard that walks every version header, and the entry it stands on  <sub>Required practices: the accounts behind them</sub>
+
+- **C-261** — The six boundaries icon mode was driven across, and how each was read  <sub>How we decide things: the accounts behind them</sub>
+
+- **C-262** — The 48-design spread behind multi-class selection, and cairo measured against laves  <sub>Design decisions already settled</sub>
+
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
 
@@ -6384,3 +6420,367 @@ first, kept here so they are unmissable:
   SURVIVED because the test's discard arm was a click, which leaves at
   the first exit and never reaches it. A SURVIVOR NAMED THE ARM THAT
   WAS MISSING, which is what a survivor is for.
+
+### C-245 — A change of region dataset: what enforcing the seven rulings cost
+
+<sub>Cut from `CLAUDE.md`, lines 1640–1685 of the 2026-09-05 revision.</sub>
+
+  A LANDING NEVER WRITES OVER A MAP MADE FROM ANOTHER DATASET, and
+  that is ruling 2 finishing the job it started. Making a second
+  output group the ordinary result of a demo left ADOPTION's older
+  assumption wrong -- it takes the newest group and runs at
+  construction, before the user has chosen anything -- so reopening a
+  project holding two datasets' maps and generating on the first
+  DELETED the second. Every output layer carries
+  `weavingspace_region` now (the region's source, which survives a
+  reopen where a layer id does not), and the landing refuses a group
+  whose stamps name another dataset. Output made before the stamp
+  carries none and keeps the older rules. When a ruling starts
+  producing a SECOND artefact by default, re-drive every path that
+  assumed one.
+  AND THE CHOOSER IS NOT THE ONLY DOOR. Two hunts of 2026-08-25
+  found the same defect from different directions: REMOVING the region
+  layer and picking another skipped every protection, so Generate
+  overwrote the previous dataset's GeoPackage unasked. `switched`
+  asked about the WATCHED LAYER OBJECT, which a removal nulls; and
+  the layer COUNT decided which of two routes ran, so the same act
+  answered differently in a project with two polygon layers and one
+  with three. It asks about the DATASET IN FORCE now
+  (`_memory_layer_id`), and the bank swap RETURNS on an empty chooser
+  rather than banking and forgetting -- the second fault, which hid
+  the first. When a rule is about "the thing in force", ask what NULLS
+  the record you are reading, and whether the answer is a user's act
+  or somebody else's cleanup.
+  WHAT COUNTS AS "A CHANGE OF DATASET" WAS DRAWN BY THE FULL SUITE on
+  the rulings' first whole run, which failed three tests the targeted
+  runs had all passed: leaving a dataset THIS SESSION HAS BUILT FROM.
+  One clause, and it covers all three failures. A recovery is not a
+  switch -- reopening a project whose region file moved and pointing
+  at live data re-finds the same work -- because a reopened session
+  has not landed anything yet. A combo AUTO-LANDING in a busy project
+  is not a dataset the user chose, for the same reason. And a
+  pre-generate fiddle is a first choice: nothing is built, so there
+  is nothing to protect. A SECOND CLAUSE WAS TRIED AND DELETED:
+  liveness of the outgoing layer, whose catalogue entry could only
+  survive, since every measured journey is decided by the landing
+  alone -- and in the one it would change, land a run then lose the
+  source then pick new data, protecting the landed result is what the
+  rulings ask anyway. `switched_from_work` in `_on_layer_changed` is
+  the one place the boundary lives; the retained-scheme question
+  deliberately stays on the plain switch, because it is about what
+  the TABLE carries rather than about protecting output.
+
+### C-246 — The three scopes answering one act, and the A-B-A probe behind the group rulings
+
+<sub>Cut from `CLAUDE.md`, lines 1661–1672 of the 2026-09-05 revision.</sub>
+
+  WHAT THE REPORT FOUND, and the probe confirmed on this branch: the
+  design travels a change of dataset intact, the value-laden records
+  are banked per dataset, and the output group is remembered nowhere
+  -- three scopes answering ONE act in three ways, none of them named
+  anywhere on screen. A-B-A leaves THREE groups, the first and third
+  stamped for the same dataset, so one dataset already owns two maps
+  with nothing to tell them apart. Returning to a dataset gives its
+  colours and pins back and somebody else's design. The colleague's
+  diagnosis is the sentence to keep: inferring all of this "is OK as
+  far as it goes, but it's too hard to be reliable and not produce
+  weird seeming behaviour relatively often".
+
+### C-247 — The two alternatives refused when the output group became the unit of work
+
+<sub>Cut from `CLAUDE.md`, lines 1725–1739 of the 2026-09-05 revision.</sub>
+
+  WHAT WAS REJECTED, recorded so nobody re-litigates it silently. The
+  colleague offered a genuine alternative -- REWIND TO ONE SHOT: work
+  on the current dataset, save it as now so it can be reloaded but not
+  resumed, and forget everything on an unsaved switch. It had the
+  strongest single argument in the room, that nine of the eleven
+  defects of 2026-08-25 were in exactly the machinery it deletes. It
+  was not taken because it costs the one behaviour the colleague
+  himself singled out as working (symbology coming back on a return)
+  and makes the several-datasets demo worse rather than better, which
+  is the session the whole report came from. THE MIDDLE OPTION was
+  also refused: keep inferring and mend the asymmetries by putting the
+  design in the per-dataset bank. It is much the cheapest, and it
+  fails on its own terms -- A-B-A would then move the design under the
+  user TWICE, where a design you SELECT never moves on its own.
+
+### C-248 — What converting fifty-eight Save presses cost, and the four defects it found
+
+<sub>Cut from `CLAUDE.md`, lines 1797–1817 of the 2026-09-05 revision.</sub>
+
+  WHAT EACH CARRIES, because a ruling written down reads exactly like
+  a ruling implemented. Rulings 3, 4 and 5 -- the output path, the
+  ramp memory and the seeding order -- each have a registered test and
+  catalogue entries proved `caught`, with ONE exception measured to a
+  close at the entry itself: the restyle half of ruling 5 is HELD
+  REDUNDANTLY rather than unproved, by a class source stamped on the
+  donor's content and by the reseeded term behind it. Rulings 1 and
+  2 -- saving as a positive act, and the untick that drops the
+  source -- carry twenty proved entries between them and a matrix of
+  eleven routes to a press.
+  WHAT THE CONVERSION COST AND FOUND, kept because it is the argument
+  for doing it that way again. Fifty-eight Save presses went in by
+  script where the old code's write used to happen; twenty-four tests
+  were converted BY HAND because what they assert changed rather than
+  moved; four tests were written that did not exist. It found FOUR
+  REAL DEFECTS, three on ordinary journeys -- a run claiming a save it
+  never made, a Save during the first run telling somebody to press
+  Generate, a region chooser excluding a newly loaded layer for being
+  allocated where a destroyed one had been, and a map opened with Load
+  being DESTROYED by being saved. Ledger rows 27 to 30.
+
+### C-249 — The three grounds for _may_overwrite asking about the dataset rather than the group
+
+<sub>Cut from `CLAUDE.md`, lines 1813–1826 of the 2026-09-05 revision.</sub>
+
+  AND `_may_overwrite` ASKS ABOUT THE DATASET, NOT THE GROUP, which
+  leaves one case silent: a SECOND map of the SAME dataset, saved
+  onto the first map's file, replaces it without a question. Three
+  things decide that -- the file's record carries `region` and
+  `output_path` and no group identity at all, so the question is not
+  available to ask; the ruling's own boundary is "a file the plugin
+  did not write", and that is a file the plugin wrote from that data;
+  and the chooser is a save-mode dialogue, so the platform has
+  already asked about replacing an existing file. The method's own
+  docstring claimed the group until this was noticed, which is this
+  file's "a gate that checks half of what it names" met again, from
+  the documentation side. If the group should be the unit, the record
+  needs a group identity first.
+
+### C-250 — Numbers stored as text: the measurement, the cache, and the fixture blind spot
+
+<sub>Cut from `CLAUDE.md`, lines 1904–1946 of the 2026-09-05 revision.</sub>
+
+  MEASURED ON QGIS 4.0.3, that is true of WORDS and false of NUMERIC
+  STRINGS: a String column running "10" to "120" classifies exactly as
+  its integer twin -- five ranges, the same bounds, twelve of twelve
+  features symbolised. The rule was true of the example that prompted
+  it and wider than its evidence, and it cost a choropleth to anybody
+  whose numbers arrived through a CSV join or a GeoJSON: at three
+  thousand areas, three thousand and one categories.
+  `_field_is_numeric` IS THE ONE OWNER and answers the wider question
+  now, so all eight readers move together -- which is what stops the
+  row and the assignment disagreeing. A column declared numeric
+  answers True as it always did; a column declared text answers True
+  where every one of its values parses.
+  STRICT, AND THAT IS THE HALF THAT KEEPS IT SAFE. "Mostly numbers" is
+  a column with something else in it, and a graduated renderer drops
+  those rows in silence -- the very failure the old rule was written
+  about, arriving through the door opened to relax it. Both answers
+  are asserted in one test, because a reader meeting either alone
+  would take it for the whole rule.
+  AND THERE IS A SECOND HALF, FOUND BY THE FIRST FULL SUITE AFTER THIS
+  WAS BUILT: no two distinct TEXTS may collapse onto one number.
+  Python reads `float(" 3")` as 3.0, so a column holding "3", " 3" and
+  "3 " -- three values a legend shows as three classes, and which
+  `test_awkward_attribute_values_keep_their_meaning` exists to keep
+  apart, since "tidying is a silent edit of somebody's data" -- passed
+  the parse test and was then drawn as ONE. The ruling was made so a
+  quoted CSV column could be classed as numbers; it was never made to
+  merge values a reader can tell apart. So the question is not "does
+  every value parse" but "does every value parse to a number of its
+  OWN", which also refuses "3" beside "3.0" without needing a rule of
+  its own.
+  NO TARGETED RUN COULD HAVE FOUND IT, and that is the transferable
+  part: every fixture written FOR the ruling held clean numbers,
+  because that is what the ruling is about. The case that broke it
+  lived in a test about hostile data that nobody would have thought to
+  run. A green subset is not a green suite, and this is that rule
+  arriving from the direction of a NEW FEATURE rather than a
+  regression.
+  AND IT IS CACHED, keyed by layer, column, fingerprint and data
+  version exactly as `_classification_values` is. `_field_is_numeric`
+  is asked once per field for the variable lists and once per element
+  inside `_assignments`, which every keystroke reaches, so an
+  unguarded scan would rebuild the cache-of-one defect of 2026-08-19.
+
+### C-251 — What the doubled alphabet was measured at before it moved
+
+<sub>Cut from `CLAUDE.md`, lines 1961–1977 of the 2026-09-05 revision.</sub>
+
+  MEASURED BEFORE IT MOVED: all four formula families build a unit
+  with exactly n DISTINCT ids at 27, 52, 53, 100, 196 and 256, at
+  0.01-0.05s each. The catalogue went from 247 entries to 1,168 and
+  the sweep that builds every one of them still passes.
+  AND `"aa" < "z"`, WHICH IS THE HALF A DOUBLED ALPHABET BREAKS
+  QUIETLY. Python compares strings character by character, so the
+  twenty-seventh element sorted SECOND -- second in the assignment
+  table, in the layers panel, in the design view's labels, in the
+  legibility check's pairs, and second again in a resumed panel, where
+  table names carry the same fault. Nothing was lost; a user simply
+  could not find their twenty-seventh variable.
+  `bridge.element_order` is the one owner of that question and every
+  site reads it. `tools/probes/element_order_through_a_roundtrip.py`
+  prints the three orders -- the dock, the file, and the dock after a
+  resume -- because they are three different questions, and the file's
+  own listing is right only by the accident of creation order.
+
+### C-252 — The chooser and the panel answering one fact two ways, and the six splitters
+
+<sub>Cut from `CLAUDE.md`, lines 1984–2001 of the 2026-09-05 revision.</sub>
+
+  ONE FACT, TWO PLACES, AND ONLY ONE OF THEM ANSWERED. The chooser
+  composed its label as `<group name> — <dataset>`; the panel had the
+  counter. So the name now carries the dataset and the chooser
+  appends it only where the name does not already have it -- a group
+  somebody renamed, or output made before this ruling, for which the
+  chooser is the only place the dataset appears.
+  THE NAME IS STILL A LABEL AND NEVER AN IDENTITY. The lookup asks
+  the layers; renaming stays the user's business and is never undone.
+  And the dataset is taken from THE LAYER THIS RUN TILED where the
+  caller knows it, falling back to the chooser only where it does
+  not, which is the rule the region stamp already follows for the
+  same reason.
+  ITS COST WAS IN THE SUITE, and worth knowing: six call sites
+  recovered a group's name from a chooser label by splitting on the
+  separator, which was right until the separator moved inside the
+  name. They route through one helper now. When you change how a
+  label is composed, grep for whoever DECOMPOSES it.
+
+### C-253 — The two registered tests that collided over a kept scheme
+
+<sub>Cut from `CLAUDE.md`, lines 2005–2014 of the 2026-09-05 revision.</sub>
+
+  IT SETTLED A COLLISION BETWEEN TWO REGISTERED TESTS, which is why it
+  is a ruling and not a fix. One required the element to own those
+  colours ("a missing file is a reason to stop consulting the file,
+  not a reason to repaint somebody's map"); the other, written the day
+  before, required the record to stay empty, because colours that
+  outrank a template make restoring an edited scheme change nothing.
+  Both harms were real and measured. WHEN TWO SETTLED RULES GIVE ONE
+  ACT TWO ANSWERS, THE ANSWER IS USUALLY BOTH -- with the thing that
+  tells them apart written down.
+
+### C-254 — The four regressions round nine shipped, and the leg that found them
+
+<sub>Cut from `CLAUDE.md`, lines 2028–2036 of the 2026-09-05 revision.</sub>
+
+What found them was the mutation workflow's coverage leg,
+  which runs the WHOLE suite: green at `6d6ea2d`, red at `64cb0fa`,
+  four named tests, all four reproduced here on the first attempt.
+  The rule already written is that a change to a core path is verified
+  by the whole suite and that the candidate is where that happens.
+  What this adds is the failure mode when the rule is skipped: the
+  four survived a hunt round aimed at exactly that code, because a
+  hunt asks what MIGHT be broken and the suite asks what IS.
+
+### C-255 — Why a modal refusal is the quietest exit, and harness fault eleven
+
+<sub>Cut from `CLAUDE.md`, lines 2064–2070 of the 2026-09-05 revision.</sub>
+
+  THE MODAL IS THE PART TO REMEMBER: that guard refuses through a
+  QMessageBox, which in a headless suite lands in the shim's MODALS
+  and never reaches the message bar -- so a run refused there is
+  indistinguishable from a run that was never launched. The ledger
+  already carried this as harness fault eleven; it recurs because
+  the two stores are read by different code. Read both.
+
+### C-256 — Windows running install-and-load alone, and the instruction that ended it
+
+<sub>Cut from `CLAUDE.md`, lines 396–407 of the 2026-09-05 revision.</sub>
+
+  Windows is where most of this plugin's users are, and until
+  2026-08-15 it ran nothing but an install-and-load. (Maintainer's
+  instruction that day: Windows and Linux should test as much as
+  macOS does, within only the limits GitHub imposes that we cannot
+  code around; restated that night, once a macOS runner existed, as
+  every platform staying as close to the local suite as practical.)
+  THE MACOS LEG EARNED ITS PLACE ON ITS FIRST COMPLETE RUN: it is the
+  only leg that runs the package a macOS user installs, in a profile
+  nobody has seeded, and it found three faults this machine cannot show
+  -- all three masked here by a style library the plugin seeded years
+  ago. C-5.
+
+### C-257 — The macos job missing from the check's own list, and the sixteen-day false sentence
+
+<sub>Cut from `CLAUDE.md`, lines 422–430 of the 2026-09-05 revision.</sub>
+
+  still running a command this check can SEE. `macos` was missing
+  from that last list on the day the job was added, so the newest
+  platform was the one that could go quiet without failing anything;
+  corrected 2026-08-15 and proved by hushing it in a throwaway copy.
+  Nothing there is a hand-kept list, so the two cannot drift apart
+  quietly -- a sentence that was FALSE for sixteen days, because
+  `EXPECTED_STAGES` in release.py was exactly that. Both widenings, and
+  the instruments audit that found the second: C-6.
+
+### C-258 — The eighteen red pushes across six hours, and why every local gate was green
+
+<sub>Cut from `CLAUDE.md`, lines 474–482 of the 2026-09-05 revision.</sub>
+
+  The specific trap here is worth naming, because it will recur: the
+  local checks all passed the whole time. `check_standards` and
+  `check_no_secrets` are green on a tree whose text-review queue is
+  full, because approving prose is the USER'S act and no local gate
+  may do it. A gate only a person can satisfy is exactly the one that
+  goes unsatisfied for six hours. So the local habit is now ONE
+  command, and it reads its own contents out of `ci.yml`:
+
+### C-259 — How release_notes.entry_for collapsed the categorized changelog shape
+
+<sub>Cut from `CLAUDE.md`, lines 702–711 of the 2026-09-05 revision.</sub>
+
+  displays the metadata text as it stands, and by the GitHub release
+  page, which renders MARKDOWN -- where single newlines fold into one
+  paragraph. The categorized shape settled on 2026-08-13 therefore
+  worked in the plugin manager and arrived on the release page as a
+  wall of prose, because `release_notes.entry_for` collapsed the
+  entry with `" ".join(...)` before GitHub ever saw it. Found and
+  fixed 2026-08-14; the entry is now emitted as an opening paragraph
+  plus one bullet per category, and `test_the_release_notes_keep_
+  their_categories` holds the line.
+
+### C-260 — The guard that walks every version header, and the entry it stands on
+
+<sub>Cut from `CLAUDE.md`, lines 719–730 of the 2026-09-05 revision.</sub>
+
+  ITS OWN TEST COULD NOT SEE IT, and that is the transferable half:
+  the test reads the CURRENT version's entry and requires a paragraph
+  then bold bullets, which TWO ENTRIES JOINED END TO END satisfy
+  exactly. A shape assertion cannot tell one record from two. Where a
+  tool cuts one record out of a document holding several, assert the
+  CUT -- that the piece stops where the next begins and carries none
+  of its neighbour's furniture -- and not merely that the piece is
+  shaped like a piece. The guard walks every version header in the
+  field now, and the catalogue entry
+  `an-entry-stops-where-the-next-version-starts` stands on the
+  boundary itself.
+
+### C-261 — The six boundaries icon mode was driven across, and how each was read
+
+<sub>Cut from `CLAUDE.md`, lines 1078–1088 of the 2026-09-05 revision.</sub>
+
+  ICON MODE WAS ON THAT LIST AND IS NOT OPEN, corrected 2026-08-27.
+  Ruling 4 of 2026-08-25 puts icon mode in the working state a group
+  restores, the restore whitelist carries it, and a hunt drove six
+  boundaries -- group switch and return, project save and reopen,
+  GeoPackage resume, dataset switch, off-and-re-generate -- reading
+  the node property with plain json, the file with bare GDAL and the
+  .qgz out of its own zip. All agreed. A binding file that lists a
+  settled question as open is read as current and invites somebody to
+  implement forgetting, which is why the clause is struck rather than
+  left as harmless untidiness.
+
+### C-262 — The 48-design spread behind multi-class selection, and cairo measured against laves
+
+<sub>Cut from `CLAUDE.md`, lines 3483–3500 of the 2026-09-05 revision.</sub>
+
+  MULTI-CLASS SELECTORS: CLICK TO SELECT, A LIST TO CONFIRM, each
+  following the other with the blocked-signal discipline the pin
+  controls already carry. What decided the shape was how much there is
+  to select: across a 48-design spread most designs carry ONE OR TWO
+  transitivity classes of each kind, and where there are two the
+  chooser's per-class entries plus "every vertex" and "every edge"
+  already cover all three subsets, so the feature only bites on the
+  eight of 48 with three or more -- `hex-slice 5` at 5 vertex and 7
+  edge classes being the richest. The record needs nothing: an edit's
+  `classes` is already a STRING selector and the library matches
+  `label in selector`.
+  CAIRO IS A RENAME, NOT A FAMILY. Measured through `catalog.make_unit`,
+  `tiling_type="cairo"` and the catalogue's own `laves 3.3.4.3.4` draw
+  the SAME GROUND -- four tiles, ids a-d, identical areas and bounds,
+  symmetric difference 0.000 -- so one entry reads `laves 3.3.4.3.4
+  (cairo)` and the well-known Archimedean and Laves names come with
+  it, through `text_review` like any other prose.
+

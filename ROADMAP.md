@@ -283,36 +283,15 @@ the drag-and-landing fixes, so none of these is a stale build.
    first would read the answer that arrives afterwards and pass
    whatever happened in between. Two catalogue entries, one per answer,
    both proved `caught`.
-   AND A SURVIVOR NAMED THE ARM THAT WAS MISSING. The entry on the
-   no-travel exit survived at first, because the test's discard arm was
-   a CLICK -- which leaves at the drop's FIRST exit and never reaches
-   the travel test at all. An arm that grabs a handle and lets go
-   without moving walks that route, and the entry catches. Three exits
-   are three journeys, not three lines.
+   AND A SURVIVOR NAMED THE ARM THAT WAS MISSING: the test's discard
+   arm was a CLICK, which leaves at the drop's FIRST exit and never
+   reaches the travel test at all. Three exits are three journeys, not
+   three lines.
    WHAT IS LEFT OPEN DELIBERATELY is the journey where no rebuild
-   follows: the preview then goes on showing what the person asked for,
-   which agrees with the change list, where reverting would show a
-   design the list denies. THE ORIGINAL REPORT AND ITS MEASUREMENTS
-   FOLLOW, kept because they are what a later session will not have.
+   follows -- the preview then goes on showing what the person asked
+   for, which agrees with the change list, where reverting would show a
+   design the list denies. It wants a state rather than a timer. (R-72.)
 
-   **CONFIRMED AND MEASURED.** `_commit_the_drag` clears the preview at the
-   drop while the rebuild is asynchronous, so the drawing falls back to
-   the topology it still holds -- the one from before the edit -- until
-   the build lands. Measured on the default design: the old design
-   stays up for 1.676s, and the settled drawing is IDENTICAL to what
-   the preview had been showing, so the correct picture was on screen
-   and was thrown away and recomputed. On the catalogue's heaviest
-   design a build is about twenty-one seconds.
-   IT IS NOT WHAT THE THREE FIXES IN rc15 ADDRESS. Those cover a
-   landing arriving DURING a gesture and the window between the click
-   and the press; this is the window AFTER the drop, which none of them
-   touches -- so "still there" was exactly right and it had never been
-   fixed.
-   THE REPAIR is to keep the preview standing on the path that RECORDS
-   an edit and let the landing clear it, which it already does; the
-   discard paths must still clear at once. What needs deciding is the
-   journey where no rebuild follows, and it wants a state rather than a
-   timer.
 2. **A ZIGZAG DOES NOT STICK.** Not investigated.
 3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING.** Not
    investigated. The drawing offers amplitude; whether the count is
@@ -1044,7 +1023,6 @@ from what the per-test recorder already collected, so the suite would
 not run twice under monitoring. Dropped because its premise went away
 the same week it would have landed: both coverage stages left the
 release path, so nothing automatic measures twice any more. (R-69.)
-
 
 **A "two views of one truth" differential campaign.** Recorded here
 rather than started, because it is a session's work and the case for it
