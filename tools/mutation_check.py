@@ -10744,6 +10744,22 @@ MUTATIONS = [
            "nothing leading to it -- and the next archiving pass reads "
            "that ground as unarchived and takes it a second time, "
            "because the only record that it was done is the pointer"),
+  dict(name="a-test-opening-a-file-with-geopandas-is-reported",
+       file="tests/run_tests.py",
+       # AIMED AT THE DETECTION ITSELF. The guard's value is entirely
+       # in noticing, and a scanner that matches nothing passes
+       # silently and for ever -- which is how the same call came back
+       # three times after being removed "for the only time".
+       old="""            if any(one in line for one in needles)""",
+       new="""            if False  # mutation: nothing is ever an offence""",
+       test="test_the_suite_reads_files_through_ogr",
+       why="a test reading a file through `geopandas`, which needs "
+           "pyogrio or fiona -- neither of them provisioned on Linux "
+           "CI, and neither declared by `deps.REQUIRED`, because the "
+           "plugin itself never reads a file that way. It passes on "
+           "this Mac, whose QGIS carries an engine, and fails on every "
+           "runner with an ImportError that reads like a product "
+           "fault"),
   dict(name="a-rule-archived-by-mistake-is-reported",
        file=DOC_ARCHIVE,
        # AIMED AT THE COMPARISON WITH THE LIVE HALF, which is the only

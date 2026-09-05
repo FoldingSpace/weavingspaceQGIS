@@ -1530,6 +1530,39 @@ def test_bridge_roundtrip():
     "geographic input must arrive projected (EPSG:3857)"
 
 
+def _packaged_auckland_gdf(field_names=None):
+  """The packaged Auckland areas as a GeoDataFrame, read through OGR.
+
+  Args:
+    field_names: attributes to carry across, e.g. ["id"]. Geometry and
+      CRS come regardless; pass nothing where only those are wanted.
+
+  Returns:
+    A GeoDataFrame of the 155 SA2 areas in EPSG:2193.
+
+  WHY NOT `geopandas.read_file`. That call needs `pyogrio` or `fiona`
+  and CI provisions NEITHER -- geopandas itself is there, so in-memory
+  frames work perfectly and only a FILE read fails, with an ImportError
+  that reads like a product fault. The suite learned this on 2026-08-31
+  and fixed its one use; three more arrived with the periodicity
+  patches and reddened `tests` for four commits. A fix applied to the
+  instances found is not a rule, which is why
+  `test_the_suite_reads_files_through_ogr` now guards the shape.
+
+  It is also the better fixture: `bridge.layer_to_gdf` is the plugin's
+  OWN way in, so a test built on it drives the route a user takes
+  rather than one no journey passes through. The data is projected
+  (EPSG:2193), so the reprojection branch does not fire and the frame
+  is the one `read_file` used to give.
+  """
+  from weavingspace_qgis import bridge
+
+  layer = QgsVectorLayer(
+    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"), "ak", "ogr")
+  assert layer.isValid(), "PREMISE: the packaged Auckland data will not open"
+  return bridge.layer_to_gdf(layer, list(field_names or []))
+
+
 def test_real_world_data():
   """The whole pipeline on a real dataset, not synthetic squares.
 
@@ -1936,8 +1969,7 @@ def test_the_grid_disc_reaches_only_what_the_region_occupies():
   from weavingspace import tile_map as tm
   from weavingspace_qgis import catalog
 
-  region = gpd.read_file(
-    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"))
+  region = _packaged_auckland_gdf()
   designs = catalog.TILINGS_BY_N[4]
   # `crosses 4` RATHER THAN ANY DESIGN, and the reason is arithmetic.
   # `_get_grid` sets its origin to `centre - ceil(2R)/2`, so shrinking
@@ -2038,13 +2070,11 @@ def test_a_declared_rotation_lets_the_grid_ask_the_regions_shape():
   argument has to go with it or the map comes back short at the edges.
   """
   import ast
-  import geopandas as gpd
   import shapely
   from weavingspace import Tiling
   from weavingspace_qgis import catalog
 
-  region = gpd.read_file(
-    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"))
+  region = _packaged_auckland_gdf()
   designs = catalog.TILINGS_BY_N[4]
   unit = catalog.make_unit(designs["crosses 4"], spacing=250.0,
                            crs=region.crs.to_epsg())
@@ -2126,13 +2156,11 @@ def test_the_overlay_clips_only_the_tiles_that_straddle():
   an optimisation that never ran -- so the interior share is asserted
   as a premise.
   """
-  import geopandas as gpd
   import shapely
   from weavingspace import Tiling
   from weavingspace_qgis import catalog
 
-  region = gpd.read_file(
-    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"))
+  region = _packaged_auckland_gdf(["id"])
   assert "id" in region.columns, "PREMISE: the region has no 'id' column"
   designs = catalog.TILINGS_BY_N[4]
   unit = catalog.make_unit(designs["crosses 4"], spacing=250.0,
@@ -55980,6 +56008,61 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_the_suite_reads_files_through_ogr():
+  """No test may open a file with `geopandas.read_file`.
+
+  That call needs `pyogrio` or `fiona`, and `tools/ci_provision.py`
+  provisions NEITHER: `deps.REQUIRED` names the six packages the
+  PLUGIN needs, and the plugin never reads a file that way -- it goes
+  through OGR and `bridge.layer_to_gdf`. So geopandas imports fine on
+  a Linux runner, every in-memory frame works, and only a FILE read
+  fails, with an ImportError about a package nothing here declares.
+
+  THIS IS GUARDED RATHER THAN REMEMBERED BECAUSE IT HAS RECURRED. The
+  suite's first use was found by the Linux coverage leg on 2026-08-31
+  and removed with a comment saying it was the only one. Three more
+  arrived with the periodicity patches at `17a7a90` and reddened the
+  `tests` workflow on every commit for four commits, while the local
+  suite stayed green -- because this Mac's QGIS carries pyogrio and
+  the runner's does not. A fix applied to the instances a search turns
+  up is not a rule; this file's own "targeted runs cannot find what
+  they do not name", arriving at a dependency.
+
+  The fixture to use instead is `_packaged_auckland_gdf`, which is
+  also the better one: it enters through the plugin's own path.
+  """
+  # THE NEEDLES ARE BUILT AT RUNTIME so this test cannot match its own
+  # source. Written literally, the detector reported itself, its
+  # positive control and its own assertion message -- which is the
+  # scanner-scans-itself trap, and it fails LOUDLY here only because
+  # the real tree happened to be clean.
+  call = "read_" + "file("
+  needles = ("gpd." + call, "geopandas." + call)
+
+  def offenders_in(source):
+    """Lines opening a file with geopandas, ignoring comments."""
+    return [line.strip() for line in source.split("\n")
+            if any(one in line for one in needles)
+            and not line.lstrip().startswith("#")]
+
+  # POSITIVE CONTROL FIRST, because a detector that has only ever been
+  # watched agree is one nobody has seen work: a green result here
+  # would otherwise mean only that the string never appears anywhere.
+  planted = "def t():\n  region = gpd." + call + "path)\n"
+  assert offenders_in(planted), \
+    "PREMISE: the detector cannot see the call it exists to forbid"
+  assert not offenders_in("  # region = gpd." + call + "path)\n"), \
+    "PREMISE: the detector reads a commented-out call as an offence"
+
+  offenders = offenders_in(open(__file__, encoding="utf-8").read())
+  assert not offenders, (
+    "a test opens a file with geopandas.read_file, which needs pyogrio "
+    "or fiona -- neither provisioned on Linux CI, where this fails as "
+    "an ImportError that reads like a product fault. Use "
+    "_packaged_auckland_gdf, or QgsVectorLayer plus "
+    f"bridge.layer_to_gdf. Offending line(s): {offenders}")
+
+
 def test_every_archived_document_is_watched_by_the_check():
   """The check's SCOPE is the half of it that goes wrong quietly.
 
@@ -87845,6 +87928,8 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("the suite reads files through OGR",
+        test_the_suite_reads_files_through_ogr)
   check("the release refuses a tree it did not measure",
         test_the_release_refuses_a_tree_it_did_not_measure)
   check("the release watchdog measures the whole tree",
