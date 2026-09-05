@@ -206,6 +206,34 @@ PREVIEW_DEBOUNCE_MS = 150
 PREVIEW_DEBOUNCE_CEILING_MS = 350
 LIVE_DEBOUNCE_MS = 900
 
+# HOW LONG A TOPOLOGY BUILD MAY SIT UNSTARTED BEFORE THE TAB SAYS SO.
+#
+# It is a claim about STARTING, never about how long a build takes, and
+# that is what makes it safe to size at all. Measured 2026-09-04 on a
+# stall caught in the topology matrix: the task sat `Queued` for 133
+# seconds with the global thread pool reading `active=0 max=8`, while
+# later dialogs' builds answered in 1.4s -- so QGIS had simply never
+# started it, and the tab said "Working out the design's structure…"
+# for ever at somebody who had asked a question that would never be
+# answered. A build that HAS started is `Running` however long it
+# takes, so nothing here can fire on a slow design: `hex-colouring 7`
+# is nineteen seconds of running and is untouched.
+# AND IT SAYS RATHER THAN CANCELS. A pool genuinely busy with somebody
+# else's work is a legitimate reason for a queued task to wait, and in
+# that case the sentence is still true and the build still lands and
+# clears it. Killing the task would be this project guessing at another
+# plugin's business.
+#
+# AND IT SITS BELOW THE SUITE'S OWN CEILING ON PURPOSE, which is the
+# half that will catch somebody if it is raised without reading this.
+# `_wait_for_the_topology` gives a design 40 seconds times CONTENTION
+# to produce an answer, so on a quiet machine the tab has 40 seconds to
+# say something and this must speak inside that or a matrix cell fails
+# on silence exactly as it did before. Thirty leaves ten seconds of
+# margin at CONTENTION 1 and far more under a sharded run. Raise this
+# and that ceiling goes with it, or the guard is one nothing can reach.
+TOPOLOGY_START_CEILING_MS = 30_000
+
 WORKING_STATE_PROPERTY = "weavingspace_working_state"
 
 # Bumped when the shape below changes in a way an older plugin could
@@ -1898,6 +1926,21 @@ class WeavingSpaceDialog(QDialog):
     self._topology_task = None
     self._topology_wanted = False
     self._topology_shelf = {}
+    # WHICH TASK THE START WATCH IS ABOUT, so a watch armed for one
+    # build cannot speak about the build that replaced it. Compared by
+    # IDENTITY rather than by "is a task in flight", which is true of
+    # both and would let a healthy successor inherit its predecessor's
+    # complaint.
+    self._topology_watch_for = None
+    self._topology_start_watch = QTimer(self)
+    self._topology_start_watch.setSingleShot(True)
+    # A BOUND METHOD, NOT A LAMBDA. Qt drops a connection to a bound
+    # method when the receiving QObject dies; a lambda it keeps alive
+    # and goes on calling, and reaching `self` through a deleted sip
+    # wrapper takes the process down before any retirement gate can
+    # run. The timer is a CHILD of this dialog, so it dies with it.
+    self._topology_start_watch.timeout.connect(
+      self._say_if_the_build_never_started)
     # THE WAITING WINDOW'S OWN RE-ENTRANCY GUARD. It pumps the event
     # loop, which is exactly what lets a second close arrive while the
     # first is being served.
@@ -23390,6 +23433,66 @@ class WeavingSpaceDialog(QDialog):
       return False
     return bridge.UNIT_TABLE_NAME in holds
 
+  def _say_if_the_build_never_started(self) -> None:
+    """Tell the tab when QGIS has not begun the build it was given.
+
+    Returns:
+      None. Writes the reason into the panel's NOTE -- which means "the
+      answer, or why there is none", and a build nobody has started is
+      exactly a reason there is none -- and takes down the working
+      sentence, which would otherwise go on promising an answer that is
+      not coming. The task is left alone: it may still start, and
+      `set_unit` clears both when it lands.
+
+    WHAT THIS IS FOR, measured rather than reasoned. On 2026-09-04 the
+    topology matrix reported a cell where "the tab neither built a
+    topology nor said why not", and driven alone the panel waited 133
+    seconds with `_topology_task` set, the manager holding one task
+    reading `Queued`, and the global thread pool reading `active=0` --
+    so nothing was running it and nothing ever would, while later
+    dialogs' builds answered in 1.4s. That is a person left in front of
+    a panel that never answers, which is the one thing this tab
+    promises not to be.
+    THE CAUSE IS NOT DIAGNOSED AND THIS DOES NOT PRETEND TO FIX IT.
+    Four failures in eighty-six attempts here, clustered in one
+    twenty-minute window and absent from 0-of-30 and 0-of-16 runs
+    afterwards, so the condition is not one this project can yet stage;
+    what IS staged is the STATE it leaves, which is all this guard
+    needs to be aimed at.
+
+    IT ASKS ABOUT STARTING, NEVER ABOUT DURATION. A build that has
+    begun is `Running` however long it takes, so no slow design can
+    reach this -- `hex-colouring 7` is nineteen seconds of running and
+    is untouched. A queued task on a pool genuinely busy with somebody
+    else's work reaches it and the sentence is still TRUE; the build
+    then lands and clears it, which is why this says something rather
+    than cancelling anything.
+    """
+    watched = self._topology_watch_for
+    self._topology_watch_for = None
+    # IDENTITY, NOT "IS A BUILD IN FLIGHT". A watch armed for one build
+    # must not speak about the build that replaced it, and both answer
+    # the same way to a question about flight.
+    if watched is None or self._topology_task is not watched:
+      return
+    panel = getattr(self, "topology_panel", None)
+    if panel is None:
+      return
+    try:
+      from . import compat
+      status = watched.status()
+      started = status != compat.task_queued_status()
+    except Exception:                                   # noqa: BLE001
+      return
+    if started:
+      return                      # it is running; its cost is its own
+    # SAY WHAT WAS FOUND, not which line was reached. This fires on
+    # machines nobody here can log into, and a report naming no state
+    # buys nothing -- the rule this project wrote after a premise about
+    # an outstanding build spent a candidate without naming its cause.
+    _dump("TOPOLOGY", f"never-started status={status}")
+    panel.say_the_build_has_not_started()
+
   def _queue_topology(self, even_if_unasked: bool = False) -> None:
     """Work out the current design's topology, off the main thread.
 
@@ -23754,6 +23857,10 @@ class WeavingSpaceDialog(QDialog):
 
     self._topology_task = TilingTask("WeavingSpace topology", work, done)
     QgsApplication.taskManager().addTask(self._topology_task)
+    # AND A WATCH ON THE STARTING, which is a different question from
+    # the build's own cost -- see TOPOLOGY_START_CEILING_MS.
+    self._topology_watch_for = self._topology_task
+    self._topology_start_watch.start(TOPOLOGY_START_CEILING_MS)
     # AND THE TAB SAYS SO, from the moment the work is queued rather
     # than when the worker picks it up: between the queueing and the
     # landing the panel still holds the PREVIOUS design's topology,

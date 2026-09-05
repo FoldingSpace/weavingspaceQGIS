@@ -391,12 +391,35 @@ with a different owner. The instrument is
 a verdict, deliberately -- a probe that stops at its first clean
 attempt measures the machine's mood.
 
-AND THE PLUGIN OWES A DEFENCE WHOEVER OWNS THE STALL, which is worth
-saying before the diagnosis lands so it is not read as a consequence of
-it: `showEvent`'s zombie-task recovery covers `_task` and has no twin
-for `_topology_task`, and it counts Queued as ALIVE, so neither half of
-it can reach this. A tab that never answers is the reported failure
-whatever QGIS is doing.
+**THE DEFENCE IS BUILT, AND IT DOES NOT CLAIM TO BE THE DIAGNOSIS.**
+A tab that never answers is the reported failure whatever QGIS is
+doing, and `showEvent`'s zombie-task recovery could not reach it --
+that covers `_task`, has no twin for `_topology_task`, and counts
+Queued as ALIVE. So `TOPOLOGY_START_CEILING_MS` arms a watch when the
+task is added and `_say_if_the_build_never_started` puts the reason in
+the panel's note, which means "the answer, or why there is none" and is
+what every waiter reads. Three things about it are deliberate: it asks
+about STARTING and never about duration, so no slow design can reach it
+(`hex-colouring 7` is nineteen seconds of RUNNING); it SAYS rather than
+cancels, so a pool busy with another plugin's work gets a sentence that
+is still true and a build that then lands clears it; and the watch is
+keyed to the task by identity, so one armed for a build cannot speak
+about the build that replaced it. The ceiling sits BELOW the suite's
+own 40-second wait on purpose, and the two are recorded as one decision
+at the constant.
+GUARDED BY `test_a_build_qgis_never_starts_is_reported`, which STAGES
+the state rather than waiting for the window -- a QgsTask never handed
+to the manager reads Queued for ever, deterministically -- and asserts
+BOTH answers, since a rule with two is taken for one by whoever meets
+the first. Two catalogue entries, one per axis, both proved `caught`.
+
+**WHAT IS STILL OPEN IS THE CAUSE**, and it is recorded as open rather
+than closed by the repair: why QGIS accepts a topology build, leaves it
+Queued and never starts it, while later builds run normally. The
+discriminator that would settle it rides in
+`tools/probes/how_often_a_build_never_starts.py` -- at the stall it
+adds a second task and reads whether the stuck one then starts -- and
+the stall has not yet been caught with it armed.
 
 ### Owed: five field reports against 0.24.4rc15
 

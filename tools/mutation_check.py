@@ -10634,6 +10634,36 @@ MUTATIONS = [
            "Save box on the file it was saved AWAY from, so the next "
            "press overwrites the older version with newer work while "
            "the file just written goes stale, with nothing said"),
+  dict(name="a-build-nobody-started-is-said-to-be-one", file=DIALOG,
+       # ANCHORED ON THE SENTENCE, not on the guard above it: the
+       # dump line is left standing so what is measured is whether
+       # anybody is TOLD, rather than whether the branch was reached.
+       old="""    _dump("TOPOLOGY", f"never-started status={status}")
+    panel.say_the_build_has_not_started()""",
+       new="""    _dump("TOPOLOGY", f"never-started status={status}")""",
+       test="test_a_build_qgis_never_starts_is_reported",
+       why="the tab's whole promise, which is that an answer arrives or "
+           "the reason there is none does. A build QGIS hands back to "
+           "nobody leaves the panel saying 'Working out the design's "
+           "structure…' for ever, which is a person in front of a "
+           "window that never answers -- measured at 133 seconds with "
+           "the thread pool idle"),
+  dict(name="a-running-build-is-not-reported-as-unstarted", file=DIALOG,
+       # THE OTHER ANSWER, and it needs its own entry: a rule with two
+       # answers is taken for one by whoever meets the first. Removing
+       # this exit makes the sentence appear on every design whose
+       # build is merely slow, which is nineteen seconds on
+       # `hex-colouring 7` and is nobody's fault.
+       old="""    if started:
+      return                      # it is running; its cost is its own""",
+       new="""    if False:      # mutation: report a running build as unstarted
+      return""",
+       test="test_a_build_qgis_never_starts_is_reported",
+       why="the scope that makes this guard safe to have at all. It "
+           "asks about STARTING and never about duration, so a build "
+           "under way is nobody's business here; report one as never "
+           "started and the tab tells somebody their perfectly healthy "
+           "nineteen-second design has been abandoned"),
   dict(name="a-superseded-patch-is-found-by-its-own-mark",
        file=VENDOR_TOOL,
        # ANCHORED ON THE CHOICE OF MARKER, which is the whole decision:

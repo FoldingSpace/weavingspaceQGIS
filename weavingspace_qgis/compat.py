@@ -67,6 +67,19 @@ def task_active_statuses():
           QgsTask.TaskStatus.Running)
 
 
+def task_queued_status():
+  """The QgsTask status meaning "handed over and not yet begun".
+
+  Returns:
+    The scoped enum member. It is asked for by NAME rather than taken
+    as a position in the tuple above, because the two answer different
+    questions -- that one is "is this still going", this one is "has
+    this never started" -- and reading one out of the other would make
+    reordering that tuple silently change what a guard means.
+  """
+  return QgsTask.TaskStatus.Queued
+
+
 def set_save_file_mode(file_widget) -> None:
   """Put a QgsFileWidget into save-a-file mode (scoped enum)."""
   from qgis.gui import QgsFileWidget

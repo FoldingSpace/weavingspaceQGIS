@@ -1725,6 +1725,36 @@ class TopologyPanel(QWidget):
     """
     self.working.setText("Working out the design's structure…")
 
+  def say_the_build_has_not_started(self) -> None:
+    """Say that the work was handed over and has not begun.
+
+    Returns:
+      None. The sentence goes in the NOTE rather than beside the
+      working label, because the note means "the answer, or why there
+      is none" and a build nobody has started is a reason there is
+      none -- so every waiter that reads the note gets a real answer
+      instead of waiting out its ceiling on silence. The working
+      sentence comes down with it, or the tab would promise an answer
+      in one line and deny it in the next.
+
+    IT DOES NOT CLEAR THE TOPOLOGY the tab is already showing. The
+    previous design's picture staying up is the behaviour every other
+    interval here has -- a build is queued and the drawing is the old
+    one until the new one lands -- and blanking it would trade a stale
+    picture for none at all. What changes is that the tab now SAYS the
+    answer is not coming.
+
+    AND IT IS UNDONE BY A LANDING, wherever one arrives: `set_unit`
+    writes its own message into the note and empties `working`, so a
+    build that starts late corrects this with nothing having to
+    remember to.
+    """
+    self.working.setText("")
+    self.note.setText(
+      "QGIS has not started working out this design's structure. It "
+      "may be busy with other work; the tab will fill in if the work "
+      "begins.")
+
   def set_unit(self, unit, topology, message: str = "", ghost=None):
     """Show a new design's topology.
 

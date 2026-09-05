@@ -7888,6 +7888,108 @@ def test_the_topology_matrix():
     "\n  ".join(trouble))
 
 
+def test_a_build_qgis_never_starts_is_reported():
+  """A build handed over and never begun stops being silence.
+
+  THE FAILURE THIS IS ABOUT was one cell of the topology matrix on
+  2026-09-04: "the tab neither built a topology nor said why not, so
+  somebody is left in front of a panel that never answers". Driven
+  alone, the panel waited 133 seconds with `_topology_task` set, QGIS's
+  task manager holding one task reading `Queued`, and the global thread
+  pool reading `active=0 max=8` -- so nothing was running it and
+  nothing was going to, while later dialogs' builds answered in 1.4s.
+
+  THE CONDITION IS STAGED, NOT WAITED FOR. It appeared four times in
+  eighty-six attempts here, clustered in one twenty-minute window and
+  absent from a 0-of-30 run afterwards, so measuring how often we land
+  in it is measuring the machine's mood -- this project's own rule is
+  to close the window instead. What is staged is the STATE the stall
+  leaves: a task the dialog believes is in flight which QGIS has never
+  started. A QgsTask that is simply never given to the task manager IS
+  that state exactly, and it is deterministic.
+
+  WHAT IS ASSERTED IS BOTH ANSWERS, because a rule with two of them is
+  taken for one by whoever meets the first: the tab SAYS SO when the
+  build has not started, and says NOTHING when the same watch fires on
+  a build that is merely slow -- which is the case that would otherwise
+  make this guard fire on `hex-colouring 7` and every other design
+  whose build is measured in seconds.
+
+  Regression: a topology build QGIS never started left the tab promising an answer that was never coming. [mutation]
+  """
+  from qgis.core import QgsTask
+  from weavingspace_qgis import compat
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    _settle_topology(dlg)
+    panel = dlg.topology_panel
+
+    class _NeverStarted(QgsTask):
+      """A task nobody hands to the manager, so it stays Queued."""
+
+      def run(self):
+        return True
+
+    stuck = _NeverStarted("WeavingSpace topology")
+    assert stuck.status() == compat.task_queued_status(), (
+      "PREMISE: a task that was never added does not read as Queued, "
+      f"so this fixture cannot stage the stall it is about: "
+      f"{stuck.status()}")
+    dlg._topology_task = stuck
+    dlg._topology_watch_for = stuck
+    panel.say_a_build_is_coming()
+    assert panel.working.text(), \
+      "PREMISE: the tab is not claiming to be working, so there is " \
+      "nothing for this to correct"
+
+    # the watch's own handler, fired as its timer would fire it: the
+    # ceiling is a hang-catcher and waiting it out would put thirty
+    # seconds into every suite run for nothing.
+    dlg._say_if_the_build_never_started()
+    _tick(100)
+    said = (panel.note.text() or "").strip()
+    assert said, (
+      "a build QGIS never started left the tab saying nothing, so "
+      "somebody is in front of a panel that never answers -- which is "
+      "the failure this guard exists for")
+    assert not (panel.working.text() or "").strip(), (
+      "the tab is still promising that the structure is being worked "
+      f"out while its note says otherwise: {said!r}")
+
+    # ...AND THE OTHER ANSWER. A build that HAS started is nobody's
+    # business here however long it takes, and a guard that fired on
+    # one would put this sentence in front of every slow design.
+    panel.note.setText("")
+    panel.say_a_build_is_coming()
+    running = _NeverStarted("WeavingSpace topology")
+    running.hold()                      # OnHold: begun, not queued
+    assert running.status() != compat.task_queued_status(), \
+      "PREMISE: this arm's task still reads as Queued, so it is the " \
+      "same case as the arm above and proves nothing separately"
+    dlg._topology_task = running
+    dlg._topology_watch_for = running
+    dlg._say_if_the_build_never_started()
+    _tick(100)
+    assert not (panel.note.text() or "").strip(), (
+      "the tab reported a build as never started when it had already "
+      f"left the queue: {panel.note.text()!r}")
+    assert (panel.working.text() or "").strip(), (
+      "the working sentence was taken down for a build that is under "
+      "way, so the tab has stopped saying it is busy while it is")
+  finally:
+    dlg._topology_task = None
+    dlg._topology_watch_for = None
+    dlg.close()
+
+
 def test_an_edit_for_a_class_that_has_gone_is_reported():
   """An edit aimed at nothing says so, rather than doing nothing.
 
@@ -86256,6 +86358,8 @@ def main():
         test_the_saved_dual_belongs_to_the_saved_unit)
   check("the element slider follows a restore",
         test_the_element_slider_follows_a_restore)
+  check("a build QGIS never starts is reported",
+        test_a_build_qgis_never_starts_is_reported)
   check("an edit for a class that has gone is reported",
         test_an_edit_for_a_class_that_has_gone_is_reported)
   check("a topology that lands late is discarded",

@@ -1284,6 +1284,46 @@ an answer having ARRIVED. Writing a third meaning into it made that
 waiter return before the build landed, and a test then read a class
 list that did not exist yet. One store, two meanings, met in a QLabel.
 
+**AND A BUILD QGIS NEVER STARTS IS SAID TO BE ONE.** A task handed to
+`QgsApplication.taskManager()` is ordinarily picked up at once -- 1.4s
+answers on `crosses 4` all day -- and on 2026-09-04 one was measured
+sitting `Queued` for 133 seconds with the global thread pool reading
+`active=0 max=8`, while later dialogs' builds ran normally. Nothing was
+running it and nothing was going to, and the tab went on saying
+"Working out the design's structure…" at somebody whose question would
+never be answered. That is the failure the topology matrix reported as
+"the tab neither built a topology nor said why not".
+
+`TOPOLOGY_START_CEILING_MS` arms a watch when the task is added, and
+`_say_if_the_build_never_started` writes the reason into the panel's
+NOTE -- which means "the answer, or why there is none", and a build
+nobody has started is a reason there is none, so every waiter reading
+that note gets a real answer instead of sitting out its ceiling on
+silence.
+
+THREE THINGS ABOUT IT ARE DELIBERATE. It asks about STARTING and never
+about DURATION, so no slow design can reach it: a build under way is
+`Running` however long it takes, and `hex-colouring 7` is nineteen
+seconds of running. It SAYS rather than cancels, because a pool
+genuinely busy with another plugin's work is a legitimate reason for a
+queued task to wait -- the sentence is still true there, and the build
+lands and clears it. And the watch is keyed to the TASK by identity, so
+one armed for a build cannot speak about the build that replaced it.
+
+THE CAUSE IS NOT DIAGNOSED AND THIS DOES NOT CLAIM TO FIX IT. Four
+failures in eighty-six attempts here, clustered in one twenty-minute
+window and absent from runs of 30 and 16 afterwards, so the condition
+is not one this project can yet stage; the STATE it leaves is, and that
+is what the guard and its test are aimed at.
+`tools/probes/how_often_a_build_never_starts.py` carries the
+discriminator that would settle the ownership -- at the stall it adds
+a second task and reads whether the stuck one then starts -- and it is
+committed because the stall has not yet been caught with it armed.
+A PATH IS NEVER HARD-WRAPPED INSIDE ITS BACKTICKS: the gate that reads
+these references matches a span on ONE LINE, so a break inside one
+hides the path from it altogether -- and the tell is a quotation count
+that does not move when you have plainly added a quotation.
+
 **Not every design has a topology.** `Topology` needs a GAP-FREE
 tiling, so a design with insetting or a family that does not close up
 refuses, and `can_build` says which it is in words rather than letting

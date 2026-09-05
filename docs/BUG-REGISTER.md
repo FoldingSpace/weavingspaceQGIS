@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-515 defect(s) with a regression test.
+516 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -344,6 +344,8 @@ there is no separate list to remember.
 
 - **retyping a class boundary and recolouring a class in one visit to QGIS's panel recorded the colour and lost the boundary, which then died at the next thing that re-seeded the element.**  
   guarded by `test_a_boundary_retyped_beside_a_recolour_is_still_recorded`
+- **a topology build QGIS never started left the tab promising an answer that was never coming.**  
+  guarded by `test_a_build_qgis_never_starts_is_reported`
 - **a topology build finishing while a vertex was being dragged wiped the preview and the selection under the pointer, so the drawing snapped back mid-gesture and the drop committed an edit nobody could see.**  
   guarded by `test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture`
 - **a cancel landing after the tables went in left the flag set for ever, and the next save was rolled back.**  
@@ -1084,7 +1086,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 186
+- the mutation campaign: 187
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

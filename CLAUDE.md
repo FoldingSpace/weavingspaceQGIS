@@ -6979,3 +6979,46 @@ here, and the decision to add one is the maintainer's. Recorded
   the earlier one's "have I already done this" test is about text the
   later one owns. Ask of any idempotence check whether anything
   downstream is entitled to rewrite the thing it looks for.
+
+- **A RATE QUOTED FROM TOO FEW DRAWS IS NOT A MEASUREMENT, AND I
+  PUBLISHED TWO.** (2026-09-04, chasing the topology matrix's one
+  failing cell.) The cell reproduced on the second of two attempts, and
+  I reported it as DETERMINISTIC; the next run of the same probe
+  answered in 1.43s both times. Then a two-arm comparison came back 2
+  of 8 at HEAD against 0 of 8 at the commit before this session's
+  tiling patches, which reads exactly like a verdict on those patches
+  -- and HEAD then produced 0 of 16 on its own, which disposes of it.
+  Four failures in eighty-six attempts, clustered in one twenty-minute
+  window: 16 attempts at that rate expect less than one, so the control
+  arm was never able to say anything.
+  AND THE RUN STAGED TO SETTLE IT WAS VOID FOR A SEPARATE REASON worth
+  keeping: one arm met a load average of 13 and the other 250, because
+  the load I staged was not the only load on the machine. A comparison
+  whose CONDITIONS are not reported beside its numbers is not one
+  anybody can check, and this file already says the machine is part of
+  the measurement.
+  THE HABIT: before reporting a rate, ask how many draws would be
+  needed to tell it from zero, and print the conditions of every arm
+  beside its verdict. An intermittent defect's ARMS are the last thing
+  to trust and its MECHANISM the first -- what actually settled this
+  was one reading at the moment of failure, the task `Queued` with the
+  thread pool idle, which no amount of rate-chasing would have given.
+
+- **A GUARD CAN BE AIMED AT A STATE WITHOUT KNOWING WHAT PRODUCES IT.**
+  (Same day, and it is the other half of the entry above.) The stall's
+  CAUSE is undiagnosed -- QGIS accepts a topology build, leaves it
+  `Queued`, and never starts it -- and the state it leaves was measured
+  exactly: a task the dialog believes is in flight, reading Queued,
+  with `active=0` on the pool. That state is stageable even though the
+  condition is not, because a QgsTask never handed to the manager IS
+  it, deterministically. So the guard was measured before it was
+  written and its test closes the window rather than counting how often
+  it opens.
+  WHAT KEEPS SUCH A GUARD HONEST is scope and wording. It asks about
+  STARTING, never about duration, so nothing slow can reach it; it
+  SAYS rather than cancels, so a pool busy with somebody else's work
+  gets a sentence that is still true; and the sentence goes where a
+  reason belongs. THE OPPOSITE ANSWER IS GUARDED SEPARATELY, because a
+  rule with two answers is taken for one by whoever meets the first --
+  a build under way must NOT be reported as never started, or the tab
+  tells somebody their healthy nineteen-second design was abandoned.
