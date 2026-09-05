@@ -266,15 +266,35 @@ PROCESS for the reason the section above gives.
           point_layer_at                                     0.035s
 
         spacing 250 (10,502 drawn)              generate     save
-        worker: Tiling() + get_tiled_map          1.071s
-          get_tiled_map (overlay and join)        0.402s
-        landing: _add_output_layers               0.666s
-          gdf_to_layer (frame -> QGIS layer)      0.587s
-          seed_renderer (symbology)               0.027s
-        preview: _rebuild_unit                    0.022s
-        save: _save_the_map                                  0.588s
-          write_gpkg_layers                                  0.433s
-          point_layer_at                                     0.043s
+        worker: Tiling() + get_tiled_map          1.034s
+          Tiling.__init__ (constructor total)     0.654s
+            _TileGrid.__init__ (lays the grid)    0.388s
+          get_tiled_map (overlay and join)        0.378s
+        landing: _add_output_layers               0.322s
+          gdf_to_layer (frame -> QGIS layer)      0.239s
+          seed_renderer (symbology)               0.030s
+          split_out_the_no_data (the twins)       0.007s
+          _update_layer_exclusions (the combo)    0.025s
+        preview: _rebuild_unit                    0.024s
+        save: _save_the_map                                  0.568s
+          write_gpkg_layers                                  0.418s
+          point_layer_at                                     0.048s
+
+    Re-measured 2026-09-04 AFTER the conversion rewrite below, with the
+    two constructors told apart. `gdf_to_layer` fell from 0.587s to
+    0.239s in situ, which is the 2.3x arriving where a user meets it,
+    and the landing halved with it.
+
+AND THE PROBE HAD A STAGE THAT NAMED NOTHING. `split_absent` is not a
+function; the no-data split is `bridge.split_out_the_no_data`. A name
+that matches nothing contributes nothing, falls under the printing
+floor, and is INDISTINGUISHABLE from a stage that is genuinely cheap --
+so the row never appeared and the work read as free, while this
+document honestly listed the twin split as unmeasured the whole time
+the probe claimed to measure it. The probe REFUSES a stage naming a
+function that does not exist now, checked against the source rather
+than the profile, since a function that exists and was not called is a
+legitimate absence. Measured at last, the twins cost 0.007s.
 
 THE SYMBOLOGY IS NOT A COST, which is the plainest finding and the one
 that stops an optimisation nobody needed: seeding four renderers costs
@@ -295,12 +315,25 @@ somebody who had just written it down. The rows are re-measured; what
 the correction was worth is a METHOD rather than a number, since single
 samples on a busy machine move by more than the difference did.
 
-AND ONE FIGURE IS OPEN: `Tiling.__init__` reports TWO calls against the
-worker's one, while `dialog.py` holds exactly one construction site.
-The matcher was suspected first and cleared -- it now refuses to sum
-two functions of one name and did not fire, so this is one function
-entered twice rather than a child double-counted into its parent. The
-quoted rows do not depend on it, the top-level rows being exclusive.
+**AND THAT ROW WAS A DOUBLE COUNT, WHICH TOOK TWO GOES TO ESTABLISH.**
+`Tiling.__init__` reported TWO calls against the worker's one while
+`dialog.py` holds exactly one construction site. The matcher was
+suspected, and this document then recorded it as CLEARED -- on the
+strength of an ambiguity guard that was never in the file. The edit
+reported success, the probe ran, the guard did not fire, and the
+absence of a complaint was read as a verdict; it is not in that
+commit, in HEAD, or in the working tree. A GUARD YOU HAVE NOT WATCHED
+FIRE IS A GUARD YOU HAVE NOT GOT, and this is that rule arriving
+through an edit that silently did not land rather than through a test
+that could not fail.
+WRITTEN, IT FIRES AT ONCE: `tile_map.py` defines `__init__` twice --
+`_TileGrid` at line 112 and `Tiling` at 272 -- and the grid is built
+INSIDE the constructor, so the row was summing a child into its
+parent. Disambiguated by DEF LINE, which is how a class is named to a
+profiler that knows only (file, line, function), both come back with
+ONE call each and the arithmetic closes: 0.654s for the constructor of
+which 0.388s is the grid, against the 1.059s the merged row claimed.
+The tables above are re-measured accordingly.
 
 ## Converting the frame into QGIS layers, measured 2026-09-04
 

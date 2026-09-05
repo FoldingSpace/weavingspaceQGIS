@@ -30,6 +30,7 @@ figure is wanted, the sibling probe measures it unprofiled.
 """
 import cProfile
 import importlib.util
+import ast
 import os
 import pstats
 import subprocess
@@ -45,15 +46,25 @@ SPACINGS = (500, 250)
 # performs them.
 STAGES = [
   ("worker: Tiling() + get_tiled_map", "dialog.py", "work"),
-  ("  Tiling.__init__ (lays the grid)", "tile_map.py", "__init__"),
+  ("  Tiling.__init__ (constructor total)", "tile_map.py", "__init__", 272),
+  ("  _TileGrid.__init__ (lays the grid)", "tile_map.py", "__init__", 112),
   ("  get_tiled_map (overlay and join)", "tile_map.py", "get_tiled_map"),
   ("landing: _add_output_layers", "dialog.py", "_add_output_layers"),
   ("  gdf_to_layer (frame -> QGIS layer)", "bridge.py", "gdf_to_layer"),
   ("  seed_renderer (symbology)", "bridge.py", "seed_renderer"),
   ("  make_graduated_renderer", "bridge.py", "make_graduated_renderer"),
   ("  make_categorized_renderer", "bridge.py", "make_categorized_renderer"),
-  ("  split_absent (the no-data twins)", "bridge.py", "split_absent"),
+  ("  split_out_the_no_data (the twins)", "bridge.py",
+   "split_out_the_no_data"),
+  ("  _get_or_make_group (the layer tree)", "dialog.py",
+   "_get_or_make_group"),
+  ("  _update_layer_exclusions (the combo)", "dialog.py",
+   "_update_layer_exclusions"),
+  ("  _layers_removed (the signal cascade)", "dialog.py",
+   "_layers_removed"),
+  ("  _apply_element_records", "dialog.py", "_apply_element_records"),
   ("  stamp_working_state", "dialog.py", "_stamp_working_state"),
+  ("  stamp_category_colours", "dialog.py", "_stamp_category_colours"),
   ("preview: _rebuild_unit", "dialog.py", "_rebuild_unit"),
   ("save: _save_the_map", "dialog.py", "_save_the_map"),
   ("  write_gpkg_layers", "bridge.py", "write_gpkg_layers"),
@@ -78,25 +89,92 @@ def harness():
   return module
 
 
-def cumulative(stats, basename, name):
+
+def every_stage_names_a_real_function():
+  """Refuse a stage whose function does not exist in the file it names.
+
+  Returns:
+    Nothing. Raises AssertionError naming every bad stage.
+
+  WHY THIS EXISTS. The stage `split_absent` was carried here from
+  2026-09-03 to 2026-09-04 and there is no such function -- the
+  no-data split is `bridge.split_out_the_no_data`. A name that matches
+  nothing contributes nothing, falls under the printing floor, and is
+  INDISTINGUISHABLE from a stage that is genuinely cheap: the row
+  simply does not appear, and a reader concludes the work is free.
+  That is this project's own "a check that can only confirm is not a
+  check", arriving inside the instrument rather than inside a gate,
+  and docs/PERFORMANCE.md honestly listed the twin split as unmeasured
+  the whole time the probe claimed to measure it.
+
+  The check is over the SOURCE rather than over the profile, because a
+  function that exists and was not CALLED on this journey is a
+  legitimate absence and a name that does not exist is a defect in this
+  file. Only the second is refusable.
+  """
+  root = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+  wanted = {}
+  for stage in STAGES:
+    _label, basename, name = stage[0], stage[1], stage[2]
+    wanted.setdefault(basename, set()).add(name)
+  missing = []
+  for basename, names in wanted.items():
+    found = set()
+    for folder in ("weavingspace_qgis",
+                   os.path.join("weavingspace_qgis", "vendor",
+                                "weavingspace")):
+      path = os.path.join(root, folder, basename)
+      if not os.path.exists(path):
+        continue
+      tree = ast.parse(open(path, encoding="utf-8").read())
+      for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+          found.add(node.name)
+    missing += [f"{basename}:{n}" for n in sorted(names - found)]
+  assert not missing, (
+    "these stages name functions that do not exist, so each would "
+    "report NOTHING and read as a stage that costs nothing: "
+    + ", ".join(missing))
+
+
+def cumulative(stats, basename, name, line=None):
   """Cumulative seconds for one function, summed over its call sites.
 
   Args:
     stats: a `pstats.Stats` from one profiled press.
     basename: the file the function lives in, e.g. "bridge.py".
     name: the function's own name.
+    line: the line its `def` sits on, where the file defines that name
+      more than once. Omitted means "any", which is right wherever the
+      name is unique and refused below where it is not -- cProfile
+      keys on (file, line, function) and knows nothing about classes,
+      so a def line is the only way to say WHICH `__init__`.
 
   Returns:
     (seconds, calls). Zero where the function never ran, which is a
     finding rather than a gap -- a stage that does not appear did not
-    happen on this journey.
+    happen on this journey. (-1.0, n) where n functions of that name
+    matched, which the caller must report rather than sum.
   """
-  total, calls = 0.0, 0
+  total, calls, seen = 0.0, 0, []
   for func, (_cc, nc, _tt, ct, _callers) in stats.stats.items():
-    filename, _line, fname = func
-    if os.path.basename(filename) == basename and fname == name:
+    filename, defined_at, fname = func
+    if os.path.basename(filename) == basename and fname == name \
+       and (line is None or defined_at == line):
       total += ct
       calls += nc
+      seen.append((defined_at, fname))
+  # AMBIGUITY IS A FAULT, NOT A SUM. `tile_map.py` defines __init__
+  # twice -- _TileGrid at 112 and Tiling at 272 -- and _TileGrid is
+  # built INSIDE Tiling's constructor, so a match on basename plus
+  # "__init__" sums a child into its parent and reports a stage that
+  # costs roughly twice what it does. Naming the class is not possible
+  # here: cProfile keys on (file, line, function) and knows nothing
+  # about classes, so the honest answer is to REFUSE and make the
+  # caller disambiguate by line.
+  if len(seen) > 1:
+    return -1.0, len(seen)
   return total, calls
 
 
@@ -164,9 +242,15 @@ def one_spacing(spacing):
   print(f"--- spacing {spacing}: {drawn} features drawn")
   print(f"    {'stage':<38} {'generate':>10} {'save':>10}   calls")
   shown = 0
-  for label, basename, name in STAGES:
-    g, gc = cumulative(gen, basename, name)
-    s_, sc = cumulative(save, basename, name)
+  for stage in STAGES:
+    label, basename, name = stage[0], stage[1], stage[2]
+    at = stage[3] if len(stage) > 3 else None
+    g, gc = cumulative(gen, basename, name, at)
+    s_, sc = cumulative(save, basename, name, at)
+    if g < 0 or s_ < 0:
+      print(f"    {label:<38}  AMBIGUOUS: {max(gc, sc)} functions in "
+            f"{basename} are called {name}")
+      continue
     if g > 0.002 or s_ > 0.002:
       print(f"    {label:<38} {g:9.3f}s {s_:9.3f}s   {gc + sc}")
       shown += 1
@@ -187,6 +271,7 @@ def main():
   (the usual rule for subprocesses here) would not start at all.
   """
   assert os.path.exists(REGION), f"PREMISE: no region fixture at {REGION}"
+  every_stage_names_a_real_function()
 
   if len(sys.argv) > 1:
     one_spacing(float(sys.argv[1]))
