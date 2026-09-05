@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-516 defect(s) with a regression test.
+517 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -640,6 +640,8 @@ there is no separate list to remember.
   guarded by `test_the_design_tab_lines_up_and_opens_narrow`
 - **the categorized renderer recorded no source colour ramp, so a clean ramp applied in QGIS's dock was adopted as hand-picks instead of replacing them, and QGIS's own panel showed no ramp at all.**  
   guarded by `test_the_dock_reapplying_the_same_ramp_discards_the_hand_picks`
+- **letting go of a topology drag cleared the preview at the drop, so the un-edited design was drawn for the whole of the asynchronous rebuild.**  
+  guarded by `test_the_drop_keeps_the_picture_it_was_showing`
 - **every hex-keyed design drew its dual once, in the middle of a patch of tiles it did not cover, while the square-keyed families drew it properly.**  
   guarded by `test_the_dual_repeats_however_the_lattice_is_keyed`
 - **the two element-count widgets could disagree, and nothing read the count off the design that was actually built.**  
@@ -1086,7 +1088,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 187
+- the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
 - reported by a user: 40

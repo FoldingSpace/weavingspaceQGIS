@@ -647,6 +647,40 @@ the file gets the tiling that was sent -- and it falls through with a
 sentence where there is no dual, since an inset opens gaps and a
 gapped design has no topology.
 
+### The drop keeps the picture it was showing
+
+`_commit_the_drag` used to open with `show_preview(None)`, so the
+edited geometry a person had been dragging was cleared AT THE DROP --
+and the rebuild that answers an edit is asynchronous, so until it
+landed `_drawn` fell back to `_topology`, which is the UN-EDITED
+design. That is the field report against 0.24.4rc15: "it reverts for a
+second and then a few seconds later updates correctly". Measured on
+`laves 3.3.4.3.4`, the old design stood for 1.676 seconds and the
+settled drawing was IDENTICAL to what the preview had been showing, so
+the right picture was thrown away and recomputed; on `hex-colouring 7`,
+whose build is nineteen seconds, it is nineteen seconds of the wrong
+design under somebody's hand.
+
+**THE PREVIEW IS KEPT WHERE AN EDIT WAS RECORDED**, and the landing is
+what clears it -- `show_topology` sets `_preview = None` as its own
+third line, and every route to an answer passes through it. So the
+preview stands exactly as long as there is nothing better to draw.
+
+**AND EVERY PATH THAT RECORDS NOTHING STILL CLEARS AT ONCE**, which is
+why this is a decision per exit rather than one line moved. A press
+that never grabbed anything, a selection the tab cannot act on and a
+gesture with no travel each leave a preview describing an edit the
+record does not hold, with no landing coming to correct it -- the fault
+`show_preview` was split from `show_topology` to prevent. The three
+exits are three journeys, and an entry aimed at one of them SURVIVED
+until the test grew an arm that walked it: a click that merely selects
+leaves at the first exit and never reaches the travel test at all.
+
+WHAT IS LEFT OPEN DELIBERATELY is a record with no rebuild behind it.
+The preview then goes on showing what the person asked for, which
+agrees with the change list; reverting would show a design the list
+denies.
+
 ### A gesture outranks a landing, for as long as it lasts
 
 `TopologyView.show_topology` clears the drag preview and the chosen

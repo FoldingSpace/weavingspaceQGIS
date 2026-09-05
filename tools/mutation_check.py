@@ -10634,6 +10634,48 @@ MUTATIONS = [
            "Save box on the file it was saved AWAY from, so the next "
            "press overwrites the older version with newer work while "
            "the file just written goes stale, with nothing said"),
+  dict(name="the-drop-does-not-clear-the-picture-it-kept",
+       file=TOPOLOGY_TAB,
+       # RESTORES THE BEHAVIOUR EXACTLY AS IT SHIPPED in 0.24.4rc15:
+       # the preview is cleared on the first line of the drop, before
+       # anything has decided whether an edit was recorded. Everything
+       # else is left standing, so what is measured is the INTERVAL
+       # between the drop and the landing rather than any part of the
+       # recording.
+       old="""    if self._drag_from is None:
+      self.view.show_preview(None)
+      return
+    args = self._drag_from""",
+       new="""    self.view.show_preview(None)
+    if self._drag_from is None:
+      return
+    args = self._drag_from""",
+       test="test_the_drop_keeps_the_picture_it_was_showing",
+       why="the drawing between the drop and the landing. The rebuild "
+           "that answers an edit is asynchronous, so clearing the "
+           "preview at the drop puts the UN-EDITED design back under "
+           "somebody's hand until it lands -- 1.676s on the default "
+           "design and nineteen seconds on hex-colouring 7, with the "
+           "settled picture identical to the one that was thrown away"),
+  dict(name="a-drag-that-recorded-nothing-still-clears",
+       file=TOPOLOGY_TAB,
+       # THE OTHER ANSWER, and it needs its own entry: keeping the
+       # preview where NOTHING was recorded leaves the view describing
+       # an edit the change list does not hold, which is the fault
+       # `show_preview` was split from `show_topology` to prevent.
+       # Anchored on the travel test's own clear, which is the path a
+       # click takes.
+       old="""    if not self._drag_moved(key, args):
+      self.view.show_preview(None)
+      return""",
+       new="""    if not self._drag_moved(key, args):
+      return      # mutation: keep a preview nothing was recorded from""",
+       test="test_the_drop_keeps_the_picture_it_was_showing",
+       why="the promise that the drawing never shows an edit the "
+           "record denies. A press that went nowhere is a click, which "
+           "chooses a class and edits nothing; leaving its preview up "
+           "draws a design the change list has no entry for and that "
+           "no later landing is coming to correct"),
   dict(name="a-build-nobody-started-is-said-to-be-one", file=DIALOG,
        # ANCHORED ON THE SENTENCE, not on the guard above it: the
        # dump line is left standing so what is measured is whether

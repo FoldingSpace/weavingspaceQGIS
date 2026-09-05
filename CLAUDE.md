@@ -7022,3 +7022,27 @@ here, and the decision to add one is the maintainer's. Recorded
   rule with two answers is taken for one by whoever meets the first --
   a build under way must NOT be reported as never started, or the tab
   tells somebody their healthy nineteen-second design was abandoned.
+
+- **CLEARING A PREVIEW AT THE DROP PUTS THE OLD PICTURE BACK FOR THE
+  WHOLE OF AN ASYNCHRONOUS REBUILD.** (2026-09-04, a field report
+  against 0.24.4rc15 confirmed and repaired.) `_commit_the_drag` opened
+  by clearing the drag preview, which reads as tidy -- the gesture is
+  over, so put the transient thing away -- and the answer that replaces
+  it arrives SECONDS LATER off another thread. In between the view
+  falls back to the un-edited design: 1.676s on the default design,
+  with the settled drawing identical to the preview that had just been
+  discarded, and nineteen seconds on `hex-colouring 7`. The user's
+  words were "it reverts for a second and then a few seconds later
+  updates correctly", which is exactly what it does.
+  THE RULE: a transient picture is cleared by the thing that REPLACES
+  it, not by the act that requested the replacement. Ask of any
+  "cleanup" at the end of a gesture what will be on screen between it
+  and the answer, and how long that is.
+  AND THE DISCARD PATHS ARE NOT THE SAME PATH. Where nothing was
+  recorded there IS no answer coming, so the transient thing must go at
+  once or it describes something no record holds -- which made this a
+  decision per exit rather than one line moved, and the exits are
+  journeys rather than lines: an entry aimed at the no-travel exit
+  SURVIVED because the test's discard arm was a click, which leaves at
+  the first exit and never reaches it. A SURVIVOR NAMED THE ARM THAT
+  WAS MISSING, which is what a survivor is for.

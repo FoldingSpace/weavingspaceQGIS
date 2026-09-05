@@ -6137,6 +6137,192 @@ def test_every_way_of_editing_the_topology_moves_the_drawing():
       _tick(50)
 
 
+def test_the_drop_keeps_the_picture_it_was_showing():
+  """Letting go of a drag does not put the old design back for a second.
+
+  FIELD REPORT against 0.24.4rc15, on the default design: "it reverts
+  for a second and then a few seconds later updates correctly". The
+  mechanism is exact. `_commit_the_drag` opened with
+  `show_preview(None)`, so the edited geometry was cleared AT THE DROP,
+  and the rebuild that answers an edit is ASYNCHRONOUS -- so until it
+  lands `_drawn` falls back to `_topology`, which is the UN-EDITED
+  design. Measured on `laves 3.3.4.3.4`: the old design stood for 1.676
+  seconds and the settled drawing was IDENTICAL to what the preview had
+  been showing, so the right picture was thrown away and recomputed. On
+  `hex-colouring 7`, whose build is nineteen seconds, that is nineteen
+  seconds of the wrong design under somebody's hand.
+
+  IT IS READ AT THE MOMENT THE DEFECT IS ABOUT -- one pump after the
+  release, before the build can land -- because this is a claim about
+  an INTERVAL, and settling first would read the answer that arrives
+  afterwards and pass whatever happened in between.
+
+  BOTH ANSWERS ARE ASSERTED, since a rule with two of them is taken for
+  one by whoever meets the first: a drag that RECORDED an edit keeps
+  its picture, and a press that recorded nothing clears it at once --
+  the second is what `show_preview` was split from `show_topology` to
+  guarantee, and keeping a preview there would leave the view
+  describing an edit nobody made.
+
+  Regression: letting go of a topology drag cleared the preview at the drop, so the un-edited design was drawn for the whole of the asynchronous rebuild. [mutation]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def ground(thing):
+    """The drawn ground as one point, in map units."""
+    unit = getattr(thing, "tileable", thing)
+    if unit is None or getattr(unit, "tiles", None) is None:
+      return None
+    from shapely.ops import unary_union
+    return unary_union(list(unit.tiles.geometry)).centroid
+
+  def apart(a, b):
+    """How far two drawn grounds are from each other, in map units."""
+    one, two = ground(a), ground(b)
+    if one is None or two is None:
+      return None
+    return one.distance(two)
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: no topology was built, so there is nothing to drag"
+    panel = dlg.topology_panel
+    view = panel.view
+    view.resize(600, 600)
+    _tick(100)
+    view.grab()                 # `_fit` runs in paintEvent; no paint, no transform
+    _tick(50)
+
+    started = getattr(panel, "_unit", None) or getattr(dlg, "_unit", None)
+    assert started is not None, "PREMISE: nothing is drawn to compare against"
+
+    topology = view._drawn()
+    middle = (view.width() / 2, view.height() / 2)
+    seat = None
+    for vertex in topology.points.values():
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width()
+              and 0 <= point.y() <= view.height()):
+        continue
+      away = ((point.x() - middle[0]) ** 2
+              + (point.y() - middle[1]) ** 2) ** 0.5
+      if seat is None or away < seat[0]:
+        seat = (away, QPoint(int(round(point.x())), int(round(point.y()))))
+    assert seat is not None, "PREMISE: no vertex is drawn inside the widget"
+    assert _the_topology_tab_is_quiet(dlg), (
+      "PREMISE: a topology build never stopped being outstanding -- "
+      + _why_the_topology_tab_is_busy(dlg))
+
+    # ---- the DISCARD arm first, because it needs the tab untouched.
+    # A press and release at one point is a CLICK: it chooses a class
+    # and records nothing, so nothing may be left previewed.
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, seat[1])
+    _tick(50)
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, seat[1])
+    _tick(100)
+    assert not panel.edits(), \
+      "PREMISE: a click with no travel recorded an edit, so this arm " \
+      "is not the discard path it is about"
+    assert getattr(view, "_preview", None) is None, (
+      "a press that recorded nothing left a preview standing, so the "
+      "view is describing an edit the record does not hold")
+
+    handles = view.handles()
+    assert handles, (
+      "PREMISE: the chosen vertex offers no handle to drag; the panel "
+      f"holds {panel._selection!r}")
+    grab_at = QPoint(int(round(handles[0][1].x())),
+                     int(round(handles[0][1].y())))
+
+    # ---- the SECOND discard arm, and it is a different branch. The
+    # click above never grabbed anything, so it leaves at the drop's
+    # FIRST exit; grabbing a handle and letting go where you took hold
+    # of it reaches the travel test instead, which is the exit a person
+    # meets when they think better of a drag. Aiming an entry at that
+    # branch without this arm produced a SURVIVOR -- the mutation was
+    # inert because nothing here walked that route.
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(50)
+    QTest.mouseMove(view, grab_at)
+    _tick(50)
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(100)
+    assert not panel.edits(), (
+      "PREMISE: taking hold of a handle and letting go without moving "
+      "recorded an edit, so this arm is not the discard branch it is "
+      "about")
+    assert getattr(view, "_preview", None) is None, (
+      "a drag that asked for nothing left its preview standing. A "
+      "gesture that records no edit has no landing coming to correct "
+      "the picture, so it would sit there describing a design the "
+      "change list denies")
+
+    # ---- the KEEP arm: a real drag, read one pump after the drop.
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, grab_at)
+    _tick(50)
+    QTest.mouseMove(view, grab_at + QPoint(60, 0))
+    _tick(200)
+    previewed = getattr(view, "_preview", None)
+    assert previewed is not None, \
+      "PREMISE: the drag drew no preview at all, so there is nothing " \
+      "for the drop to keep"
+    dragged_to = apart(started, previewed)
+    assert dragged_to and dragged_to > 0.5, (
+      f"PREMISE: the drag moved the drawn ground {dragged_to} map "
+      f"units, which is nothing a person could see")
+
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier,
+                       grab_at + QPoint(60, 0))
+    _tick(100)                  # ONE pump: the interval, not the answer
+    assert panel.edits(), \
+      "PREMISE: the drag recorded no edit, so this is the discard " \
+      "path again rather than the one under test"
+    drawn_now = view._drawn()
+    assert drawn_now is not None, "nothing at all is drawn after the drop"
+    reverted = apart(started, drawn_now)
+    assert reverted is not None and reverted > 0.5, (
+      f"the drop put the UN-EDITED design back: what is drawn sits "
+      f"{reverted} map units from where the design started, against "
+      f"{dragged_to} while the pointer was down. That is the revert "
+      f"the field report is about, and it lasts as long as the "
+      f"rebuild -- 1.676s on this design and nineteen seconds on "
+      f"hex-colouring 7")
+
+    # ...AND THE KEPT PICTURE WAS NOT A LIE. A preview left standing
+    # over a design the rebuild disagrees with would be worse than the
+    # revert, so the landing is asked what it drew.
+    _settle_topology(dlg, seconds=40)
+    _settle(dlg)
+    _tick(250)
+    landed = getattr(panel, "_unit", None) or getattr(dlg, "_unit", None)
+    settled = apart(started, landed)
+    assert settled is not None and settled > 0.5, (
+      f"the landing put the design back where it started ({settled} "
+      f"map units), so what the drop kept on screen was not what the "
+      f"edit produced")
+  finally:
+    dlg.close()
+
+
 def test_a_drag_previews_the_move_it_will_commit():
   """What you see while dragging is what you get when you let go.
 
@@ -86298,6 +86484,8 @@ def main():
         test_the_topology_matrix)
   check("every way of editing the topology moves the drawing",
         test_every_way_of_editing_the_topology_moves_the_drawing)
+  check("the drop keeps the picture it was showing",
+        test_the_drop_keeps_the_picture_it_was_showing)
   check("a drag previews the move it will commit",
         test_a_drag_previews_the_move_it_will_commit)
   check("the dual repeats however the lattice is keyed",

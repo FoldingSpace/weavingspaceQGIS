@@ -429,8 +429,31 @@ installed build was checked before any code was read: both profiles
 carry `0.24.4rc15` from commit `09b6ef2`, which CONTAINS all three of
 the drag-and-landing fixes, so none of these is a stale build.
 
-1. **A DROP PUTS THE UN-EDITED DESIGN BACK FOR A SECOND. CONFIRMED AND
-   MEASURED; NOT FIXED.** `_commit_the_drag` clears the preview at the
+1. **A DROP PUTS THE UN-EDITED DESIGN BACK FOR A SECOND. FIXED
+   2026-09-04.** The preview is KEPT on the path that records an edit
+   and the landing clears it -- `show_topology` sets `_preview = None`
+   as its own third line, and every route to an answer passes through
+   it -- while every path that records NOTHING clears at once, because
+   there no landing is coming and a preview would describe an edit the
+   change list denies. Guarded by
+   `test_the_drop_keeps_the_picture_it_was_showing`, which reads ONE
+   PUMP after the release: the claim is about an INTERVAL, and settling
+   first would read the answer that arrives afterwards and pass
+   whatever happened in between. Two catalogue entries, one per answer,
+   both proved `caught`.
+   AND A SURVIVOR NAMED THE ARM THAT WAS MISSING. The entry on the
+   no-travel exit survived at first, because the test's discard arm was
+   a CLICK -- which leaves at the drop's FIRST exit and never reaches
+   the travel test at all. An arm that grabs a handle and lets go
+   without moving walks that route, and the entry catches. Three exits
+   are three journeys, not three lines.
+   WHAT IS LEFT OPEN DELIBERATELY is the journey where no rebuild
+   follows: the preview then goes on showing what the person asked for,
+   which agrees with the change list, where reverting would show a
+   design the list denies. THE ORIGINAL REPORT AND ITS MEASUREMENTS
+   FOLLOW, kept because they are what a later session will not have.
+
+   **CONFIRMED AND MEASURED.** `_commit_the_drag` clears the preview at the
    drop while the rebuild is asynchronous, so the drawing falls back to
    the topology it still holds -- the one from before the edit -- until
    the build lands. Measured on the default design: the old design

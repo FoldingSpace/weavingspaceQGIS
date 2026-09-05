@@ -2500,9 +2500,43 @@ class TopologyPanel(QWidget):
     self.set_unit(*held)
 
   def _commit_the_drag(self):
-    """Turn the gesture just ended into an edit, or discard it."""
-    self.view.show_preview(None)
+    """Turn the gesture just ended into an edit, or discard it.
+
+    Returns:
+      None. THE PREVIEW IS KEPT WHERE AN EDIT WAS RECORDED and cleared
+      at once on every path that records nothing.
+
+    WHY IT IS NOT CLEARED AT THE DROP. It was, on the first line, and
+    the rebuild that answers an edit is ASYNCHRONOUS -- so between the
+    drop and the landing `_drawn` fell back to `self._topology`, which
+    is the UN-EDITED design. Field report against 0.24.4rc15: "it
+    reverts for a second and then a few seconds later updates
+    correctly". Measured on the default design, `laves 3.3.4.3.4`: the
+    old design stood for 1.676 seconds, and the settled drawing's
+    fingerprint was IDENTICAL to what the preview had been showing --
+    so the correct picture was on screen, was thrown away, and was
+    recomputed. On `hex-colouring 7`, whose build is nineteen seconds,
+    that is nineteen seconds of the wrong design under somebody's hand.
+
+    WHAT CLEARS IT INSTEAD is the landing, which every route to an
+    answer passes through: `show_topology` sets `_preview = None` as
+    its own third line. So the preview stands exactly as long as there
+    is nothing better to draw, which is what a preview is for.
+
+    AND THE DISCARD PATHS STILL CLEAR AT ONCE, because there a preview
+    describes something the record does NOT hold -- a press that went
+    nowhere, a selection the tab cannot act on -- and leaving it up
+    would be the view describing an edit nobody made. That is the fault
+    `show_preview` was split from `show_topology` to prevent, and it is
+    the reason this is a decision per path rather than one line moved.
+
+    THE OPEN CASE IS A RECORD WITH NO REBUILD BEHIND IT, and it is
+    left drawing the edit deliberately: if no landing ever arrives the
+    preview shows what the person asked for, which agrees with the
+    change list, where reverting would show a design the list denies.
+    """
     if self._drag_from is None:
+      self.view.show_preview(None)
       return
     args = self._drag_from
     self._drag_from = None
@@ -2511,12 +2545,14 @@ class TopologyPanel(QWidget):
     data = self._selection
     key = self.how_combo.currentData()
     if not data[1] or not key:
+      self.view.show_preview(None)
       return
     # A PRESS THAT WENT NOWHERE IS A CLICK, and a click chooses a class
     # rather than editing anything. The test is on what the drag
     # actually asked for, per manipulation, because "nothing moved"
     # is a different number for an angle than for a fraction.
     if not self._drag_moved(key, args):
+      self.view.show_preview(None)
       return
     self._record({"classes": data[1], "how": key, "args": args})
 
