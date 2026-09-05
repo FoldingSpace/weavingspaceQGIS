@@ -263,6 +263,24 @@ discriminator that would settle it rides in
 adds a second task and reads whether the stuck one then starts -- and
 the stall has not yet been caught with it armed.
 
+### Owed: a sweep for the snap-back, wherever else it lives
+
+**A TRANSIENT PICTURE IS CLEARED BY THE THING THAT REPLACES IT, NOT BY
+THE ACT THAT REQUESTED THE REPLACEMENT** -- C-244, paid for by field
+report 1, where the drop cleared the preview while the rebuild was
+asynchronous and the un-edited design came back for 1.676s. ONE
+INSTANCE MENDED IS NOT A RULE ENFORCED. (Maintainer's instruction,
+2026-09-05.) Enumerate every place the UI clears, resets or re-reads
+something whose replacement arrives asynchronously -- the preview, the
+handles, the note line, the assignment table's cell widgets, the design
+view, the progress text, the message bar -- and for each ask who clears
+it and whether that actor stands at the moment the replacement lands.
+The zigzag handle of the rulings above is a candidate by construction,
+since its position follows a parameter while the topology behind it
+rebuilds off the main thread; so is anything that repaints on a
+`layerChanged` re-emit. What makes this a sweep rather than a hunt is
+that the question is the same at every site and needs no oracle.
+
 ### Owed: five field reports against 0.24.4rc15
 
 Reported by the maintainer on 2026-09-04, driving the DEFAULT design
@@ -292,8 +310,24 @@ the drag-and-landing fixes, so none of these is a stale build.
    for, which agrees with the change list, where reverting would show a
    design the list denies. It wants a state rather than a timer. (R-72.)
 
-2. **A ZIGZAG DOES NOT STICK.** READ, NOT YET DRIVEN, 2026-09-05. ONE
-   MECHANISM SURVIVES READING and it fits the words exactly: a drag
+2. **A ZIGZAG DOES NOT STICK. DRIVEN, FOUND AND FIXED 2026-09-05, and
+   it was not the mechanism reading had suspected.** EVERY BUILD THAT
+   LANDED RESET EVERY PARAMETER BOX TO ITS DEFAULT. The chain is
+   `set_unit` to `_refresh_classes` to `_refresh_manipulations` to
+   `_rebuild_arguments`, which tore the boxes down and made fresh ones;
+   measured by driving a landing, `n` typed as 6 and `h` as 0.6 came
+   back 2 and 0.25, silently, on an ordinary journey. So the numbers a
+   person set were not the numbers their edit was made with. The values
+   are remembered per manipulation now and restored on the rebuild,
+   guarded by `a build landing does not eat the numbers you typed` with
+   its positive control, and the catalogue entry
+   `a-landing-keeps-the-numbers-somebody-typed` is proved `caught`.
+   IT IS THE SNAP-BACK IN A DIFFERENT STORE -- C-244's rule that a
+   transient thing is cleared by whatever REPLACES it, with a build
+   landing as the passing actor and a spin box as the store -- which is
+   why the sweep above matters and why it found this one first.
+   THE MECHANISM READING HAD SUSPECTED IS STILL THERE AND IS NOT THIS,
+   kept because it is a live question about the threshold: a drag
    previews continuously, and on release `_commit_the_drag` asks
    `_drag_moved`, which for `zigzag_edge` is `abs(h) > 0.01` -- one per
    cent of the edge's own length. Below that the preview is cleared and

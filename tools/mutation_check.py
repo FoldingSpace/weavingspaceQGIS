@@ -10744,6 +10744,21 @@ MUTATIONS = [
            "nothing leading to it -- and the next archiving pass reads "
            "that ground as unarchived and takes it a second time, "
            "because the only record that it was done is the pointer"),
+  dict(name="a-landing-keeps-the-numbers-somebody-typed",
+       file="weavingspace_qgis/topology_tab.py",
+       # AIMED AT THE RESTORE, not at the remembering. Remembering
+       # without restoring is the defect exactly: the values are in
+       # hand and the fresh box opens at its default anyway, which is
+       # what shipped until 2026-09-05.
+       old="""      box.setValue(remembered.get(name, default))""",
+       new="""      box.setValue(default)  # mutation: the memory is ignored""",
+       test="test_a_build_landing_does_not_eat_the_numbers_you_typed",
+       why="a build landing resetting every parameter box on the "
+           "Topology tab to its declared default, so an edit is made "
+           "with numbers nobody chose and nothing says so. Driven "
+           "2026-09-05: `n` typed as 6 and `h` as 0.6 came back 2 and "
+           "0.25, which is the field report that a zigzag does not "
+           "stick"),
   dict(name="a-test-opening-a-file-with-geopandas-is-reported",
        file="tests/run_tests.py",
        # AIMED AT THE DETECTION ITSELF. The guard's value is entirely

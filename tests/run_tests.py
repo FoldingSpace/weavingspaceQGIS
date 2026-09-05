@@ -56008,6 +56008,291 @@ def test_a_rule_archived_by_mistake_is_reported():
     shutil.rmtree(root, ignore_errors=True)
 
 
+def test_a_build_landing_does_not_eat_the_numbers_you_typed():
+  """The topology tab's parameter boxes survive a build landing.
+
+  THE DEFECT THIS GUARDS, measured 2026-09-05 by driving it: `n` typed
+  as 6 and `h` as 0.6 came back as 2 and 0.25 -- the declared defaults
+  -- the moment a build landed, silently, on an ordinary journey. The
+  chain is `set_unit` to `_refresh_classes` to `_refresh_manipulations`
+  to `_rebuild_arguments`, which tore every box down and made a fresh
+  one at its default. So the numbers a person set were not the numbers
+  their edit was made with, and nothing anywhere said so.
+
+  IT IS THE FIELD REPORT "A ZIGZAG DOES NOT STICK" (report 2 against
+  rc15), and it is a better explanation than the sub-threshold drag
+  that was suspected first: this one loses a value that was typed
+  rather than dragged, needs no small gesture, and leaves no trace.
+
+  AND IT IS THE SNAP-BACK IN A DIFFERENT STORE. C-244 says a transient
+  thing is cleared by whatever REPLACES it, not by some other actor
+  passing through; here the actor was a build landing and the store was
+  a spin box. The sweep for the rest of that shape is owed under
+  0.24.4.
+
+  Regression: any topology build landing silently reset every parameter box on the Topology tab to its default, so an edit used numbers the person had not chosen. [user]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    topology = getattr(panel, "_topology", None)
+    if topology is None:
+      return                    # no topology on this fixture: nothing to drive
+    edges = list(topology.edges.values())
+    assert edges, "PREMISE: the design offers no edges"
+    panel._on_chose("edge", getattr(edges[0], "label", "") or "")
+    _tick(150)
+    for index in range(panel.how_combo.count()):
+      if panel.how_combo.itemData(index) == "zigzag_edge":
+        panel.how_combo.setCurrentIndex(index)
+        break
+    _tick(150)
+    assert panel.how_combo.currentData() == "zigzag_edge", \
+      "PREMISE: the zigzag manipulation could not be chosen"
+
+    def value(name):
+      for _label, widget in panel._argument_rows:
+        if widget.property("argument") == name:
+          return widget.value()
+      return None
+
+    def put(name, number):
+      for _label, widget in panel._argument_rows:
+        if widget.property("argument") == name:
+          widget.setValue(number)
+
+    put("n", 6.0)
+    put("h", 0.6)
+    _tick(120)
+    # THE PREMISE IS THAT THE NUMBERS ARE NOT ALREADY THE DEFAULTS, or
+    # this test would pass against the very defect it names.
+    assert (value("n"), value("h")) == (6.0, 0.6), (
+      f"PREMISE: the boxes would not take 6 and 0.6, reading "
+      f"{value('n')} and {value('h')}")
+
+    panel.set_unit(getattr(topology, "tileable", None), topology)
+    _tick(400)
+    assert (value("n"), value("h")) == (6.0, 0.6), (
+      f"a build landed and the parameter boxes went back to their "
+      f"defaults: n={value('n')} and h={value('h')} where 6 and 0.6 "
+      f"were typed. An edit made now uses numbers nobody chose")
+
+    # AND A VERB NOBODY HAS TOUCHED STILL OPENS AT ITS DEFAULTS, which
+    # is what stops the memory becoming a second kind of surprise.
+    for index in range(panel.how_combo.count()):
+      if panel.how_combo.itemData(index) == "rotate_edge":
+        panel.how_combo.setCurrentIndex(index)
+        break
+    _tick(150)
+    if panel.how_combo.currentData() == "rotate_edge":
+      fresh = {widget.property("argument"): widget.value()
+               for _label, widget in panel._argument_rows}
+      declared = {name: default for name, _label, _low, _high, default, _step
+                  in topology_edits.MANIPULATIONS["rotate_edge"]["args"]}
+      assert fresh == declared, (
+        f"a manipulation nobody has used opened at something other "
+        f"than its declared defaults: {fresh} against {declared}")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
+def test_the_zigzag_handle_is_where_its_numbers_say():
+  """The zigzag handle's POSITION is the readout, not a grab point.
+
+  (Rulings 1, 3 and 4 of 2026-09-05, on field reports 3 and 4.) The
+  handle sits on the first peak of the wave it describes: `length /
+  (2n)` along the edge from its start, and `h` of the edge's length out
+  along the normal. So its distance from the edge IS the amplitude and
+  its place along the edge IS the count.
+
+  WHAT THIS REPLACES, and why the old arrangement was a defect rather
+  than a preference: the offset in `_EDGE_HANDLES` was a static 60,
+  while the comment beside it claimed that distance was the amplitude.
+  A zero-amplitude zigzag therefore parked its readout 60px off its own
+  edge -- on a 40px edge, further away than the edge is long, which is
+  the "too far from its edge" the maintainer reported.
+
+  THE HANDLE IS SHOWN WHATEVER MANIPULATION IS CHOSEN, because a handle
+  IS the choice of manipulation. Reading the live boxes only while
+  zigzag was selected made the glyph vanish for anybody who had not
+  already chosen it -- caught here by asserting the arrangement before
+  zigzag is picked, which is the state a person actually arrives in.
+
+  Regression: the zigzag handle stood 60px off its edge whatever the amplitude, so its position claimed an amplitude it did not have and read as belonging to nothing. [user]
+  """
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    topology = getattr(panel, "_topology", None)
+    if topology is None:
+      return                      # no topology on this fixture: nothing to say
+    view = panel.view
+    edges = list(topology.edges.values())
+    assert edges, "PREMISE: the design offers no edges to select"
+    edge = edges[0]
+    panel._on_chose("edge", getattr(edge, "label", "") or "")
+    _tick(150)
+    view._chosen_thing = edge
+
+    # THE GLYPH IS THERE BEFORE ANYBODY CHOOSES THE MANIPULATION.
+    offered = [key for key, _where, _shape in view.handles()]
+    assert "zigzag_edge" in offered, (
+      "the zigzag handle is missing before its manipulation is chosen, "
+      "so a handle has stopped being the choice of manipulation: "
+      f"{offered}")
+
+    for index in range(panel.how_combo.count()):
+      if panel.how_combo.itemData(index) == "zigzag_edge":
+        panel.how_combo.setCurrentIndex(index)
+        break
+    _tick(150)
+
+    frame = view._chosen_edge_on_screen()
+    assert frame is not None, "PREMISE: the chosen edge has no screen geometry"
+    start, _finish, reach = frame
+
+    def seat():
+      # THE SELECTION IS RE-ASSERTED BEFORE EVERY READING, and that is
+      # a statement about the product rather than test hygiene: a
+      # rebuild landing between two readings clears `_chosen_thing`,
+      # and a measurement taken after it would be about an unselected
+      # edge while looking exactly like a measurement about this one.
+      view._chosen_thing = edge
+      assert view._chosen_edge_on_screen() is not None, \
+        "PREMISE: the chosen edge stopped answering for its geometry"
+      for key, where, _shape in view.handles():
+        if key == "zigzag_edge":
+          return where
+      raise AssertionError("the zigzag handle is not being placed at all")
+
+    def away_from_start(where):
+      return (((where.x() - start.x()) ** 2 +
+               (where.y() - start.y()) ** 2) ** 0.5)
+
+    def box(name):
+      # RE-READ EVERY TIME, NEVER CAPTURED. `_argument_rows` is rebuilt
+      # whenever the manipulation changes, so a box held from before is
+      # a widget that has been reparented away: setting a value on it
+      # changes nothing the panel reads, and the test then measures the
+      # DEFAULT while believing it set something. That cost two wrong
+      # diagnoses here before the failure was made to print its terms.
+      for _label, widget in panel._argument_rows:
+        if widget.property("argument") == name:
+          return widget
+      raise AssertionError(
+        f"PREMISE: the zigzag has no {name!r} box: "
+        f"{[w.property('argument') for _l, w in panel._argument_rows]}")
+
+    def set_box(name, value):
+      # THE WIDGET IS TAKEN BEFORE THE TICK, or the comparison below is
+      # a thing against itself and says nothing. `_argument_rows` is
+      # rebuilt whenever the manipulation changes or a build lands, and
+      # a rebuilt box is a FRESH one at its default -- so a test that
+      # re-reads afterwards measures the default while believing it set
+      # something.
+      # THE WIDGET MAY LEGITIMATELY BE REBUILT under us -- a build
+      # landing tears these rows down and makes them again -- so what
+      # is asserted is that the VALUE survived, not that the object
+      # did. Before 2026-09-05 it did not: the rebuilt box came back at
+      # its default and this premise is what caught it.
+      box(name).setValue(value)
+      _tick(120)
+      got = box(name).value()
+      assert abs(got - value) < 1e-6, (
+        f"PREMISE: setting {name} to {value} left it at {got}, on the "
+        f"same widget, with manipulation "
+        f"{panel.how_combo.currentData()!r}")
+
+    # THE POSITION IS THE ARITHMETIC, not merely "somewhere sensible".
+    set_box("n", 2.0)
+    set_box("h", 0.25)
+    along, out = reach / 4.0, 0.25 * reach
+    wanted = (along ** 2 + out ** 2) ** 0.5
+    assert abs(away_from_start(seat()) - wanted) < 1.5, (
+      f"the handle is not on the first peak: it sits "
+      f"{away_from_start(seat()):.1f}px from the edge's start where "
+      f"length/(2n)={along:.1f} along and h*length={out:.1f} out puts "
+      f"it at {wanted:.1f}px")
+
+    # AND IT MOVES WITH EACH NUMBER SEPARATELY, which is what makes it
+    # a readout rather than a decoration that happens to be near.
+    before = seat()
+    set_box("h", 0.05)
+    assert away_from_start(seat()) < away_from_start(before) - 2.0, (
+      "lowering the amplitude did not bring the handle in, so its "
+      "distance from the edge is not the amplitude")
+
+    set_box("n", 1.0)
+    at_one = seat()
+    set_box("n", 4.0)
+    assert away_from_start(seat()) < away_from_start(at_one) - 2.0, (
+      "raising the count did not walk the handle toward the edge's "
+      "start, so its place along the edge is not the count")
+
+    # THE CLAMP SAYS SO WHEN IT BITES, rather than leaving a handle
+    # that has silently stopped answering.
+    set_box("n", 8.0)
+    seated = seat()
+    assert away_from_start(seated) >= topology_tab._CLEAR_OF_VERTEX - 1.0, (
+      f"at n=8 the handle sits {away_from_start(seated):.1f}px from the "
+      f"vertex, inside the {topology_tab._CLEAR_OF_VERTEX}px clearance, "
+      f"so it would make that vertex unclickable")
+    # RE-MEASURED HERE RATHER THAN REUSED. The view re-fits inside
+    # `paintEvent`, so the screen length taken before those ticks is a
+    # reading about a scale that has since moved -- which is this
+    # suite's own "a reading taken before the aiming is a bet on the
+    # machine", and it failed this test once before it was written down.
+    view._chosen_thing = edge
+    now = view._chosen_edge_on_screen()
+    assert now is not None, "PREMISE: the edge stopped answering"
+    if now[2] / 16.0 < topology_tab._CLEAR_OF_VERTEX:
+      assert not view.zigzag_readout_is_exact(), (
+        f"the clamp has taken over and the view still reports the "
+        f"readout as exact, so nothing would tell the person their "
+        f"handle has stopped moving. edge={now[2]:.1f}px, "
+        f"readout={view._zigzag_readout}, "
+        f"wanted along={now[2] / (2.0 * max(1, int(round(view._zigzag_readout[0])))):.1f}, "
+        f"clearance={topology_tab._CLEAR_OF_VERTEX}")
+      said = box("n").toolTip()
+      assert "stopped moving" in said, (
+        f"the count's box does not say the handle has stopped moving: "
+        f"{said!r}")
+  finally:
+    dlg.close()
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_the_suite_reads_files_through_ogr():
   """No test may open a file with `geopandas.read_file`.
 
@@ -87928,6 +88213,10 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("a build landing does not eat the numbers you typed",
+        test_a_build_landing_does_not_eat_the_numbers_you_typed)
+  check("the zigzag handle is where its numbers say",
+        test_the_zigzag_handle_is_where_its_numbers_say)
   check("the suite reads files through OGR",
         test_the_suite_reads_files_through_ogr)
   check("the release refuses a tree it did not measure",

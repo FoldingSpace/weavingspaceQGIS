@@ -140,7 +140,16 @@ _EDGE_HANDLES = (
   # where the VERTICES are: handles are tested before vertices, so
   # while an edge was held the vertex under that handle could not be
   # clicked at all, which the interaction matrix caught within minutes.
-  ("zigzag_edge", "middle", 60, "diamond"),
+  # AND ALL OF THAT IS HISTORY AS OF 2026-09-05, kept because it is the
+  # argument the rulings had to beat. The offsets above bought
+  # separation from a FIRST-WINS hit test, and the price was the
+  # zigzag's readout standing 60px off its own edge. `_handle_at` asks
+  # which handle is NEAREST now, so an overlap is tight rather than
+  # fatal, and the zigzag is placed where its position MEANS
+  # something: "peak" is not an offset at all but a computed point,
+  # `length / (2n)` along and `h` of the length out. Its entry keeps
+  # the tuple's shape so nothing else has to know.
+  ("zigzag_edge", "peak", 0, "diamond"),
 )
 # A VERTEX HAS TWO MANIPULATIONS AND THEREFORE TWO HANDLES.
 # (Maintainer, 2026-08-31: "all interactions in that topology image,
@@ -159,6 +168,17 @@ _VERTEX_HANDLES = (
 # Matched to the drawn seat: a handle a person can see is a
 # handle they can hit.
 _HANDLE_REACH = 13.0
+# HOW CLOSE THE ZIGZAG'S HANDLE MAY COME TO A VERTEX. Its along-position
+# is `length / (2n)` from the edge's start -- the first peak of the wave
+# it describes -- so it walks toward that vertex as the count rises, and
+# at n=8 on a 40px edge it would sit 2.5px from it. Handles are tested
+# before vertices, so a handle on a vertex makes that vertex unclickable
+# -- the measured reason the far-side offset was refused on 2026-08-31.
+# Sized as the reach plus a seat's half-width, so the two never overlap.
+# ABOVE THE COUNT WHERE THIS BITES THE POSITION IS NO LONGER AN EXACT
+# READOUT, and that is said out loud rather than left to be discovered:
+# `zigzag_readout_is_exact` answers it. (Ruling 4 of 2026-09-05.)
+_CLEAR_OF_VERTEX = 15.0
 
 
 def _point_to_segment(point, start, finish) -> float:
@@ -266,6 +286,13 @@ class TopologyView(QWidget):
     # to the class, but the handles have to be drawn ON something, and
     # the honest something is the one the person clicked.
     self._chosen_thing = None
+    # WHAT THE ZIGZAG'S HANDLE HAS TO SAY, as (count, amplitude), or
+    # None where the chosen manipulation is not a zigzag. The view
+    # cannot ask -- the parameter boxes belong to the panel -- so the
+    # panel PUSHES this whenever a box moves or a drag previews, which
+    # keeps ONE OWNER for the question exactly as `_arguments` is the
+    # one owner of what the boxes say. (Rulings 1 and 3 of 2026-09-05.)
+    self._zigzag_readout = None
     # WHERE THE CHOSEN THING SAT AT THE LAST REBUILD, so the handles
     # come back to the place a person clicked rather than to whichever
     # member of the class sorts first. None whenever there is nothing
@@ -1122,6 +1149,64 @@ class TopologyView(QWidget):
       previous = current
     return best
 
+  def set_zigzag_readout(self, values):
+    """Tell the view what the zigzag handle has to say.
+
+    Args:
+      values: (count, amplitude) where the chosen manipulation is a
+        zigzag, or None where it is not. Amplitude is the fraction of
+        the edge's own length that `zigzag_edge` takes as `h`, so the
+        handle's offset is that fraction of the edge's SCREEN length
+        and the same gesture means the same shape on any edge.
+
+    Returns:
+      None. Repaints where the value moved, because the handle's place
+      has moved with it.
+    """
+    if values != self._zigzag_readout:
+      self._zigzag_readout = values
+      self.update()
+
+  def _chosen_edge_on_screen(self):
+    """The chosen edge as (start, finish, length) in widget pixels.
+
+    Returns:
+      A tuple, or None where nothing suitable is chosen or its
+      geometry will not answer.
+    """
+    target, _label = self._chosen
+    thing = self._chosen_thing
+    if target != "edge" or thing is None:
+      return None
+    try:
+      coords = list(thing.get_geometry().coords)
+      start = self._to_screen(*coords[0])
+      finish = self._to_screen(*coords[-1])
+    except Exception:                                 # noqa: BLE001
+      return None
+    run, rise = finish.x() - start.x(), finish.y() - start.y()
+    reach = (run * run + rise * rise) ** 0.5
+    return None if reach <= 0 else (start, finish, reach)
+
+  def zigzag_readout_is_exact(self) -> bool:
+    """Whether the zigzag handle is where its count says it is.
+
+    Returns:
+      True where the first peak sits clear of both vertices, so the
+      along-position is a true readout of the count; False where the
+      clamp has taken over and the handle has stopped moving as the
+      count rises. The panel says so when this is False, because a
+      readout that has quietly stopped being one is worse than none --
+      it reads as a control that has stopped responding.
+    """
+    edge = self._chosen_edge_on_screen()
+    if edge is None or not self._zigzag_readout:
+      return True
+    _start, _finish, reach = edge
+    count = max(1, int(round(self._zigzag_readout[0])))
+    wanted = reach / (2.0 * count)
+    return _CLEAR_OF_VERTEX <= wanted <= reach - _CLEAR_OF_VERTEX
+
   def handles(self):
     """Where the handles are, for the thing now selected.
 
@@ -1187,6 +1272,36 @@ class TopologyView(QWidget):
     normal = (-rise / reach, run / reach)
     placed = []
     for key, at, out, shape in _EDGE_HANDLES:
+      if at == "peak":
+        # THE ZIGZAG'S HANDLE IS A READOUT, NOT A GRAB POINT. It sits
+        # on the first peak of the wave it describes -- `length / (2n)`
+        # from the edge's start, `h` of the edge's length out along the
+        # normal -- so the glyph is ON the thing it draws and its
+        # distance from the edge IS the amplitude. Until 2026-09-05
+        # `out` was a static 60 while the code claimed that distance
+        # was the amplitude, which put a zero-amplitude readout 60px
+        # off its own edge: further away, on a 40px edge, than the edge
+        # is long. That is the field report this answers.
+        # CLAMPED CLEAR OF BOTH VERTICES, because at n=8 the peak is
+        # 2.5px from one and a handle over a vertex makes that vertex
+        # unclickable. Where the edge is too short to hold the
+        # clearance at all the peak goes to the middle, which is the
+        # honest answer for an edge with no room.
+        if not self._zigzag_readout:
+          continue
+        count = max(1, int(round(self._zigzag_readout[0])))
+        along = reach / (2.0 * count)
+        room = reach - _CLEAR_OF_VERTEX
+        along = (reach / 2.0 if room <= _CLEAR_OF_VERTEX
+                 else min(max(along, _CLEAR_OF_VERTEX), room))
+        out = float(self._zigzag_readout[1]) * reach
+        base_x = start.x() + (run / reach) * along
+        base_y = start.y() + (rise / reach) * along
+        placed.append((key,
+                       QPointF(base_x + normal[0] * out,
+                               base_y + normal[1] * out),
+                       shape))
+        continue
       anchor = anchors.get(at)
       if anchor is None:
         continue
@@ -1255,12 +1370,27 @@ class TopologyView(QWidget):
       The manipulation key. Handles are tested BEFORE edges and
       vertices, because a handle sits on top of the thing it belongs
       to and is the smaller target.
+
+    NEAREST WINS, NOT FIRST. This used to return the first handle
+    within reach, which is only harmless while no two handles overlap:
+    where two sit closer than twice the reach, the earlier one wins the
+    WHOLE overlap and the later one cannot be clicked at any point at
+    all. That cost `zigzag_edge` 23 edges of two designs in 2026-08-31,
+    and it was answered then by pushing the handles apart -- which is
+    what put the zigzag's readout 60px off its own edge and produced
+    the field report this replaces. Asking which is NEAREST makes an
+    overlap merely tight instead of fatal: each handle keeps the half
+    of it that is closer to itself, so the arrangement is free to put a
+    handle where its POSITION MEANS SOMETHING rather than where the
+    tie-break happens to leave it reachable. (Ruling 1 of 2026-09-05.)
     """
+    best, gap = "", _HANDLE_REACH
     for key, where, _shape in self.handles():
-      if ((where.x() - point.x()) ** 2 +
-          (where.y() - point.y()) ** 2) ** 0.5 < _HANDLE_REACH:
-        return key
-    return ""
+      away = ((where.x() - point.x()) ** 2 +
+              (where.y() - point.y()) ** 2) ** 0.5
+      if away < gap:
+        best, gap = key, away
+    return best
 
   def _edge_frame(self, edge):
     """An edge's own axes, in unit coordinates.
@@ -1566,6 +1696,11 @@ class TopologyPanel(QWidget):
     grid.addWidget(self.how_combo, 3, 1)
 
     self._argument_rows = []
+    # WHAT THE BOXES SAID, so a rebuild does not silently hand back
+    # defaults. Keyed by manipulation: changing the verb asks for that
+    # verb's parameters, and a build landing does not.
+    self._argument_memory = {}
+    self._arguments_belong_to = None
     self._argument_grid = grid
     side.addWidget(change)
 
@@ -2042,26 +2177,61 @@ class TopologyPanel(QWidget):
       break
 
   def _rebuild_arguments(self):
-    """Build the parameter boxes the chosen manipulation needs."""
+    """Build the parameter boxes the chosen manipulation needs.
+
+    THE VALUES SURVIVE THE REBUILD, and until 2026-09-05 they did not.
+    This runs from `_refresh_manipulations`, which runs from
+    `_refresh_classes`, which runs from `set_unit` -- so EVERY BUILD
+    THAT LANDS tore down these boxes and made fresh ones at their
+    DEFAULTS. Measured that day by driving a landing: `n` typed as 6
+    and `h` as 0.6 came back 2 and 0.25, silently, on an ordinary
+    journey. That is the field report "a zigzag does not stick": the
+    numbers a person set were not the numbers the edit was made with,
+    and nothing said so.
+    IT IS THE SAME FAULT AS THE PREVIEW SNAPPING BACK, in a different
+    store: a thing cleared by an actor that is not the one replacing
+    it. (C-244, and the sweep this belongs to is under 0.24.4.)
+
+    THE MEMORY IS KEYED BY MANIPULATION, so each verb keeps its own
+    numbers -- pick zigzag, set an amplitude, go to rotate and back,
+    and the amplitude is where you left it. That is the per-element,
+    per-field memory rule of 2026-08-21 arriving at this tab: what
+    stays ACTIVE changes, what is REMEMBERED does not. A verb nobody
+    has touched still opens at its declared defaults, which is the
+    only thing an unused verb can honestly show.
+    """
+    key = self.how_combo.currentData()
+    # Remembered BEFORE the teardown, and against the key the values
+    # were typed for rather than the one about to be built.
+    if self._argument_rows and self._arguments_belong_to is not None:
+      self._argument_memory[self._arguments_belong_to] = self._arguments()
     for label, box in self._argument_rows:
       label.setParent(None)
       box.setParent(None)
     self._argument_rows = []
-    key = self.how_combo.currentData()
+    self._arguments_belong_to = key
     if key is None:
       return
+    remembered = self._argument_memory.get(key, {})
     for row, (name, label, low, high, default, step) in enumerate(
         edits_module.MANIPULATIONS[key]["args"], start=4):
       caption = QLabel(label)
       box = TrimmedSpinBox()
       box.setRange(low, high)
       box.setSingleStep(step)
-      box.setValue(default)
+      box.setValue(remembered.get(name, default))
       box.setToolTip(f"{label} for this change.")
       box.setProperty("argument", name)
       self._argument_grid.addWidget(caption, row, 0)
       self._argument_grid.addWidget(box, row, 1)
+      # THE ZIGZAG'S HANDLE IS A READOUT OF THESE BOXES, so a box that
+      # moves has to move the handle. Connected here rather than at the
+      # box's construction because these rows are rebuilt whenever the
+      # manipulation changes, and a connection made once would be to a
+      # widget that has since been reparented away.
+      box.valueChanged.connect(self._push_zigzag_readout)
       self._argument_rows.append((caption, box))
+    self._push_zigzag_readout()
     # IT USED TO REFILL THE CLASS LIST FROM HERE, because the list was
     # filtered by the manipulation. Under select-then-act the list
     # holds every class whatever the verb is, so that call is not
@@ -2073,6 +2243,54 @@ class TopologyPanel(QWidget):
     """What the parameter boxes currently say."""
     return {box.property("argument"): box.value()
             for _label, box in self._argument_rows}
+
+  def _push_zigzag_readout(self):
+    """Tell the view where the zigzag handle now belongs.
+
+    Returns:
+      None. The view cannot ask this for itself -- the parameter boxes
+      are the panel's -- so the panel is the ONE OWNER of it, exactly
+      as it is of `_arguments`. Called when a box moves, when the
+      manipulation changes, and while a drag previews, which are the
+      three ways the answer can change.
+
+    AND IT SAYS WHEN THE READOUT HAS STOPPED BEING ONE. Above the count
+    at which the clamp bites, the handle no longer moves with `n`; the
+    note says so rather than leaving somebody to decide the control is
+    broken.
+    """
+    # THE HANDLE IS SHOWN WHATEVER IS CHOSEN, because a handle IS the
+    # choice of manipulation -- the ruling of 2026-08-30 that this tab
+    # is built on. Reading the live boxes only while zigzag happens to
+    # be selected would make the glyph vanish for anybody who had not
+    # already chosen it, which is precisely the state `push_vertex` was
+    # in before it got a rail. So: the boxes where they are the
+    # zigzag's, the manipulation's declared defaults otherwise, and the
+    # handle then always shows the zigzag the current settings describe.
+    args = (self._arguments() if self.how_combo.currentData() == "zigzag_edge"
+            else {name: default for name, _label, _low, _high, default, _step
+                  in edits_module.MANIPULATIONS["zigzag_edge"]["args"]})
+    self.view.set_zigzag_readout((args.get("n", 2.0), args.get("h", 0.0)))
+    # AND WHERE THE CLAMP HAS BITTEN, THE BOX SAYS SO. Deliberately the
+    # BOX's tooltip and not the panel's note line: the note is written
+    # by refusals and by the build's own messages, so a second writer
+    # there would clear somebody else's sentence or be cleared by it --
+    # which is the transient-picture fault this project already has a
+    # rule about, arriving in a message store instead of a drawing.
+    # A MARK ON THE GLYPH ITSELF IS OWED and is recorded in ROADMAP.md:
+    # a tooltip is legible to somebody who goes looking, and the person
+    # this is for is watching the handle rather than the box.
+    exact = self.view.zigzag_readout_is_exact()
+    for _label, box in self._argument_rows:
+      if box.property("argument") != "n" or \
+          self.how_combo.currentData() != "zigzag_edge":
+        continue
+      box.setToolTip(
+        "Zigzags for this change."
+        if exact else
+        "Zigzags for this change. This edge is too short to place that "
+        "many apart on the drawing, so the handle has stopped moving "
+        "with the count -- this box is where the count is.")
 
   def _on_class_chosen(self):
     """Highlight whatever class the chooser now names, and re-offer

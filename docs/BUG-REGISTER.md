@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-517 defect(s) with a regression test.
+519 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1007,6 +1007,8 @@ there is no separate list to remember.
 
 - **a class break retyped by hand in QGIS's Symbology panel never reached the plugin, whose table, colour editor and swatch all went on showing breaks it had computed itself, whatever QGIS held.**  
   guarded by `test_a_break_retyped_in_qgis_reaches_the_plugin`
+- **any topology build landing silently reset every parameter box on the Topology tab to its default, so an edit used numbers the person had not chosen.**  
+  guarded by `test_a_build_landing_does_not_eat_the_numbers_you_typed`
 - **a class added in QGIS's styling panel arrived wearing the plugin's own placeholder grey, and the colour adoption recorded that grey as a colour the user had chosen.**  
   guarded by `test_a_class_added_in_qgis_is_not_a_colour_somebody_picked`
 - **a copy carried no floor and no ceiling and destroyed the target's, so one pair of limits could not be given to several variables; and once it did carry them it went unstamped, because the restyle path that writes the stamp correctly declines a geometry change.**  
@@ -1083,6 +1085,8 @@ there is no separate list to remember.
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
   guarded by `test_the_unclassed_list_fades_without_a_graphics_effect`
+- **the zigzag handle stood 60px off its edge whatever the amplitude, so its position claimed an amplitude it did not have and read as belonging to nothing.**  
+  guarded by `test_the_zigzag_handle_is_where_its_numbers_say`
 - **an edit made after one that opened gaps was refused outright, because the topology was rebuilt between edits and Topology refuses a design with gaps -- so a saved design carrying such a sequence did not come back as the design that was saved.**  
   guarded by `test_topology_edits_come_back_from_the_file`
 
@@ -1091,7 +1095,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 40
+- reported by a user: 42
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 9
