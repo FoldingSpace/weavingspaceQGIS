@@ -415,6 +415,58 @@ def main():
            '  extent_in_grid_space:geom.Polygon\n  """geometry of the circular extent of the tiling transformed into grid\n  generation space."""',
            '  buffered_region:geom.Polygon\n  """the region\'s convex hull buffered by the tile unit\'s diagonal, in map\n  space: the ground a tiling must cover at any rotation (plugin patch 4)."""\n  wanted_extent_in_grid_space:geom.Polygon\n  """the smaller disc that decides which grid cells are wanted, in grid\n  space. The bigger one below still phases the lattice (plugin patch 4)."""\n  extent_in_grid_space:geom.Polygon\n  """geometry of the circular extent of the tiling transformed into grid\n  generation space."""')
 
+
+  # PATCH 5: let a caller say which rotations it will ask for.
+  #
+  # Patch 4 keeps the disc's promise to serve ANY rotation on a smaller
+  # radius. A caller that knows it will never rotate can do better
+  # still: the wanted ground is then the region's own SHAPE rather than
+  # a disc round it. `rotations=None` is the default and is exactly
+  # today's behaviour, so nothing changes for a caller that does not
+  # know; naming them unions the region buffered and turned by each
+  # declared angle, because a tiling rotated by r puts the tile placed
+  # at p at rot(p).
+  #
+  # MEASURED 2026-09-04 on the packaged Auckland data: 63.8% of the
+  # placements patch 4 already reduced, so about half the original, and
+  # the worker at spacing 250 goes 0.929s -> 0.796s on top of patch 4
+  # (1.152s before either). Twelve comparisons at rotation 0, none
+  # differing.
+  #
+  # IT IS A PROMISE THE CALLER CAN BREAK, and the probe drives that
+  # deliberately rather than showing only the happy arm: a tiling told
+  # (0,) and then asked for 45 or 90 degrees comes back SHORT at the
+  # edges, in 12 of 12 cases at spacing 250. A small design at a coarse
+  # spacing does NOT show it -- `basket weave ab|cd` at 500 came back
+  # identical -- which is why the control sweeps rather than asserting
+  # on one case.
+  #
+  # THIS PLUGIN CAN SAY (0,) HONESTLY because its Rotate modifier calls
+  # `unit.transform_rotate`, turning the prototile and re-deriving the
+  # translation vectors, so the whole lattice turns BEFORE the grid is
+  # laid. Upstream's own argument turns a finished tiling about the
+  # grid centre instead -- the same picture at a different point in the
+  # pipeline.
+  #
+  # Offered upstream in
+  # docs/process/upstream-note-the-grid-disc-is-larger-than-it-needs.md
+  # and proved by tools/probes/the_rotation_hint_keeps_the_map.py.
+  targeted(VENDOR_DIR / "tile_map.py", "5a the grid takes the hint",
+           '  def __init__(\n      self,\n      tile_unit:Tileable,\n      to_tile:gpd.GeoSeries,\n      at_centroids:bool = False) -> None:\n    self.tile_unit = tile_unit\n    self.oriented_rect_to_tile = self._get_rect_to_tile(to_tile)\n    self.to_map_space, self.to_grid_space = self._get_transforms()\n    self._set_centre_in_map_space()\n    self._set_extent_in_grid_space()\n    if at_centroids:\n      self.points = to_tile.representative_point()\n    else:\n      self.points = self._get_grid()\n    self.points.crs = self.tile_unit.crs',
+           '  def __init__(\n      self,\n      tile_unit:Tileable,\n      to_tile:gpd.GeoSeries,\n      at_centroids:bool = False,\n      rotations:tuple[float,...]|None = None) -> None:\n    # PLUGIN PATCH 5a: `rotations` is the caller saying which rotations\n    # it will ever ask `get_tiled_map` for. None means "any", which is\n    # today\'s behaviour and the default, so nothing changes for a\n    # caller that does not know.\n    self.rotations = rotations\n    self.tile_unit = tile_unit\n    self.oriented_rect_to_tile = self._get_rect_to_tile(to_tile)\n    self.to_map_space, self.to_grid_space = self._get_transforms()\n    self._set_centre_in_map_space()\n    self._set_extent_in_grid_space()\n    if at_centroids:\n      self.points = to_tile.representative_point()\n    else:\n      self.points = self._get_grid()\n    self.points.crs = self.tile_unit.crs')
+
+  targeted(VENDOR_DIR / "tile_map.py", "5b the wanted ground is a shape, not a disc",
+           '    coords = shapely.get_coordinates(self.buffered_region)\n    wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,\n                                   coords[:, 1] - self.centre.y)))\n    self.wanted_extent_in_grid_space = \\\n      affine.affine_transform(self.centre.buffer(wanted), self.to_grid_space)',
+           "    if self.rotations is None:\n      coords = shapely.get_coordinates(self.buffered_region)\n      wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,\n                                     coords[:, 1] - self.centre.y)))\n      wanted_in_map_space = self.centre.buffer(wanted)\n    else:\n      # PLUGIN PATCH 5b: the caller has said which rotations it will\n      # ask for, so the wanted ground is no longer a disc. A tiling\n      # rotated by r about the centre puts the tile placed at p at\n      # rot(p), so the placements worth laying are those whose IMAGE\n      # lands on the region -- p in rot^-1(buffered region), unioned\n      # over the rotations declared. With rotations=(0,) that is the\n      # region's own shape, which is why this is the larger of the two\n      # reductions.\n      wanted_in_map_space = shapely.union_all([\n        affine.rotate(self.buffered_region, -r, origin = self.centre)\n        for r in self.rotations])\n    self.wanted_extent_in_grid_space = \\\n      affine.affine_transform(wanted_in_map_space, self.to_grid_space)")
+
+  targeted(VENDOR_DIR / "tile_map.py", "5c Tiling takes and forwards the hint",
+           '      tileable:Tileable,\n      region:gpd.GeoDataFrame,\n      as_icons:bool = False,\n    ) -> None:\n    """Construct a tiling by polygons extending beyond supplied region.\n\n    The tiling is extended sufficiently to allow for its application at any\n    rotation.\n\n    Args:\n      tileable (Tileable): the TileUnit or WeaveUnit to use.\n      region (gpd.GeoDataFrame): the region to be tiled.\n      as_icons (bool, optional): if True prototiles will only be placed at the\n        region\'s zone centroids, one per zone. Defaults to False.\n\n    """\n    self.tileable = tileable\n    self.rotation = 0\n    self.region = region\n    self.region.sindex # this probably speeds up overlay  # noqa: B018\n    self.region_union = self.region.geometry.union_all()\n    self.grid = _TileGrid(\n      self.tileable,\n      self.region.geometry if as_icons else gpd.GeoSeries([self.region_union]),\n      as_icons)',
+           '      tileable:Tileable,\n      region:gpd.GeoDataFrame,\n      as_icons:bool = False,\n      rotations:tuple[float,...]|None = None,\n    ) -> None:\n    """Construct a tiling by polygons extending beyond supplied region.\n\n    The tiling is extended sufficiently to allow for its application at any\n    rotation.\n\n    Args:\n      tileable (Tileable): the TileUnit or WeaveUnit to use.\n      region (gpd.GeoDataFrame): the region to be tiled.\n      as_icons (bool, optional): if True prototiles will only be placed at the\n        region\'s zone centroids, one per zone. Defaults to False.\n      rotations (tuple[float,...], optional): PLUGIN PATCH 5. The\n        rotations this tiling will ever be asked for. Defaults to None,\n        meaning any -- which is the behaviour above and costs a grid\n        laid over every radius the region reaches. Naming them lets the\n        grid ask the region\'s own SHAPE instead of a disc, which on the\n        packaged Auckland data at spacing 250 is 2,791 placements of\n        8,109 rather than 6,402. Pass it only if it is true: a tiling\n        asked for a rotation it was not told about will be short of\n        tiles at the edges.\n\n    """\n    self.tileable = tileable\n    self.rotation = 0\n    self.region = region\n    self.region.sindex # this probably speeds up overlay  # noqa: B018\n    self.region_union = self.region.geometry.union_all()\n    self.grid = _TileGrid(\n      self.tileable,\n      self.region.geometry if as_icons else gpd.GeoSeries([self.region_union]),\n      as_icons,\n      rotations)')
+
+  targeted(VENDOR_DIR / "tile_map.py", "5d declare the hint as a slot",
+           '  buffered_region:geom.Polygon\n  """the region\'s convex hull buffered by the tile unit\'s diagonal, in map\n  space: the ground a tiling must cover at any rotation (plugin patch 4)."""\n  wanted_extent_in_grid_space:geom.Polygon\n  """the smaller disc that decides which grid cells are wanted, in grid\n  space. The bigger one below still phases the lattice (plugin patch 4)."""',
+           '  rotations:tuple[float,...]|None\n  """the rotations this grid will be asked for, or None for any. Naming\n  them lets the grid ask the region\'s own shape rather than a disc\n  (plugin patch 5)."""\n  buffered_region:geom.Polygon\n  """the region\'s convex hull buffered by the tile unit\'s diagonal, in map\n  space: the ground a tiling must cover at any rotation (plugin patch 4)."""\n  wanted_extent_in_grid_space:geom.Polygon\n  """the smaller disc that decides which grid cells are wanted, in grid\n  space. The bigger one below still phases the lattice (plugin patch 4)."""')
+
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself
   # (commit 8235837), in its own variant — per-geometry convex hulls,

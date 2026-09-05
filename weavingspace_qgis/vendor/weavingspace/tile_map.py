@@ -100,6 +100,10 @@ class _TileGrid:
   stored as a shapely.affinity transform tuple of 6 floats."""
   to_map_space:tuple[float,...]
   """the inverse transform from tiling grid space to map space."""
+  rotations:tuple[float,...]|None
+  """the rotations this grid will be asked for, or None for any. Naming
+  them lets the grid ask the region's own shape rather than a disc
+  (plugin patch 5)."""
   buffered_region:geom.Polygon
   """the region's convex hull buffered by the tile unit's diagonal, in map
   space: the ground a tiling must cover at any rotation (plugin patch 4)."""
@@ -119,7 +123,13 @@ class _TileGrid:
       self,
       tile_unit:Tileable,
       to_tile:gpd.GeoSeries,
-      at_centroids:bool = False) -> None:
+      at_centroids:bool = False,
+      rotations:tuple[float,...]|None = None) -> None:
+    # PLUGIN PATCH 5a: `rotations` is the caller saying which rotations
+    # it will ever ask `get_tiled_map` for. None means "any", which is
+    # today's behaviour and the default, so nothing changes for a
+    # caller that does not know.
+    self.rotations = rotations
     self.tile_unit = tile_unit
     self.oriented_rect_to_tile = self._get_rect_to_tile(to_tile)
     self.to_map_space, self.to_grid_space = self._get_transforms()
@@ -230,11 +240,25 @@ class _TileGrid:
     radius = self.centre.distance(corner)
     self.extent_in_grid_space = \
       affine.affine_transform(self.centre.buffer(radius), self.to_grid_space)
-    coords = shapely.get_coordinates(self.buffered_region)
-    wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,
-                                   coords[:, 1] - self.centre.y)))
+    if self.rotations is None:
+      coords = shapely.get_coordinates(self.buffered_region)
+      wanted = float(np.max(np.hypot(coords[:, 0] - self.centre.x,
+                                     coords[:, 1] - self.centre.y)))
+      wanted_in_map_space = self.centre.buffer(wanted)
+    else:
+      # PLUGIN PATCH 5b: the caller has said which rotations it will
+      # ask for, so the wanted ground is no longer a disc. A tiling
+      # rotated by r about the centre puts the tile placed at p at
+      # rot(p), so the placements worth laying are those whose IMAGE
+      # lands on the region -- p in rot^-1(buffered region), unioned
+      # over the rotations declared. With rotations=(0,) that is the
+      # region's own shape, which is why this is the larger of the two
+      # reductions.
+      wanted_in_map_space = shapely.union_all([
+        affine.rotate(self.buffered_region, -r, origin = self.centre)
+        for r in self.rotations])
     self.wanted_extent_in_grid_space = \
-      affine.affine_transform(self.centre.buffer(wanted), self.to_grid_space)
+      affine.affine_transform(wanted_in_map_space, self.to_grid_space)
 
 
   def _get_grid(self) -> gpd.GeoSeries:
@@ -320,6 +344,7 @@ class Tiling:
       tileable:Tileable,
       region:gpd.GeoDataFrame,
       as_icons:bool = False,
+      rotations:tuple[float,...]|None = None,
     ) -> None:
     """Construct a tiling by polygons extending beyond supplied region.
 
@@ -331,6 +356,15 @@ class Tiling:
       region (gpd.GeoDataFrame): the region to be tiled.
       as_icons (bool, optional): if True prototiles will only be placed at the
         region's zone centroids, one per zone. Defaults to False.
+      rotations (tuple[float,...], optional): PLUGIN PATCH 5. The
+        rotations this tiling will ever be asked for. Defaults to None,
+        meaning any -- which is the behaviour above and costs a grid
+        laid over every radius the region reaches. Naming them lets the
+        grid ask the region's own SHAPE instead of a disc, which on the
+        packaged Auckland data at spacing 250 is 2,791 placements of
+        8,109 rather than 6,402. Pass it only if it is true: a tiling
+        asked for a rotation it was not told about will be short of
+        tiles at the edges.
 
     """
     self.tileable = tileable
@@ -341,7 +375,8 @@ class Tiling:
     self.grid = _TileGrid(
       self.tileable,
       self.region.geometry if as_icons else gpd.GeoSeries([self.region_union]),
-      as_icons)
+      as_icons,
+      rotations)
     self.tiles, self.prototiles, self.reg_prototiles = self.make_tiling()
     self.tiles.sindex # again this probably speeds up overlay  # noqa: B018
 

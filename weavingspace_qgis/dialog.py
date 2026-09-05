@@ -16927,7 +16927,19 @@ class WeavingSpaceDialog(QDialog):
     def work(task):
       from weavingspace import Tiling
       task.setProgress(5)
-      tiling = Tiling(unit, region, as_icons=as_icons)
+      # THE PLUGIN NEVER ROTATES A TILING, so it can say so and let
+      # the grid ask the region's own shape instead of a disc. The
+      # Rotate modifier calls `unit.transform_rotate`, which turns the
+      # prototile and RE-DERIVES the translation vectors -- the whole
+      # lattice turns before the grid is laid, where the library's own
+      # argument turns a finished tiling about the grid centre. Same
+      # picture, a different point in the pipeline, and it is what
+      # makes `rotations=(0,)` true here rather than merely convenient.
+      # Measured 2026-09-04: 63.8% of the placements patch 4 already
+      # reduced, so about half the original. If this plugin ever passes
+      # a rotation to `get_tiled_map`, this argument must go with it or
+      # the map comes back short at the edges.
+      tiling = Tiling(unit, region, as_icons=as_icons, rotations=(0.0,))
       if task.isCanceled():
         return None
       task.setProgress(40)

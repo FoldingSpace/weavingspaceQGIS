@@ -458,6 +458,29 @@ appears only when `ceil(2R)` changes by an ODD amount, and on
 design reported the phase fault as INERT, which reads exactly like a
 test too weak to notice it; the fixture names `crosses 4` and says why.
 
+## PATCH 5 IS BUILT TOO: the plugin declares its rotation
+
+    spacing 250            before   patch 4   patches 4+5
+    worker                 1.152s    0.929s        0.796s
+      Tiling.__init__      0.698s    0.561s        0.434s
+        _TileGrid          0.411s    0.340s        0.271s
+      get_tiled_map        0.451s    0.366s        0.360s
+    placements kept          100%     77.3%         ~49%
+
+`rotations=None` is the default and is patch 4's behaviour exactly, so
+an upstream caller that does not know loses nothing. THE PLUGIN CAN SAY
+`(0,)` HONESTLY, and that is a fact about its own design rather than a
+convenience: the Rotate modifier calls `unit.transform_rotate`, which
+turns the prototile and RE-DERIVES the translation vectors, so the
+lattice turns before the grid is laid -- where the library's argument
+turns a finished tiling about the grid centre.
+
+AND THE PROMISE BITES WHEN BROKEN, driven rather than argued: a tiling
+told `(0,)` and asked for 45 or 90 degrees comes back SHORT at the
+edges in 12 of 12 cases at spacing 250. A small design at a coarse
+spacing does NOT show it -- `basket weave ab|cd` at 500 came back
+identical at 30 -- so the guard stages the fine case and says why.
+
 ## The three columns, measured 2026-09-04
 
 `tools/probes/what_the_proposed_grid_filters_would_keep.py` measures

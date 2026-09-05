@@ -73,3 +73,50 @@ geometry bytes rather than in aggregate.
 We carry it as patch 4 in `tools/vendor_weavingspace.py`, which
 re-applies it at every re-vendor and names itself if the anchor moves.
 We would rather not carry it.
+
+---
+
+# And a second, opt-in step: let a caller name its rotations
+
+The reduction above keeps the promise to serve **any** rotation. A
+caller that knows it will never rotate can do better still, and the
+change is additive.
+
+## The shape
+
+    Tiling(tileable, region, as_icons=False, rotations=None)
+
+`None` means "any" and is exactly today's behaviour, so nothing changes
+for a caller that does not know. Given a tuple, the wanted ground stops
+being a disc: a tiling rotated by *r* about the centre puts the tile
+placed at *p* at rot(*p*), so the placements worth laying are those
+whose image lands on the region — *p* ∈ rot⁻¹(buffered region), unioned
+over the angles declared. With `rotations=(0,)` that is the region's
+own shape.
+
+## What it is worth, and what it costs when broken
+
+    placements kept   63.8% of what the reduction above already keeps
+                      (so about half the original)
+    worker            0.929s -> 0.796s at spacing 250
+                      (1.152s before either change)
+    at rotation 0     12 comparisons, 0 differing
+
+**It is a promise the caller can break, and we drove that
+deliberately.** A tiling told `(0,)` and then asked for 45 or 90
+degrees comes back **short at the edges** — in 12 of 12 cases at
+spacing 250. Worth knowing for anyone testing it: a small design at a
+coarse spacing does **not** show this. `basket weave ab|cd` at spacing
+500 came back identical at 30 degrees, because few placements and a
+nearly round wanted area leave nothing to lose.
+
+## Why the plugin can make the promise
+
+Its Rotate modifier calls `unit.transform_rotate`, which turns the
+prototile and **re-derives the translation vectors** — the whole
+lattice turns before the grid is laid. Your `rotation` argument turns a
+finished tiling about the grid centre instead. Same picture, a
+different point in the pipeline.
+
+Proved by `tools/probes/the_rotation_hint_keeps_the_map.py`, which
+drives both the honest arm and the broken one.

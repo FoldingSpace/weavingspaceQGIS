@@ -2007,6 +2007,100 @@ def test_the_grid_disc_reaches_only_what_the_region_occupies():
     f"only {compared} rotations were compared, so the equality proves little"
 
 
+
+def test_a_declared_rotation_lets_the_grid_ask_the_regions_shape():
+  """Plugin patch 5 lets a caller name the rotations it will ask for.
+  Told none, `_TileGrid` lays its placements over every radius the
+  region reaches (patch 4). Told `(0,)`, it can ask the region's own
+  SHAPE instead of a disc, which is the larger reduction.
+
+  THREE THINGS, and the third is what makes the first two safe.
+
+  The hint must SAVE something, or it is a widened signature for
+  nothing. The map at rotation 0 must be IDENTICAL, or it is a
+  cartographic ruling rather than an optimisation. And breaking the
+  promise must COST something: a tiling told `(0,)` and then asked for
+  45 degrees has to come back short, because a hint that costs nothing
+  when broken is one nobody needs to keep -- and this project has been
+  caught before by a control arm that could not fail.
+
+  A SMALL DESIGN AT A COARSE SPACING CANNOT SHOW THAT LAST ONE.
+  Measured while the patch was written: `basket weave ab|cd` at 500
+  came back identical at 30 degrees, because few placements and a
+  nearly round wanted area leave nothing to lose. The case is staged
+  at spacing 250 for that reason.
+
+  AND THE PLUGIN'S OWN PROMISE IS ASSERTED AT THE SOURCE, because the
+  hint is only sound while the one construction site really never
+  rotates a tiling. The Rotate modifier turns the UNIT and re-derives
+  the translation vectors, so the lattice turns before the grid is
+  laid; if a later change passes a rotation to `get_tiled_map`, this
+  argument has to go with it or the map comes back short at the edges.
+  """
+  import ast
+  import geopandas as gpd
+  import shapely
+  from weavingspace import Tiling
+  from weavingspace_qgis import catalog
+
+  region = gpd.read_file(
+    os.path.join(HERE, "data", "imd-auckland-sa2-2018.gpkg"))
+  designs = catalog.TILINGS_BY_N[4]
+  unit = catalog.make_unit(designs["crosses 4"], spacing=250.0,
+                           crs=region.crs.to_epsg())
+
+  def fingerprint(tiled):
+    return sorted((str(r.tile_id), shapely.to_wkb(r.geometry))
+                  for r in tiled.map.itertuples())
+
+  loose = Tiling(unit, region)
+  tight = Tiling(unit, region, rotations=(0.0,))
+  assert len(loose.grid.points) > 0, "PREMISE: the loose grid is empty"
+  assert len(tight.grid.points) < len(loose.grid.points), (
+    f"declaring the rotation kept {len(tight.grid.points)} placements of "
+    f"{len(loose.grid.points)}, so the hint saves nothing")
+
+  at_zero_loose = fingerprint(loose.get_tiled_map(rotation=0.0))
+  at_zero_tight = fingerprint(tight.get_tiled_map(rotation=0.0))
+  assert len(at_zero_loose) > 100, \
+    f"PREMISE: only {len(at_zero_loose)} tiles, too few to compare"
+  assert at_zero_tight == at_zero_loose, (
+    f"the declared-rotation grid drew {len(at_zero_tight)} tiles against "
+    f"{len(at_zero_loose)}, differing in "
+    f"{len(set(at_zero_tight) ^ set(at_zero_loose))}")
+
+  # THE PROMISE HAS TO BITE WHEN BROKEN, or the two assertions above
+  # are about a hint that means nothing.
+  broken = fingerprint(tight.get_tiled_map(rotation=45.0))
+  honest = fingerprint(loose.get_tiled_map(rotation=45.0))
+  assert broken != honest, (
+    "a tiling told (0,) and then asked for 45 degrees drew the same map "
+    "as one told nothing, so the hint costs nothing when broken and the "
+    "saving above is not evidence that it is sound")
+
+  # AND THE PLUGIN REALLY MAKES THE PROMISE IT RELIES ON.
+  # ASKED OF THE SYNTAX, not of the text: a first draft grepped for
+  # "Tiling(" and counted the DOCSTRING that mentions it as a second
+  # construction site, which is this project's own rule that a gate
+  # reading prose must decide what counts as prose.
+  tree = ast.parse(open(os.path.join(ROOT, "weavingspace_qgis",
+                                     "dialog.py"), encoding="utf-8").read())
+  builds = [node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name) and node.func.id == "Tiling"]
+  assert len(builds) == 1, \
+    f"dialog.py builds a Tiling at {len(builds)} sites; each has to " \
+    f"declare its rotations or none may"
+  declared = [kw for kw in builds[0].keywords if kw.arg == "rotations"]
+  assert declared, (
+    "the one Tiling this plugin builds no longer declares its "
+    "rotations. Either restore it or, if a rotation is now passed to "
+    "get_tiled_map, say so there instead -- an undeclared rotation "
+    "against a grid built for none comes back short at the edges")
+  assert ast.literal_eval(declared[0].value) == (0.0,), \
+    f"it declares {ast.dump(declared[0].value)}, which is not (0.0,)"
+
+
 def test_renderer_seeding():
   """Each style produces the QGIS renderer it should.
 
@@ -85972,6 +86066,8 @@ def main():
         test_the_faster_conversion_draws_the_same_layer)
   check("the grid disc reaches only what the region occupies",
         test_the_grid_disc_reaches_only_what_the_region_occupies)
+  check("a declared rotation lets the grid ask the region's shape",
+        test_a_declared_rotation_lets_the_grid_ask_the_regions_shape)
   check("real-world data end to end (Auckland IMD)",
         test_real_world_data)
   check("renderer seeding (graduated + categorized)", test_renderer_seeding)

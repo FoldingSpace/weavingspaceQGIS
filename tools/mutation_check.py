@@ -166,6 +166,39 @@ MUTATIONS = [
            "which was exact: colour had an adoption path into the "
            "record and the bounds had none, so every route ended at "
            "the same missing one"),
+  dict(name="a-declared-rotation-narrows-the-grid",
+       file=VENDOR_TILE_MAP,
+       # ANCHORED ON THE DECISION, which is the line that chooses
+       # between a disc and the region's own shape. Forcing the disc
+       # limb is upstream-plus-patch-4 behaviour, so this asks whether
+       # declaring a rotation does anything at all.
+       old="""    if self.rotations is None:""",
+       new="""    if True:""",
+       test="test_a_declared_rotation_lets_the_grid_ask_the_regions_shape",
+       why="a caller that will never rotate is being made to pay for a "
+           "grid laid over every radius the region reaches. Told the "
+           "truth the grid asks the region's SHAPE instead, which on "
+           "the packaged Auckland data is 63.8% of the placements "
+           "patch 4 already reduced -- about half the original -- and "
+           "takes the worker from 0.929s to 0.796s at spacing 250"),
+  dict(name="the-plugin-declares-the-rotation-it-keeps",
+       file=DIALOG,
+       # ANCHORED ON THE CALL SITE, because the LIBRARY's saving is
+       # only sound while this plugin's promise is true. The entry
+       # above proves the mechanism; this proves the plugin still makes
+       # the claim the mechanism rests on.
+       old="""      tiling = Tiling(unit, region, as_icons=as_icons, rotations=(0.0,))""",
+       new="""      tiling = Tiling(unit, region, as_icons=as_icons)""",
+       test="test_a_declared_rotation_lets_the_grid_ask_the_regions_shape",
+       why="the hint is a promise a caller can break, and breaking it "
+           "costs tiles at the edges -- measured in 12 of 12 cases at "
+           "spacing 250, where a tiling told (0,) and asked for 45 or "
+           "90 degrees comes back short. This plugin can say (0,) "
+           "honestly because its Rotate modifier turns the UNIT and "
+           "re-derives the translation vectors, so the lattice turns "
+           "before the grid is laid; the day somebody passes a "
+           "rotation to get_tiled_map instead, this argument has to go "
+           "with it"),
   dict(name="the-grid-keeps-only-the-cells-the-region-reaches",
        file=VENDOR_TILE_MAP,
        # ANCHORED ON THE FILTER, which is where the saving is decided.
