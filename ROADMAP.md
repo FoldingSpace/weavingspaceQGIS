@@ -330,20 +330,13 @@ and `h` as 0.6 came back 2 and 0.25 on an ordinary journey. That is
 field report 2. Values are remembered per manipulation now, guarded,
 and the catalogue entry is proved `caught`.
 
-| store | who empties it | verdict |
-|---|---|---|
-| Topology parameter boxes | a build landing, via `_rebuild_arguments` | **WAS THE FAULT.** Fixed: remembered per manipulation |
-| `view._preview` | `show_topology` (the landing) and the discard paths | sound -- the replacer clears it, and a path recording nothing has no landing coming |
-| Topology `note` | `set_unit` writes it | sound -- the landing is the writer |
-| Topology `working` sentence | `set_unit` empties it | sound -- and deliberately, as the one place every route to an answer passes through |
-| `symmetry_note` | `_say_what_the_symmetry_is`, inside the landing | sound |
-| The zigzag handle's readout | pushed by `_rebuild_arguments`, box changes and the drag | sound -- it holds its last value across a rebuild rather than blanking, so there is no window where the glyph is missing |
-| `live_note` | the run's own `finally`, and the live gate before it decides | sound -- the gate only drops a "paused" line that has stopped being true |
-| Progress text | the progress handler | sound -- the reporter is the writer |
-| `_pending_colour_note`, `_pending_duplicate_note` | taken and cleared at the point of use | sound -- set and consumed by one run |
-| The design preview | `_rebuild_unit`, on the main thread | sound -- synchronous, so there is no interval to be wrong in |
-| The assignment table's cell widgets | `_rebuild_unit` via the layer combo's re-emit after a landing | sound BY AN EXISTING RULE rather than by this sweep: Data & colours changes go through `_refresh_preview_colours`, and widget identity across the debounce is already guarded |
-
+TEN OTHER STORES WERE ASKED AND ARE SOUND, each for a reason worth
+keeping so the sweep is not run again from nothing: the preview, the
+tab's note, its working sentence, the symmetry line, the zigzag
+readout, the live note, the progress text, the two deferred notes, the
+design preview, and the assignment table's cell widgets -- that last
+one sound by an EXISTING rule rather than by this sweep, which is worth
+the distinction. (R-73.)
 WHAT THE SWEEP IS WORTH KEEPING FOR is the question rather than the
 table, which will age: for anything the interface shows and later
 replaces, name the actor that empties it and the actor that fills it,
@@ -420,74 +413,16 @@ the drag-and-landing fixes, so none of these is a stale build.
    `_make_drawable`, since zigzag is the manipulation that emits
    coincident vertices.
 3. **THE NUMBER OF ZIGZAGS CANNOT BE SET FROM THE DRAWING. BUILT AND
-   GUARDED 2026-09-05**, to the four rulings in CLAUDE.md. Along-edge
-   travel of the zigzag handle sets the count past a deadband of a
-   tenth of the edge -- sized from the glyph, so a gesture that never
-   leaves the handle's own 12px seat cannot step it -- and the count
-   snaps, visibly, because the stops are the counts. `_drag_argument`
-   returns a MAPPING now rather than one name and one value, since a
-   glyph carrying two parameters of one manipulation is the
-   `nudge_vertex` precedent and not the refused merged end handle.
-   Guarded by `a drag along an edge sets the zigzag count` with both
-   arms driven -- along, and across at nine degrees off perpendicular,
-   which is the arm that would have caught the 1.003 scale fault -- and
-   two catalogue entries proved `caught`.
-   **AND THE WAVE IS GHOSTED ON THE EDGE, WITH FOUR CUES SAYING WHAT
-   THE TWO AXES DO** (maintainer, 2026-09-05, answering "what if there
-   were visual cues for greater vs lesser amplitude and frequency" and
-   then "what if the glyph were four glyphs"). The 12px seat could
-   carry neither: eight oscillations in it are a smudge and amplitude
-   saturates past about a third, so it could show change and never
-   value -- and its own comment already claimed to draw "at the
-   amplitude it is about to make it in" while drawing a fixed shape,
-   which is the 60px zero error's twin, in the same glyph. The ghost
-   goes on the edge where there is room, only while the zigzag is
-   chosen, and crests AT the handle. The four cues are painted and
-   never clicked, which is the only reason four fit -- a clickable
-   glyph needs 26px from its neighbour and these edges are ~40px on
-   hex-slice 6 -- and each is a miniature of what it produces. Guarded
-   by `the zigzag ghost passes through its handle`, entry proved
-   `caught`.
-   THE READING THAT PRECEDED IT: it is a GAP rather than a decision,
-   and the
-   reading is one line. `_parameter_from_drag` returns `"h",
-   abs(across) / length` for `zigzag_edge` and nothing else, so a drag
-   carries AMPLITUDE alone, while the library's `zigzag_edge` takes `n`
-   as well -- the notebook drives it at `n=2, h=0.25`. So the count is
-   reachable only through the numeric boxes.
-   WHAT MAKES IT A GAP rather than a tolerable limit is this version's
-   own instruction that every manipulation be reachable on the drawing
-   (maintainer, 2026-08-31: "all interactions in that topology image,
-   not just one"), which `push_vertex` got a rail for. A parameter of a
-   reachable manipulation was not in view when that was settled.
-   HOW TO CLOSE IT IS A DESIGN QUESTION and therefore a grilling: a
-   second handle for the count, or one handle whose ALONG-edge travel
-   sets `n` while its ACROSS travel sets `h` -- which is free, since
-   `along` is already computed on that path and discarded. The second
-   is cheaper and makes one handle say two things, which is exactly
-   what the refusal of the merged end handle ruled against.
+   GUARDED 2026-09-05**, to the rulings in CLAUDE.md: along-edge travel
+   of the zigzag handle sets the count, past a deadband of a tenth of
+   the edge sized from the glyph itself, and the count snaps because
+   the stops are the counts. (R-74.)
 4. **THE ZIGZAG HANDLE SITS TOO FAR FROM ITS EDGE. BUILT AND GUARDED
-   2026-09-05**, and it was a DEFECT rather
-   than a matter of spacing: the offset in `_EDGE_HANDLES` is a static
-   60, so the glyph's distance from its edge is `60px + amplitude x
-   length` while the code beside it claims that distance IS the
-   amplitude. The zero moves onto the edge, which forces `_handle_at`
-   from first-wins to nearest-wins. The glyph sits on the first peak
-   now -- `length / (2n)` along, `h` of the length out, clamped clear
-   of both vertices -- so its position is the readout it always claimed
-   to be, measured by probe at along 23.5px and out 23.5px on a 94.1px
-   edge. Guarded by `the zigzag handle is where its numbers say`, which
-   also holds the line that a handle IS the choice of manipulation: a
-   first build made the glyph appear only once zigzag was chosen, and
-   that arm catches it. Rulings in CLAUDE.md.
-   THE ORIGINAL ENTRY, kept because it is the argument the rulings had
-   to beat: this is a real complaint against a fix for a different real
-   problem: turn and
-   zigzag are pushed along one normal from an edge's end and its
-   middle, and at equal offsets their separation is half the edge's
-   screen length, which cost twenty-three edges their zigzag handle
-   until they were moved apart. The answer is a third arrangement
-   rather than moving one back.
+   2026-09-05**, and it was a DEFECT rather than a matter of spacing:
+   the offset was a static 60 while the code claimed that distance WAS
+   the amplitude. The zero sits on the edge now, the glyph rides the
+   wave's first peak, and the wave is ghosted along the edge with four
+   painted cues saying what the two axes do. (R-75.)
 5. **"MAP THE DUAL" ERRORS WHILE THE TAB DRAWS A DUAL PERFECTLY WELL.**
    READ, NOT YET DRIVEN, 2026-09-05. The two paths are confirmed
    different and the difference is not one store against another but
@@ -1198,6 +1133,36 @@ column IN PLACE through the provider -- which skips re-encoding every
 geometry, and geometry is what the 60 microseconds is mostly made of --
 and then move only the tiles that CROSS the no-data boundary between
 the element layer and its twin.
+
+**WHAT IT WOULD ACTUALLY TAKE, read out 2026-09-05 so the next session
+does not have to.** Per element, on a cached switch: add the new
+variable's field, `changeAttributeValues` over every feature, delete
+the old field, move the crossers between the layer and its twin, and
+re-seed the renderer. Steps one to three are provider operations that
+touch attributes and never geometry, which is where the saving is.
+
+AND FOUR THINGS MAKE IT MORE THAN THAT, each a place a WRONG MAP could
+come from, which is this software's characteristic failure:
+- THE TABLE NAME CARRIES THE VARIABLE. `element_table_name` composes
+  `tiles_<tid>_<variable>`, so a switch renames the destination and the
+  stale-table drop has to agree about which name is now stale.
+- THE TWIN'S MEMBERSHIP IS THE VARIABLE'S BUSINESS. Measured, a
+  multi-source dataset crosses 20.2% of tiles at worst, so "move only
+  the crossers" is thousands of features, and a feature that lands in
+  neither layer is a hole.
+- THE LANDING CARRIES MOST OF THIS PROJECT'S RULINGS -- the stamps, the
+  styles, the group binding, the exclusions, the pins re-read at the
+  landing -- and every one of them assumes a layer that was just built.
+- AND A HELD LAYER KEEPS ITS RENDERER, which is what the restyle path
+  exists to exploit and what makes a stale one invisible here.
+
+SO IT WANTS A GRILLING OF ITS OWN, on the twin-moving specifically, and
+the gate it has to pass already exists: `a cached switch draws what a
+retile draws` compares the two paths feature by feature including the
+field names, and it is what caught the last wrong map this ground
+produced. The saving is worth having -- 1.728s at spacing 150 against
+0.239s at 250 -- and it is not worth taking on the same day as the
+cache it sits on.
 
 AND THE NUMBER IS NOW MEASURED, 2026-09-05, by
 `tools/probes/how_many_tiles_cross_on_a_variable_switch.py`, asked of
