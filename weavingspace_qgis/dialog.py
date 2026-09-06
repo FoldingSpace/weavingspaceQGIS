@@ -6754,8 +6754,16 @@ class WeavingSpaceDialog(QDialog):
     except Exception:                                 # noqa: BLE001
       return []
 
-  def _a_new_map_does_not_inherit_the_file(self) -> None:
+  def _a_new_map_does_not_inherit_the_file(self, launch_state=None) -> None:
     """Clear the output path when a run lands in a NEW group on purpose.
+
+    Args:
+      launch_state: the run's launch snapshot, whose `output_path` the
+        landing is about to stamp on the group's record; blanked here
+        with the box, since a record naming the previous map's file
+        put it straight back in the box at the next reopen and one
+        Save then destroyed that map (round eight, stoch10, the twin
+        of the box's own repair). None where the caller has none.
 
     Returns:
       None. The dataset door has cleared the path since 2026-08-21, for
@@ -6772,6 +6780,8 @@ class WeavingSpaceDialog(QDialog):
       door and never reaches this, so a loaded file keeps its path.
     """
     widget = getattr(self, "gpkg_widget", None)
+    if isinstance(launch_state, dict) and launch_state.get("output_path"):
+      launch_state["output_path"] = None
     if widget is None or not widget.filePath():
       return
     widget.blockSignals(True)
@@ -6888,8 +6898,10 @@ class WeavingSpaceDialog(QDialog):
     # THE SOURCE'S FROZEN EDITS travel beside the dual's own: a dual
     # group restored without them re-tiled as the plain dual.
     frozen = design.get("dual_source_edits")
+    # A LIST, EMPTY OR NOT, IS A FROZEN COPY; only an absent key -- a
+    # record older than the term -- leaves None for the fallback.
     self._dual_source_edits = ([dict(e) for e in frozen]
-                               if isinstance(frozen, list) and frozen
+                               if isinstance(frozen, list)
                                else None)
     from . import topology_edits
     family = design.get("family") or self._family_key()
@@ -18149,8 +18161,14 @@ class WeavingSpaceDialog(QDialog):
         nothing happens.
 
     Returns:
-      None. The chooser is left where it was unless a layer this
-      dialog is ALLOWED to select answers to that source.
+      True where a layer this dialog is ALLOWED to select answered to
+      that source and the chooser now holds it, or already did; False
+      where the record names a source and NOTHING in the project
+      answers, the chooser left where it was; None where the record
+      names no source. The answer is the point: a binding that
+      returned nothing let the chooser name one map while the region
+      combo held another dataset and the path box that map's file
+      (round eight, spec8, 2026-09-06).
 
     THREE COPIES OF THIS WALK EXISTED and the guards had reached one.
     `_recover_the_source` carries both of them and says why; the group
@@ -18180,7 +18198,7 @@ class WeavingSpaceDialog(QDialog):
     nothing -- which is the fault this method exists to end.
     """
     if not source:
-      return
+      return None
     for layer in QgsProject.instance().mapLayers().values():
       # Never our own output. It answers to the region's source and is
       # not a region.
@@ -18190,14 +18208,16 @@ class WeavingSpaceDialog(QDialog):
         same = same_source(layer.source(), source)
       except Exception:
         continue
-      if not same or layer is self.layer_combo.currentLayer():
+      if not same:
         continue
+      if layer is self.layer_combo.currentLayer():
+        return True
       self.layer_combo.setLayer(layer)
       if self.layer_combo.currentLayer() is layer:
-        return
+        return True
       # It did not take -- the combo refuses layers it excludes -- so
       # keep looking rather than breaking on a set that never happened.
-    return
+    return False
 
   def _refresh_group_combo(self):
     """Rebuild the output-group chooser from the project as it stands.
@@ -18367,11 +18387,23 @@ class WeavingSpaceDialog(QDialog):
     # `switched_from_work` stayed False and a change of dataset after
     # picking a saved group kept its file path in silence; the next Save
     # wrote the other dataset's tiles over it (round eight, doors7).
+    # THE BINDING MUST TAKE, or nothing else here may: a group whose
+    # layer has left the project was taken over with the region combo
+    # still on another dataset and the path box on that map's file, so
+    # the chooser named one map and the dialog worked on another
+    # (round eight, spec8). The map is left as it is and the person
+    # told what to add back.
+    region = (record or {}).get("region")
+    if region and self._point_the_chooser_at(region) is False:
+      self._report_quietly(
+        "The layer this map was made from isn't in the project, so the "
+        "map was left as it is; add that layer back to work on it.")
+      self._refresh_group_combo()
+      return
     if record:
       self._landed_this_session = True
     self._selecting_a_group = True
     try:
-      self._point_the_chooser_at((record or {}).get("region"))
       self._take_over_group(group)
       if record:
         self._apply_working_state(record)
@@ -18866,7 +18898,11 @@ class WeavingSpaceDialog(QDialog):
     # AND THE SOURCE'S FROZEN EDITS WHERE THE MAP IS A DUAL'S, under
     # their own key, since the slot above is the dual's own list; read
     # back by `_restore_recorded_topology_edits`, in the same commit.
-    if self._mapping_the_dual() and self._dual_source_edits:
+    # WRITTEN EVEN WHEN EMPTY: a dual of an un-edited design froze [],
+    # a truthiness gate wrote nothing, the restore read None, and the
+    # live-shelf fallback then made the dual FOLLOW its source's later
+    # edits, which ruling 4 refuses (round eight, stores17).
+    if self._mapping_the_dual() and self._dual_source_edits is not None:
       design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]
     return design
 
@@ -25008,7 +25044,7 @@ class WeavingSpaceDialog(QDialog):
     self._new_group_chosen = False
     group, created = self._get_or_make_group(force_new, tiled=source_layer)
     if created and force_new:
-      self._a_new_map_does_not_inherit_the_file()
+      self._a_new_map_does_not_inherit_the_file(launch_state)
     group.setName(self._group_name)
 
     old_ids = dict(self._element_layer_ids)

@@ -57791,6 +57791,15 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
             + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
     assert "path was cleared" in said, (
       f"the path was cleared with nothing said: {said!r}")
+    # AND THE RECORD DOES NOT CARRY THE FILE EITHER: the launch snapshot
+    # is what the landing stamps, and a record naming the first map's
+    # file puts it back in the box at the next reopen (stoch10).
+    new_group = QgsProject.instance().layerTreeRoot().findGroup(dlg._group_name)
+    assert new_group is not None, f"PREMISE: no group named {dlg._group_name!r}"
+    record = dlg._read_working_state(new_group) or {}
+    assert not record.get("output_path"), (
+      f"the new group's record names {record.get('output_path')!r}, the "
+      f"previous map's file, so a reopen would put it back in the box")
     # A SAVE WITH THE BOX EMPTY IS REFUSED IN WORDS, which is the point:
     # nothing is written anywhere, least of all over the first map.
     press_save(dlg, expect=False)
@@ -58275,6 +58284,169 @@ def test_a_dual_request_cancelled_by_a_new_project_is_put_back():
     assert names and not dlg._mapping_the_dual() \
       and not any(n.endswith("dual") for n in names), (
       f"the first Generate in the new project drew the dual: {names}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_dual_of_an_unedited_design_does_not_follow_its_source():
+  """A dual made of a design with NO edits keeps being that dual after
+  the source is edited, as ruling 4 says.
+
+  The frozen copy was `[]`, a truthiness gate left the record without
+  the key, the restore read None, and `_build_unit` fell back to the
+  live shelf -- so Generate on the dual group after a zigzag on the
+  source drew the dual of the edited design: the derived group followed
+  its source, which ruling 4 of 2026-09-05 refused. An empty frozen
+  copy is written and restored as one.
+
+  Regression: a dual made from an unedited design followed its source's later edits on the next Generate, the record having stored no frozen copy for an empty edit list. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.opt_experimental.setChecked(True)
+  dlg.show()
+  _tick(200)
+  try:
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    _generate_and_wait(dlg)
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    _tick(800)
+    root = QgsProject.instance().layerTreeRoot()
+    dual_group = next(g for g in root.findGroups() if g.name().endswith("dual"))
+    first = _landed_profile_of(dual_group)
+    assert dlg._dual_source_edits == [], \
+      f"PREMISE: the frozen copy is {dlg._dual_source_edits!r}, not []"
+    record = dlg._read_working_state(dual_group) or {}
+    assert "dual_source_edits" in (record.get("design") or {}), (
+      "the dual group's record carries no frozen copy for an empty edit "
+      "list, so a restore will fall back to the live shelf")
+    # BACK TO THE SOURCE, AN EDIT, BACK TO THE DUAL, GENERATE.
+    combo = dlg.group_combo
+    index = next(i for i in range(combo.count())
+                 if combo.itemData(i) is not None and not combo.itemText(i).endswith("dual"))
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(600)
+    _settle_topology(dlg, seconds=60)
+    edge = list(panel._topology.edges.values())[0]
+    panel._on_chose("edge", getattr(edge, "label", "") or "")
+    _tick(150)
+    panel.view._chosen_thing = edge
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+    _tick(150)
+    for name, value in (("n", 4), ("h", 0.3)):
+      box = next(w for _l, w in panel._argument_rows
+                 if w.property("argument") == name)
+      box.setValue(value)
+      _tick(120)
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=90)
+    _tick(500)
+    assert panel.edits(), "PREMISE: no edit recorded on the source"
+    index = next(i for i in range(combo.count()) if combo.itemText(i).endswith("dual"))
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(600)
+    _settle_topology(dlg, seconds=60)
+    assert dlg._dual_source_edits == [], (
+      f"back on the dual group the frozen copy reads "
+      f"{dlg._dual_source_edits!r}: the restore turned [] into None and the "
+      f"build will follow the source")
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 100)
+    _tick(300)
+    _generate_and_wait(dlg)
+    got = _landed_profile_of(dual_group)
+    assert got == first, (
+      f"Generate on the dual group drew {got} where the dual it was made as "
+      f"is {first}: the derived group followed its source's later edit")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_group_whose_layer_has_gone_is_refused_in_words():
+  """Choosing a group whose region layer has left the project takes
+  nothing over and says why, rather than naming one map while the
+  dialog works on another.
+
+  `_point_the_chooser_at` returned silently when no layer answered the
+  record's region, and the chooser then took the group over: the region
+  combo stayed on the OTHER dataset, the chooser named the first map,
+  its file path came back in the box, and Generate landed the other
+  dataset's tiles in that map's group. Two maps of two datasets; the
+  first dataset's layer removed; the first map chosen through the
+  chooser's own signal.
+
+  Regression: picking a saved map whose layer had been removed left the region chooser on another dataset with that map's group and file path in force, so Generate and Save put the other dataset's tiles in that map's group and file. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  dlg, layer_a, tid = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    _generate_and_wait(dlg)
+    layer_b = make_region_layer()
+    layer_b.setName("regionB")
+    QgsProject.instance().addMapLayer(layer_b)
+    _tick(300)
+    dlg.layer_combo.setLayer(layer_b)
+    _tick(600)
+    _generate_and_wait(dlg)
+    root = QgsProject.instance().layerTreeRoot()
+    names = [g.name() for g in root.findGroups()]
+    assert len(names) == 2, f"PREMISE: two maps were not made: {names}"
+    combo = dlg.group_combo
+    # THE CONTROL: with layer A present, choosing map A binds to it.
+    index = next(i for i in range(combo.count())
+                 if combo.itemData(i) is not None and "regionB" not in combo.itemText(i))
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(600)
+    assert dlg.layer_combo.currentLayer() is layer_a, \
+      "PREMISE: with its layer present, choosing map A did not bind to A"
+    # BACK TO B, THEN A'S LAYER LEAVES THE PROJECT.
+    index_b = next(i for i in range(combo.count()) if "regionB" in combo.itemText(i))
+    combo.setCurrentIndex(index_b)
+    combo.activated.emit(index_b)
+    _tick(600)
+    assert dlg.layer_combo.currentLayer() is layer_b, "PREMISE: choosing map B did not bind to B"
+    QgsProject.instance().removeMapLayer(layer_a.id())
+    _tick(500)
+    BAR_MESSAGES.clear()
+    index = next(i for i in range(combo.count())
+                 if combo.itemData(i) is not None and "regionB" not in combo.itemText(i))
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(800)
+    assert dlg.layer_combo.currentLayer() is layer_b, (
+      f"the region combo moved to {dlg.layer_combo.currentLayer()} on a "
+      f"group whose layer is gone")
+    from weavingspace_qgis import said as said_module
+    said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
+            + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
+    assert "isn't in the project" in said, (
+      f"a group whose layer has gone was chosen and nothing was said: {said!r}")
+    assert "regionB" in combo.currentText(), (
+      f"the chooser goes on naming the map whose layer is gone: "
+      f"{combo.currentText()!r}")
+    assert dlg._group_name and "regionB" in dlg._group_name, (
+      f"the dialog took over the group whose layer is gone: {dlg._group_name!r}")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -91179,6 +91351,10 @@ def main():
         test_the_ghost_meets_the_handle_on_the_drawing)
   check("a dual request cancelled by a new project is put back",
         test_a_dual_request_cancelled_by_a_new_project_is_put_back)
+  check("a dual of an unedited design does not follow its source",
+        test_a_dual_of_an_unedited_design_does_not_follow_its_source)
+  check("a group whose layer has gone is refused in words",
+        test_a_group_whose_layer_has_gone_is_refused_in_words)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

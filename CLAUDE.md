@@ -934,7 +934,9 @@ and the ids beside each rule.
   INPUT, widen the record and the key that decide whether the map is
   redrawn in the same commit (C-328); and when one store becomes the
   owner a record reads, find the reader still on a hard-coded default
-  (C-330).
+  (C-330); and an empty value written through a truthiness gate is an
+  ABSENT key on the way back, which fires the legacy fallback on the
+  commonest journey (C-332).
 - **A DISPLAY RULE IS DISPLAY-ONLY ONLY IF NOTHING RE-READS THE
   DISPLAY** (C-133); a count quoted to a person is asked of the
   geometry, not of two totals (C-131); a guard that rebuilds a layer
@@ -969,7 +971,9 @@ and the ids beside each rule.
   ROOM** (C-52); the create-new door clears the output path as the
   dataset door does, since a saved file is one map (C-327); a flag's
   writers ARE the door list, and the chooser was the third door into
-  the room the two Load doors guard (C-329). Presence
+  the room the two Load doors guard (C-329); a binding that returns
+  nothing lets two stores name two maps, so a helper that "forces"
+  an order answers whether it could (C-333). Presence
   is not order: a call put back after its twin
   calls it before is worse than one still missing (C-55); a fix written
   into two paths in one commit is diffed hunk against hunk (C-66), and

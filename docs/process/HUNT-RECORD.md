@@ -12,8 +12,11 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-06 (morning), with ROUND EIGHT LAUNCHED toward
-sixteen bugs -- see its section below, yields deliberately blank.
+Last updated 2026-09-06 (midday), with ROUND EIGHT CLOSED AT SIXTEEN:
+twenty-seven hunts in five waves, sixteen product defects closed
+(ledger `defects-2026-09-06.md`), two claims left open and one
+settled by ruling, six dead axes tallied apart and four of them
+repaired. See its section below.
 Before it, 2026-09-02 (night), with ROUND SEVEN JUDGED: five
 defects, ledger rows 22 to 26, two of them reached by two hunts and
 one by three. The campaign passed its twenty-four. Its slate and its aim are in
@@ -1941,16 +1944,23 @@ transaction reaches the commit. Two locks, one word, different halves
 of the code: when a claim names a failure at a particular STEP, stage
 it at that step.
 
-## ROUND EIGHT, LAUNCHED 2026-09-06 (morning): EIGHT HUNTS TO SIXTEEN BUGS
+## ROUND EIGHT, 2026-09-06: SIXTEEN BUGS CLOSED IN FIVE WAVES
 
 Maintainer's instruction of 2026-09-05 (late): eight hunts as Opus
 subagents on temporary worktrees, replacing hunters as bugs are fixed,
 until sixteen bugs are repaired and guarded. Launched at about 08:10
 on 2026-09-06, every worktree at c6431ed, once rc16 was published and
 the candidate's suite was off the machine, since a hunt beside a
-measurement spoils the measurement, while CI runs remotely. Yields
-are blank until each claim is judged by a route its hunt did not use;
-the ledger is `defects-2026-09-06.md`.
+measurement spoils the measurement, while CI runs remotely. Five
+waves followed, each replenished onto the head that carried the
+previous wave's repairs, and the sixteenth closed at midday; every
+yield below is what SURVIVED a route its hunt did not use. The
+ledger is `defects-2026-09-06.md`. WHAT THE ROUND SAYS: eleven of
+the sixteen were in the round's own repairs or in the three days'
+work before it, the repairs-attract-defects claim holding for the
+eighth round running; three findings converged from two or more
+directions; and the verification queue was the whole cost again,
+eight hunts reporting within half an hour of each launch.
 
 | Direction | Confirmed | The lesson |
 | --- | ---: | --- |
@@ -1975,6 +1985,11 @@ the ledger is `defects-2026-09-06.md`.
 | the round's own repairs (19th, at rows 8-9) | 1 | when a repair makes one store the single owner a record reads, ask which OTHER reader of that store was left on a hard-coded default (row 12) |
 | write-only at today's records | 1 | when a repair puts a settle in a `finally`, ask what CANCELS the act after it launched -- the wrapper sees every exit of the call and none of the task's (row 13) |
 | the round's own repairs, asymmetry (20th, at rows 11-13) | 1 | read the repaired call's OTHER cancel sites before probing anything else: the close put the request back and the project door, the second cancel of the same task, did not (row 14) |
+| two stores of one fact (after today's repairs) | 1 | when a repair gives a record a new key, ask what the writer's truthiness gate does to an EMPTY value: an empty list written as an absent key is read back as "no record", and a legacy fallback then fires on the commonest journey (row 15) |
+| the specification itself (7th) | 1 | a rule stated as "THE ORDER IS FORCED" is a ten-line probe: find the helper that forces it and ask what it does when it cannot -- it returned silently having checked nothing the caller could read (row 16) |
+| stochastic over the doors (10th) | (row 9 completed) | when a repair clears a CONTROL at a landing, ask what the launch snapshot writes back over it; the sweep saw it only because one invariant compared two groups' records rather than one group against itself |
+| unreachable branches (7th) | (same as row 14) | the branch was reachable and the guard missing at a SIBLING door: enumerate the callers of the act, every `.cancel()`, not the branches of the guard |
+| one boundary but not another (the dual's frozen edits) | 1 claimed, left open | when a NAMING rule gains a term, re-aim every door that reuses the namer: the resume composed a name from a live control at the one moment the record had not been applied |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-545 defect(s) with a regression test.
+547 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -104,6 +104,8 @@ there is no separate list to remember.
   guarded by `test_a_drag_delivered_in_many_moves_records_one_position`
 - **reopening the plugin on a dual map and re-tiling it redrew the dual of the un-edited design, so the topology edit it was built from was lost in silence.**  
   guarded by `test_a_dual_group_keeps_its_sources_edits_across_a_reopen`
+- **a dual made from an unedited design followed its source's later edits on the next Generate, the record having stored no frozen copy for an empty edit list.**  
+  guarded by `test_a_dual_of_an_unedited_design_does_not_follow_its_source`
 - **pressing the dual button and then File > New before the run landed left the plugin in dual mode, so the first Generate in the new project drew the dual of the design.**  
   guarded by `test_a_dual_request_cancelled_by_a_new_project_is_put_back`
 - **pressing "Generate the dual and tile it" while Generate could not start latched the plugin into dual mode invisibly, so the next ordinary Generate drew the dual of the design into a new group with nothing on screen to untick.**  
@@ -132,6 +134,8 @@ there is no separate list to remember.
   guarded by `test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work`
 - **a project saved under one spelling of its own folder and reopened under another stopped recognising its dataset's output group, so Generate built a rival group beside the user's map and orphaned it. Shipped in v0.24.3; found by the cross-platform hunt of 2026-08-28, which is the seam nobody had hunted deliberately.**  
   guarded by `test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt`
+- **picking a saved map whose layer had been removed left the region chooser on another dataset with that map's group and file path in force, so Generate and Save put the other dataset's tiles in that map's group and file.**  
+  guarded by `test_a_group_whose_layer_has_gone_is_refused_in_words`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
   guarded by `test_a_hand_styled_no_data_layer_survives_a_re_tile`
 - **a floor or ceiling, and every colour picked after it, were destroyed by a save-and-reopen before Generate, because those stamps happen only as a side effect of a restyle that a limit makes decline. Found by the colour-editor hunt of 2026-08-28.**  
@@ -1145,7 +1149,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 152
+- a bug hunt pointed in a named direction: 154
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

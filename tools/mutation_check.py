@@ -7993,9 +7993,10 @@ MUTATIONS = [
        # call that does that, in `_on_group_chosen` -- the line above
        # it is what keeps this from also matching the adopted-design
        # restore, which takes the same helper.
-       old="""      self._point_the_chooser_at((record or {}).get("region"))
-      self._take_over_group(group)""",
-       new="""      self._take_over_group(group)""",
+       old="""    region = (record or {}).get("region")
+    if region and self._point_the_chooser_at(region) is False:""",
+       new="""    region = None  # mutation: the group never moves the dataset
+    if region and self._point_the_chooser_at(region) is False:""",
        test="test_the_output_group_chooser_binds_to_the_dataset",
        why="the binding is SYMMETRIC (ruling 2), and this is the half "
            "that is easy to leave out. Without it a group can be "
@@ -10891,6 +10892,15 @@ MUTATIONS = [
            "Generate was refused, so the next ordinary Generate drew the "
            "dual into a new group with no control on screen to untick "
            "(round eight, unreach9)"),
+  dict(name="a-group-whose-layer-has-gone-is-refused",
+       file=DIALOG,
+       old="""    if region and self._point_the_chooser_at(region) is False:""",
+       new="""    if region and self._point_the_chooser_at(region) is None:  # mutation: never refuses""",
+       test="test_a_group_whose_layer_has_gone_is_refused_in_words",
+       why="a saved map chosen after its layer left the project being taken "
+           "over with the region combo on another dataset, so Generate and "
+           "Save put that dataset's tiles in the first map's group and file "
+           "(round eight, spec8)"),
   dict(name="a-chosen-group-is-this-sessions-work",
        file=DIALOG,
        old="""    if record:
@@ -10945,10 +10955,21 @@ MUTATIONS = [
        why="the request spent at launch, so a run cancelled before its "
            "landing had nothing left to put the stores back (round eight, "
            "writeonly6)"),
+  dict(name="an-empty-frozen-copy-is-written",
+       file=DIALOG,
+       old="""    if self._mapping_the_dual() and self._dual_source_edits is not None:
+      design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]""",
+       new="""    if self._mapping_the_dual() and self._dual_source_edits:  # mutation: empty is absent
+      design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]""",
+       test="test_a_dual_of_an_unedited_design_does_not_follow_its_source",
+       why="a dual of an un-edited design following its source's later "
+           "edits, the record having stored nothing for an empty frozen "
+           "copy and the restore falling back to the live shelf (round "
+           "eight, stores17)"),
   dict(name="the-duals-source-edits-are-restored-from-the-record",
        file=DIALOG,
        old="""    self._dual_source_edits = ([dict(e) for e in frozen]
-                               if isinstance(frozen, list) and frozen
+                               if isinstance(frozen, list)
                                else None)""",
        new="""    self._dual_source_edits = None  # mutation: the record's term unread""",
        test="test_a_dual_group_keeps_its_sources_edits_across_a_reopen",
@@ -10965,10 +10986,20 @@ MUTATIONS = [
        why="the tiled-frame cache serving the first dual for the dual of "
            "a design edited a second time, since the key never moved "
            "(round eight, stoch9)"),
+  dict(name="a-new-groups-record-does-not-carry-the-old-file",
+       file=DIALOG,
+       old="""    if isinstance(launch_state, dict) and launch_state.get("output_path"):
+      launch_state["output_path"] = None""",
+       new="""    pass  # mutation: the record keeps the launch-time path""",
+       test="test_a_new_group_does_not_inherit_the_previous_maps_file",
+       why="a created group's record naming the previous map's file, so a "
+           "reopen put it back in the Save box and one press destroyed the "
+           "saved map (round eight, stoch10: the box was repaired and its "
+           "twin was not)"),
   dict(name="a-new-group-clears-the-inherited-path",
        file=DIALOG,
        old="""    if created and force_new:
-      self._a_new_map_does_not_inherit_the_file()""",
+      self._a_new_map_does_not_inherit_the_file(launch_state)""",
        new="""    pass  # mutation: the new group keeps the old file""",
        test="test_a_new_group_does_not_inherit_the_previous_maps_file",
        why="a map saved to a file, then Create new or the dual button, "

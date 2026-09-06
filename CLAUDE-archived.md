@@ -366,6 +366,8 @@ quote them, do not renumber them.
 - **C-329** — A flag's writers are the door list: the chooser did not count a restored map as work  <sub>minted</sub>
 - **C-330** — A readout that falls back to defaults under another verb stands where the bank does not...  <sub>minted</sub>
 - **C-331** — Launched is not landed: a request spent at the launch cannot be put back when the run i...  <sub>minted</sub>
+- **C-332** — Empty and absent are two silences: an empty frozen copy written as an absent key fired ...  <sub>minted</sub>
+- **C-333** — A binding that returns nothing lets two stores name two maps: the chooser refuses a gro...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10614,3 +10616,43 @@ first Generate in a fresh project drew the dual; verified here by
 clearing the project mid-flight, repaired the same way, guarded by
 `test_a_dual_request_cancelled_by_a_new_project_is_put_back` and the
 entry `the-project-door-puts-a-dual-request-back`. Row 14.
+
+### C-332 — Empty and absent are two silences: an empty frozen copy written as an absent key fired the legacy fallback
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-332).</sub>
+
+Round eight's two-stores hunt (`stores17`, 2026-09-06) drove the dual
+of an UN-EDITED design: the frozen copy was `[]`, `_capture_design`'s
+truthiness gate wrote no `dual_source_edits` key, the restore read
+the absent key as None, and `_build_unit`'s fallback -- meant for a
+record older than the term -- read the LIVE shelf, which by then held
+the source's later zigzag. So Generate on the dual group drew the
+dual of the edited source (areas 29006 to 28471 per element, read
+with OGR), the derived group following its source against ruling 4,
+with its own record saying it had no source edits. Verified here off
+the dual group's landed profile: [0.433, 1.0] became [0.394, 0.89,
+1.0]. Empty is written and restored as a list; only an absent key
+leaves None. Guarded by
+`test_a_dual_of_an_unedited_design_does_not_follow_its_source` and
+the entry `an-empty-frozen-copy-is-written`. Ledger row 15.
+
+### C-333 — A binding that returns nothing lets two stores name two maps: the chooser refuses a group whose layer has gone
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-333).</sub>
+
+Round eight's specification hunt (`spec8`, 2026-09-06) read ruling 2
+of 2026-08-25 -- dataset and group are bound symmetrically, "THE
+ORDER IS FORCED" -- and asked what the helper that forces it does
+when it cannot: `_point_the_chooser_at` returned silently where no
+selectable layer answered the record's region, and `_on_group_chosen`
+took the group over regardless. With a dataset's layer removed and
+its map chosen, the region combo stayed on the other dataset, the
+chooser named the first map and the path box held its file; at the
+hunt's commit Generate then landed the other dataset's tiles in that
+group and Save wrote its file (sqlite on the rtree: x -31..4121 to
+49968..54121). Verified here off the three stores after the chooser's
+own signal. The helper answers True, False or None now, and the
+chooser refuses in words, taking nothing over, with a sentence
+awaiting review; guarded by
+`test_a_group_whose_layer_has_gone_is_refused_in_words` and the entry
+`a-group-whose-layer-has-gone-is-refused`. Ledger row 16.
