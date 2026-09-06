@@ -473,8 +473,8 @@ def apply(topology, edits):
     # stood here refused exactly that case.
     if current is None:
       refusals.append(
-        f"{MANIPULATIONS[how]['label']} on {selector} could not be "
-        f"applied, because there is no topology to aim it with.")
+        f"{MANIPULATIONS[how]['label']} on {selector} could not be applied, "
+        f"because there has been no topology successfully calculated.")
       marks.append({"applied": False, "gap": None,
                     "sound": None})
       continue
@@ -562,8 +562,7 @@ def apply(topology, edits):
     if _same_shape(tileable, drawable):
       refusals.append(
         f"{MANIPULATIONS[how]['label']} on {selector or 'this design'} "
-        f"changed nothing about it, so the design is as it was. A "
-        f"different class, or a larger value, usually does something.")
+        f"changed nothing about it, so the design is as it was.")
     tileable = drawable
     ratio, _where = gaps(drawable)
     marks.append({"applied": True, "gap": ratio,

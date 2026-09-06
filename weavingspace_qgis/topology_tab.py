@@ -368,7 +368,7 @@ class TopologyView(QWidget):
     self._chosen_anchor = self._where_a_thing_sits(self._chosen_thing)
     self._chosen_thing = None
     self._message = "" if topology is not None else (
-      message or "This design has no topology to show.")
+      message or "This tiling has not had a topology calculated for it.")
     self.update()
 
   def show_preview(self, topology):

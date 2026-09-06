@@ -44,6 +44,11 @@
   "excerpt": "The design's structure is being worked out, and the map will",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "051a8650703ec2bb": {
+  "approved": "2026-09-05",
+  "excerpt": "{label} on {selector!r} was made when this design's {target}",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "0585e47f26154737": {
   "approved": "2026-08-08",
   "excerpt": "That layer has no categorized symbology",
@@ -84,6 +89,11 @@
   "excerpt": "![Land use around the Great Lakes at six moments in time, dr",
   "where": "README.md"
  },
+ "09aac591d2da1479": {
+  "approved": "2026-09-05",
+  "excerpt": "This design's tiles meet, but the library could not work out",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "0a346c29ee595d52": {
   "approved": "2026-09-01",
   "excerpt": "archimedean 4.6.12 (truncated trihexagonal)",
@@ -98,6 +108,11 @@
   "approved": "2026-08-09",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
+ },
+ "0b708c5df9d84804": {
+  "approved": "2026-09-05",
+  "excerpt": "This design's dual cannot be laid out as a tiling.",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "0baa365f739f3486": {
   "approved": "2026-08-15",
@@ -479,6 +494,11 @@
   "excerpt": "Tilings give side-by-side patches; weaves give strands the e",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "33647195eacbdcb9": {
+  "approved": "2026-09-05",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "342d8f97c901d8e4": {
   "approved": "2026-08-08",
   "excerpt": "<figure>\n  <img src=\"img/paper-fig1-auckland-deprivation.png",
@@ -518,6 +538,11 @@
   "approved": "2026-09-01",
   "excerpt": ", so the map is tiled with the design itself.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "36f15880b69a2860": {
+  "approved": "2026-09-05",
+  "excerpt": "This tiling has not had a topology calculated for it.",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "382b16c6ec6a72ea": {
   "approved": "2026-08-09",
@@ -577,6 +602,11 @@
  "3c686e45aaf6f5eb": {
   "approved": "2026-08-29",
   "excerpt": "Saved to {}. The data has changed since this map was drawn, ",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "3c6a418eaf70d641": {
+  "approved": "2026-09-05",
+  "excerpt": "A map is still being drawn, so the dual will have to wait: p",
   "where": "weavingspace_qgis/dialog.py"
  },
  "3da4643e9a6cffe9": {
@@ -804,6 +834,11 @@
   "excerpt": "'{}' now has {} categories where it had {}, so the colours o",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "4f0b4c6b29825808": {
+  "approved": "2026-09-05",
+  "excerpt": "This design has gaps between its tiles, and a topology can o",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "4f0e79bbbb40a8f1": {
   "approved": "2026-08-09",
   "excerpt": "Choosing {} for element '{}' discarded {} class colour(s) yo",
@@ -954,6 +989,11 @@
   "excerpt": "How many crossing strands each strand passes over, then unde",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "5ecaa0956db0f97c": {
+  "approved": "2026-09-05",
+  "excerpt": "{} rotation centre{}, {} mirror{}",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "5ff68eb9e61a3a43": {
   "approved": "2026-08-08",
   "excerpt": "for a reader with deuteranopia",
@@ -973,6 +1013,11 @@
   "approved": "2026-08-08",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
+ },
+ "61ebebaf91d1a296": {
+  "approved": "2026-09-05",
+  "excerpt": "{} on {} left tiles that cannot be laid out, so it was not a",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "6205292528cb9397": {
   "approved": "2026-09-01",
@@ -1009,6 +1054,11 @@
   "excerpt": "no candidate versions for {}",
   "where": "weavingspace_qgis/deps.py"
  },
+ "643e4bf6882ed0dd": {
+  "approved": "2026-09-05",
+  "excerpt": "Every change made to this design.",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "646f21c6aace5d66": {
   "approved": "2026-09-01",
   "excerpt": "could not create the table {}",
@@ -1033,6 +1083,11 @@
   "approved": "2026-08-08",
   "excerpt": "One unit per polygon, at its centre, instead of a continuous",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "65f6d3aff636ff5c": {
+  "approved": "2026-09-05",
+  "excerpt": "Tiled with the dual of this design.",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "65facef53f381361": {
   "approved": "2026-08-15",
@@ -1164,6 +1219,11 @@
   "excerpt": "How solid this element draws, as QGIS layer opacity; 100 is ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "6ed32abfbeca1697": {
+  "approved": "2026-09-05",
+  "excerpt": "Which class of edge or vertex to move.",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "6f8af792281b893c": {
   "approved": "2026-08-08",
   "excerpt": "Add map unit outlines layer",
@@ -1279,10 +1339,20 @@
   "excerpt": "No {} in this catalogue has {} elements, so this design is a",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "7a4152cbdb56ac66": {
+  "approved": "2026-09-05",
+  "excerpt": "{} on {} was not applied: this design has no {} class {}. It",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "7abf00660f3a6d78": {
   "approved": "2026-08-08",
   "excerpt": "How many variables the pattern can carry.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "7b9af3aab272bf29": {
+  "approved": "2026-09-05",
+  "excerpt": "Generate the dual and tile it",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "7d290fe7c9edf875": {
   "approved": "2026-08-08",
@@ -1308,6 +1378,11 @@
   "approved": "2026-08-09",
   "excerpt": "Number of classes; categorized rows show how many categories",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "81222a477c7439b8": {
+  "approved": "2026-09-05",
+  "excerpt": "This design's dual would leave holes in the map, so it is no",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "8218f03d677adfe4": {
   "approved": "2026-08-09",
@@ -1474,6 +1549,11 @@
   "excerpt": "How solid this element draws, as QGIS layer opacity: 100 is ",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "90f06a5752fef0fe": {
+  "approved": "2026-09-05",
+  "excerpt": "Adds this change to the design.",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "9124689adc58e115": {
   "approved": "2026-08-08",
   "excerpt": "Create tiled and woven multivariate maps (mapweaver)",
@@ -1493,6 +1573,11 @@
   "approved": "2026-08-08",
   "excerpt": "); automatic colours were applied instead.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "944eb1032fc31cfb": {
+  "approved": "2026-09-05",
+  "excerpt": "Removes the most recent change.",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "947e0e981b5a7f8d": {
   "approved": "2026-08-08",
@@ -1578,6 +1663,11 @@
   "approved": "2026-09-01",
   "excerpt": "the file's transaction could not be committed",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "9b60138fa2c33f93": {
+  "approved": "2026-09-05",
+  "excerpt": "The symmetry group of each tile, and how many symmetries the",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "9b7bbdde0c0842f7": {
   "approved": "2026-08-16",
@@ -1794,6 +1884,11 @@
   "excerpt": "<p>This QGIS plugin is an interface to the [weavingspace](ht",
   "where": "docs/index.html"
  },
+ "b04406246519f71a": {
+  "approved": "2026-09-05",
+  "excerpt": "\u2014 from here the tiles no longer meet",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "b07bfd9571c545d4": {
   "approved": "2026-08-08",
   "excerpt": "The *tileable unit* is the small repeating group of shapes s",
@@ -1874,6 +1969,26 @@
   "excerpt": "'{}' has {} distinct values left between its pinned bounds, ",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "bddcd237c92fb869": {
+  "approved": "2026-09-05",
+  "excerpt": "{} on {} could not be applied, because there has been no top",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
+ "be10acf1b6ff8e21": {
+  "approved": "2026-09-05",
+  "excerpt": "Generate a map to see its topology.",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
+ "be1328ef3115feaa": {
+  "approved": "2026-09-05",
+  "excerpt": "This design has no topology, so it has no dual to tile with.",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
+ "be840459983c6bab": {
+  "approved": "2026-09-05",
+  "excerpt": "{} on {} was applied to {} only: this design has no {} class",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "bf322285adcb50ca": {
   "approved": "2026-08-19",
   "excerpt": "*Copy to* at the top of the window sends this element's clas",
@@ -1919,10 +2034,20 @@
   "excerpt": "Everything this plugin has said since the window opened, new",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "c2b75deb6dd17664": {
+  "approved": "2026-09-05",
+  "excerpt": "'{}' is not a manipulation this version offers, so it was le",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "c3dd2d8765fd4fe8": {
   "approved": "2026-08-15",
   "excerpt": "The first class must end below where the last class begins.",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "c3de8852adfb3e79": {
+  "approved": "2026-09-05",
+  "excerpt": "The symmetry of this design holds this class in place, so a ",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "c3e6480074a5e4f1": {
   "approved": "2026-09-01",
@@ -1954,6 +2079,11 @@
   "excerpt": "Rotation usually helps. A square pattern aligned with the fr",
   "where": "docs/USER-GUIDE.md"
  },
+ "c73f5a1c071d68fc": {
+  "approved": "2026-09-05",
+  "excerpt": "{} on {} changed nothing about it, so the design is as it wa",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "c816740d14f3b9ce": {
   "approved": "2026-08-31",
   "excerpt": "Unlocks features that are being designed and tested.",
@@ -1983,6 +2113,11 @@
   "approved": "2026-08-27",
   "excerpt": "Choose a saved map in the box beside Load first.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "cceda2c5979f1b25": {
+  "approved": "2026-09-05",
+  "excerpt": "The structure of the repeating unit, before any inset or str",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "cd2020faac2cf4f2": {
   "approved": "2026-09-02",
@@ -2149,6 +2284,11 @@
   "excerpt": "Write the map as it stands to that file.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "d9b575ca0bb1856b": {
+  "approved": "2026-09-05",
+  "excerpt": "Every class in this design. Tick more than one to move them ",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "da5ad31e5390269e": {
   "approved": "2026-08-08",
   "excerpt": "An element you leave on `---` carries no variable and draws ",
@@ -2204,6 +2344,11 @@
   "excerpt": "Quantitative elements open the same window. Each class is li",
   "where": "docs/USER-GUIDE.md"
  },
+ "dbf91fed1f73e82d": {
+  "approved": "2026-09-05",
+  "excerpt": "Redraws the whole map as you edit. The view above always fol",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "dc693cd6f209aca1": {
   "approved": "2026-09-01",
   "excerpt": "archimedean 4.8.8 (truncated square)",
@@ -2228,6 +2373,11 @@
   "approved": "2026-09-01",
   "excerpt": "Working out the design's structure\u2026",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "df9c7a813870d639": {
+  "approved": "2026-09-05",
+  "excerpt": "Zigzags for this change. This edge is too short to place tha",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "e0a5f8bed87985c0": {
   "approved": "2026-08-12",
@@ -2404,6 +2554,11 @@
   "excerpt": "DELETE FROM layer_styles WHERE f_table_name = %s AND styleNa",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "f074f169f527d8a6": {
+  "approved": "2026-09-05",
+  "excerpt": "none, so it cannot carry this change",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "f0bc4d1f2555332a": {
   "approved": "2026-08-09",
   "excerpt": "Colours set by hand or by a class file. Choose a ramp to rep",
@@ -2433,6 +2588,11 @@
   "approved": "2026-08-08",
   "excerpt": "<div class=\"obtain\">\n  <p><a href=\"https://github.com/Foldin",
   "where": "docs/index.html"
+ },
+ "f3e4862ff7f0f693": {
+  "approved": "2026-09-05",
+  "excerpt": "Tiles the map with this design's dual, in a new layer group ",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "f3e4a054373977c1": {
   "approved": "2026-08-08",
@@ -2479,6 +2639,16 @@
   "excerpt": "laves 3.3.4.3.4 (cairo pentagonal)",
   "where": "weavingspace_qgis/catalog.py"
  },
+ "f965f9a094a0fab7": {
+  "approved": "2026-09-05",
+  "excerpt": "was made when this design's",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
+ "f9d51f300babecca": {
+  "approved": "2026-09-05",
+  "excerpt": "What to do to the chosen class.",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "fab95578f7f3e984": {
   "approved": "2026-08-12",
   "excerpt": "![Sixteen tiling and weave families, each mapping the same f",
@@ -2509,6 +2679,11 @@
   "excerpt": "1. Go to the\n   [latest release](https://github.com/FoldingS",
   "where": "README.md"
  },
+ "fe0eaac025cda848": {
+  "approved": "2026-09-05",
+  "excerpt": "Removes every change to this design.",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "fe167347b7f1733a": {
   "approved": "2026-08-31",
   "excerpt": "Empties this list of messages.",
@@ -2523,6 +2698,11 @@
   "approved": "2026-08-08",
   "excerpt": "If the final spacing is near the typical width of your polyg",
   "where": "docs/USER-GUIDE.md"
+ },
+ "feeb9a0cdb34e5d1": {
+  "approved": "2026-09-05",
+  "excerpt": "QGIS has not started working out this design's structure. It",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "fef807ccec8b9be2": {
   "approved": "2026-08-08",
