@@ -56,6 +56,13 @@ USER_FACING = [
   # absence.py holds the legend labels for the three kinds of
   # unplaceable value, which are read straight off a map's legend.
   os.path.join(PLUGIN, "absence.py"),
+  # The Topology tab's two modules joined on 2026-09-05: they had
+  # spoken to users since 2026-08-30 -- refusals, the working sentence,
+  # the stall notice -- with neither this check nor text review reading
+  # them, which is the hand-kept-list drift C-177 records for
+  # metadata.txt. `text_review.SOURCES` names the same two.
+  os.path.join(PLUGIN, "topology_edits.py"),
+  os.path.join(PLUGIN, "topology_tab.py"),
   # catalog.py carries the design chooser's own labels, which are the
   # names somebody picks a tiling by. Only its prose STRINGS are read,
   # as for every module here, so the maintainer-facing comments about

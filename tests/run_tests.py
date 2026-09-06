@@ -12125,6 +12125,115 @@ def test_the_messages_tab_records_what_the_plugin_said():
     dlg.close()
 
 
+def test_a_refusal_the_worker_returns_is_shown_not_erased():
+  """The tab keeps the reason there is no topology through the landing's
+  empty report.
+
+  The panel's note is one QLabel with two writers. `set_unit` puts the
+  reason there is no topology into it; the landing then calls
+  `report(refusals)` with whatever the replay could not draw, which on
+  a design whose topology was REFUSED is an empty list -- and an empty
+  report wrote `" ".join([])` over the reason one call earlier. The
+  person met a blank tab, holding no topology and saying nothing.
+
+  Driven exactly as the landing drives it, in that order, on the real
+  panel: a refusal, then an empty report, then a report with something
+  to say, then a landing that carries a topology -- so the guard says
+  both what an empty report must NOT do and what a landing still does.
+
+  Regression: ticking "Map the dual" on the default design left the Topology tab blank, its reason erased by the landing's own next call. Field report 5 against 0.24.4rc15, driven 2026-09-05. [user]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.topology_tab import TopologyPanel
+
+  panel = TopologyPanel()
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                           spacing=500, crs=3857)
+  reason = "the reason there is no topology, as the worker put it"
+  panel.set_unit(unit, None, reason)
+  assert panel.note.text() == reason, \
+    f"PREMISE: set_unit did not put the reason in the note: {panel.note.text()!r}"
+  panel.report([])
+  assert panel.note.text() == reason, \
+    ("an empty report erased the reason the panel had just been given: "
+     f"the note now reads {panel.note.text()!r}")
+  panel.report(["one edit could not be drawn"])
+  assert panel.note.text() == "one edit could not be drawn", \
+    "a report with something to say must still say it"
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: the design has no topology: {why}"
+  panel.set_unit(unit, topology, "")
+  assert panel.note.text() == "", \
+    "a landing that carries a topology must still clear the note"
+
+
+def test_the_refusal_tells_gaps_from_a_library_refusal():
+  """`_why_not` measures before it blames a gap.
+
+  Every exception the library raised became the same sentence -- set
+  the strand width to 1.0, or the tile inset to 0 -- and the default
+  design's DUAL, whose tiles meet exactly, was told that. Only one of
+  the library's reasons for raising is a control somebody can move, so
+  the sentence now asks the unit whether its tiles meet, through the
+  same union the tab draws gaps from, and a design whose tiles do meet
+  is told the truth.
+
+  TWO ARMS, BECAUSE THE RULE HAS TWO ANSWERS. A tile inset opens real
+  gaps and must still get the sentence that names the control. For
+  the other answer the fixture is one corner of one tile moved by a
+  tenth of a millimetre at 500 m spacing: the tiles meet to any eye
+  and to `covers_its_cell` (the area moves by a part in ten million),
+  and the library's corner matching, which works at a resolution of
+  1e-6, refuses it -- measured 2026-09-05 at shifts of 1e-3, 1e-4 and
+  1e-5 alike. The default design's own dual was the case that found
+  this, and it is not the fixture because its completion is a separate
+  step still short by 0.23% of the cell. A library that one day
+  matches corners more loosely would make the second arm unstageable,
+  and the premise says so in words rather than passing quietly.
+
+  Regression: the Topology tab told the default design's dual to set its strand width to 1.0 -- a sentence about a control the design does not have and a gap it does not have. Field report 5, 2026-09-05. [user]
+  """
+  import copy
+  from shapely.geometry import Polygon
+  from weavingspace_qgis import catalog, topology_edits
+
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                           spacing=500, crs=3857)
+  # ARM 1: real gaps keep the sentence that names the control. The
+  # premise is asked with the measure `_why_not` uses -- an inset's gaps
+  # are channels open to the patch's edge, which `gaps()` (holes in a
+  # union) cannot see at all: measured 0.0 on this very fixture.
+  inset = unit.inset_tiles(25)
+  assert topology_edits.covers_its_cell(inset) is False, \
+    "PREMISE: the inset design still covers its cell, so there is no gap"
+  topology, why = topology_edits.build(inset)
+  assert topology is None, "PREMISE: the inset design still built a topology"
+  assert "gaps between its tiles" in why and "strand width" in why, \
+    f"a design with real gaps lost the sentence naming the control: {why!r}"
+
+  # ARM 2: tiles that meet, and a library that still refuses.
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: the plain design has no topology: {why}"
+  nudged = copy.deepcopy(unit)
+  ring = list(nudged.tiles.geometry.iloc[0].exterior.coords)[:-1]
+  ring[0] = (ring[0][0] + 1e-4, ring[0][1])
+  nudged.tiles.loc[nudged.tiles.index[0], "geometry"] = Polygon(ring)
+  assert nudged.tiles.geometry.iloc[0].is_valid, \
+    "PREMISE: the moved corner made the tile invalid, which is a different case"
+  assert topology_edits.covers_its_cell(nudged) is True, \
+    ("PREMISE: a corner moved by a tenth of a millimetre no longer "
+     "covers its cell, so this arm cannot tell a library refusal from a gap")
+  built, why = topology_edits.build(nudged)
+  assert built is None, \
+    ("GOOD NEWS, PROBABLY: the library now matches corners a tenth of a "
+     "millimetre apart, so this arm can no longer stage a refusal on "
+     "meeting tiles. Find a case it still refuses, or retire the arm.")
+  assert "gaps" not in why and "strand width" not in why, \
+    f"a design whose tiles meet was told it has gaps: {why!r}"
+  assert "tiles meet" in why, \
+    f"the honest sentence did not arrive: {why!r}"
+
+
 def test_the_zigzag_needs_no_scipy():
   """`zigzag_between_points` draws its curve with numpy alone.
 
@@ -87940,6 +88049,10 @@ def main():
         test_the_messages_tab_shows_the_answer_beside_the_question)
   check("the zigzag needs no scipy",
         test_the_zigzag_needs_no_scipy)
+  check("a refusal the worker returns is shown, not erased",
+        test_a_refusal_the_worker_returns_is_shown_not_erased)
+  check("the refusal tells gaps from a library refusal",
+        test_the_refusal_tells_gaps_from_a_library_refusal)
   check("no artefact is named without its version",
         test_no_artefact_is_named_without_its_version)
   check("the element count is one control in two widgets",

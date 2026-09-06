@@ -446,10 +446,14 @@ the dual). Cheapest and most durable first.
   (control: the catalogue's own `archimedean 3.3.4.3.4` builds). A
   differential FIRST -- cover equal to the unit's, one tile per vertex
   -- and a note in docs/process against the library's own TODO.
-- **TWO TAB DEFECTS**: `_why_not` says the true reason rather than
-  "gaps" for every exception, and a landing's `report([])` no longer
-  erases the reason `set_unit` wrote -- one QLabel, two writers, the
-  C-208 shape.
+- **THE TWO TAB DEFECTS ARE FIXED AND GUARDED** (2026-09-05, later the
+  same day): `_why_not` measures whether the tiles cover their cell
+  before it blames a gap, and a landing's `report([])` no longer erases
+  the reason `set_unit` wrote. Two registered tests, three catalogue
+  entries proved `caught`. AND THE TWO TOPOLOGY MODULES JOINED TEXT
+  REVIEW AND THE HARD-RULE CHECK, having spoken to users since
+  2026-08-30 with neither reading them: 27 sentences are in the queue,
+  which is the maintainer's to read.
 - **THE SHELF REPORTS AT REPLAY** (was conflict 7): each edit records
   the class alphabet it was made against; a replay onto a design whose
   classes moved applies what matches and says which edits now aim at a

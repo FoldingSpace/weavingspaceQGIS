@@ -261,21 +261,71 @@ def can_build(unit) -> tuple[bool, str]:
   try:
     _topology_class()(unit, True)
   except Exception as exc:                            # noqa: BLE001
-    return False, _why_not(exc)
+    return False, _why_not(exc, unit)
   return True, ""
 
 
-def _why_not(exc: Exception) -> str:
+def covers_its_cell(unit):
+  """Whether a unit's tiles fill the cell they repeat in.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    True where the tiles' area equals the prototile's to within a part
+    in a million, False where it falls short, and None where the
+    question cannot be asked. A unit that tiles the plane covers
+    exactly one cell per repeat, so a shortfall is ground the tiling
+    leaves bare -- an inset's channels, a weave's gaps at a strand
+    width under 1.0, or a dual missing tiles.
+
+  NOT `gaps()`, DELIBERATELY. That measures HOLES in a patch's union,
+  which is what an edit opens; an inset opens channels that reach the
+  patch's edge and are not holes, and it measured 0.0 on an inset that
+  leaves 35% of the cell bare (2026-09-05). Measured on the default
+  design: plain 1.0, inset 25 at 0.651, the promoted-but-short dual
+  0.766, the default weave at strand width 0.75 0.9375.
+  """
+  try:
+    tiles = float(unit.tiles.geometry.area.sum())
+    cell = float(unit.prototile.geometry.area.sum())
+    if cell <= 0:
+      return None
+    return abs(tiles / cell - 1.0) < 1e-6
+  except Exception:                                   # noqa: BLE001
+    return None
+
+
+def _why_not(exc: Exception, unit=None) -> str:
   """Turn the library's complaint into the plugin's own sentence.
 
   Args:
     exc: whatever `Topology` raised.
+    unit: the Tileable it raised on, where the caller has it. Without
+      it the answer is the gaps sentence, which was every answer until
+      2026-09-05.
 
   Returns:
     One sentence for the user. The library's own words name its
     internals -- "Vertex ... Tiles: [] is not in list" -- which tells
     somebody nothing about the control they just moved.
+
+  IT MEASURES BEFORE IT BLAMES A GAP. (2026-09-05, field report 5.)
+  This returned the gaps sentence for EVERY exception, and the default
+  design's dual -- whose tiles meet exactly -- was told to set its
+  strand width to 1.0. The library raises for more than one reason and
+  only one of them is a control somebody can move, so where the unit
+  is to hand it is asked whether its tiles cover their cell, and a
+  design whose tiles do is told the truth: the library could not work
+  out its structure, and nothing on the tab mends that. Where the
+  question cannot be asked the old sentence stands, since a wrong
+  "your tiles meet" would send somebody hunting a defect in the
+  library that is really an inset.
   """
+  if unit is not None and covers_its_cell(unit) is True:
+    return (
+      "This design's tiles meet, but the library could not work out "
+      "its structure, so there is nothing here to edit.")
   return (
     "This design has gaps between its tiles, and a topology can only "
     "be worked out for a design whose tiles meet. Set the strand "
@@ -311,7 +361,7 @@ def build(unit):
   try:
     return _topology_class()(unit, True), ""
   except Exception as exc:                            # noqa: BLE001
-    return None, _why_not(exc)
+    return None, _why_not(exc, unit)
 
 
 def classes(topology) -> dict:

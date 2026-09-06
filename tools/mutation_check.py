@@ -10925,6 +10925,25 @@ MUTATIONS = [
            "to depending on somebody noticing that a document has got "
            "long, and the documents that most need the pass are the "
            "ones a long session has no room left to read"),
+  dict(name="an-empty-report-does-not-erase-the-reason",
+       file=TOPOLOGY_TAB,
+       old="""    if refusals:
+      self.note.setText(" ".join(refusals))""",
+       new="""    self.note.setText(" ".join(refusals))  # mutation: an empty report erases""",
+       test="test_a_refusal_the_worker_returns_is_shown_not_erased",
+       why="a person whose design's topology was refused meeting a blank "
+           "tab: set_unit wrote the reason into the note and the "
+           "landing's next call, report([]), wrote nothing over it. One "
+           "QLabel, two writers -- field report 5, 2026-09-05"),
+  dict(name="the-refusal-measures-before-it-blames-a-gap",
+       file=TOPOLOGY_EDITS,
+       old="""  if unit is not None and covers_its_cell(unit) is True:""",
+       new="""  if False:  # mutation: every refusal is a gap""",
+       test="test_the_refusal_tells_gaps_from_a_library_refusal",
+       why="a design whose tiles meet being told to set its strand width "
+           "to 1.0 or its inset to 0 -- a control it does not have, for "
+           "a gap it does not have -- when the library refused it for "
+           "a reason of its own. The default design's dual, 2026-09-05"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

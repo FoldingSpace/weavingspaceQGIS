@@ -3187,8 +3187,19 @@ class TopologyPanel(QWidget):
 
     Returns:
       None.
+
+    AN EMPTY LIST WRITES NOTHING. (2026-09-05, field report 5.) The
+    note is one QLabel with two writers: `set_unit` puts the reason
+    there is no topology into it, and the landing calls this
+    immediately afterwards with the replay's refusals -- which, on a
+    design whose topology was refused, is an empty list. Writing
+    `" ".join([])` erased the reason the panel had been given one call
+    earlier, so a person met a blank tab. `set_unit` already clears
+    the note wherever a topology arrives, so there is nothing for an
+    empty report to clear; it only ever had something to ADD.
     """
-    self.note.setText(" ".join(refusals))
+    if refusals:
+      self.note.setText(" ".join(refusals))
 
 
 def MANIPULATION_ORDER():  # noqa: N802 (reads as a constant)

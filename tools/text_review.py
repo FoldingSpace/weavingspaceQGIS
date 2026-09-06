@@ -87,7 +87,15 @@ SOURCES = ["dialog.py", "bridge.py", "perception.py", "compat.py",
            # its COMMON_NAMES are the shortest user-facing text here
            # and are collected by name in `collect`, since the prose
            # filter's twenty-five character floor cannot see them.
-           "catalog.py"]
+           "catalog.py",
+           # THE TOPOLOGY TAB JOINED ON 2026-09-05, having spoken to
+           # users since 2026-08-30 with nothing here reading it: its
+           # refusals, its working sentence and the stall notice all
+           # live in these two modules, and the sentence field report 5
+           # turned on -- "set the strand width to 1.0" -- had never
+           # been through review. `check_standards.USER_FACING` names
+           # the same two, and the two lists are meant to agree.
+           "topology_edits.py", "topology_tab.py"]
 
 
 def looks_like_prose(text):

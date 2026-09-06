@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-520 defect(s) with a regression test.
+522 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1027,6 +1027,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
 - **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
   guarded by `test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape`
+- **ticking "Map the dual" on the default design left the Topology tab blank, its reason erased by the landing's own next call. Field report 5 against 0.24.4rc15, driven 2026-09-05.**  
+  guarded by `test_a_refusal_the_worker_returns_is_shown_not_erased`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
   guarded by `test_a_renderer_the_row_cannot_name_defers_to_qgis`
 - **opening a saved map called loadDefaultStyle once per layer, and each call opens the file, so a 256-element map took minutes behind a window with no progress bar at all.**  
@@ -1077,6 +1079,8 @@ there is no separate list to remember.
   guarded by `test_the_plugin_opened_before_the_data_still_works`
 - **a class bound pinned outside its column left the outermost class empty, and the ramp was spread across it -- so the palest and darkest shades were drawn on classes no tile could wear and the map used only the middle of the ramp.**  
   guarded by `test_the_ramp_spans_the_classes_a_tile_can_wear`
+- **the Topology tab told the default design's dual to set its strand width to 1.0 -- a sentence about a control the design does not have and a gap it does not have. Field report 5, 2026-09-05.**  
+  guarded by `test_the_refusal_tells_gaps_from_a_library_refusal`
 - **the size guard measured a circle enclosing the region's bounding box rather than the ground the region covers, so a sparse region -- which most real data is -- was refused at a spacing the library tiles happily; a colleague of the maintainer could not draw their map at all.**  
   guarded by `test_the_size_guard_measures_ground_not_the_bounding_box`
 - **2026-08-19. A ceiling somebody had set drew no mark on the ramp swatch, because the swatch enumerated two of the record's four ends.**  
@@ -1097,7 +1101,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 43
+- reported by a user: 45
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 9
