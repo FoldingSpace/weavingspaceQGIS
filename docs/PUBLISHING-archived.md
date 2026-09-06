@@ -27,6 +27,19 @@ quote them, do not renumber them.
 - **P-10** — The one file a candidate touches, and why it was recorded rather than tidied  <sub>The third pass of 2026-09-05</sub>
 - **P-11** — What a candidate's self-install does and does not touch, and the flag the command could...  <sub>The third pass of 2026-09-05</sub>
 - **P-12** — The unversioned zip in dist/, and the check that wrote it, in full  <sub>The third pass of 2026-09-05</sub>
+- **P-13** — The Windows leg's seventy-five minutes, and the window-width regression that cost two r...  <sub>The fourth pass of 2026-09-05</sub>
+- **P-14** — Parity of coverage on every runner: the macOS leg's first run, the Windows smoke test, ...  <sub>The fourth pass of 2026-09-05</sub>
+- **P-15** — The Windows and macOS legs: the superseded install-and-load paragraph and the platform ...  <sub>The fourth pass of 2026-09-05</sub>
+- **P-16** — Why the patch is the default after a release, in full  <sub>The fourth pass of 2026-09-05</sub>
+- **P-17** — The three candidates abandoned in one evening on faults in the machinery  <sub>The fourth pass of 2026-09-05</sub>
+- **P-18** — How many stages are skippable, and the docstring that noted the sentence had only ever ...  <sub>The fourth pass of 2026-09-05</sub>
+- **P-19** — What a release stopped doing: the mutation guard's figures and the argument, as the sec...  <sub>The fourth pass of 2026-09-05</sub>
+- **P-20** — Reading CI: the three instrument faults of 2026-08-31, in full  <sub>The fourth pass of 2026-09-05</sub>
+- **P-21** — What the legs took on 2026-08-31, and the two ways a figure in prose has misled  <sub>The fourth pass of 2026-09-05</sub>
+- **P-22** — The changelog approved in the morning and falsified in the afternoon, in full  <sub>The fourth pass of 2026-09-05</sub>
+- **P-23** — Why a changelog entry opens with a sentence and groups the rest, in full  <sub>The fourth pass of 2026-09-05</sub>
+- **P-24** — The 0.24.3 summary the maintainer struck out, and the reasoning  <sub>The fourth pass of 2026-09-05</sub>
+- **P-25** — What the published images must show: the argument in full  <sub>The fourth pass of 2026-09-05</sub>
 
 
 ## Publishing: the accounts behind the procedure
@@ -609,3 +622,296 @@ than a tidy-up: on 2026-08-29 the newest file in a `dist/` holding
 three versioned candidates and their receipts was an unversioned zip
 an hour younger than the published candidate and three bytes different
 from it.
+
+### P-13 — The Windows leg's seventy-five minutes, and the window-width regression that cost two rounds
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 36–41 of the 2026-09-05 revision.</sub>
+
+The Windows leg is the one this is really for: about seventy-five
+minutes, of which the suite is nearly all, against roughly fifteen to
+install QGIS and hear the same answer. On 2026-08-29 a window-width
+regression cost one full round to discover and another to confirm the
+fix, which is what the probe exists to stop happening twice.
+
+
+### P-14 — Parity of coverage on every runner: the macOS leg's first run, the Windows smoke test, and why cost is not a reason
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 67–100 of the 2026-09-05 revision.</sub>
+
+### The runners are kept AS CLOSE TO THE LOCAL SUITE AS PRACTICAL
+
+The standard is parity of coverage with what this machine runs, on
+every platform: Linux, Windows and macOS. A platform that only proves
+the plugin loads has been smoke-tested rather than tested, and
+`compat.py` exists precisely because QGIS moves its APIs -- so the
+functional suite, the visual gallery and the colourspace comparison
+belong on every platform CI can reach. Windows carried an
+install-and-load alone until 2026-08-15, which meant the module
+written to absorb QGIS's API changes had never run on the platform
+most of this plugin's users are on.
+
+The macOS leg is the one that measures the package a user downloads
+rather than a container image, in a profile nobody has seeded, and it
+repaid the whole exercise on its first complete run: three faults
+this development machine is constitutionally unable to show, one of
+which had left QGIS with no colour ramps at all for months.
+
+Feasibility is the only ground for divergence, and it is narrow: a
+limit the platform imposes that no amount of code gets round. COST IS
+NOT ONE. The repository is public, so GitHub's standard runners are
+free -- `windows-latest` included, with the 2x multiplier billing
+only against private repositories -- and jobs run in parallel, so a
+leg that finishes inside the slowest one adds nothing to the wall
+clock. "Not done yet" is not a reason either; it is a gap.
+
+When the Mac gains a stage, the runners gain it in the SAME COMMIT.
+A parity rule that waits for somebody to remember has already
+drifted, which is the same argument this project makes for
+regenerating the derived documents in the commit that changes the
+suite. Where a divergence is genuinely right, it lives as an
+exemption with its reason in `tools/check_standards.py`, and that
+list is read at every push.
+
+
+### P-15 — The Windows and macOS legs: the superseded install-and-load paragraph and the platform questions Linux cannot answer
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 133–158 of the 2026-09-05 revision.</sub>
+
+**The zip is installed and loaded ON WINDOWS AND ON MACOS**, in the
+`windows` and `macos` jobs, and neither stops there any more: both
+provision the stack and run the functional suite and the gallery, so
+each platform is as close to what this machine runs as GitHub
+permits. The paragraph that used to stand here said install-and-load
+"is the whole of the Windows leg", which was true for a few hours on
+2026-08-15 and is kept only as the shape to argue against: a leg that
+proves the plugin loads has been smoke-tested, and what Linux cannot
+answer is everything that turns on the platform being itself -- path
+separators, the long-path ceiling, a file still locked by whatever
+wrote it, code signing, an app bundle's own interpreter, and whether
+the archive's layout survives that unpacking. `compat.py` exists
+because QGIS moves its APIs and had never run on either platform.
+
+The Windows leg installs QGIS through Chocolatey's `qgis` package --
+the standalone installer's QGIS with its own Python and the
+`python-qgis*.bat` shims, the one route found actually driven for this
+purpose -- and not `qgis-ltr`, whose 3.44 is below the 4.0 floor
+`metadata.txt` declares. The version is printed rather than pinned and
+nothing is cached, so the job cannot stay green against a QGIS nobody
+runs. It does NOT run `tools/ci_provision.py`: `classFactory`,
+`initGui` and `unload` touch no geopandas, measured under macOS QGIS
+with none of the stack present, so a provisioning step would add a
+download and a second failure surface in front of the one question the
+job asks. (P-7.)
+
+
+### P-16 — Why the patch is the default after a release, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 221–228 of the 2026-09-05 revision.</sub>
+
+The reason to write this down rather than leave it to judgement: what
+follows a release is usually the triage of what the release did not
+fix, plus whatever the hunts and the remote instruments turned up, and
+that is patch-shaped work by construction. Reaching for X+1 by default
+quietly claims a release is bigger than it is, and the claim is made
+by whoever happens to type the branch name at the end of a long
+session. (Maintainer's instruction, 2026-08-14.)
+
+
+### P-17 — The three candidates abandoned in one evening on faults in the machinery
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 306–314 of the 2026-09-05 revision.</sub>
+
+A release is ninety minutes of gates, and not every failure is about
+the software. On 2026-08-11 three candidates were abandoned in one
+evening, each after most of the gates had passed, and none of the
+three faults was in the plugin: a coverage recorder that wrote
+nothing because the suite exits through `os._exit`, a recorder that
+logged every registration rather than every run, and a test whose
+timing had been tuned in a different harness. Each cost a full
+re-run of work that had already answered.
+
+
+### P-18 — How many stages are skippable, and the docstring that noted the sentence had only ever named three
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 330–342 of the 2026-09-05 revision.</sub>
+
+**A skip is honest or it does not happen.** Three stages' output is
+USED (four until the per-test coverage record left the release path;
+`skip_if_already_done`'s own docstring notes the sentence had only
+ever named three, and only three carry a `STAGE_DEPENDS` entry, so
+only three are skippable at all) -- the testing report quotes the suite test by test -- so those
+may only be skipped when the output survives in
+`reports/stage-logs/`, and the saved text is handed to the caller.
+A skip that returned nothing would produce a report describing
+nothing, which is worse than the hour it saved. Every skip announces
+itself with the time the stage originally passed, because a gate
+that did not run is a thing a reader must be told rather than left
+to infer from a suspiciously short log.
+
+
+### P-19 — What a release stopped doing: the mutation guard's figures and the argument, as the section stood after the third pass
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 368–387 of the 2026-09-05 revision.</sub>
+
+Three stages left the release path within a day of each other, and
+together they were about eighty minutes of every candidate. The argument
+was the same each time, and it is worth keeping because it will apply
+again. **The new-code mutation guard** ran fifty minutes and reached
+61.5% against its own 70% bar. It quoted a blended figure over changed
+lines, which docs/MUTATION-TESTING.md says never to do; it could not
+finish inside the window it gated, two mutants timing out at twenty-one
+minutes each; and its red meant "write tests over the next few days",
+which is a work list rather than a gate. THE THREE WERE the new-code
+mutation guard, the per-test coverage record (22 minutes, whose only
+consumer had left) and the coverage report itself (24 to 31 minutes,
+read zero times across six candidates in one night). WHAT DID NOT LEAVE
+IS THE CONTRAST: the visual gallery costs 7 seconds and the colourspace
+comparison 16, and both catch a WRONG MAP, which is this software's
+characteristic failure. THE TEST TO APPLY TO ANY STAGE IN A RELEASE
+PATH: who reads its output, and what would they do differently? If the
+honest answer is nobody, or nothing before the artefact ships, it
+belongs somewhere else -- on demand, or on somebody else's machine,
+reporting. (P-3.)
+
+
+### P-20 — Reading CI: the three instrument faults of 2026-08-31, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 415–438 of the 2026-09-05 revision.</sub>
+
+Each of these cost real time on 2026-08-31, and each looks like an
+answer rather than a broken instrument.
+
+**`gh api .../jobs/<id>/logs` RETURNS ZERO BYTES AND EXIT 1 WITHOUT
+`--allow-escape-sequences`.** The response carries terminal colour
+codes and gh refuses to print it. A grep over that empty file finds
+nothing, which reads exactly like a clean log -- and the first reading
+of a failing job here was precisely that. Pass the flag and strip the
+codes.
+
+**AND IT IS 404 WHILE THE JOB IS STILL RUNNING.** A completed job's log
+is readable immediately, which is the difference between a
+fifteen-minute diagnosis and waiting for hour-long siblings; a RUNNING
+job's is not available at all, so there is no way to watch progress
+from outside. That is the argument for `tools/platform_probe.py`
+running first: it is the only thing that reports before the hour is
+spent.
+
+**`gh --jq` TAKES A FILTER AND NOT jq's OWN FLAGS.** `--jq --arg c "$X"
+'...'` is silently no filter at all, so the command returns everything
+or nothing depending on the shape. Pipe to `jq` proper when you need
+`--arg`. Caught here only because the watcher said its reading had
+failed rather than printing an empty line.
+
+
+### P-21 — What the legs took on 2026-08-31, and the two ways a figure in prose has misled
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 424–443 of the 2026-09-05 revision.</sub>
+
+## What the legs actually take, measured 2026-08-31
+
+The figures in this file and in CLAUDE.md were taken on 2026-08-11 and
+the suite has grown to 727 tests since. Measured across three rounds of
+one day:
+
+    Linux suite legs   60, 66, 68 minutes   (documented as 52-54)
+    macOS              78, 79 minutes
+    Windows            97, 105, 133 minutes (documented as 53-89)
+    mutation coverage  41 (failing), 47 (passing)
+
+CEILINGS ARE NOT THE PROBLEM: `windows` and `macos` carry 300-minute
+job limits with 180 on the suite step, which is why a 133-minute run
+was never in danger. THE HABIT IS: compare a running job against THE
+SAME JOB ON THE PREVIOUS ROUND, never against the document. A figure in
+prose is true until somebody adds a test, and this project has now had
+that both ways round -- a ceiling sized from a stale number, and a
+healthy run read as over-running because the number it was compared
+with had aged.
+
+
+### P-22 — The changelog approved in the morning and falsified in the afternoon, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 519–535 of the 2026-09-05 revision.</sub>
+
+The changelog is approved once and then goes stale under you. On
+2026-08-12 it was approved in the morning, said "Nothing else about
+the plugin has changed", and shipped after an afternoon that changed
+something else about the plugin -- a modal dialog on the live-update
+path, removed by the documentation audit hours after the sentence was
+signed off.
+
+So the last thing before `release.py` is not a gate, it is a reading:
+put `git diff <previous tag>..HEAD -- weavingspace_qgis/` beside the
+changelog entry and check the entry still describes it. Two minutes,
+and it is the only step that catches prose falsified by later work.
+
+`metadata.txt` is in the text-review queue as of that day, so a
+CHANGED entry re-enters review. What the queue cannot do is notice
+that an unchanged entry has stopped being true, which is exactly the
+case that shipped.
+
+
+### P-23 — Why a changelog entry opens with a sentence and groups the rest, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 545–560 of the 2026-09-05 revision.</sub>
+
+**Open each version with a summary sentence, then CATEGORIZED detail.**
+The two readers of a release page are also the two readers of a
+changelog entry: one is deciding whether to upgrade and wants a
+sentence, the other has upgraded and wants to know what moved. A
+single undifferentiated paragraph serves the first badly, because
+the decision is buried in the specifics. So the first sentence
+says what the release is for, and what follows is grouped under
+short category labels drawn from what actually changed -- Colour,
+Setup, Warnings, Preview -- so a reader finds the part that
+concerns them instead of scanning a paragraph for it. The
+categories are not a fixed set: a fixed set produces empty
+headings, and empty headings are how a changelog starts looking
+like a form. (Maintainer's instruction, 2026-08-13; the entries for
+0.23.0 through 0.24.2 were rewritten to this shape at the same
+time, so the convention has examples rather than only a rule.)
+
+
+### P-24 — The 0.24.3 summary the maintainer struck out, and the reasoning
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 553–567 of the 2026-09-05 revision.</sub>
+
+**A changelog says what a user CAN now do, not what the software now
+always does.** 0.24.3's summary was drafted as "a colour means the
+same thing everywhere it appears on the map", and the maintainer
+struck it out: the class count, the scheme and the pinned bounds are
+all per element, so two elements agree only when somebody has set them
+up to. What the release changed is that they CAN. The corrected line
+reads "a colour can now mean the same thing everywhere it appears on
+the map, if that is what you want", and the difference is not
+politeness. A capability written as a guarantee is a promise the
+settings can break, and the reader who finds it broken has been told
+something untrue by the plugin rather than by their own configuration.
+When a sentence describes a behaviour, ask what has to be true for it
+to hold; if the answer is anything at all, the sentence needs the
+condition in it. (Maintainer's correction, 2026-08-14.)
+
+
+### P-25 — What the published images must show: the argument in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 579–599 of the 2026-09-05 revision.</sub>
+
+Every image in README.md and on the project page shows REAL DATA
+DISPLAYED AS A MAP: a named place, recognisable geography, region
+outlines, and a legend where the classes need one. Not an abstract
+pattern, however handsome.
+
+The reason is what a reader is actually asking. Someone who lands on
+the page wants to know what they could produce at the end of an
+afternoon with their own data, and a field of coloured hexagons
+answers a different question — it shows the technique's mechanics
+rather than its output. The plugin's whole claim is that several
+attributes of real places can be read from one map; images that omit
+the places and the attributes argue against it.
+
+Practically: prefer the packaged Auckland deprivation data or another
+real dataset over synthetic grids, keep the region outlines on, show
+a legend, and size the image so the pattern is legible rather than
+decorative. Where a figure from the published article can be used
+under its licence, that is better still, since those figures were made
+to carry exactly this argument — attribute them in the caption and
+record the licence beside the file.

@@ -33,11 +33,9 @@ right-to-left locale, the table at the largest element count, and the
 tooltip rule. They take seconds, and they fail the job before its hour
 is spent rather than after.
 
-The Windows leg is the one this is really for: about seventy-five
-minutes, of which the suite is nearly all, against roughly fifteen to
-install QGIS and hear the same answer. On 2026-08-29 a window-width
-regression cost one full round to discover and another to confirm the
-fix, which is what the probe exists to stop happening twice.
+It exists for the Windows leg, where the suite is seventy-five
+minutes of a job that could have answered in fifteen, and where a
+window-width regression once cost two full rounds (P-P-13).
 
 The candidate's gates take about ninety minutes on this Mac; GitHub's
 amd64 runners finish the Linux matrix in about twenty. Run them in
@@ -69,36 +67,17 @@ because a push is the one step this project cannot take back:
 ### The runners are kept AS CLOSE TO THE LOCAL SUITE AS PRACTICAL
 
 The standard is parity of coverage with what this machine runs, on
-every platform: Linux, Windows and macOS. A platform that only proves
-the plugin loads has been smoke-tested rather than tested, and
-`compat.py` exists precisely because QGIS moves its APIs -- so the
-functional suite, the visual gallery and the colourspace comparison
-belong on every platform CI can reach. Windows carried an
-install-and-load alone until 2026-08-15, which meant the module
-written to absorb QGIS's API changes had never run on the platform
-most of this plugin's users are on.
-
-The macOS leg is the one that measures the package a user downloads
-rather than a container image, in a profile nobody has seeded, and it
-repaid the whole exercise on its first complete run: three faults
-this development machine is constitutionally unable to show, one of
-which had left QGIS with no colour ramps at all for months.
-
-Feasibility is the only ground for divergence, and it is narrow: a
-limit the platform imposes that no amount of code gets round. COST IS
-NOT ONE. The repository is public, so GitHub's standard runners are
-free -- `windows-latest` included, with the 2x multiplier billing
-only against private repositories -- and jobs run in parallel, so a
-leg that finishes inside the slowest one adds nothing to the wall
-clock. "Not done yet" is not a reason either; it is a gap.
-
-When the Mac gains a stage, the runners gain it in the SAME COMMIT.
-A parity rule that waits for somebody to remember has already
-drifted, which is the same argument this project makes for
-regenerating the derived documents in the commit that changes the
-suite. Where a divergence is genuinely right, it lives as an
-exemption with its reason in `tools/check_standards.py`, and that
-list is read at every push.
+every platform CI can reach: the functional suite, the visual gallery
+and the colourspace comparison, since `compat.py` exists because QGIS
+moves its APIs and a leg that only proves the plugin loads has been
+smoke-tested. Feasibility is the only ground for divergence and cost
+is not one, standard runners being free on a public repository and
+jobs running in parallel. When the Mac gains a stage the runners gain
+it in the SAME COMMIT, and a divergence lives as an exemption with its
+reason in `tools/check_standards.py`, read at every push. The rule
+binds in CLAUDE.md; what the macOS leg found on its first complete
+run, and the months Windows ran nothing but an install-and-load:
+P-P-14.
 
 ### Before the branch exists: is Linux still running what we run?
 
@@ -152,30 +131,16 @@ suite legs would add to every one of them. The matrix is deliberate --
 the floor it declares is a promise broken at install time.
 
 **The zip is installed and loaded ON WINDOWS AND ON MACOS**, in the
-`windows` and `macos` jobs, and neither stops there any more: both
-provision the stack and run the functional suite and the gallery, so
-each platform is as close to what this machine runs as GitHub
-permits. The paragraph that used to stand here said install-and-load
-"is the whole of the Windows leg", which was true for a few hours on
-2026-08-15 and is kept only as the shape to argue against: a leg that
-proves the plugin loads has been smoke-tested, and what Linux cannot
-answer is everything that turns on the platform being itself -- path
+`windows` and `macos` jobs, and both then provision the stack and run
+the functional suite and the gallery, since what Linux cannot answer
+is everything that turns on the platform being itself: path
 separators, the long-path ceiling, a file still locked by whatever
-wrote it, code signing, an app bundle's own interpreter, and whether
-the archive's layout survives that unpacking. `compat.py` exists
-because QGIS moves its APIs and had never run on either platform.
-
-The Windows leg installs QGIS through Chocolatey's `qgis` package --
-the standalone installer's QGIS with its own Python and the
-`python-qgis*.bat` shims, the one route found actually driven for this
-purpose -- and not `qgis-ltr`, whose 3.44 is below the 4.0 floor
-`metadata.txt` declares. The version is printed rather than pinned and
-nothing is cached, so the job cannot stay green against a QGIS nobody
-runs. It does NOT run `tools/ci_provision.py`: `classFactory`,
-`initGui` and `unload` touch no geopandas, measured under macOS QGIS
-with none of the stack present, so a provisioning step would add a
-download and a second failure surface in front of the one question the
-job asks. (P-7.)
+wrote it, code signing, an app bundle's own interpreter. The Windows
+leg installs QGIS through Chocolatey's `qgis` package rather than
+`qgis-ltr`, whose 3.44 is below the floor `metadata.txt` declares,
+prints the version rather than pinning it, caches nothing, and does
+NOT run `tools/ci_provision.py`, since `classFactory`, `initGui` and
+`unload` touch no geopandas. (P-7, P-P-15.)
 
 **The published claims are audited**, with `--check`, which asks only
 the questions whose answer is somebody's words: a missing changelog
@@ -253,13 +218,10 @@ QApplication property that was never involved. (P-2.)
 bumped to 0.24.3, not 0.25.0. The maintainer says otherwise when a
 release earns a minor bump, and that is the only thing that moves it.
 
-The reason to write this down rather than leave it to judgement: what
-follows a release is usually the triage of what the release did not
-fix, plus whatever the hunts and the remote instruments turned up, and
-that is patch-shaped work by construction. Reaching for X+1 by default
-quietly claims a release is bigger than it is, and the claim is made
-by whoever happens to type the branch name at the end of a long
-session. (Maintainer's instruction, 2026-08-14.)
+The reason: what follows a release is patch-shaped by construction,
+and reaching for X+1 by default claims a release is bigger than it
+is, a claim made by whoever types the branch name at the end of a
+long session (maintainer's instruction, 2026-08-14; P-P-16).
 
 The first act on that branch is the version bump in `metadata.txt`,
 which immediately makes `sync_release_content --check` fail for want
@@ -341,14 +303,9 @@ has lost were the ones mentioned only in conversation.
 
     python3 release.py --rc --resume
 
-A release is ninety minutes of gates, and not every failure is about
-the software. On 2026-08-11 three candidates were abandoned in one
-evening, each after most of the gates had passed, and none of the
-three faults was in the plugin: a coverage recorder that wrote
-nothing because the suite exits through `os._exit`, a recorder that
-logged every registration rather than every run, and a test whose
-timing had been tuned in a different harness. Each cost a full
-re-run of work that had already answered.
+`--resume` exists because three candidates were once abandoned in one
+evening, each after most of the gates had passed, on faults none of
+which was in the plugin (P-P-17).
 
 `--resume` skips a stage that passed before against EXACTLY the
 inputs it has now. Nothing is skipped without the flag: a full run
@@ -371,17 +328,13 @@ and it is exactly the kind of change that feels as though it cannot.
 2026-08-18; the SHAPE is what the flag is for, P-9.)
 
 **A skip is honest or it does not happen.** Three stages' output is
-USED (four until the per-test coverage record left the release path;
-`skip_if_already_done`'s own docstring notes the sentence had only
-ever named three, and only three carry a `STAGE_DEPENDS` entry, so
-only three are skippable at all) -- the testing report quotes the suite test by test -- so those
-may only be skipped when the output survives in
-`reports/stage-logs/`, and the saved text is handed to the caller.
-A skip that returned nothing would produce a report describing
-nothing, which is worse than the hour it saved. Every skip announces
-itself with the time the stage originally passed, because a gate
-that did not run is a thing a reader must be told rather than left
-to infer from a suspiciously short log.
+USED -- the testing report quotes the suite test by test -- so only
+those three carry a `STAGE_DEPENDS` entry, only they may be skipped,
+and only where their output survives in `reports/stage-logs/`, the
+saved text being handed to the caller. Every skip announces itself
+with the time the stage originally passed, because a gate that did
+not run is a thing a reader must be told rather than left to infer
+from a short log. (P-P-18.)
 
 **When NOT to use it.** A candidate for promotion is built by a run
 that measured this tree, and `--resume` is for getting back to that
@@ -412,25 +365,17 @@ somebody's behalf.
 
 ## What a release stopped doing, and why that is not a weakening
 
-Three stages left the release path within a day of each other, and
-together they were about eighty minutes of every candidate. The argument
-was the same each time, and it is worth keeping because it will apply
-again. **The new-code mutation guard** ran fifty minutes and reached
-61.5% against its own 70% bar. It quoted a blended figure over changed
-lines, which docs/MUTATION-TESTING.md says never to do; it could not
-finish inside the window it gated, two mutants timing out at twenty-one
-minutes each; and its red meant "write tests over the next few days",
-which is a work list rather than a gate. THE THREE WERE the new-code
-mutation guard, the per-test coverage record (22 minutes, whose only
-consumer had left) and the coverage report itself (24 to 31 minutes,
-read zero times across six candidates in one night). WHAT DID NOT LEAVE
-IS THE CONTRAST: the visual gallery costs 7 seconds and the colourspace
-comparison 16, and both catch a WRONG MAP, which is this software's
+Three stages left the release path within a day of each other, about
+eighty minutes of every candidate: the new-code mutation guard, the
+per-test coverage record and the coverage report, each because nobody
+read its output before the artefact shipped. WHAT DID NOT LEAVE IS THE
+CONTRAST: the visual gallery at 7 seconds and the colourspace
+comparison at 16, both of which catch a WRONG MAP, this software's
 characteristic failure. THE TEST TO APPLY TO ANY STAGE IN A RELEASE
-PATH: who reads its output, and what would they do differently? If the
-honest answer is nobody, or nothing before the artefact ships, it
-belongs somewhere else -- on demand, or on somebody else's machine,
-reporting. (P-3.)
+PATH: who reads its output, and what would they do differently? If
+the honest answer is nobody, or nothing before the artefact ships, it
+belongs on demand or on somebody else's machine, reporting. (P-3,
+P-P-19.)
 
 ## A release candidate, first
 
@@ -467,49 +412,30 @@ Restart QGIS or use Plugin Reloader afterwards. Skipping the install is
 
 ## READING CI: three ways the reading itself fails
 
-Each of these cost real time on 2026-08-31, and each looks like an
-answer rather than a broken instrument.
+Each looks like an answer rather than a broken instrument. `gh api
+.../jobs/<id>/logs` returns zero bytes and exit 1 without
+`--allow-escape-sequences`, so a grep over it reads exactly like a
+clean log: pass the flag and strip the codes. A RUNNING job's log is
+404 while a completed job's is readable at once, which is why
+`tools/platform_probe.py` runs first. And `gh --jq` takes a filter
+and not jq's own flags, so `--jq --arg` is silently no filter at all:
+pipe to `jq` proper. (P-P-20.)
 
-**`gh api .../jobs/<id>/logs` RETURNS ZERO BYTES AND EXIT 1 WITHOUT
-`--allow-escape-sequences`.** The response carries terminal colour
-codes and gh refuses to print it. A grep over that empty file finds
-nothing, which reads exactly like a clean log -- and the first reading
-of a failing job here was precisely that. Pass the flag and strip the
-codes.
+## What the legs take
 
-**AND IT IS 404 WHILE THE JOB IS STILL RUNNING.** A completed job's log
-is readable immediately, which is the difference between a
-fifteen-minute diagnosis and waiting for hour-long siblings; a RUNNING
-job's is not available at all, so there is no way to watch progress
-from outside. That is the argument for `tools/platform_probe.py`
-running first: it is the only thing that reports before the hour is
-spent.
+Compare a running job against THE SAME JOB ON THE PREVIOUS ROUND,
+never against a figure in prose, which is true until somebody adds a
+test: this project has had that both ways round, a ceiling sized from
+a stale number and a healthy run read as over-running (P-P-21).
+Measured across three rounds of one day at 727 tests:
 
-**`gh --jq` TAKES A FILTER AND NOT jq's OWN FLAGS.** `--jq --arg c "$X"
-'...'` is silently no filter at all, so the command returns everything
-or nothing depending on the shape. Pipe to `jq` proper when you need
-`--arg`. Caught here only because the watcher said its reading had
-failed rather than printing an empty line.
-
-## What the legs actually take, measured 2026-08-31
-
-The figures in this file and in CLAUDE.md were taken on 2026-08-11 and
-the suite has grown to 727 tests since. Measured across three rounds of
-one day:
-
-    Linux suite legs   60, 66, 68 minutes   (documented as 52-54)
+    Linux suite legs   60, 66, 68 minutes
     macOS              78, 79 minutes
-    Windows            97, 105, 133 minutes (documented as 53-89)
+    Windows            97, 105, 133 minutes
     mutation coverage  41 (failing), 47 (passing)
 
-CEILINGS ARE NOT THE PROBLEM: `windows` and `macos` carry 300-minute
-job limits with 180 on the suite step, which is why a 133-minute run
-was never in danger. THE HABIT IS: compare a running job against THE
-SAME JOB ON THE PREVIOUS ROUND, never against the document. A figure in
-prose is true until somebody adds a test, and this project has now had
-that both ways round -- a ceiling sized from a stale number, and a
-healthy run read as over-running because the number it was compared
-with had aged.
+The `windows` and `macos` jobs carry 300-minute limits with 180 on
+the suite step, so none of those was in danger.
 
 ## A TEST REPAIR SPENDS A CANDIDATE NUMBER, AND THAT IS NOT A WASTE
 
@@ -590,22 +516,14 @@ code publishes the page, usually within a minute.
 
 ## Before promoting: re-read the changelog against the diff
 
-The changelog is approved once and then goes stale under you. On
-2026-08-12 it was approved in the morning, said "Nothing else about
-the plugin has changed", and shipped after an afternoon that changed
-something else about the plugin -- a modal dialog on the live-update
-path, removed by the documentation audit hours after the sentence was
-signed off.
-
-So the last thing before `release.py` is not a gate, it is a reading:
-put `git diff <previous tag>..HEAD -- weavingspace_qgis/` beside the
-changelog entry and check the entry still describes it. Two minutes,
-and it is the only step that catches prose falsified by later work.
-
-`metadata.txt` is in the text-review queue as of that day, so a
-CHANGED entry re-enters review. What the queue cannot do is notice
-that an unchanged entry has stopped being true, which is exactly the
-case that shipped.
+The changelog is approved once and then goes stale under you: 0.24.1's
+was signed off in the morning saying nothing else had changed, and
+shipped after an afternoon that changed something else (P-P-22). So
+the last thing before `release.py` is a reading, not a gate: put `git
+diff <previous tag>..HEAD -- weavingspace_qgis/` beside the entry and
+check it still describes the diff. `metadata.txt` is in the
+text-review queue, so a CHANGED entry re-enters review; what the queue
+cannot notice is an unchanged entry that has stopped being true.
 
 ## Release notes: two halves, one written and one measured
 
@@ -624,36 +542,22 @@ and the plugin manager cannot drift, being the same words. Write it
 as what a user can now do, or no longer has to worry about, rather
 than as a list of commits.
 
-**Open each version with a summary sentence, then CATEGORIZED detail.**
-The two readers of a release page are also the two readers of a
-changelog entry: one is deciding whether to upgrade and wants a
-sentence, the other has upgraded and wants to know what moved. A
-single undifferentiated paragraph serves the first badly, because
-the decision is buried in the specifics. So the first sentence
-says what the release is for, and what follows is grouped under
-short category labels drawn from what actually changed -- Colour,
-Setup, Warnings, Preview -- so a reader finds the part that
-concerns them instead of scanning a paragraph for it. The
-categories are not a fixed set: a fixed set produces empty
-headings, and empty headings are how a changelog starts looking
-like a form. (Maintainer's instruction, 2026-08-13; the entries for
-0.23.0 through 0.24.2 were rewritten to this shape at the same
-time, so the convention has examples rather than only a rule.)
+**Open each version with a summary sentence, then CATEGORIZED detail**
+under short labels drawn from what actually changed -- Colour, Setup,
+Warnings, Preview -- never a fixed set, since a fixed set produces
+empty headings and a changelog that looks like a form. The two readers
+of a release page are the two readers of an entry. (Maintainer's
+instruction, 2026-08-13; the entries from 0.23.0 on are the examples;
+P-P-23.)
 
 **A changelog says what a user CAN now do, not what the software now
-always does.** 0.24.3's summary was drafted as "a colour means the
-same thing everywhere it appears on the map", and the maintainer
-struck it out: the class count, the scheme and the pinned bounds are
-all per element, so two elements agree only when somebody has set them
-up to. What the release changed is that they CAN. The corrected line
-reads "a colour can now mean the same thing everywhere it appears on
-the map, if that is what you want", and the difference is not
-politeness. A capability written as a guarantee is a promise the
-settings can break, and the reader who finds it broken has been told
-something untrue by the plugin rather than by their own configuration.
-When a sentence describes a behaviour, ask what has to be true for it
-to hold; if the answer is anything at all, the sentence needs the
-condition in it. (Maintainer's correction, 2026-08-14.)
+always does.** A capability written as a guarantee is a promise the
+settings can break: 0.24.3's "a colour means the same thing everywhere
+it appears" became "can now mean ... if that is what you want", since
+two elements agree only when somebody has set them up to. When a
+sentence describes a behaviour, ask what has to be true for it to
+hold; if the answer is anything at all, the sentence needs the
+condition in it. (Maintainer's correction, 2026-08-14; P-P-24.)
 
 **The comprehensive half is generated**: how many tests ran and how
 many guard a defect that actually happened, what is attached and what
@@ -674,24 +578,16 @@ excellent evidence, unreadable as news.
 
 Every image in README.md and on the project page shows REAL DATA
 DISPLAYED AS A MAP: a named place, recognisable geography, region
-outlines, and a legend where the classes need one. Not an abstract
-pattern, however handsome.
-
-The reason is what a reader is actually asking. Someone who lands on
-the page wants to know what they could produce at the end of an
-afternoon with their own data, and a field of coloured hexagons
-answers a different question — it shows the technique's mechanics
-rather than its output. The plugin's whole claim is that several
-attributes of real places can be read from one map; images that omit
-the places and the attributes argue against it.
-
-Practically: prefer the packaged Auckland deprivation data or another
-real dataset over synthetic grids, keep the region outlines on, show
-a legend, and size the image so the pattern is legible rather than
-decorative. Where a figure from the published article can be used
-under its licence, that is better still, since those figures were made
-to carry exactly this argument — attribute them in the caption and
-record the licence beside the file.
+outlines, and a legend where the classes need one -- never an
+abstract pattern, which shows the technique's mechanics rather than
+its output and argues against the plugin's own claim that several
+attributes of real places can be read from one map. Practically:
+prefer the packaged Auckland deprivation data or another real dataset
+over synthetic grids, keep the region outlines on, show a legend, and
+size the image so the pattern is legible rather than decorative. A
+figure from the published article is better still where its licence
+allows; attribute it in the caption and record the licence beside the
+file. (User instruction, 2026-08-08; P-P-25.)
 
 ## The QGIS plugin repository
 

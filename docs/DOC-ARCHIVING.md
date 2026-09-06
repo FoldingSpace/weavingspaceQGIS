@@ -306,6 +306,29 @@ verbatim copy and the id placeholder is filled by the tool; the end
 anchor of the last entry in a file needs a sentinel line, since the
 tool anchors on the NEXT block.
 
+## The fourth pass: the runbook and the architecture
+
+The third pass left docs/PUBLISHING.md and MAINTAINING.md almost
+whole, on the reading that a runbook is its steps and an architecture
+document is its mechanisms. Read end to end against the measure later
+the same day, both had the other shape as well: PUBLISHING carried the
+CI-parity argument beside a pointer to CLAUDE.md, a superseded
+Windows-leg paragraph kept "as the shape to argue against", and the
+changelog-correction stories in full; MAINTAINING's middle third -- the
+save's three doors, the drop, the held landing, the resume, the queues
+and the topology sections -- stated each mechanism as the defect that
+found it, with the rule last. The pass took PUBLISHING 816 to 712 and
+MAINTAINING 2,302 to 2,048 (P-13 to P-25, M-8 to M-34), every
+procedure step and every mechanism's rule, comparison table and
+measurement kept, and the budgets follow them down.
+
+WHAT A MECHANISM KEEPS, since MAINTAINING.md is the file where the
+measure has the most room to break: what the thing is, the rule it
+keeps, the comparison table where there is one, ONE measurement that
+makes the rule believable, and why it is shaped that way rather than
+the obvious way. What goes is the journey to it -- the first repair,
+the runner it showed on, the paragraph that used to stand there.
+
 ## The docstrings have an archive too
 
 Since 2026-09-05 the package's docstrings keep what a maintainer needs

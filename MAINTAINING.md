@@ -46,32 +46,17 @@ EMPTY project, which is the rule that makes a failure name the test
 that is actually broken -- so a slice is a legitimate subset rather
 than a different suite. It took the suite from 32 minutes to 11.
 
-**AND A SHARD'S VERDICT IS NOT ITS LAST LINE.** (2026-08-30.) Read for
-the verdict LINE, not for the end of the file, and where there is no
-verdict line say so in those words: a shard that died and a shard whose
-last line is noise look identical to a naive tail, and only one of them
-is a problem.
-
-**AND A SHARD CAN DIE AT STARTUP, WHICH LOOKS LIKE NOTHING AT ALL.**
-(2026-08-28.) One of three coverage recorders met FileNotFoundError
-before it ran a single test; the other two ran on and the progress total
-climbed. SO READ SHARDS SEPARATELY, NEVER ONLY THEIR SUM -- the fault
-was visible as an asymmetry (nineteen, thirty, and nothing) and
-invisible in the sum. `tools/merge_coverage_shards.py` is the backstop
-rather than the detector: it counts the files against the total each one
-names and refuses a partial set. Both faults in full: M-1.
-
-Three things make it trustworthy rather than merely fast. Each shard
-prints how many tests it was OFFERED, and those totals must agree:
-the first sharded run read 285, 285 and 286, which is not a
-partition, and the cause was a test that registers a probe of its
-own consuming a slot. A registration made from inside a test now
-passes `sharded=False`. The merge of the coverage shards REFUSES a
-partial or overlapping set, because an incomplete coverage record
-never offers the missing tests the chance to notice a mutant and
-overstates survivors silently. And every stall ceiling widens by two
-and a half times whenever a shard is in force, against a measured
-contention cost of 15-50%.
+**A SHARD'S VERDICT IS ITS VERDICT LINE, NOT ITS LAST LINE, AND SHARDS
+ARE READ SEPARATELY, NEVER ONLY THEIR SUM.** A shard that died and one
+whose last line is noise look identical to a naive tail, and a shard
+that dies at startup shows only as an asymmetry -- nineteen, thirty,
+and nothing -- that the sum hides; `tools/merge_coverage_shards.py`
+refuses a partial set, as a backstop rather than a detector. Each
+shard prints how many tests it was OFFERED and the totals must agree,
+since a probe registered from inside a test once consumed a slot
+(`sharded=False` now); and every stall ceiling widens by two and a
+half times under sharding, against a measured contention cost of
+15-50%. (M-1, M-M-8.)
 
 What still does NOT shard is a MEASUREMENT beside another
 measurement -- a census, the aggregate coverage report, anything
@@ -107,7 +92,7 @@ Files you will actually touch:
 | `weavingspace_qgis/bridge.py` | Data conversion and symbology. |
 | `tests/data/` | Packaged fixtures: a real Auckland dataset, a generated categorical GeoPackage, and two importable QML colour mappings. Not shipped in the plugin zip. |
 | `tools/make_test_fixtures.py` | Regenerates the categorical fixtures (tests assert on their exact colours; regenerate deliberately). |
-| `tools/coverage_report.py` | Which plugin lines the suite never reaches. Run it when you are deciding where to write tests; it left the release path on 2026-08-12, having cost half an hour a candidate and gated nothing. It could not write a report at all until 2026-08-13: the suite ends in `os._exit`, so everything after the call was unreachable and the documented command produced nothing. |
+| `tools/coverage_report.py` | Which plugin lines the suite never reaches. Run it when you are deciding where to write tests; it is off the release path, having cost half an hour a candidate and gated nothing (M-M-9). |
 | `tools/mutation_check.py` | Breaks each guarded behaviour and requires its test to fail. Run before substantial releases. |
 | `tools/doc_archive.py`, `docs/DOC-ARCHIVING.md` | The binding documents are split into a live half that carries the rules and an `-archived.md` half that carries the account behind each one, under ids the live half quotes; the package's docstrings have the same split, into `docs/DOCSTRINGS-archived.md`. The tool checks that every pointer leads somewhere, that no account is stranded, that each live document is inside its line budget and keeps its SHAPE (a how-to-add section, fixed sections, a capped inbox, no date-led entries), and mints ids; `--suggest` says what the next pass would look at. |
 | `tools/check_no_secrets.py` | Refuses to publish credentials, key material, private files or machine paths. Runs twice inside every release, and is worth running by hand before any commit. |
@@ -173,14 +158,12 @@ bash tests/run_tests_macos.sh            # auto-finds /Applications/QGIS*.app
 ```
 
 That script does not know where anything is. It calls
-`tools/macos_qgis_env.sh`, which finds the app bundle, finds an
-interpreter that will actually start, and works out `PYTHONHOME` and
-`QGIS_PREFIX_PATH` by trying them — the macOS CI job calls the same
-script, so the runner and this machine cannot drift apart about how
-to start QGIS's Python. Both paths were hardcoded here until
-2026-08-15, and the prefix was wrong, which left QGIS with no colour
-ramps at all on any machine whose profile had not already been seeded
-by the plugin.
+`tools/macos_qgis_env.sh`, which finds the app bundle, an interpreter
+that will actually start, and `PYTHONHOME` and `QGIS_PREFIX_PATH` by
+trying them against a throwaway profile; the macOS CI job calls the
+same script, so the runner and this machine cannot drift apart about
+how to start QGIS's Python. The hardcoded prefix that left QGIS with
+no colour ramps on any unseeded machine: C-317, M-M-10.
 
 Windows (OSGeo4W shell):
 
@@ -325,17 +308,11 @@ on that other dataset destroyed them. When one fact is written twice,
 both writers take it from the same moment or the two will disagree.
 
 `_fresh_group_for_new_data` retired with it: the protection it gave
-comes from which group is SELECTED now, which is a fact on screen
-rather than a flag. What replaced it is narrower and means one thing
--- `_new_group_chosen` is set only when somebody picks "create new" --
-and the first build conflated the two, which put a file-overwrite
-warning in front of an ordinary journey.
-
-The reason the replacement was worth its cost is one sentence of the
-report that prompted it: three scopes -- records kept per dataset, a
-design carried globally, a group remembered nowhere -- answered a
-single act in three different ways, and none of the three was named on
-screen. The rulings are in CLAUDE.md, where they bind.
+comes from which group is SELECTED now, a fact on screen rather than a
+flag, and `_new_group_chosen` means one thing, set only when somebody
+picks "create new". The report that prompted the replacement -- three
+scopes answering one act three ways, none named on screen -- and the
+first build's conflation: M-M-11. The rulings are in CLAUDE.md.
 
 **AND THE SIZE GUARD ASKS RATHER THAN REFUSES.** (Same day.) Above
 `MAX_TILES_CONFIRM` a run is confirmed; above `MAX_TILES_HARD` the
@@ -441,32 +418,19 @@ heard `setRenderer` edit. The REGION layer's `repaintRequested` stays
 deliberately unconnected: there a repaint must not cause a re-tile,
 and that older rule is about that layer alone.
 
-This is why a maintainer could add a class and watch the plugin follow
-it, then recolour a class and watch nothing happen: the two actions
-take different routes inside QGIS's own panel. Ledger row 28, which
-had been read as a consequence of a failed Generate for a day, on
-evidence that was true of one session and not of the next.
+So adding a class in QGIS's panel is followed and recolouring one is
+heard only through the repaint (ledger row 28); and since the plugin
+calls `_on_layer_style_edited` DIRECTLY in places, a `HEARD` line in a
+dump is not by itself evidence that QGIS said anything.
 
-The consequence for anyone reading a dump: the plugin calls
-`_on_layer_style_edited` DIRECTLY in a couple of places as well as
-from the signal, so a `HEARD` line is not by itself evidence that
-QGIS told us anything.
-
-**So a session whose Generate has never succeeded hears nothing.** On
-2026-08-19 a maintainer reported a class recoloured in QGIS reaching
-the map and neither the plugin's swatch nor its colour editor. Six
-reproductions on their own data all worked; what settled it was a dump
-from their session, which was EMPTY -- their Generate had failed, no
-run had landed, and no layer was watched. QGIS repainted the map
-because QGIS owns the layer, and the plugin was simply never told.
-
-Two things follow. When a dock edit appears not to reach the plugin,
-ask FIRST whether a run has landed in that session, because the answer
-is often that nothing is connected rather than that something is
-broken downstream. And when adding a third route by which element
-layers come into existence, connect the watch there too -- a layer the
-plugin holds but does not hear is worse than one it does not know
-about, since the table goes on describing a map that has moved.
+**So a session whose Generate has never succeeded hears nothing**,
+since no run has landed and no layer is watched: a dump from a
+reporter's session was EMPTY where six reproductions had all worked
+(M-M-12). When a dock edit appears not to reach the plugin, ask FIRST
+whether a run has landed in that session; and when adding a third
+route by which element layers come into existence, connect the watch
+there too, since a layer the plugin holds but does not hear goes on
+describing a map that has moved.
 
 ## Whose colour is this? Attribution, not delta
 
@@ -523,12 +487,8 @@ does not choose where the file goes; a Save does, and a file whose own
 record named another file would point a resume at a stranger's map.
 
 That split was got wrong twice in one evening, both times by carrying
-too little: the design and region alone, so the record named a
-variable its own tiles were not drawn with; and then those plus the
-variable but not the element LIST, so lowering the element count left
-a record claiming `n=4` beside two elements and a file holding four
-tables. Whenever you add a key to this record, ask which of the two
-moments it is about.
+too little (M-M-13). Whenever you add a key to this record, ask which
+of the two moments it is about.
 
 **AND THE THREE STORES ARE NOT SYMMETRICAL, which decides what happens
 when you add a key.** Writing is permissive and reading is strict:
@@ -699,36 +659,24 @@ channels reach the patch's edge and are not holes at all (measured
 ### The drop keeps the picture it was showing
 
 `_commit_the_drag` used to open with `show_preview(None)`, so the
-edited geometry a person had been dragging was cleared AT THE DROP --
-and the rebuild that answers an edit is asynchronous, so until it
-landed `_drawn` fell back to `_topology`, which is the UN-EDITED
-design. That is the field report against 0.24.4rc15: "it reverts for a
-second and then a few seconds later updates correctly". Measured on
-`laves 3.3.4.3.4`, the old design stood for 1.676 seconds and the
-settled drawing was IDENTICAL to what the preview had been showing, so
-the right picture was thrown away and recomputed; on `hex-colouring 7`,
-whose build is nineteen seconds, it is nineteen seconds of the wrong
-design under somebody's hand.
+edited geometry was cleared AT THE DROP and the un-edited design stood
+until the asynchronous rebuild landed -- 1.7 seconds on `laves
+3.3.4.3.4`, nineteen on `hex-colouring 7`, the field report against
+0.24.4rc15 (M-M-14).
 
-**THE PREVIEW IS KEPT WHERE AN EDIT WAS RECORDED**, and the landing is
-what clears it -- `show_topology` sets `_preview = None` as its own
-third line, and every route to an answer passes through it. So the
-preview stands exactly as long as there is nothing better to draw.
+**THE PREVIEW IS KEPT WHERE AN EDIT WAS RECORDED, AND THE LANDING
+CLEARS IT**: `show_topology` sets `_preview = None` as its own third
+line and every route to an answer passes through it, so the preview
+stands exactly as long as there is nothing better to draw.
 
-**AND EVERY PATH THAT RECORDS NOTHING STILL CLEARS AT ONCE**, which is
-why this is a decision per exit rather than one line moved. A press
-that never grabbed anything, a selection the tab cannot act on and a
-gesture with no travel each leave a preview describing an edit the
-record does not hold, with no landing coming to correct it -- the fault
-`show_preview` was split from `show_topology` to prevent. The three
-exits are three journeys, and an entry aimed at one of them SURVIVED
-until the test grew an arm that walked it: a click that merely selects
-leaves at the first exit and never reaches the travel test at all.
-
-WHAT IS LEFT OPEN DELIBERATELY is a record with no rebuild behind it.
-The preview then goes on showing what the person asked for, which
-agrees with the change list; reverting would show a design the list
-denies.
+**AND EVERY PATH THAT RECORDS NOTHING STILL CLEARS AT ONCE** -- a press
+that never grabbed anything, a selection the tab cannot act on, a
+gesture with no travel -- since each leaves a preview describing an
+edit the record does not hold, with no landing coming to correct it.
+The three exits are three journeys and the guard walks each; an entry
+aimed at one of them SURVIVED until the test grew that arm. Left open
+deliberately: a record with no rebuild behind it, where the preview
+still agrees with the change list.
 
 ### A gesture outranks a landing, for as long as it lasts
 
@@ -758,11 +706,10 @@ what makes `_fit` return early, so the frame a drag is measured in and
 the topology it is aimed at are frozen by the same method for the same
 span. Two predicates would come apart the day somebody changed one.
 
-**IT WAS FOUND FROM A RUNNER.** It shows here about one run in eight,
-and macOS, Linux 4.0.3 and Linux 4.0.0 all failed the drag guard on
-its own premise -- "the drag drew no preview at all", 730 passed and 1
-failed, three times over. A stack printed from a patched
-`show_topology` named the caller on the first failing attempt.
+It was found from a runner -- about one run in eight here, three legs
+failing on the drag guard's own premise -- and a stack printed from a
+patched `show_topology` named the caller on the first failing attempt
+(M-M-15).
 
 ### Whose file is it, and when was that decided
 
@@ -798,38 +745,24 @@ spared everything.
 ### A save asks the FILE what is already there
 
 A layer whose source already names a table in this file is treated as
-saved already -- correctly, and not as an edge case: it is the SECOND
-press on any map, because the first repoints every layer at the file.
-The data needs no writing because it is already there; what still has
-to happen is the style, the name counted as current so the drop spares
-it, and the record.
+saved already -- correctly, since the first press repoints every layer
+at the file and this is therefore the SECOND press on any map. The
+data needs no writing; what still happens is the style, the name
+counted as current so the drop spares it, and the record.
 
-Since 2026-08-29 that question is put to the FILE and not to the
-source string alone, because nobody rewriting the file underneath us
-can change a string we are holding. A colleague saving the shared
-GeoPackage while your map is open -- moving one element to another
-column, so their save writes `tiles_b_v1` and drops
-`tiles_b_landcover` -- left your layer naming a table that was gone.
-Every such element was skipped as already saved AND counted as
-written, and the stale-table drop then removed what they HAD written,
-because it belongs to an element this map has and was not among the
-names just written. The element left the file altogether, both people
-lost it, and the plugin said "Saved".
-
-**Nothing can be written in its place, and that is measured rather
-than assumed.** A layer whose table was dropped under it answers
-`isValid` True, `dataProvider().isValid()` True and `featureCount()`
-40 -- and yields ZERO features. Writing it would replace a real table
-with an empty one.
-
-So the save writes what it can, REMOVES NOTHING, and says which
-element the file lost. Once a file has changed under us, our record of
-what is stale is worth nothing: a table that looks like our own
-abandoned one is just as likely to be their current one, and nothing
-here is deleted on a guess. The reading of what the file holds is
-taken ONCE, before the loop, because asking per element opens the
-GeoPackage per element -- the quadratic the style pass was moved out
-of that loop for.
+**THE QUESTION IS PUT TO THE FILE, NOT TO THE SOURCE STRING**, because
+nobody rewriting the file underneath us can change a string we are
+holding: a colleague's save that dropped `tiles_b_landcover` left a
+layer naming a table that was gone, the element was skipped as saved
+AND counted as written, the drop removed what they HAD written, and
+the plugin said "Saved" (M-M-16). A layer whose table was dropped
+under it still answers `isValid` True and `featureCount()` 40 and
+yields ZERO features, so writing it would replace a real table with an
+empty one. So the save writes what it can, REMOVES NOTHING once a file
+has changed under us -- a table that looks like our own abandoned one
+is as likely to be their current one -- and says which element the
+file lost; the reading of what the file holds is taken ONCE, before
+the loop, since asking per element opens the GeoPackage per element.
 
 ### A save keeps the window painting, and takes its buttons down
 
@@ -854,16 +787,11 @@ skip it -- a bar that stops moving on the elements that are skipped
 says the save has hung.
 
 **AND IT IS EVERY CONTROL THAT ACTS, WHICH IS A LIST RATHER THAN A
-PAIR.** The paragraph below named Save and Generate, correctly when it
-was written and incompletely from 2026-08-27, when LOAD arrived on the
-row beneath Save. It was live for the whole of every write and every
-resume, at both acts that pump -- measured 2026-09-02 at each of a
-write's twelve beats -- and a Load delivered by the save's own pump
-repoints every element layer mid-loop, so the other map's tiles go
-into this file's tables and its record names the other file as this
-one's output path. `CONTROLS_A_PUMP_TAKES_DOWN` is the list now, taken
-and restored by one owner both acts call, so a fourth control joins a
-list rather than being remembered at two sites.
+PAIR.** `CONTROLS_A_PUMP_TAKES_DOWN` is taken and restored by one owner
+that both pumping acts call, so a fourth control joins a list rather
+than being remembered at two sites; LOAD was live through every write
+until 2026-09-02, and a Load delivered by the save's own pump
+repointed every element layer mid-loop (M-M-17).
 
 WHAT IS DELIBERATELY NOT IN IT: the two file CHOOSERS, since a chooser
 records what you would save to or load from and does nothing on its
@@ -884,127 +812,86 @@ included.
 ## The save's three doors, after 2026-09-02
 
 Seven defects were repaired in one campaign day and five of them were
-in the save. What follows is what a maintainer needs to hold in their
-head about it, because the pieces only make sense together.
+in the save; the accounts are M-M-18. What a maintainer needs to hold
+in their head, because the pieces only make sense together:
 
 **A CANCEL HAS THREE MOMENTS AND THEY ARE ANSWERED DIFFERENTLY.**
-Before the write opens the file, dropping the intent IS the rollback.
-Between tables, `write_gpkg_layers` reads `_save_cancelled` and undoes
-the transaction. AFTER the last table -- during the repointing or the
-styling, which is 13.0s of a 256-element save -- nothing reads it at
-all, so what matters there is that the flag does not survive: it is
-cleared where the act ENDS, in the same `finally` as `_saving_now`.
+Before the write opens the file, dropping the intent IS the rollback;
+between tables, `write_gpkg_layers` reads `_save_cancelled` and undoes
+the transaction; after the last table, during the repointing and the
+styling, nothing reads it at all, so what matters there is that the
+flag does not survive -- it is cleared where the act ENDS, in the same
+`finally` as `_saving_now`.
 
-**AND THE HOLD DECLINES WHERE IT CANNOT BE SERVED.** The write turns
-the event loop once per element, so a close or a quit arriving during
-one is delivered by THAT WRITE'S OWN PUMP and the hold would run
-nested inside it -- waiting for `_saving_now`, which only the
-suspended frame beneath can clear. It returned at the ceiling rather
-than at the save, with the bar frozen and the only button on the
-window throwing the map away. `_hold_until_the_save_lands` returns
-True at once where `_saving_now` is set: the save is running, nothing
-is lost, and it lands the moment the hold returns.
-WHAT THAT MOVES rather than removes is where a mid-write cancel is
-reachable. A save that is merely PROMISED still opens the window, the
-run lands inside that window's own pump, and the write happens there
--- so the button is live exactly where the writer can still read it.
-The guard for the mid-write cancel is staged on that journey for the
-same reason.
+**AND THE HOLD DECLINES WHERE IT CANNOT BE SERVED.** A close or a quit
+arriving during a write is delivered by THAT WRITE'S OWN PUMP, so a
+hold there would wait, nested, for a flag only the suspended frame
+beneath can clear. `_hold_until_the_save_lands` returns True at once
+while `_saving_now` is set: nothing is lost, and the save lands the
+moment the hold returns. A save merely PROMISED still opens the
+window, and the mid-write cancel is reachable there.
 
-**AND A REFUSED COMMIT IS NOT A SAVE.** OGR answers by RETURN VALUE
-rather than by raising, so the `except` around `CommitTransaction`
-could not fire and its answer went unread. With a shared read
-transaction open on the file, every table goes in, the commit is
-refused, and `written` still named all of them -- so every element
-layer was repointed at a table that had never been created, the map on
-screen emptied, and the person was told "Saved". The answer is read
-now and `written` is cleared, which is the same sentence the rollback
-branch beside it has always carried.
-THE TWO WAYS A LOCK BITES ARE NOT THE SAME, and it matters when you
-reproduce this: a WRITE lock held by another process fails at the
-first feature and is reported correctly; only a SHARED READ
-transaction reaches the commit.
+**AND A REFUSED COMMIT IS NOT A SAVE.** OGR answers `CommitTransaction`
+by RETURN VALUE, so with a shared read transaction open on the file
+every table went in, the commit was refused, `written` still named
+all of them and every element layer was repointed at a table never
+created; the answer is read now and `written` is cleared. A WRITE
+lock fails at the first feature and was always reported; only a
+SHARED READ transaction reaches the commit.
 
 **AND OWNERSHIP IS ABOUT WHAT A FILE HOLDS.** `existed` asked the
 file's SIZE, and a data source OGR created and nothing wrote to is
-65,536 bytes holding no layer -- so a stub left by a cancelled or
-failed first save read as somebody else's work, and the answer is
-cached for the session. Every remover scoped to our own files stayed
-off, and shrinking a design then left the dropped elements' tables,
-columns and values in the file a colleague receives. It asks
-`bridge.gpkg_tables` now, and the guard asserts BOTH directions,
-because a repair that made every file ours would destroy somebody's
-work.
+65,536 bytes holding no layer, so a stub from a cancelled first save
+read as somebody else's for the whole session and every remover
+stayed off. It asks `bridge.gpkg_tables` now, and the guard asserts
+BOTH directions, since a repair that made every file ours would
+destroy somebody's work.
 
 **AND A PRESS WAITS FOR A BUILD ALREADY COMING.** `_a_topology_is_owed`
-asks THE FILE, which is the cost ruling of 2026-08-30 and is right
-about whether to START a build. It was the wrong question about one
-already running: a Save pressed while a topology build was in flight
-wrote no motif and recorded `topology_written: False`, where the same
-press a second later wrote the unit and its dual. It now answers True
-while a build is running or queued -- it still starts none, so nobody
-who has not opened the tab pays anything.
+asks THE FILE, which is right about whether to START a build and was
+wrong about one already running -- a Save during a build in flight
+wrote no motif. It answers True while a build is running or queued,
+and still starts none.
 
 **AND THE CLOSE'S QUESTION IS ANSWERED WITH THE RIGHT MECHANISM.**
-`_a_save_is_outstanding` merges a promise made with the keeping of it,
-which is right for the hold and wrong for a QUESTION: during a write
-there is no promise to drop, so the Close arm cleared a flag that was
-already False, said nothing had been written, and let the write finish
-over the file the person had just declined -- repointing every element
-layer at it. It sets `_save_cancelled` now, which is the same
-mechanism the waiting window's Cancel uses, and the SENTENCE is the
-writer's, because ours cannot be true past the last table.
+`_a_save_is_outstanding` merges a promise with the keeping of it,
+right for the hold and wrong for a QUESTION: the Close arm cleared a
+flag that was already False and let the write finish over a file the
+person had just declined. It sets `_save_cancelled` now, and the
+SENTENCE is the writer's, since ours cannot be true past the last
+table.
 
-**AND THE HOLD ONLY REPORTS WHAT IT WATCHED.** Past the last table
-nothing reads the flag, so a Cancel landing during the styling or the
-repointing cannot be served and the save completes. The hold used to
-report it anyway: resuming, it read `_saving_now` as False and could
-not tell a write that had just FINISHED from a wait where nothing was
-ever opened. It records whether a write was under way AT THE PRESS --
-the only moment that can be known -- and leaves the report to the
-writer, which speaks in both cases.
+**AND THE HOLD ONLY REPORTS WHAT IT WATCHED**: it records whether a
+write was under way AT THE PRESS and leaves the report to the writer,
+because resuming it could not tell a write that had just finished
+from a wait where nothing was ever opened.
 
 **AND A FILTER NEVER REACHES THE FILE.** `write_gpkg_layers` iterates
-`getFeatures()`, which honours a layer's subset, so a filter set in
-QGIS's Query Builder was written as though it were the map: 41 rows to
-3 between two saves, and to ZERO across a re-tile, where the plugin
-carries the filter onto the new layer and it names ids the new tiling
-never produced. A subset says which features to DRAW, which the line
-that carries one across a re-tile says in as many words, so it comes
-off for the write and goes back in the save's own `finally` -- the
-cancel branch returns between the two, and an exception may leave by
-neither door. The already-saved question is asked without the subset
-too, so a filtered layer is recognised as reading from its own table.
+`getFeatures()`, which honours a subset, so a Query Builder filter was
+written as though it were the map: 41 rows to 3, and to ZERO across a
+re-tile. A subset says which features to DRAW; it comes off for the
+write and goes back in the save's own `finally`, and the already-saved
+question is asked without it.
 
 **AND THE LAYER IS THE AUTHORITY ON WHAT ITS TABLE IS CALLED.**
-`_element_tables` is filled by a LANDING and cleared by nothing, so a
-session that has drawn any map carries that map's names -- and an
-opened map's elements share their ids with it. The witness is asked
-for EVERY element now rather than only for those the record has never
-heard of, which costs a drawn map nothing: its layers read from memory
-at the first save and from those very names afterwards, and a Save As
-is answered None by construction.
+`_element_tables` is filled by a LANDING and cleared by nothing, so
+the witness is asked for EVERY element rather than only those the
+record has never heard of; a drawn map's layers answer from memory at
+the first save and from those very names afterwards, and a Save As is
+answered None by construction.
 
 ## What a resume writes on the layers, and why it must
 
 `_recover_the_source` returns the source it LANDED ON, and the group's
-record is stamped with that rather than with the record's own region
--- a self-contained file names the SENDER'S path, and nothing on the
-recipient's machine answers to it.
-
-`_our_groups` asks the LAYERS. So stamping the group alone left the
-two disagreeing about which dataset the map came from: `theirs` came
-back empty, `_bind_group_to_dataset` let go of the map just opened,
-and the next Generate built a rival group beside it whose Save wrote
-into the opened map's own tables.
-`_tell_the_layers_which_region_we_landed_on` is called from both
-branches, and it stamps NOTHING where the recovery landed on nothing,
-since writing the record's own region would put the sender's path onto
-the recipient's layers.
-
-IT REPRODUCED AT BOTH DOORS, which is what said the defect was older
-than the flag that revealed it: `_landed_this_session` decides only
-whether the binding is reached at all.
+record is stamped with that rather than the record's own region, since
+a self-contained file names the SENDER'S path. `_our_groups` asks the
+LAYERS, so stamping the group alone left the two disagreeing, the
+binding let go of the map just opened, and the next Generate built a
+rival group whose Save wrote into the opened map's own tables -- at
+both doors, which is what said the defect was older than the flag
+that revealed it (M-M-19). `_tell_the_layers_which_region_we_landed_on`
+is called from both branches and stamps NOTHING where the recovery
+landed on nothing.
 
 ## Nothing ends while a save is outstanding
 
@@ -1072,12 +959,9 @@ carrying on -- otherwise it would embed styles for tables that are not
 there, drop "stale" tables on the strength of a map that was never
 written, and repoint every layer at a table the rollback removed.
 
-THE BUTTON WAS BRIEFLY DISABLED DURING THE WRITE INSTEAD, which was
-honest about what it could do and worse than doing it. The maintainer
-chose to ship the callback (2026-09-01) rather than defer it, on a
-branch about to be a candidate, which is worth recording: the
-alternative was a control that greys itself at the moment somebody
-most wants it.
+The button was briefly DISABLED during the write instead, and the
+maintainer chose to ship the callback (2026-09-01) rather than grey a
+control at the moment somebody most wants it (M-M-20).
 
 A CANCELLED FIRST SAVE LEAVES AN EMPTY FILE, because the writer
 creates the data source before the transaction opens. That follows the
@@ -1085,23 +969,15 @@ existing behaviour of a FAILED write rather than being a new decision,
 and it is why the sentence says the MAP was not written rather than
 that nothing was.
 
-**AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR**, which is the
-half that was missing until the guard for the button was written the
-same day. `_save_cancelled` exists to be read BETWEEN TABLES by
-`write_gpkg_layers`, and on the commonest journey of all -- a wait for
-a REDRAW or a topology build -- nothing ever opens the file, so nothing
-ever consumes it. Left standing it stopped the person's NEXT save:
-measured 2026-09-01, cancel a deferred press, press Save again, and
-the writer halts at its first table, rolls back, and reports "The save
-was stopped, so the map was not written" to somebody who stopped
-nothing. It is cleared where the intent is dropped, which is safe in
-both directions: a write that DID read it has already returned by
-then, since the pump that delivered the click sits inside that write
-and `_save_the_map` resets the flag on its own way out.
-THE GENERAL FORM, and it is this project's deferred-work rule wearing
-a flag: when a repair adds state read by ONE consumer, enumerate the
-journeys where that consumer never runs, and say at the line what
-clears it there. Guarded by `a-cancel-does-not-poison-the-next-save`.
+**AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR.** On the
+commonest journey -- a wait for a REDRAW or a topology build -- nothing
+opens the file and nothing consumes `_save_cancelled`, so left
+standing it stopped the person's NEXT save (M-M-21). It is cleared
+where the intent is dropped, safe in both directions since a write
+that DID read it has already returned. THE GENERAL FORM: when a repair
+adds state read by ONE consumer, enumerate the journeys where that
+consumer never runs, and say at the line what clears it there.
+Guarded by `a-cancel-does-not-poison-the-next-save`.
 
 `SAVE_WAIT_CEILING` is a hang-catcher and not a budget, sized above a
 topology build plus a re-tile.
@@ -1135,21 +1011,15 @@ which is not the same fact as the region the record names.
 recorded source loaded from disk, and the copy inside the file -- and
 it returns the source it used, or None where none of them worked.
 
-The third route is why this matters. A self-contained file records the
-region its SENDER drew from, which on their machine is an ordinary
-layer and on the recipient's is a path that does not exist. Stamp the
-group with the record and nothing in the recipient's project ever
-answers to it: `_point_the_chooser_at` walks for a matching layer,
-finds none, and leaves the chooser silently where it was. With two
-senders' maps open, returning to the first through the group chooser
-gave it the SECOND sender's data -- and the output path coming home
-correctly is what made it worse, since the next Save would have
-written that over the first sender's file.
-
-The fallback to the record survives for the case it was written for:
-where recovery lands on NOTHING the chooser still names another
-dataset, and capturing that would file the resumed group under a
-dataset it was not made from.
+The third route is why this matters: a self-contained file records the
+region its SENDER drew from, a path that does not exist on the
+recipient's machine, so stamping the group with the record leaves
+`_point_the_chooser_at` finding nothing -- with two senders' maps
+open, returning to the first gave it the SECOND sender's data, and the
+next Save would have written it over the first sender's file (M-M-22).
+The fallback to the record survives for the case where recovery lands
+on NOTHING, since capturing the chooser then would file the resumed
+group under a dataset it was not made from.
 
 ## The tiled frame is held between runs, and what the key is made of
 
@@ -1194,18 +1064,12 @@ for closing that is in ROADMAP.md with its four hazards.
 
 ## Four queues, because a press, a tick, a save and a Load are not one fact
 
-One run at a time is settled, so anything asking for a run while one is
-in flight is REMEMBERED and honoured when that run lands. What was
-wrong until 2026-08-28 is that both kinds of request shared one flag.
-
-`_generate` queued a press on `_live_pending`; `_finish_run` honoured
-that by starting the LIVE timer; and `_maybe_live_generate` returns at
-its second gate whenever live update is switched off. So with the box
-unticked a button press was remembered and then discarded in silence:
-the map kept the elements of the run in flight while the table asked
-for the design the person had just chosen, and layers stayed in the
-panel tagged for elements that design no longer had -- which is what a
-later dialog adopts a group by.
+One run at a time is settled, so anything asking for a run while one
+is in flight is REMEMBERED and honoured when that run lands. Until
+2026-08-28 a press and a live tick shared one flag, and with live
+update off a remembered press was discarded in silence at the live
+path's second gate, leaving layers tagged for elements the design no
+longer had (M-M-23).
 
 So there are two flags now and they are honoured differently.
 `_live_pending` is a deferred live tick and still restarts the live
@@ -1371,21 +1235,15 @@ experimental and behind the box above.
 
 **The topology is built off the main thread**, in `_topology_task`,
 because `Topology.__init__` is eager: eight setup passes and a dual
-graph. THE FIGURE TO USE IS 0.8 TO 21 SECONDS, not the 0.75-4.4 this
-paragraph carried until 2026-09-01: nobody had run the catalogue far
-enough up to meet `hex-colouring 7`, which is seven tiles with
-forty-two corners between them and takes about nineteen. The narrower
-figure is what justified building inside a save, and that decision
-cost twenty-seven seconds of frozen window before it was measured.
-docs/TOPOLOGY.md carries the spread, the decomposition that exonerates
-our wrapper, and the five arms that show the ordering itself belongs
-to the LIBRARY rather than to this machine. It is queued by whatever rebuilds the UNIT and never by a
-colour or a ramp, which is the same boundary `_geometry_signature`
-already draws for re-tiling — a restyle changes no edge, so asking for
-a topology on one would cost seconds for a picture that cannot have
-moved. `_topology_stamp` is what tells a landing whose topology it is
-holding, so a build that finishes after the design has moved on is
-discarded rather than drawn against a unit it does not describe.
+graph, 0.8 to 21 seconds across the catalogue with `hex-colouring 7`
+at the slow end (the narrower figure this paragraph once carried
+justified a synchronous build inside a save, M-M-24; docs/TOPOLOGY.md
+has the spread and the decomposition). It is queued by whatever
+rebuilds the UNIT and never by a colour or a ramp, the boundary
+`_geometry_signature` already draws for re-tiling, and
+`_topology_stamp` tells a landing whose topology it is holding, so a
+build that finishes after the design has moved on is discarded rather
+than drawn against a unit it does not describe.
 
 **And the tab SAYS when it is working.** A build is queued by whatever
 rebuilds the unit and lands seconds later, and in between the panel
@@ -1395,18 +1253,13 @@ clicks there is not the edge that would move.
 structure…" from the moment the work is QUEUED, and `set_unit` clears
 it wherever a build lands, so no route has to remember to.
 
-GREYING THE TAB WAS TRIED FIRST AND TAKEN OUT THE SAME HOUR
-(maintainer, 2026-09-01: "it doesn't have to grey, that seems to make
-trouble"). It takes the tab away from somebody mid-edit for as long as
-a build lasts, and it retires a contract two registered tests state
-outright -- ticking the box makes these tabs usable. Both went red.
-
-AND IT IS ITS OWN LABEL RATHER THAN `note`, which is the part worth
-remembering. `note` already means "the answer, or the reason there is
-none", and the suite's `_settle_topology` treats a non-empty note as
-an answer having ARRIVED. Writing a third meaning into it made that
-waiter return before the build landed, and a test then read a class
-list that did not exist yet. One store, two meanings, met in a QLabel.
+Greying the tab was tried first and taken out the same hour
+(maintainer, 2026-09-01), since it takes the tab away mid-edit and
+retires a contract two registered tests state. And the message is its
+own label rather than `note`, which already means "the answer, or the
+reason there is none" and which the suite's `_settle_topology` reads
+as an answer having ARRIVED: one store, two meanings, met in a QLabel
+(M-M-25).
 
 **AND A BUILD QGIS NEVER STARTS IS SAID TO BE ONE.** A task was
 measured sitting `Queued` for 133 seconds with the pool reading
@@ -1429,28 +1282,14 @@ first: the manipulation emits repeated vertices — six coincident pairs
 among thirty-seven points on the case measured — which is what makes
 the result invalid, not floating point and not the amplitude.
 
-**THE REPAIR IS UPSTREAM'S OWN, and that is a correction of 2026-08-30
-rather than the original design.** `tiling_utils.get_clean_polygon`
-removes corners that are merely VERY CLOSE and then the COLINEAR ones;
-this module's exact dedupe only ever removed exact repeats. The
-library's author named it — "I can recover valid polygons from the ones
-it makes with `tiling_utils.get_clean_polygon`", and "there's probably
-some doubling up of coordinates happening", which is the same fault
-this project had measured independently, confirmed from the side that
-wrote the manipulation.
-
-MEASURED AS A PAIR, both arms in one run
-(`tools/probes/zigzag_cleaners.py`): with our dedupe alone,
-`laves 3.3.4.3.4` and `hex-slice 4` REFUSE and `hex-slice 3` and
-`chavey K` draw. With upstream's cleaner first, ALL FOUR draw with no
-invalid geometry. So the sentence that used to stand here — that two of
-the four still refuse — is superseded, and zigzag now applies wherever
-it has been tried.
-
-OURS IS KEPT AS THE FALLBACK rather than deleted, because this is a
-VENDORED dependency: a re-vendor that dropped or renamed that function
-would otherwise take the repair with it in silence. `make_valid` still
-runs on whatever residue survives both.
+**THE REPAIR IS UPSTREAM'S OWN**, `tiling_utils.get_clean_polygon`,
+which removes corners that are merely VERY CLOSE and then the colinear
+ones where this module's dedupe removed only exact repeats; with it
+first, all four measured designs draw where ours alone refused two
+(`tools/probes/zigzag_cleaners.py`, both arms in one run; M-M-26).
+OURS IS KEPT AS THE FALLBACK because this is a VENDORED dependency and
+a re-vendor that dropped the function would take the repair with it
+in silence; `make_valid` runs on whatever survives both.
 
 ### How somebody takes hold of it: select, then act, then a handle
 
@@ -1459,43 +1298,24 @@ was intuitive first time, powerful, and whether anything better
 existed. The honest audit said no, moderately, and yes, so the tab was
 rebuilt around three rules.
 
-**SELECT, THEN ACT.** A click lands on whatever is under the pointer,
-whatever the controls happen to say. `_refresh_classes` lists every
-class of BOTH kinds and `_refresh_manipulations` narrows the VERB to
-what suits the selection -- the opposite of the arrangement it
-replaced, which filtered the class list by the current manipulation
-and so made the tab mode-first. With the default manipulation aimed at
-vertices, clicking an edge moved nothing in the panel WHILE THE
-DRAWING WENT ON HIGHLIGHTING IT: one fact, two stores, disagreeing on
-screen, which is this project's commonest defect shape.
-`_rebuild_arguments` no longer refills the class list -- that call
-existed because the list depended on the verb, and now the two would
-recurse without end.
+**SELECT, THEN ACT.** A click lands on whatever is under the pointer:
+`_refresh_classes` lists every class of BOTH kinds and
+`_refresh_manipulations` narrows the VERB to what suits the selection,
+the opposite of the mode-first arrangement it replaced, where the
+drawing highlighted an edge the panel would not select.
+`_rebuild_arguments` no longer refills the class list, or the two
+would recurse without end.
 
-**A HANDLE IS THE CHOICE OF MANIPULATION.** `_EDGE_HANDLES` puts a
-square at the end that stretches, a circle offset from it that swings,
-and a diamond offset from the middle that bows out; `view.grabbed`
-carries the manipulation to the panel, which sets its own chooser from
-it. So the handle and the chooser cannot disagree, and the tab is
-usable without touching the chooser at all. The arrangement before
-this had the drag mean whatever the chooser said -- a mapping that
-exists only in the code, so nothing on screen said a drag would do
-anything, or what.
-
-**THREE HIGHLIGHT STATES, BECAUSE AN EDIT APPLIES TO A CLASS.** The
-one being held is strong, its classmates are tinted, and what is under
-the pointer is a third colour. Two states said only "these all change"
-and lit about half the drawing, so a click never looked aimed at
-anything.
-
-**AND THE HIT TEST FOLLOWS THE EDGE.** `_distance_to_edge` measures to
-the nearest point ON the line, walking every vertex of it, where it
-used to measure to a disc at the midpoint -- so clicking squarely on
-an edge anywhere but its centre selected nothing. THE VERTEX REACH
-CAME DOWN WITH IT, 12px to 8: a vertex sits at the end of every edge
-meeting it, and measured on laves 3.3.4.3.4 at a realistic size the
-edges run 31 to 43px, so 12px at each end claimed 24 of a median 43 --
-more than half of every edge was unclickable as an edge.
+**A HANDLE IS THE CHOICE OF MANIPULATION**: `view.grabbed` carries the
+manipulation to the panel, which sets its own chooser from it, so the
+handle and the chooser cannot disagree and the tab is usable without
+touching the chooser at all. **THREE HIGHLIGHT STATES, BECAUSE AN EDIT
+APPLIES TO A CLASS**: held, classmates tinted, and what is under the
+pointer, where two states lit half the drawing. **AND THE HIT TEST
+FOLLOWS THE EDGE**, `_distance_to_edge` measuring to the nearest point
+ON the line rather than to a disc at its midpoint, with the vertex
+reach down from 12px to 8 because 12px at each end claimed more than
+half of a median 43px edge. (M-M-27.)
 
 **AND IT WAS REBUILT AGAIN ON 2026-08-31**, on the maintainer's report
 that the tab was unusable and their standard for what would fix it: it
@@ -1503,38 +1323,22 @@ that the tab was unusable and their standard for what would fix it: it
 and "hover states aren't as good as shapes that make sense". Four
 things changed, and the reasoning for each is in docs/TOPOLOGY.md.
 
-THE VIEW FITS THE UNIT, NOT THE PATCH. `topology.tiles` is the unit and
-its neighbouring copies -- 36 tiles for a four-tile design -- so the
-thing being edited was drawn at a third of the size the panel could
-give it, every class label overlapping its neighbour and the handles
-arriving as a cluster of rings a few pixels across. `n_tiles` is the
-library's own count of the unit's own tiles; the copies still draw, and
-run off the edges as context.
-
-EACH HANDLE IS A PICTURE OF WHAT IT DOES: a double-headed arrow along
-the edge for stretch, a curved arrow for turn, a wave for zigzag, a
-four-way cross for a free vertex move, and an arrow on a rail for a
-push. They were a square, a circle and a diamond, whose meanings
-existed only here. A hover label was the obvious repair and is the
-wrong one -- a hover must be discovered before it can teach anything,
-and a first-time reader never hovers.
-
-A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED, which retires the
-lever that had been wrong twice -- AND THAT INCLUDES THE ZIGZAG'S
-AMPLITUDE since 2026-09-05, which had been the drag's travel while the
-count beside it was a position; the tab audit measured a handle at
-0.3 moved one pixel along the edge previewing 0.01. A POINT WITH NO
-LABEL IS NOT HIT-TESTED OR SEATED either: a zigzag adds two hundred
-corners to the default design, and until the same audit a click on
-one selected a vertex of no class. The end handle starts half a length
-from the edge's middle, so where the pointer has taken it IS a polar
-coordinate about that middle: the scale factor is how far out it now
-sits, the rotation is the angle it now makes.
-
-AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING. `push_vertex` lived
-behind the chooser alone; it has a rail now, drawn along the one
-direction a push can take -- and no handle at all where that direction
-cancels, which on laves 3.3.4.3.4 it exactly does.
+Four things changed, each argued in docs/TOPOLOGY.md (M-M-28). THE
+VIEW FITS THE UNIT, NOT THE PATCH: `n_tiles` is the library's count of
+the unit's own tiles, and the neighbouring copies draw as context
+running off the edges, where fitting all 36 drew the thing being
+edited at a third of the size. EACH HANDLE IS A PICTURE OF WHAT IT
+DOES -- a double-headed arrow for stretch, a curved arrow for turn, a
+wave for zigzag, a four-way cross for a free move, an arrow on a rail
+for a push -- since a hover label must be discovered before it can
+teach and a first-time reader never hovers. A HANDLE IS A POSITION,
+NOT A DISTANCE TRAVELLED, the zigzag's amplitude included since
+2026-09-05, so where the pointer has taken the end handle IS a polar
+coordinate about the edge's middle; and A POINT WITH NO LABEL IS NOT
+HIT-TESTED OR SEATED, since a zigzag adds two hundred unlabelled
+corners. AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING:
+`push_vertex` has a rail along the one direction a push can take, and
+no handle at all where that direction cancels.
 
 AND THE TWO PANES HAVE FLOORS, WHICH IS WHAT MAKES ANY OF THE ABOVE
 REACHABLE. (2026-09-01, on the last of the maintainer's editing asks:
@@ -1553,14 +1357,10 @@ the stack off it.
 
 AND TWO HANDLES CLOSER THAN TWICE THE HIT TEST'S REACH MAKE ONE OF THEM
 UNREACHABLE EVERYWHERE, since `_handle_at` returns the first within
-reach and the order is fixed. Turn and zigzag are pushed along the same
-normal from an edge's end and its middle, so at equal offsets their
-separation is HALF THE EDGE'S SCREEN LENGTH: 20.4px inside a 26px
-reach on two designs of three, costing 23 edges apiece their zigzag
-handle. They stand at 30 and 60 now. Putting the zigzag on the OTHER
-side was tried first and is worse -- it lands where the vertices are,
-and handles are tested before vertices, so the vertex beneath became
-unclickable while the edge was held.
+reach in a fixed order: turn and zigzag stand at 30 and 60 along the
+same normal now, having been 20.4px apart inside a 26px reach on two
+designs of three; the other side of the edge was tried first and lands
+on the vertices, which are tested after handles (M-M-29).
 
 WHAT IS STILL NOT BUILT is the audit's other design, merging scale and
 rotate into one end handle. It is refused rather than pending: one
@@ -1574,49 +1374,32 @@ on 2026-09-01 none of them did.
 
 **FRACTIONS IN THE RECORD, MAP UNITS AT THE LIBRARY, AT BOTH PLACES.**
 `dx`, `dy` and `push_d` are absolute displacements in the unit's own
-coordinates, and the controls offer them as fractions, so something
-must multiply. `topology_edits.in_map_units` is that something and it
-had exactly ONE caller, in `apply` -- the commit path. The drag
-PREVIEW handed the library the raw fraction, so a gesture's two halves
-disagreed by the whole span of the unit: 70.71 map units committed
-against 0.10 previewed on laves 3.3.4.3.4 at a tenth of the unit.
-Nothing appeared to happen while you dragged, and the design jumped
-when you let go.
+coordinates and the controls offer fractions, so
+`topology_edits.in_map_units` multiplies -- and it had exactly ONE
+caller, the commit path, so a gesture's two halves disagreed by the
+span of the unit: 70.71 committed against 0.10 previewed.
 
-**AND THE TWO SPANS MUST BE THE SAME SPAN.** The view divided a drag
-by the unit's WIDTH while the model multiplies it back out by
-`max(width, height)`, which is 1.268x on that design (557.68 by
-707.11) and exactly 1.000x on a square one, so every example anybody
-tried by hand hid it. `TopologyView.unit_span` answers the same
-question as `topology_edits.unit_span` now, and the press stores that
-one expression rather than writing the arithmetic out a second time.
+**AND THE TWO SPANS MUST BE THE SAME SPAN**: `TopologyView.unit_span`
+answers the same question as `topology_edits.unit_span`, `max(width,
+height)`, where the view once divided by the width alone -- 1.268x on
+laves and exactly 1.000x on a square design, which is why every
+example tried by hand hid it.
 
-**THE FRAME IS HELD FOR THE LENGTH OF A GESTURE.** `_fit` re-measures
-the drawn extent on every paint, and during a drag what is drawn is
-the preview -- so the transform became an output of the thing the
-gesture was changing. The loop is not subtle: the preview moves the
-geometry, the fit re-measures a larger extent, the scale falls, and
-the same screen point now means a larger displacement. Held still
-through six repaints, a recorded nudge climbed 0.104 to 0.356 while
-the scale fell 0.6138 to 0.5541. `_fit` returns early while `_press`
-is set, keeping the frame the drag's own origin was taken in, and
-resumes at the drop.
+**THE FRAME IS HELD FOR THE LENGTH OF A GESTURE.** `_fit` returns early
+while `_press` is set and resumes at the drop, since re-measuring the
+drawn extent on every paint made the transform an output of the thing
+the gesture was changing: a nudge held still climbed 0.104 to 0.356
+over six repaints.
 
-**AND A DRAGGED VALUE IS HELD INSIDE ITS OWN BOX.** The three edge
-manipulations passed through `_within_the_box`; both vertex branches
-did not, so a drag past the range recorded a number the control would
-not show, and the record is what the drop keeps. Visible on
-`archimedean 4.8.8` and not on laves, where the library refuses a
-nudge that large before anything is recorded.
+**AND A DRAGGED VALUE IS HELD INSIDE ITS OWN BOX** on both vertex
+branches as on the three edge ones, because the record is what the
+drop keeps.
 
-**THE DUAL REPEATS ON WHATEVER LATTICE THE TILEABLE HAS.**
-`_lattice_offsets` read `vectors` by the keys `(1, 0)` and `(0, 1)`,
-and a hex tileable keys that dictionary by three-element coordinates,
-so both lookups missed and the fallback drew one copy in silence on
-every hex-keyed family. It takes the two shortest non-parallel
-translations out of the VALUES now, which is key-shape agnostic; hex-slice 6
-went from one position to nine and the square-keyed families are
-unmoved at nine.
+**THE DUAL REPEATS ON WHATEVER LATTICE THE TILEABLE HAS**:
+`_lattice_offsets` takes the two shortest non-parallel translations
+out of the vectors' VALUES, key-shape agnostic, where a lookup by
+`(1, 0)` and `(0, 1)` missed every hex-keyed family and drew one copy
+in silence. (M-M-30.)
 
 ### How an edit that cannot be drawn is told apart from one that did nothing
 
@@ -1649,15 +1432,11 @@ archimedean 4.8.8 it moves it by 1.9e-4 of the unit's area. That is a
 fact about the DESIGN rather than a defect, and the person still has to
 be told, or they meet a control that takes a click and does nothing.
 
-`_same_shape` is what answers that last one, and it has been wrong
-three times: areas rounded to nine decimal places (an absolute
-tolerance against tiles of area 62,500), then areas at all (a statistic
-is not a shape), and then `shapely.equals_exact`, which compares
-COORDINATE SEQUENCES rather than shapes -- and the library restarts
-every ring on the way past, so identical ground read as changed and the
-report could never fire on any design. It compares the GROUND now,
-symmetric difference over the unit's own area, with the measurement at
-the function.
+`_same_shape` answers that last one by comparing the GROUND, symmetric
+difference over the unit's own area, with the measurement at the
+function -- after three wrong forms: an absolute tolerance, a
+statistic, and `shapely.equals_exact`, which compares coordinate
+sequences the library restarts on the way past (M-M-31).
 
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
 which is the family, the element count and whether the dual is
@@ -1803,21 +1582,14 @@ arms it: the group chooser's "Create new" entry, which sets
 group, the flag is spent the moment the landing reads it, and selecting
 any real group clears it again.
 
-**THERE WERE TWO DOORS UNTIL THEN**, and the second was a standing
-"Create as new group" checkbox on Map options. The readers disagreed
-about which to ask — five sites read only the checkbox, one only the
-flag, and exactly one read both, that one only since ledger row 36 of
-2026-08-28, where the chooser went on describing a landing that would
-not happen because it knew the flag and not the box. The maintainer
-retired the checkbox rather than teaching the two to agree: a control
-two panels from the chooser can never make the boundary between "once"
-and "always" read clearly, and a boundary that will never be clear is
-one nobody should have to hold in their head. The standing "always
-new" behaviour went with it; asking for a second map is an act you
-perform when you want one.
-
-The retirement was a DELETION at the landing rather than a rewiring,
-because `force_new` already read the flag as one of its four terms.
+**THERE WERE TWO DOORS UNTIL THEN**, the second a standing "Create as
+new group" checkbox on Map options whose readers disagreed with the
+flag's -- five sites read only the box, one only the flag, one both --
+and the maintainer retired the checkbox rather than teaching the two
+to agree, since a boundary between "once" and "always" that will
+never read clearly is one nobody should have to hold in their head
+(M-M-32). The retirement was a DELETION at the landing, `force_new`
+already reading the flag as one of its four terms.
 
 ## The Design tab's layout, and what decides it
 
@@ -1985,7 +1757,7 @@ wide fonts put another in, and it is how the guard reaches the case;
 `tools/platform_probe.py` asks the real question on the real platform
 in about fifteen minutes.
 
-## Three mechanisms settled on 2026-08-31
+## The motif in the file: replaced when stale, built off-thread, keyed without the CRS
 
 **A FILE THAT ALREADY HOLDS A MOTIF GETS A FRESH ONE.** (Maintainer's
 decision, after this method's fifth fault.) The two topology tables
@@ -2102,11 +1874,13 @@ python3 release.py
 The script copies the upstream package into `vendor/weavingspace/` and
 re-applies every plugin patch, reporting each one.
 
-**THERE ARE FOUR FAMILIES NOW, and three of them are PERFORMANCE
-patches offered upstream.** That sentence used to say "only one family
-remains", which was true until 2026-08-31 and false from the moment
-`idxmax` landed; it is worth knowing what is carried before you read a
-re-vendor report.
+**FOUR FAMILIES ARE CARRIED, and three of them are PERFORMANCE patches
+offered upstream**; know what is carried before you read a re-vendor
+report. The commit rule paid for itself on 2026-08-31: bf1bbbf to
+6190917 carried TWELVE commits with the version string `0.0.7.89` at
+both ends, and two patches retired themselves in that round when
+upstream dropped the scipy spline, the tool NAMING them rather than
+writing a broken vendor (M-M-33).
 
 | family | what it does | offered upstream |
 |---|---|---|
@@ -2155,19 +1929,6 @@ of each patch is documented in the script where you would fix it. The
 current vendor is upstream v0.0.7.89 at commit 6190917 — note that
 upstream does not always bump the version string when code changes,
 so record the commit as well when re-vendoring.
-
-THAT RULE PAID FOR ITSELF ON 2026-08-31, which is why it is worth more
-than a caution. The re-vendor from bf1bbbf to 6190917 carried TWELVE
-commits, with `topology.py` at +179/-207 and `_tiling_geometries.py` at
-+44/-67 — and the version string is `0.0.7.89` at both ends. A version
-comparison alone reports us current; only the commit says otherwise.
-
-AND TWO PATCHES RETIRED THEMSELVES IN THAT ROUND, which is the failure
-mode working rather than a problem. Upstream merged the change patch 1f
-carried, dropping the scipy spline, so both its anchor
-and 1e's stopped matching, the tool NAMED them instead of writing a
-broken vendor, and the vendored tree now imports no scipy anywhere.
-Only the matplotlib family remains.
 
 ## Releases
 
@@ -2268,32 +2029,17 @@ segfaults QGIS, so standing still is the honest answer available. The
 refusal belongs where a RUN is launched, which asks
 `layer_data_is_available` for itself.
 
-**AND THAT WAS HALF THE FIX.** Two places launch a run, and the
-second one refuses a REPAINT as well. `_maybe_live_generate` holds ten
-gates, of which the sixth is this same availability question, and a
-debounced tick never reaches `_generate` at all -- so a ramp picked
-after the file moved was still not drawn, and the user was told "That
-layer's data is no longer available, so the map cannot be updated",
-which is false: a restyle re-seeds renderers on tiles that already
-exist and reads nothing from the region layer. That gate now tries
-`_restyle_only()` before refusing, and refuses only the tiling.
-Nothing may fall THROUGH it -- `_extent_in_working_units` is a few
-lines below and would read the dead extent -- so the repaint is
-attempted at the gate rather than after it.
-
-`_generate`'s own check needed nothing: its restyle fast path already
-sits ABOVE it, so a button press was never blocked. That asymmetry is
-deliberate and is guarded, by
-`the-button-restyles-before-it-asks-about-the-source`, which reverses
-the order and requires a test to notice.
-
-TEN GATES, AND EACH NOW NAMES ITSELF behind
-`WEAVINGSPACE_ADOPT_DUMP`: `LIVE-GATE source-gone`, `LIVE-GATE
-too-many-tiles`, and so on. Live update stopping without saying why
-has cost this project two diagnoses -- the icon-mode estimate of
-2026-08-19 and this one -- and the dump answered the second in one
-run, after the site had been named wrongly by reading in four
-documents at once.
+**AND THE LIVE PATH REFUSES ONLY THE TILING.** `_maybe_live_generate`'s
+sixth gate is this same availability question and a debounced tick
+never reaches `_generate`, so a ramp picked after the file moved was
+refused with a false sentence; the gate tries `_restyle_only()` before
+refusing, attempted AT the gate because `_extent_in_working_units`
+below it would read the dead extent. `_generate`'s restyle fast path
+already sits ABOVE its own check, an asymmetry guarded by
+`the-button-restyles-before-it-asks-about-the-source`. Each of the ten
+gates names itself behind `WEAVINGSPACE_ADOPT_DUMP` -- `LIVE-GATE
+source-gone`, `LIVE-GATE too-many-tiles` -- after live update stopping
+in silence had cost two diagnoses (M-M-34).
 
 The general form, which is the reason this paragraph exists at all:
 when a guard starts answering differently, follow its return value

@@ -64,10 +64,11 @@ PAIRS = [
   # transmitting each lesson's rule, its logic and some of its evidence.
   # A fifth above where it stands, as the others.
   ("CLAUDE.md", "CLAUDE-archived.md", "C", 2350),
-  # 2,414 after a pass that found almost nothing to take: this file is
-  # architecture rather than accretion, and the reasoning in it is the
-  # thing a maintainer came for. Budgeted for growth, not for a cut.
-  ("MAINTAINING.md", "MAINTAINING-archived.md", "M", 2900),
+  # 2,048 after the fourth pass of 2026-09-05, which read the file end
+  # to end against the measure and took the journey out of each
+  # mechanism while keeping its rule, table and measurement; the
+  # architecture itself is not accretion, so a fifth above that.
+  ("MAINTAINING.md", "MAINTAINING-archived.md", "M", 2450),
   # 1,052 after the pass of 2026-09-05, from 3,095 -- and RAISED TO
   # 2100 LATER THE SAME DAY, on the maintainer's decision that "the
   # budget shouldn't be that small". The reason, written here because
@@ -90,9 +91,10 @@ PAIRS = [
   # two passes and 5,238 before any). A fifth above where it stands.
   (os.path.join("docs", "TESTING.md"),
    os.path.join("docs", "TESTING-archived.md"), "T", 1000),
-  # 893 after the pass, from 1,193.
+  # 712 after the fourth pass of 2026-09-05 (893 after the first, from
+  # 1,193): every procedure step kept, the accounts beside them gone.
   (os.path.join("docs", "PUBLISHING.md"),
-   os.path.join("docs", "PUBLISHING-archived.md"), "P", 1100),
+   os.path.join("docs", "PUBLISHING-archived.md"), "P", 850),
   # THE PACKAGE'S DOCSTRINGS, since the pass of 2026-09-05 that took
   # the narrative out of them (the maintainer's ask: "not terribly
   # useful for human maintainers"). The live half is the source tree,

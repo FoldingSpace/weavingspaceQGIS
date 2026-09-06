@@ -169,11 +169,12 @@ next candidate -- the dual button and the completed dual, the two tab
 defects, the three settled conflicts, the Topology tab audit, the
 documents re-audit and the self-fixing documents, the docstrings pass
 and the two studies. What is still open is NOT code and does not hold
-a candidate: the product stall of R-4, whose cause is undiagnosed and
-whose defence is built; and three decisions that are the maintainer's
--- the zigzag threshold question, and the two the tab audit reported
-(odd zigzag counts open a gap; the count readout's clamp bites at the
-window's own size). The text-review queue is the maintainer's as ever.
+a candidate: three decisions that are the maintainer's -- the zigzag
+threshold question, and the two the tab audit reported (odd zigzag
+counts open a gap; the count readout's clamp bites at the window's own
+size). The product stall of R-4 is parked under "Later, or never" on
+the maintainer's decision, and the text-review queue was cleared on
+2026-09-05.
 
 ### Closed: the two suite failures and the harness race
 
@@ -183,18 +184,6 @@ returned in the window between an edit being recorded and its build
 being queued, so quiet must now persist for three checks, and a full
 three-shard run over `03d6ba7` was green at 264, 264 and 264. The
 waiter explains itself, naming what QGIS's own task manager holds.
-
-**OPEN, AND NOT CODE THE VERSION OWES: THE PRODUCT STALL OF R-4.** QGIS
-accepts a topology build, leaves it Queued with the pool idle and
-never starts it. The DEFENCE is built and does not claim to be the
-diagnosis -- `TOPOLOGY_START_CEILING_MS` arms a watch and
-`_say_if_the_build_never_started` writes the reason into the panel's
-note (R-6). The CAUSE is undiagnosed: 4 in 86 attempts inside one
-twenty-minute window, then none in 317 with the discriminator armed
-(`tools/probes/how_often_a_build_never_starts.py`, which adds a second
-task at the stall and reads whether the stuck one then starts), so the
-effort has moved from reproducing it to catching it, and nothing here
-is evidence it has gone (R-5, R-76; the whole account R-80).
 
 ### The sweep for the snap-back: done, one fault found
 
@@ -245,8 +234,9 @@ parameter whose useful values start small.
   context efficient as possible while being effective -- we want their
   lessons and logics and some reasons/evidence to be transmitted".
   DONE: CLAUDE.md 3,919 to 1,932, docs/TESTING.md 2,527 to 836, this
-  file's DONE entries 1,540 to 524, and light passes over
-  docs/PUBLISHING.md and MAINTAINING.md. AND THE MAINTAINER'S WRINKLE
+  file's DONE entries 1,540 to 524, and, after a second reading against
+  the measure, docs/PUBLISHING.md 816 to 712 and MAINTAINING.md 2,302
+  to 2,048 with every step and mechanism kept. AND THE MAINTAINER'S WRINKLE
   OF THE SAME DAY IS BUILT: the documents will be edited by a different
   model from now on, so each now opens with a how-to-add section, the
   themed ones have a capped inbox, and `tools/doc_archive.py` checks the
@@ -518,6 +508,18 @@ REPEATED VERTICES ARE FIXED UPSTREAM AT THE SOURCE**, in commit
 that conversation is closed (R-65, R-66, R-67; R-92).
 
 ## Later, or never
+
+**THE PRODUCT STALL OF R-4 IS IGNORED UNTIL IT RECURS.** (Maintainer's
+decision, 2026-09-05.) QGIS accepted a topology build, left it Queued
+with the pool idle and never started it: 4 in 86 attempts inside one
+twenty-minute window, then none in 317 with the discriminator armed.
+The DEFENCE stays built -- `TOPOLOGY_START_CEILING_MS` arms a watch and
+`_say_if_the_build_never_started` writes the reason into the panel's
+note (R-6) -- and the probe that would catch a recurrence is
+`tools/probes/how_often_a_build_never_starts.py`, which adds a second
+task at the stall and reads whether the stuck one then starts. Nothing
+here is evidence it has gone; a recurrence reopens it (R-5, R-76; the
+whole account R-80).
 
 **CANCEL A RUN THAT IS ABOUT TO BE SUPERSEDED.** The third of the three
 debounce questions, and the only one the decision of 2026-08-26 left
