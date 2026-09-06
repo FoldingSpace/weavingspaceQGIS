@@ -10893,6 +10893,35 @@ MUTATIONS = [
            "Generate was refused, so the next ordinary Generate drew the "
            "dual into a new group with no control on screen to untick "
            "(round eight, unreach9)"),
+  dict(name="the-duals-source-edits-are-restored-from-the-record",
+       file=DIALOG,
+       old="""    self._dual_source_edits = ([dict(e) for e in frozen]
+                               if isinstance(frozen, list) and frozen
+                               else None)""",
+       new="""    self._dual_source_edits = None  # mutation: the record's term unread""",
+       test="test_a_dual_group_keeps_its_sources_edits_across_a_reopen",
+       why="a dual group reopened and re-tiled drawing the plain dual, "
+           "the person's edit gone in silence (round eight, repairs19 "
+           "and unreach10)"),
+  dict(name="the-duals-key-carries-the-sources-frozen-edits",
+       file=DIALOG,
+       old="""      if self._mapping_the_dual() and self._dual_source_edits:
+        edits = edits + [dict(e, how="source:" + str(e.get("how", "")))
+                         for e in self._dual_source_edits]""",
+       new="""      pass  # mutation: the key blind to the source's edits""",
+       test="test_a_second_edit_of_the_source_makes_a_different_dual",
+       why="the tiled-frame cache serving the first dual for the dual of "
+           "a design edited a second time, since the key never moved "
+           "(round eight, stoch9)"),
+  dict(name="a-new-group-clears-the-inherited-path",
+       file=DIALOG,
+       old="""    if created and force_new:
+      self._a_new_map_does_not_inherit_the_file()""",
+       new="""    pass  # mutation: the new group keeps the old file""",
+       test="test_a_new_group_does_not_inherit_the_previous_maps_file",
+       why="a map saved to a file, then Create new or the dual button, "
+           "then Save, replacing the saved file with the new map in "
+           "silence (round eight, boundary10)"),
   dict(name="the-count-is-even-where-the-record-reads-it",
        file=TOPOLOGY_TAB,
        old="""      values["n"] = float(_even_count(values["n"]))""",

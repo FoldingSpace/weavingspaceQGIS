@@ -361,6 +361,8 @@ quote them, do not renumber them.
 - **C-324** — A magnitude oracle is blind to the sign: the zigzag's side  <sub>minted</sub>
 - **C-325** — The dual is taken of the design as edited, since the tab shows that design and the reco...  <sub>minted</sub>
 - **C-326** — A boolean store standing for a count: the dual of a dual  <sub>minted</sub>
+- **C-327** — A door to a second map clears what the dataset door clears: the create-new door and the...  <sub>minted</sub>
+- **C-328** — A repair that gives a function a new input widens the record and the key that decide wh...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10507,3 +10509,44 @@ store is a boolean and cannot say "twice", so the button is not
 offered on a dual group and the act refuses in the same sentence;
 guarded by `test_the_dual_button_refuses_on_a_dual_group` with two
 entries, one at the offer and one at the act. Row 7.
+
+### C-327 — A door to a second map clears what the dataset door clears: the create-new door and the output path
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-327).</sub>
+
+Round eight's boundary hunt (`boundary10`, 2026-09-06) drove the
+dual group across six crossings and found nothing, then asked what a
+crossing CARRIES: the output path. A map saved to a GeoPackage, then
+the dual button (which walks through the chooser's create-new door),
+then Save, replaced the design's file with the dual's -- 56 features
+of element a becoming the dual's, read with OGR -- with no question,
+since `_may_overwrite` stays quiet for a file whose record names the
+dataset in force. `_begin_new_dataset` has cleared the path on a
+change of dataset since 2026-08-21 for exactly this reason; the
+create-new door did neither. Verified here through the chooser's own
+`activated` signal and sqlite. Repaired at the landing that creates a
+group on purpose (`created and force_new`), which a resume never
+reaches, with a sentence of its own awaiting review; guarded by
+`test_a_new_group_does_not_inherit_the_previous_maps_file` and the
+entry `a-new-group-clears-the-inherited-path`. Ledger row 9.
+
+### C-328 — A repair that gives a function a new input widens the record and the key that decide whether the map is redrawn: the dual's frozen source edits
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-328).</sub>
+
+Four of round eight's second and third waves converged on row 6's
+repair (2026-09-06): `_build_unit` had gained an input -- the source
+design's shelved edits -- that nothing else knew about. `repairs19`
+and `unreach10` found the shelf empty after a reopen, the record's
+one `topology_edits` slot holding the dual's own list, so a re-tile
+drew the plain dual; `stoch9` and `harm13` found `_topology_edit_key`
+reading the dual's key, so the geometry signature and the tiled-frame
+cache never moved when the source's edits did. Verified here by
+reopening the plugin and re-tiling the dual group. Ruling 4 makes the
+dual one-shot, so the repair FREEZES the source's edits at the press
+(`_dual_source_edits`), carries them in the record as
+`dual_source_edits` beside the dual's own, restores them, and folds
+them into the edit key; `_build_unit` reads the frozen copy and the
+live shelf stands in only for a record older than the term. Two
+guards, one per store; the follow-the-source half of the two later
+claims is settled by the ruling. Ledger row 10.

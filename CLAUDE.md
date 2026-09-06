@@ -930,7 +930,9 @@ and the ids beside each rule.
   (C-223). A hand-kept list drifts even where a comment says to keep it
   in step (C-177). When a fix widens a signature, ask whether the new
   term is coarser than what it stands for: a boolean per element is
-  invariant under a permutation.
+  invariant under a permutation. When a repair gives a function a new
+  INPUT, widen the record and the key that decide whether the map is
+  redrawn in the same commit (C-328).
 - **A DISPLAY RULE IS DISPLAY-ONLY ONLY IF NOTHING RE-READS THE
   DISPLAY** (C-133); a count quoted to a person is asked of the
   geometry, not of two totals (C-131); a guard that rebuilds a layer
@@ -959,7 +961,9 @@ and the ids beside each rule.
 
 **Doors, twins and sequences.**
 - **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
-  ROOM** (C-52). Presence is not order: a call put back after its twin
+  ROOM** (C-52); the create-new door clears the output path as the
+  dataset door does, since a saved file is one map (C-327). Presence
+  is not order: a call put back after its twin
   calls it before is worse than one still missing (C-55); a fix written
   into two paths in one commit is diffed hunk against hunk (C-66), and
   a fix inserted into a sequence is checked for its order against the

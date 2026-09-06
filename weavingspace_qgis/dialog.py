@@ -3451,7 +3451,14 @@ class WeavingSpaceDialog(QDialog):
     # The dual button's request, `(was_new, was_dual)`, alive from the
     # press until a Generate launches or refuses; see `_settle_a_dual_request`.
     self._dual_request = None
-    # THE DUAL SWITCH IS A DESIGN CONTROL that happens to live on the
+    # THE SOURCE DESIGN'S EDITS, FROZEN AT THE DUAL BUTTON'S PRESS, and
+    # carried in the dual group's record as `dual_source_edits`: ruling
+    # 4 of 2026-09-05 makes the dual one-shot and says it does not
+    # follow its source, and the live shelf is neither -- it is empty
+    # after a reopen (so a re-tile drew the plain dual, round eight,
+    # repairs19 and unreach10) and it moves with the source's later
+    # edits. None where the map is not a dual's or the record is older.
+    self._dual_source_edits = None
     # Topology tab, so the dialog names it: `WORKING_STATE_DESIGN`
     # reads its widgets off `self`, and every other design term is
     # reachable that way. The same object, not a copy.
@@ -6698,7 +6705,13 @@ class WeavingSpaceDialog(QDialog):
       # the edited one (round eight, harm12, 2026-09-06). The source's
       # own edits are replayed here first, and where the edited unit
       # cannot carry a topology the dual falls through as before.
-      source_edits = self._edits_of_the_source_design()
+      # THE FROZEN COPY, never the live shelf: the shelf is empty after a
+      # reopen and follows the source's later edits, and the dual does
+      # neither (ruling 4). The live shelf stands in only for a dual
+      # whose record predates the term.
+      source_edits = (list(self._dual_source_edits)
+                      if self._dual_source_edits is not None
+                      else self._edits_of_the_source_design())
       built, why = topology_edits.build(unit)
       if built is not None and source_edits:
         edited, _refused, _state = topology_edits.apply(built, source_edits)
@@ -6733,6 +6746,35 @@ class WeavingSpaceDialog(QDialog):
       return [dict(edit) for edit in edits]
     except Exception:                                 # noqa: BLE001
       return []
+
+  def _a_new_map_does_not_inherit_the_file(self) -> None:
+    """Clear the output path when a run lands in a NEW group on purpose.
+
+    Returns:
+      None. The dataset door has cleared the path since 2026-08-21, for
+      the reason `_begin_new_dataset` states: a map written over a
+      saved file destroys a result. The create-new door -- the
+      chooser's own entry, and the dual button, which walks through it
+      -- did not, so a person who saved their map, pressed the dual
+      button and pressed Save had their design's file replaced by the
+      dual's, with no question and nothing said, since the file's
+      record named the dataset in force and the overwrite question
+      stays silent for a file of ours (round eight, boundary10,
+      2026-09-06; measured with OGR, 56 features of the design's
+      element a becoming the dual's). A resume lands through its own
+      door and never reaches this, so a loaded file keeps its path.
+    """
+    widget = getattr(self, "gpkg_widget", None)
+    if widget is None or not widget.filePath():
+      return
+    widget.blockSignals(True)
+    widget.setFilePath("")
+    widget.blockSignals(False)
+    _dump("LANDING", "path-cleared-for-a-new-group")
+    self._report_quietly(
+      "The GeoPackage path was cleared, so the map saved from your "
+      "previous work isn't overwritten; choose a new path to save this "
+      "one.")
 
   def _preview_wait(self) -> int:
     """How long to wait for quiet before rebuilding the preview.
@@ -6836,6 +6878,12 @@ class WeavingSpaceDialog(QDialog):
     it was not made on. The record knows what it is about.
     """
     edits = design.get("topology_edits")
+    # THE SOURCE'S FROZEN EDITS travel beside the dual's own: a dual
+    # group restored without them re-tiled as the plain dual.
+    frozen = design.get("dual_source_edits")
+    self._dual_source_edits = ([dict(e) for e in frozen]
+                               if isinstance(frozen, list) and frozen
+                               else None)
     from . import topology_edits
     family = design.get("family") or self._family_key()
     count = design.get("n") or self._element_count()
@@ -18795,6 +18843,11 @@ class WeavingSpaceDialog(QDialog):
     panel = getattr(self, "topology_panel", None)
     if panel is not None and panel.edits():
       design["topology_edits"] = panel.edits()
+    # AND THE SOURCE'S FROZEN EDITS WHERE THE MAP IS A DUAL'S, under
+    # their own key, since the slot above is the dual's own list; read
+    # back by `_restore_recorded_topology_edits`, in the same commit.
+    if self._mapping_the_dual() and self._dual_source_edits:
+      design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]
     return design
 
   def _capture_working_state(self) -> dict:
@@ -24260,7 +24313,15 @@ class WeavingSpaceDialog(QDialog):
       key = topology_edits.shelf_key(self._family_key(),
                                      self._element_count(),
                                      self._mapping_the_dual())
-      edits = (getattr(self, "_topology_shelf", None) or {}).get(key) or []
+      edits = list((getattr(self, "_topology_shelf", None) or {}).get(key) or [])
+      # THE DUAL'S KEY CARRIES THE SOURCE'S FROZEN EDITS TOO, so the
+      # geometry signature and the tiled-frame cache move when a dual
+      # is made of a differently edited source: with the cache on, the
+      # dual of the design after a second edit was served from the
+      # frame of the dual before it (round eight, stoch9).
+      if self._mapping_the_dual() and self._dual_source_edits:
+        edits = edits + [dict(e, how="source:" + str(e.get("how", "")))
+                         for e in self._dual_source_edits]
       return tuple(
         (str(edit.get("classes", "")), str(edit.get("how", "")),
          tuple(sorted((str(name), float(value))
@@ -24365,6 +24426,9 @@ class WeavingSpaceDialog(QDialog):
     # in the wrapper's `finally`) rather than after this one call.
     self._dual_request = (self._new_group_chosen,
                           self.opt_map_dual.isChecked())
+    # FROZEN NOW, from the source's own shelf, before the dual term
+    # flips: what `_build_unit` and the record carry from here on.
+    self._dual_source_edits = self._edits_of_the_source_design()
     self._new_group_chosen = True
     self.opt_map_dual.setChecked(True)
     self._generate()
@@ -24900,6 +24964,8 @@ class WeavingSpaceDialog(QDialog):
     self._adopted_group_unwritten = False
     self._new_group_chosen = False
     group, created = self._get_or_make_group(force_new, tiled=source_layer)
+    if created and force_new:
+      self._a_new_map_does_not_inherit_the_file()
     group.setName(self._group_name)
 
     old_ids = dict(self._element_layer_ids)

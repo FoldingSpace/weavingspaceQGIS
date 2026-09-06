@@ -57718,6 +57718,284 @@ def test_a_typed_odd_count_is_even_at_every_door():
     dlg.deleteLater()
 
 
+def test_a_new_group_does_not_inherit_the_previous_maps_file():
+  """A run that lands in a NEW group of the same dataset clears the
+  output path, as a change of dataset does, and says so.
+
+  The dataset door has cleared the path since 2026-08-21; the create-new
+  door -- the chooser's entry, and the dual button through it -- did
+  not, so Save after the new map replaced the saved file's tables with
+  the new map's, silently, the overwrite question staying quiet for a
+  file of ours. Driven through the chooser's own `activated` signal,
+  then a Save pressed with the path box empty, and the file read back
+  with sqlite: the first map's element table is byte-for-byte what it
+  was.
+
+  Regression: a map saved to a GeoPackage, then "Create new" or the dual button, then Save, replaced the saved file with the new map, with no question and nothing said. [hunt]
+  """
+  import hashlib
+  import sqlite3
+  import tempfile
+
+  dlg, layer, tid = _categorical_dialog()
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    out = os.path.join(tempfile.mkdtemp(prefix="weavingspace_new_group_"),
+                       "first map.gpkg")
+    _generate_and_wait(dlg)
+    dlg.gpkg_widget.setFilePath(out)
+    assert press_save(dlg), "PREMISE: the first save wrote nothing"
+
+    def digest():
+      con = sqlite3.connect(out)
+      rows = con.execute("select * from tiles_a_v1 order by 1").fetchall()
+      con.close()
+      return hashlib.sha1(repr(rows).encode()).hexdigest()
+
+    before = digest()
+    combo = dlg.group_combo
+    fresh = next(i for i in range(combo.count()) if combo.itemData(i) is None)
+    combo.setCurrentIndex(fresh)
+    combo.activated.emit(fresh)
+    _tick(300)
+    assert dlg._new_group_chosen, "PREMISE: Create new was not chosen"
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 2)
+    _tick(300)
+    _generate_and_wait(dlg)
+    names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
+    assert len(names) == 2, f"PREMISE: no second group landed: {names}"
+    assert dlg.gpkg_widget.filePath() == "", (
+      f"the new group inherited the previous map's file "
+      f"{dlg.gpkg_widget.filePath()!r}, so the next Save would replace it")
+    # THE BAR AS THE DATASET-DOOR TEST READS IT, the whole store, and the
+    # plugin's own record of what it said beside it.
+    from weavingspace_qgis import said as said_module
+    said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
+            + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
+    assert "path was cleared" in said, (
+      f"the path was cleared with nothing said: {said!r}")
+    # A SAVE WITH THE BOX EMPTY IS REFUSED IN WORDS, which is the point:
+    # nothing is written anywhere, least of all over the first map.
+    press_save(dlg, expect=False)
+    _tick(300)
+    assert digest() == before, (
+      "the first map's saved table changed after a Save from the new "
+      "group, so the file was written over")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def _a_dual_of_an_edited_design(dlg, n=4, h=0.3):
+  """Open the Topology tab, zigzag the first edge, press the dual button
+  and wait; return (panel, plain unit, edited unit).
+
+  Args:
+    dlg: a shown dialog over a region layer.
+    n: the zigzag count applied.
+    h: the zigzag amplitude applied.
+  """
+  dlg.opt_experimental.setChecked(True)
+  dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+  panel = dlg.topology_panel
+  for _ in range(120):
+    _tick(250)
+    if getattr(panel, "_topology", None) is not None:
+      break
+  assert panel._topology is not None, "PREMISE: no topology"
+  plain_unit = dlg._unit
+  edge = list(panel._topology.edges.values())[0]
+  panel._on_chose("edge", getattr(edge, "label", "") or "")
+  _tick(150)
+  panel.view._chosen_thing = edge
+  panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+  _tick(150)
+  for name, value in (("n", n), ("h", h)):
+    box = next(w for _l, w in panel._argument_rows
+               if w.property("argument") == name)
+    box.setValue(value)
+    _tick(120)
+  panel.apply_button.click()
+  _settle_topology(dlg, seconds=90)
+  _tick(500)
+  assert panel.edits(), "PREMISE: no edit recorded"
+  edited_unit = dlg._unit
+  assert panel.dual_button.isEnabled(), \
+    f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+  panel.dual_button.click()
+  _settle(dlg, seconds=120)
+  _tick(800)
+  assert dlg._mapping_the_dual(), "PREMISE: the dual was not mapped"
+  return panel, plain_unit, edited_unit
+
+
+def _dual_area_profile(unit):
+  """The dual's tile areas as fractions of the largest, a scale-free
+  digest that tells the dual of an edited unit from the plain one's.
+
+  Args:
+    unit: a Tileable with a topology.
+  """
+  from weavingspace_qgis import topology_edits
+  built, why = topology_edits.build(unit)
+  assert built is not None, f"PREMISE: no topology to dualise: {why}"
+  dual = topology_edits.dual_as_tileable(built)
+  assert dual is not None, "PREMISE: no dual"
+  areas = [g.area for g in dual.tiles.geometry]
+  top = max(areas)
+  return sorted({round(a / top, 3) for a in areas})
+
+
+def _landed_profile_of(group):
+  """The area profile of the tiles a layer-tree group holds.
+
+  Args:
+    group: a QgsLayerTreeGroup of element layers.
+  """
+  areas = [f.geometry().area() for node in group.findLayers()
+           for f in node.layer().getFeatures()]
+  assert areas, "PREMISE: the group holds no tiles"
+  top = max(areas)
+  return sorted({round(a / top, 3) for a in areas})
+
+
+def test_a_dual_group_keeps_its_sources_edits_across_a_reopen():
+  """A dual group re-tiled after the plugin is reopened is still the dual
+  of the design AS EDITED.
+
+  The dual was taken of the source's shelved edits, a per-dialog dict
+  that is empty after a reopen, and the record's one `topology_edits`
+  slot holds the dual's own list -- so the first re-tile after reopening
+  drew the plain dual and the person's edit was gone, with nothing said.
+  Two hunts converged on it. The source's edits are frozen at the press
+  and travel in the record as `dual_source_edits`; ruling 4 makes the
+  dual one-shot, so the frozen copy is right within a session too.
+
+  Regression: reopening the plugin on a dual map and re-tiling it redrew the dual of the un-edited design, so the topology edit it was built from was lost in silence. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.show()
+  _tick(200)
+  try:
+    panel, plain_unit, edited_unit = _a_dual_of_an_edited_design(dlg)
+    plain, edited = _dual_area_profile(plain_unit), _dual_area_profile(edited_unit)
+    assert plain != edited, "PREMISE: the edit leaves the two duals congruent"
+    root = QgsProject.instance().layerTreeRoot()
+    dual_group = next(g for g in root.findGroups() if g.name().endswith("dual"))
+    assert _landed_profile_of(dual_group) == edited, \
+      "PREMISE: the first session did not land the edited dual"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(500)
+
+  # THE PLUGIN REOPENED: the groups are adopted, the dual's record read.
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.show()
+  _tick(300)
+  try:
+    combo = dlg.group_combo
+    index = next(i for i in range(combo.count()) if "dual" in combo.itemText(i))
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(600)
+    _settle_topology(dlg, seconds=60)
+    assert dlg._mapping_the_dual(), "PREMISE: the restored group is not a dual's"
+    assert dlg._dual_source_edits, (
+      "the restored dual group carries no frozen source edits, so a "
+      "re-tile will draw the plain dual")
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 100)
+    _tick(300)
+    dlg.generate_btn.click()
+    _settle(dlg, seconds=120)
+    _tick(800)
+    got = _landed_profile_of(dual_group)
+    assert got == edited, (
+      f"after a reopen the dual group re-tiled as {got}, the "
+      f"{'PLAIN dual' if got == plain else 'dual of neither design'}, "
+      f"where the dual of the edited design is {edited}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_second_edit_of_the_source_makes_a_different_dual():
+  """With the tiled-frame cache on, the dual of the design after a second
+  edit is not served from the frame of the dual before it.
+
+  The dual's edit key carried the dual's own (empty) list, so the
+  geometry signature and the cache key did not move when the SOURCE's
+  edits did: a second press of the dual button, after a second edit,
+  handed back the first dual byte for byte. The key carries the frozen
+  source edits now.
+
+  Regression: with Keep tiles between runs on, editing the design a second time and pressing the dual button gave the dual from before the second edit, byte for byte. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.show()
+  _tick(200)
+  try:
+    assert dlg.opt_cache_tiles.isChecked(), "PREMISE: the cache is off"
+    # THE SOURCE MAP FIRST, so there is a source group to go back to.
+    _generate_and_wait(dlg)
+    panel, plain_unit, first_edited = _a_dual_of_an_edited_design(dlg, n=4, h=0.3)
+    root = QgsProject.instance().layerTreeRoot()
+    first_group = next(g for g in root.findGroups() if g.name().endswith("dual"))
+    first = _landed_profile_of(first_group)
+    # BACK TO THE SOURCE GROUP, a second edit, the dual button again.
+    combo = dlg.group_combo
+    index = next(i for i in range(combo.count())
+                 if combo.itemData(i) is not None and "dual" not in combo.itemText(i))
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(600)
+    _settle_topology(dlg, seconds=60)
+    assert not dlg._mapping_the_dual(), "PREMISE: the source group is a dual's"
+    for name, value in (("n", 2), ("h", 0.2)):
+      box = next(w for _l, w in panel._argument_rows
+                 if w.property("argument") == name)
+      box.setValue(value)
+      _tick(120)
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=90)
+    _tick(500)
+    second_edited = dlg._unit
+    wanted = _dual_area_profile(second_edited)
+    assert wanted != first, \
+      "PREMISE: the second edit leaves the dual congruent with the first"
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    _tick(800)
+    # THE GROUP THE RUN LANDED IN, whichever name it took: a second dual
+    # of the same source may land beside the first or replace it.
+    landed = root.findGroup(dlg._group_name)
+    assert landed is not None, f"PREMISE: no group named {dlg._group_name!r}"
+    assert dlg._mapping_the_dual(), "PREMISE: the second press did not map a dual"
+    got = _landed_profile_of(landed)
+    assert got == wanted, (
+      f"the dual after the second edit landed {got}, "
+      f"{'the FIRST dual served from the cache' if got == first else 'neither dual'}, "
+      f"where the dual of the design as now edited is {wanted}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -90601,6 +90879,12 @@ def main():
         test_the_dual_is_taken_of_the_design_as_edited)
   check("a typed odd count is even at every door",
         test_a_typed_odd_count_is_even_at_every_door)
+  check("a new group does not inherit the previous map's file",
+        test_a_new_group_does_not_inherit_the_previous_maps_file)
+  check("a dual group keeps its source's edits across a reopen",
+        test_a_dual_group_keeps_its_sources_edits_across_a_reopen)
+  check("a second edit of the source makes a different dual",
+        test_a_second_edit_of_the_source_makes_a_different_dual)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

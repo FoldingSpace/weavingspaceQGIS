@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-537 defect(s) with a regression test.
+540 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -102,6 +102,8 @@ there is no separate list to remember.
   guarded by `test_a_donor_comes_home_when_the_map_is_opened`
 - **dragging the zigzag handle recorded a wave several times deeper than the one dragged to, by as much as the machine delivered move events, and that amplitude is what the design was tiled with and the file carried.**  
   guarded by `test_a_drag_delivered_in_many_moves_records_one_position`
+- **reopening the plugin on a dual map and re-tiling it redrew the dual of the un-edited design, so the topology edit it was built from was lost in silence.**  
+  guarded by `test_a_dual_group_keeps_its_sources_edits_across_a_reopen`
 - **pressing "Generate the dual and tile it" while Generate could not start latched the plugin into dual mode invisibly, so the next ordinary Generate drew the dual of the design into a new group with nothing on screen to untick.**  
   guarded by `test_a_dual_request_that_is_refused_does_not_latch`
 - **a duplicated output layer survived a re-tile with nothing said, because the guard was written at the adoption door and not at the landing door. Found by the panel-acts hunt of 2026-08-28, ledger row 18.**  
@@ -146,6 +148,8 @@ there is no separate list to remember.
   guarded by `test_a_moved_limit_re_splits_the_tiles`
 - **nothing described what a negative scale factor did to the map, so the only guard on the feature was that its spin box could reach negative numbers.**  
   guarded by `test_a_negative_scale_factor_mirrors_the_design`
+- **a map saved to a GeoPackage, then "Create new" or the dual button, then Save, replaced the saved file with the new map, with no question and nothing said.**  
+  guarded by `test_a_new_group_does_not_inherit_the_previous_maps_file`
 - **per-element records survived a project change, so pinned bounds, colours and class counts set in one project were applied to the next project opened in the same session.**  
   guarded by `test_a_new_project_does_not_inherit_the_last_one_s_pins`
 - **a hand-picked No data colour was destroyed by any reopen once another colour on that element had also been picked. Measured 2026-08-16: the .qgz held {"no-data": "#abcdef", "0": "#123456"} and the dialog came back with the class colour alone, offering the default grey over a map still drawing #abcdef, until the next Generate painted the default over it. A plain close-and-reopen was enough; no save or export needed.**  
@@ -214,6 +218,8 @@ there is no separate list to remember.
   guarded by `test_a_scale_between_minus_one_and_one_can_be_typed`
 - **negative scale factors were allowed on 2026-08-16 so that a pattern can be mirrored, which put ZERO inside the control's range for the first time. The library does not refuse a zero scale: `transform_scale(0, ...)` returns a unit collapsed to no area, and the failure surfaces much later inside `Tiling.__init__` as `numpy.linalg.LinAlgError: Singular matrix` -- reaching the user as a raw "Tiling failed" line about a matrix they never asked about.**  
   guarded by `test_a_scale_control_steps_over_zero`
+- **with Keep tiles between runs on, editing the design a second time and pressing the dual button gave the dual from before the second edit, byte for byte.**  
+  guarded by `test_a_second_edit_of_the_source_makes_a_different_dual`
 - **opening a saved project while the plugin window was open replaced every element's opacity with whatever that window happened to be showing, and one Generate wrote it into the file.**  
   guarded by `test_a_second_project_does_not_take_the_first_ones_opacity`
 - **a style pasted onto an element layer while a tiling was in flight was silently destroyed by the run's landing, though the same paste a moment earlier or later survived.**  
@@ -1129,7 +1135,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 144
+- a bug hunt pointed in a named direction: 147
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15
