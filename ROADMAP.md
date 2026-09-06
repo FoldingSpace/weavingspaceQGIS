@@ -250,27 +250,30 @@ the dual). Cheapest and most durable first.
   `--mint` writing an archive stub under the next id. Two tests and
   six catalogue entries proved `caught`; the practice is in
   docs/DOC-ARCHIVING.md under "Writing for the next reader".
-- **AND THE SAME EDIT TO THE DOCSTRINGS** (same ask): "they're not
-  terribly useful for human maintainers right now, though of course
-  we want them to be effective for LLMs as well". The documentation
-  standard in CLAUDE.md still governs -- inputs, outputs, the
-  QGIS-shaped reasoning at the line -- and what goes is the narrative
-  that belongs in a commit or an archive: the day, the wrong first
-  hypothesis, the measurement that decided it. Where a docstring's
-  account is the only record of a measurement it moves to an archive
-  rather than being deleted, which is the same rule the documents
-  keep.
-- **TWO STUDIES, ALSO THE MAINTAINER'S ASKS OF 2026-09-05**, recorded
-  as questions with no code: IS THERE A BETTER WAY OF STRUCTURING THE
-  TILING AND LAYER DATA BEHIND THE SCENES, for efficiency or for fewer
-  defects -- the tiled frame, the per-element layers and their twins,
-  the records keyed by tile id, the group's working state -- and IS
-  dialog.py OVER-COMPLEX in ways a simpler approach would match
-  exactly while being less bug-prone. Both want an audit that names
-  candidates with a measurement each, and neither is to be done in the
-  same breath as a candidate. The ledger of 2026-09-02 and the
-  catalogue triage of 2026-08-28 are where the defect shapes to weigh
-  them against are counted.
+- **AND THE SAME EDIT TO THE DOCSTRINGS -- DONE** (same ask: "they're
+  not terribly useful for human maintainers right now"). Every package
+  docstring of thirty lines or more -- 116 of them, 4,587 lines -- was
+  read paragraph by paragraph against the standard: what it does, Args
+  and Returns, the reasoning at the line stay; the day, the first
+  attempt and the measurement go. Thirty-five docstrings lost 372
+  lines of account to `docs/DOCSTRINGS-archived.md` under D-1 to D-35,
+  each quoting its id; the other 81 were reasoning end to end and
+  stand. `tools/doc_archive.py` reads the package as the live half of
+  that archive, so a D-id nothing quotes fails the standards gate. What
+  it did NOT do is shorten reasoning, which is the half an LLM needs;
+  a second pass could condense the all-caps paragraph style itself.
+- **TWO STUDIES, THE MAINTAINER'S ASKS OF 2026-09-05 -- WRITTEN**, as
+  audits naming candidates with a measurement each and no code:
+  `docs/process/study-tiling-and-layer-data-2026-09-05.md` (four
+  candidates; one field table for every signature first, then one
+  element record, then a tiled-map value object) and
+  `docs/process/study-dialog-complexity-2026-09-05.md` (six; the save
+  and load as a module without Qt first, then one deferred-intent
+  queue, then the landing as a pipeline). Both say what is NOT
+  recommended and why, and neither is to be done in the same breath as
+  a candidate: 527 of the catalogue's 764 entries are anchored on
+  `dialog.py` lines. Whether and when to take any of them is the
+  maintainer's decision.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.

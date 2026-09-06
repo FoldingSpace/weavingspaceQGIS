@@ -41,6 +41,13 @@ over a 3km region for laves 3.3.4.3.4, 84 for archimedean 4.8.8) and
 leans on four private lines. A canary in the suite asserts the gap is
 still there, so the day it closes we are told.
 
+**Two studies of 2026-09-05**, `study-tiling-and-layer-data-2026-09-05.md`
+and `study-dialog-complexity-2026-09-05.md`, answer the maintainer's
+questions about whether the data behind a map and the dialog that
+drives it could be structured with fewer defects. Each names candidates
+with a measurement, says what is not recommended, and writes no code;
+they are the argument a later refactor has to start from.
+
 **The upstream note** reports a rendering difference to the
 weavingspace project, and opens by retracting an earlier note that
 blamed one of their commits. It is kept in full, retraction first,
