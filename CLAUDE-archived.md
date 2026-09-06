@@ -354,6 +354,7 @@ quote them, do not renumber them.
 - **C-317** — How the suite's QGIS prefix is discovered, and the months it ran with no ramps at all  <sub>How we decide things, and the suite's environment</sub>
 - **C-318** — The reference column's claim, the thirty-version gap and the refused browser capture  <sub>How we decide things, and the suite's environment</sub>
 - **C-319** — The zigzag click threshold and the odd counts: the grilling of 2026-09-05, with the fac...  <sub>minted</sub>
+- **C-320** — The zigzag handle and ghost stood at twice the crest the library draws: h is peak to peak  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10352,3 +10353,39 @@ offered. DECIDED: it stays in 0.24.5, differential first.
 
 R-4's stall the maintainer had already parked earlier the same evening:
 ignored until it recurs, the defence and the probe staying.
+
+### C-320 — The zigzag handle and ghost stood at twice the crest the library draws: h is peak to peak
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-320).</sub>
+
+Round eight's specification hunt (`spec6`, 2026-09-06) asked whether
+ruling 1 of the zigzag handle was true of the library it cites, and
+measured that it was not: `zigzag_between_points` scales its sine by
+`h * r / 2`, so `h` is the PEAK-TO-PEAK width and the wave crests
+`h * len / 2` from the edge, while the handle (`out = h * reach`),
+the ghost (`rise = height * reach`) and the drag's inverse all stood
+at the whole of `h`. The two pictures were built to agree with each
+other, and a registered test held them to it; nothing held either to
+the wave the map receives. Verified here by a route the hunt did not
+use -- the tab driven through its boxes and Apply, then the edited
+unit's own polygon measured: on `laves 3.3.4.3.4` at h=0.4 the handle
+sat 0.400 of the edge out and the crest of the zigzag the unit
+carried was 0.190 of it, a factor of 2.1 (the 0.05 beyond 2.0 is the
+default smoothness sampling the sine short of its peak). The hunt
+measured 0.4755 on every edge of class a on a square-keyed and a
+hex-keyed family.
+
+Repaired by one constant, `_CREST_OF_H = 0.5` in topology_tab.py,
+read at the four sites -- the handle, the ghost, the drag's inverse
+and the amplitude deadband, whose pixels are now converted through
+the same scale -- and guarded by
+`test_the_zigzag_ghost_crests_where_the_library_does`, a differential
+that calls the library's own zigzag on the same edge and takes its
+crest as the oracle; the entry
+`the-zigzag-ghost-crests-where-the-library-does` puts the ghost back
+at the whole of `h` and is caught. Three existing tests moved their
+arithmetic (the handle's seat, the ghost's peak, the slip and the
+across step of the drag, which is now a fifth of h per tenth of the
+edge). The ruling's words stand with the clause added; whether the
+maintainer would rather the box itself read in crest units is
+recorded in the day's ledger as a question, not changed.

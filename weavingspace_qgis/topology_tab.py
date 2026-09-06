@@ -219,6 +219,18 @@ _COUNT_STEP = 2
 # unaffected, since this is asked only of a drag.
 _AMPLITUDE_DEADBAND_PX = 6.0
 
+# THE LIBRARY'S `h` IS PEAK TO PEAK. `zigzag_between_points` scales its
+# sine by `h * r / 2`, so the wave crests half of `h` times the edge's
+# length out from the edge on either side -- and the handle, the
+# ghost and the drag's inverse all stood at the whole of `h` until
+# 2026-09-06, showing a wave 2.1 times deeper than the one the map got
+# (found by the specification hunt of round eight; driven and measured
+# on the default design: handle at 0.400 of the edge, crest at 0.190).
+# One constant, four readers, so the picture and the map cannot come
+# apart again by one site forgetting. The default smoothness samples
+# the sine short of its peak by about 5%, which is left to the map.
+_CREST_OF_H = 0.5
+
 
 def _even_count(value) -> int:
   """The even count nearest a number, inside the count's range.
@@ -911,7 +923,7 @@ class TopologyView(QWidget):
       return None
     start, finish, reach = edge
     count = max(1, int(round(count)))
-    rise = float(height) * reach
+    rise = float(height) * reach * _CREST_OF_H
     if rise < 0.5:
       return None               # nothing a person could see
     along = ((finish.x() - start.x()) / reach,
@@ -1535,7 +1547,7 @@ class TopologyView(QWidget):
         room = reach - _CLEAR_OF_VERTEX
         along = (reach / 2.0 if room <= _CLEAR_OF_VERTEX
                  else min(max(along, _CLEAR_OF_VERTEX), room))
-        out = float(self._zigzag_readout[1]) * reach
+        out = float(self._zigzag_readout[1]) * reach * _CREST_OF_H
         base_x = start.x() + (run / reach) * along
         base_y = start.y() + (rise / reach) * along
         placed.append((key,
@@ -2897,7 +2909,11 @@ class TopologyPanel(QWidget):
       # is what makes crossing the edge fold rather than go negative,
       # since the box holds no negative amplitude.
       was_h = float(current.get("h", 0.0)) if current else 0.0
-      changes = {"h": abs(-was_h * length + across) / length}
+      # AND THE HANDLE SITS AT HALF OF `h`, since the library's `h`
+      # is peak to peak (`_CREST_OF_H`), so the position is read in
+      # crest units and handed back in the box's.
+      changes = {"h": abs(-was_h * length * _CREST_OF_H + across)
+                      / (length * _CREST_OF_H)}
       # THE DEADBAND IS NOT OPTIONAL. `scale_edge` was measured on
       # 2026-08-30 committing a scale of 1.003 from a drag meant as a
       # click, because a gesture mostly ACROSS an edge still resolves
@@ -3208,7 +3224,9 @@ class TopologyPanel(QWidget):
     reach = self.view.chosen_edge_length_on_screen()
     if not reach:
       return 0.01
-    return _AMPLITUDE_DEADBAND_PX / reach
+    # In the box's units: the seat is `h * reach * _CREST_OF_H` px out,
+    # so half a seat of pixels is that many over the crest scale.
+    return _AMPLITUDE_DEADBAND_PX / (reach * _CREST_OF_H)
 
   def _keep_the_count_even(self, box):
     """Settle a typed zigzag count to the nearest even one.

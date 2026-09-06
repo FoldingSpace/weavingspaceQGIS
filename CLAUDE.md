@@ -1783,7 +1783,9 @@ Confirmed with the user via an explicit design review:
   and 4, one glyph; the offset was a static 60px while the comment
   claimed it was the amplitude. Full account C-311.) (1) THE DISTANCE
   FROM THE EDGE IS THE AMPLITUDE, so the zero sits on the edge and
-  `_handle_at` is nearest-wins. (2) ALONG-EDGE TRAVEL SETS THE COUNT,
+  `_handle_at` is nearest-wins -- HALF of the library's `h`, which is
+  peak to peak, since a handle at the whole of it showed a wave 2.1
+  times the one the map got (C-320). (2) ALONG-EDGE TRAVEL SETS THE COUNT,
   past a deadband of a tenth of the edge sized from the glyph, and
   the count SNAPS because the stops are the counts. (3) THE HANDLE
   SITS ON THE WAVEFORM'S FIRST PEAK, `length / (2n)` along, so the

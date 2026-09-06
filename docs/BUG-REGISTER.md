@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-530 defect(s) with a regression test.
+531 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -320,6 +320,8 @@ there is no separate list to remember.
   guarded by `test_the_split_tells_the_kinds_of_absence_apart`
 - **a false claim about the vendored library version passed the published-content audit in README.md, because the check required the word "upstream" immediately before the version and the README words it otherwise.**  
   guarded by `test_the_vendored_version_is_checked_where_a_user_reads_it`
+- **the zigzag handle and its ghost stood at h of the edge's length while the library crests at h/2, so a person set a wave by eye and every tile on the map and in the file carried one 2.1 times shallower than the one they were shown.**  
+  guarded by `test_the_zigzag_ghost_crests_where_the_library_does`
 - **ticking Experimental features opened the Topology tab without building anything, so it showed an empty class chooser beside an enabled Apply button -- and after a design change made with the box off it drew the PREVIOUS design's classes.**  
   guarded by `test_ticking_the_experimental_box_fills_the_topology_tab`
 - **2026-08-19. Measured through the dialog at five classes over 0-12: one element drew 0-1-2-3-4-12 and the other 0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between the ends.**  
@@ -1115,7 +1117,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 137
+- a bug hunt pointed in a named direction: 138
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

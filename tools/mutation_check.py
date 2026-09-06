@@ -10871,6 +10871,19 @@ MUTATIONS = [
            "only case it is for. The failure is silent: the map stays "
            "correct and the second and a third of work the cache was "
            "built to save goes on being spent"),
+  dict(name="the-zigzag-ghost-crests-where-the-library-does",
+       file=TOPOLOGY_TAB,
+       # AIMED AT THE SCALE between the picture and the map: the
+       # library's h is peak to peak, so a ghost at the whole of h
+       # promises twice the wave every tile receives.
+       old="""    rise = float(height) * reach * _CREST_OF_H""",
+       new="""    rise = float(height) * reach  # mutation: the whole of h""",
+       test="test_the_zigzag_ghost_crests_where_the_library_does",
+       why="a person setting a zigzag by eye on the tab and every tile "
+           "on the map carrying a wave 2.1 times shallower than the one "
+           "they were shown, the handle and the ghost agreeing with each "
+           "other and neither with the library (round eight, spec6, "
+           "2026-09-06)"),
   dict(name="the-zigzag-ghost-crests-where-its-handle-sits",
        file=TOPOLOGY_TAB,
        # AIMED AT THE AGREEMENT between the two pictures. A ghost that
@@ -11056,8 +11069,9 @@ MUTATIONS = [
            "symmetry at 2900, and every edit on the dual was aimed with "
            "labels a spacing change renamed. The tab audit, 2026-09-05"),
   dict(name="the-zigzag-amplitude-is-a-position", file=TOPOLOGY_TAB,
-       old="""      changes = {"h": abs(-was_h * length + across) / length}""",
-       new="""      changes = {"h": abs(across) / length}  # mutation: the travel, not the position""",
+       old="""      changes = {"h": abs(-was_h * length * _CREST_OF_H + across)
+                      / (length * _CREST_OF_H)}""",
+       new="""      changes = {"h": abs(across) / (length * _CREST_OF_H)}  # mutation: the travel, not the position""",
        test="test_a_drag_along_an_edge_sets_the_zigzag_count",
        why="a zigzag flattened by the gesture that steps its count: with "
            "the amplitude read as the drag's travel, a handle at h=0.3 "
@@ -11080,7 +11094,9 @@ MUTATIONS = [
        old="""    reach = self.view.chosen_edge_length_on_screen()
     if not reach:
       return 0.01
-    return _AMPLITUDE_DEADBAND_PX / reach""",
+    # In the box's units: the seat is `h * reach * _CREST_OF_H` px out,
+    # so half a seat of pixels is that many over the crest scale.
+    return _AMPLITUDE_DEADBAND_PX / (reach * _CREST_OF_H)""",
        new="""    return 0.01  # mutation: the box's floor, whatever the edge's length""",
        test="test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click",
        why="the panel handing `_drag_moved` the box's floor instead of half "

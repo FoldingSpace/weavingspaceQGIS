@@ -57167,7 +57167,8 @@ def test_the_zigzag_ghost_passes_through_its_handle():
   view = topology_tab.TopologyView()
 
   # An edge lying along x, 100px on screen, so the arithmetic is
-  # legible: at n=2 the first peak is at 25 along and h*100 out.
+  # legible: at n=2 the first peak is at 25 along and h*100/2 out,
+  # since the library's h is peak to peak (2026-09-06).
   start, finish = QPointF(0.0, 0.0), QPointF(100.0, 0.0)
   view._chosen_edge_on_screen = lambda: (start, finish, 100.0)
   view._zigzag_readout = (2.0, 0.25, True)
@@ -57187,7 +57188,7 @@ def test_the_zigzag_ghost_passes_through_its_handle():
     assert apart < 0.6, (
       f"the ghost's first peak sits {apart:.2f}px from the handle, so "
       f"one fact -- where the wave crests -- is drawn in two places")
-  assert abs(peak.x() - 25.0) < 0.6 and abs(peak.y() - 25.0) < 0.6, (
+  assert abs(peak.x() - 25.0) < 0.6 and abs(peak.y() - 12.5) < 0.6, (
     f"at n=2 and h=0.25 on a 100px edge the first peak belongs at "
     f"(25, 25), being length/(2n) along and h*length out; it is at "
     f"({peak.x():.1f}, {peak.y():.1f})")
@@ -57212,6 +57213,49 @@ def test_the_zigzag_ghost_passes_through_its_handle():
   assert len(counts) > 1, (
     f"the cues all draw the same wavelength, so two of them say "
     f"nothing about which way is tighter: {counts}")
+
+
+def test_the_zigzag_ghost_crests_where_the_library_does():
+  """The ghost's first peak is where the library's zigzag actually crests.
+
+  The handle and the ghost are built to agree with each other, and the
+  test above holds them to that; nothing held either to the WAVE THE
+  MAP GETS. The library's `h` is peak to peak -- `zigzag_between_points`
+  scales its sine by `h * r / 2` -- so the crest sits half of `h` times
+  the edge's length out, and a picture drawn at the whole of `h` shows
+  a wave twice as deep as the one every tile receives. A differential:
+  the library is called on the same edge with the same numbers and its
+  own crest is the oracle, so the plugin has no say in the answer.
+
+  Regression: the zigzag handle and its ghost stood at h of the edge's length while the library crests at h/2, so a person set a wave by eye and every tile on the map and in the file carried one 2.1 times shallower than the one they were shown. [hunt]
+  """
+  from qgis.PyQt.QtCore import QPointF
+  from shapely import geometry as geom
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.vendor.weavingspace.topology import Topology
+
+  view = topology_tab.TopologyView()
+  start, finish = QPointF(0.0, 0.0), QPointF(100.0, 0.0)
+  view._chosen_edge_on_screen = lambda: (start, finish, 100.0)
+  n, h = 2, 0.25
+  view._zigzag_readout = (float(n), h, True)
+  points = view._draw_the_zigzag_it_would_make(None)
+  assert points and len(points) > 2, f"the ghost drew nothing: {points}"
+  ghost_crest = max(abs(p.y()) for p in points)
+
+  # THE ORACLE: the library's own line between the same two points,
+  # unsmoothed so its samples include the sine's true peak. The method
+  # reads nothing from its instance, so it is called unbound.
+  line = Topology.zigzag_between_points(
+    None, geom.Point(0.0, 0.0), geom.Point(100.0, 0.0), n, h, 0)
+  library_crest = max(abs(y) for _x, y in line.coords)
+  assert library_crest > 1.0, \
+    f"PREMISE: the library drew no wave to compare with: {library_crest}"
+  assert abs(ghost_crest - library_crest) < 0.6, (
+    f"the ghost crests {ghost_crest:.2f}px out on a 100px edge at h={h} "
+    f"where the library's own zigzag crests {library_crest:.2f}px out, "
+    f"so the picture promises a wave {ghost_crest / library_crest:.2f} "
+    f"times the one the map gets")
 
 
 def test_an_element_keeps_only_its_own_data_column():
@@ -57538,8 +57582,10 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
     f"{kept.get('h')}: the amplitude is being read as the drag's travel "
     f"rather than as where the handle now sits, so stepping the count "
     f"flattens the zigzag")
-  # And a step across in either direction moves it by that step from
-  # where it was -- one way out to 0.35, the other way in to 0.15.
+  # And a step across in either direction moves it by TWICE that step
+  # from where it was -- one way out to 0.45, the other way in to
+  # 0.05 -- since a tenth of the edge across is a tenth of the CREST,
+  # and the library's h is peak to peak (2026-09-06).
   # Which way is which is the VIEW's business (its normal is taken in
   # screen space, where y points down), so this asks for the pair
   # rather than pinning a sign the pure function cannot know; the
@@ -57549,10 +57595,10 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   other = panel._drag_argument(None, "zigzag_edge", frame,
                                0.0, -0.10, span, current=at_two)
   assert sorted((round(one.get("h", -1.0), 6),
-                 round(other.get("h", -1.0), 6))) == [0.15, 0.35], (
+                 round(other.get("h", -1.0), 6))) == [0.05, 0.45], (
     f"a step of a tenth across the edge in each direction gave "
     f"amplitudes {one.get('h')} and {other.get('h')} from 0.25, where a "
-    f"position would give 0.15 and 0.35")
+    f"position in crest units would give 0.05 and 0.45")
 
   # A COUNT-ONLY DRAG IS STILL A DRAG. Before the count was draggable,
   # `_drag_moved` asked about the amplitude alone, so a gesture that
@@ -57716,9 +57762,13 @@ def test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click():
       f"a drag of {out:.0f}px out from the edge recorded nothing: "
       f"{panel._edits}")
     recorded = float(panel._edits[-1]["args"].get("h", 0.0))
-    assert abs(recorded - (sat + out / reach)) < 0.02, (
+    dropped_at = sat + out / (reach * topology_tab._CREST_OF_H)
+    # WITHIN THREE PIXELS OF POINTER ROUNDING, in the box's units: the
+    # press and the release are integer QPoints, and the crest scale
+    # doubles what a pixel is worth in h.
+    assert abs(recorded - dropped_at) < 3.0 / (reach * topology_tab._CREST_OF_H), (
       f"the recorded amplitude {recorded:.3f} is not where the handle "
-      f"was dropped, {sat + out / reach:.3f} of the edge")
+      f"was dropped, {dropped_at:.3f} of the edge in the box's units")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -58026,12 +58076,13 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
     # THE POSITION IS THE ARITHMETIC, not merely "somewhere sensible".
     set_box("n", 2.0)
     set_box("h", 0.25)
-    along, out = reach / 4.0, 0.25 * reach
+    along = reach / 4.0
+    out = 0.25 * reach * topology_tab._CREST_OF_H   # h is peak to peak
     wanted = (along ** 2 + out ** 2) ** 0.5
     assert abs(away_from_start(seat()) - wanted) < 1.5, (
       f"the handle is not on the first peak: it sits "
       f"{away_from_start(seat()):.1f}px from the edge's start where "
-      f"length/(2n)={along:.1f} along and h*length={out:.1f} out puts "
+      f"length/(2n)={along:.1f} along and h*length/2={out:.1f} out puts "
       f"it at {wanted:.1f}px")
 
     # AND IT MOVES WITH EACH NUMBER SEPARATELY, which is what makes it
@@ -90076,6 +90127,8 @@ def main():
         test_the_tiling_key_ignores_variables_and_nothing_else)
   check("the zigzag ghost passes through its handle",
         test_the_zigzag_ghost_passes_through_its_handle)
+  check("the zigzag ghost crests where the library does",
+        test_the_zigzag_ghost_crests_where_the_library_does)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

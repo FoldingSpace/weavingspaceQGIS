@@ -580,6 +580,26 @@ question from the dual's: insets are already built before, and a
 weave's strand width is baked into strand construction, which is the
 R-40 boundary.
 
+## The crest is half of h, and the picture said otherwise until round eight
+
+The library's `zigzag_between_points` scales its sine by `h * r / 2`:
+`h` is the wave's peak-to-peak width as a fraction of the edge, so the
+crest sits `h / 2` of the edge's length out on either side. Rulings 1,
+3 and 5 put the handle on the first peak and ghosted the wave through
+it, and both were drawn at the WHOLE of `h` -- agreeing with each
+other, held to that by a test, and agreeing with nothing the map
+received. Measured 2026-09-06 by driving the tab through its boxes
+and Apply and then reading the edited unit's own polygon: on the
+default design at h=0.4 the handle sat 0.400 of the edge out and the
+unit's crest was 0.190 of it. `_CREST_OF_H` in topology_tab.py is the
+one scale now, read by the handle, the ghost, the drag's inverse and
+the amplitude deadband, and a differential test takes the library's
+own crest as the oracle. The default smoothness (3) samples the sine
+about 5% short of its peak; the picture draws the true peak and that
+difference is left to the map. Found by round eight's specification
+hunt, which asked whether a settled rule was true of the dependency
+it cites rather than whether code obeyed the rule (C-320).
+
 ## The general audit of 2026-09-05, and what it found
 
 The maintainer asked, after field report 5, that the tab be audited

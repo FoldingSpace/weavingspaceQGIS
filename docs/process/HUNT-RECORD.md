@@ -1949,7 +1949,12 @@ until sixteen bugs are repaired and guarded. Launched at about 08:10
 on 2026-09-06, every worktree at c6431ed, once rc16 was published and
 the candidate's suite was off the machine, since a hunt beside a
 measurement spoils the measurement, while CI runs remotely. Yields
-are blank until each claim is judged by a route its hunt did not use.
+are blank until each claim is judged by a route its hunt did not use;
+the ledger is `defects-2026-09-06.md`.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the specification itself (5th) | 1 | a ruling that quotes a dependency's parameter is a ten-line probe against that dependency, and two stores built to agree with each other BY TEST are checked against the store that draws the map -- the handle and the ghost agreed at twice the library's crest (row 1) |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:
