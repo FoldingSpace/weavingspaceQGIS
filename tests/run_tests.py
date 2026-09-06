@@ -12331,6 +12331,148 @@ def test_the_library_still_truncates_and_drifts_the_dual():
     "Do NOT relax this assertion to make the suite green.")
 
 
+def _choose_the_group_named(dlg, name):
+  """Select a group in the chooser by its layer-tree name, as a person does.
+
+  Args:
+    dlg: the dialog.
+    name: the group's name in the layers panel.
+
+  Returns:
+    None. Raises where no entry names that group, since a test that
+    silently stays on the previous group measures the wrong map.
+  """
+  for index in range(dlg.group_combo.count()):
+    handle = dlg.group_combo.itemData(index)
+    group = dlg._group_for_handle(handle) if handle is not None else None
+    if group is not None and group.name() == name:
+      dlg.group_combo.setCurrentIndex(index)
+      dlg.group_combo.activated.emit(index)
+      return
+  raise AssertionError(f"PREMISE: the chooser offers no group named {name!r}")
+
+
+def test_the_dual_button_lands_the_dual_in_its_own_group():
+  """"Generate the dual and tile it" makes a new group named for its
+  source, leaves the source's map alone, and the two restore from
+  their records with the label saying which is which.
+
+  The five rulings of 2026-09-05 on field report 5, driven as a
+  person drives them. A map is drawn; the button is pressed through
+  its own signal; and then the source group and the dual group are
+  each chosen in the chooser, because a group that cannot be come
+  back to is a snapshot rather than a map.
+
+  Regression: "Map the dual instead" tiled the dual OVER the source's own group, with holes, and left the Topology tab blank. Field report 5, 2026-09-05. [user]
+  """
+  from qgis.core import QgsProject
+  from weavingspace_qgis import topology_edits
+
+  dlg, layer, tid = _categorical_dialog()
+  dlg.spacing_spin.setValue(600.0)
+  _generate_and_wait(dlg)
+  source = dlg._group_name
+  source_ids = dict(dlg._element_layer_ids)
+  assert source and source_ids, "PREMISE: the source map did not land"
+  dlg.opt_experimental.setChecked(True)
+  _wait_for_the_topology(dlg)
+  panel = dlg.topology_panel
+  assert panel.dual_button.isEnabled(), \
+    f"PREMISE: the button is not offered: {panel.dual_button.toolTip()!r}"
+  expected = len(topology_edits.dual_on_offer(panel._topology)[0].tiles)
+
+  panel.dual_button.click()            # its own signal, as a person uses it
+  _settle(dlg, seconds=60)
+  assert dlg._task is None, "the dual's run never landed"
+  root = QgsProject.instance().layerTreeRoot()
+  dual_name = f"{source} — dual"
+  assert root.findGroup(dual_name) is not None, (
+    f"no group named {dual_name!r}; the groups are "
+    f"{[g.name() for g in root.findGroups()]}")
+  assert dlg._group_name == dual_name, \
+    f"the dialog landed on {dlg._group_name!r}, not the dual's group"
+  assert dlg._mapping_the_dual(), "the dual store was not set by the button"
+  assert panel.dual_label.text(), "the label does not say the map is a dual's"
+  assert len(dlg._element_layer_ids) == expected, (
+    f"the dual group has {len(dlg._element_layer_ids)} element layers "
+    f"where the dual has {expected} tiles")
+  for lid in source_ids.values():
+    assert QgsProject.instance().mapLayer(lid) is not None, \
+      "a source layer was removed by the dual's landing"
+  assert all(QgsProject.instance().mapLayer(lid) is not None
+             for lid in dlg._element_layer_ids.values()), \
+    "a dual layer is missing from the project"
+  assert not set(source_ids.values()) & set(dlg._element_layer_ids.values()), \
+    "the dual group re-used a source layer"
+
+  # BACK TO THE SOURCE, and back to the dual: each restores from its
+  # own record, and the label follows the STORE, which a restore writes
+  # with signals blocked (found by the first probe of the button: the
+  # label went on saying 'dual' over the source's own map).
+  _choose_the_group_named(dlg, source)
+  _settle(dlg, seconds=60)
+  assert not dlg._mapping_the_dual(), \
+    "choosing the source group did not clear the dual store"
+  assert not panel.dual_label.text(), \
+    f"the label still says {panel.dual_label.text()!r} over the source's map"
+  assert dlg.table.rowCount() == len(source_ids), \
+    "the source's own element count did not come back"
+  _choose_the_group_named(dlg, dual_name)
+  _settle(dlg, seconds=60)
+  assert dlg._mapping_the_dual(), \
+    "choosing the dual's group did not restore the dual store"
+  assert panel.dual_label.text(), "the label is blank over the dual's map"
+  assert dlg.table.rowCount() == expected, \
+    "the dual's own element count did not come back"
+
+
+def test_the_dual_button_refuses_where_there_is_no_dual():
+  """The button is offered only where a dual can be tiled, and says why not.
+
+  Three refusals in `dual_on_offer`, each a different fact: no
+  topology at all (staged with a tile inset, which opens gaps); a dual
+  the library cannot lay out; and a dual that would leave holes, which
+  is ruling 2 of 2026-09-05 -- a map with holes never ships -- staged
+  by handing the check a dual with a tile taken away, since every
+  design the completion has been measured on is now complete.
+
+  Regression: "Map the dual" drew the default design's dual with holes over 23% of the map. Field report 5, 2026-09-05. [user]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  # 1. no topology: the button is disabled and its tooltip says why
+  dlg, layer, tid = _categorical_dialog()
+  dlg.opt_experimental.setChecked(True)
+  dlg.mod_t_inset.setValue(2.0)
+  _wait_for_the_topology(dlg)
+  panel = dlg.topology_panel
+  assert panel._topology is None, \
+    "PREMISE: the inset design still carries a topology"
+  assert not panel.dual_button.isEnabled(), \
+    "the button is offered on a design with no topology"
+  assert "no topology" in panel.dual_button.toolTip(), \
+    f"the disabled button does not say why: {panel.dual_button.toolTip()!r}"
+  dual, why = topology_edits.dual_on_offer(None)
+  assert dual is None and "no topology" in why
+
+  # 2. a dual with a tile missing is refused for the holes it would leave
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                           spacing=500, crs=3857)
+  topology, _why = topology_edits.build(unit)
+  assert topology is not None, "PREMISE: the default design has no topology"
+  whole, why = topology_edits.dual_on_offer(topology)
+  assert whole is not None, f"PREMISE: the complete dual is not offered: {why}"
+  short = topology_edits._shallow_copy_with_tiles(
+    whole, whole.tiles.iloc[:-1].copy())
+  assert short is not None, "PREMISE: the short dual could not be assembled"
+  assert topology_edits.covers_its_cell(short) is False, \
+    "PREMISE: a dual with a tile missing still covers its cell"
+  offered, why = topology_edits.dual_on_offer(topology, promoted=short)
+  assert offered is None, "a dual with a tile missing was offered"
+  assert "holes" in why, \
+    f"the refusal does not say the map would have holes: {why!r}"
+
+
 def test_the_zigzag_needs_no_scipy():
   """`zigzag_between_points` draws its curve with numpy alone.
 
@@ -88154,6 +88296,10 @@ def main():
         test_a_promoted_dual_covers_its_cell_and_the_library_builds_it)
   check("the library still truncates and drifts the dual",
         test_the_library_still_truncates_and_drifts_the_dual)
+  check("the dual button lands the dual in its own group",
+        test_the_dual_button_lands_the_dual_in_its_own_group)
+  check("the dual button refuses where there is no dual",
+        test_the_dual_button_refuses_where_there_is_no_dual)
   check("no artefact is named without its version",
         test_no_artefact_is_named_without_its_version)
   check("the element count is one control in two widgets",

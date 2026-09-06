@@ -126,10 +126,12 @@ changelog=0.24.4 Saving a map is now something you do rather than
     beside the class list. Where a design's symmetry holds a class in
     place, the push that could not move it is greyed with the reason,
     rather than offering a control that does nothing.
-    The dual: the tab draws the dual of a design, and Map the dual
-    instead tiles your map with it. Where a design has no dual to
-    build — an inset opens gaps, and a design with gaps has none —
-    you are told, and the map is tiled with the design itself.
+    The dual: the tab draws the dual of a design, and Generate the
+    dual and tile it makes a map of it in a layer group of its own,
+    named for the group it came from, with the design's own map left
+    as it was. Where a design has no dual to tile — an inset opens
+    gaps, and a design with gaps has none — the button says why and
+    stays off.
     Design names: the Archimedean and Laves families now read with
     their common names as well as their formal ones — laves 3.3.4.3.4
     (cairo), archimedean 4.8.8 (truncated square) — so a design you

@@ -3475,6 +3475,11 @@ class WeavingSpaceDialog(QDialog):
     from .topology_tab import TopologyPanel
     self.topology_panel = TopologyPanel()
     self.topology_panel.edits_changed.connect(self._on_topology_edited)
+    self.topology_panel.dual_requested.connect(self._generate_the_dual)
+    # WHICH GROUP THE DUAL WAS ASKED FOR FROM, a LABEL for naming the
+    # new group and never an identity; set by the button, read once by
+    # `_a_name_for_a_new_group`, and cleared there.
+    self._dual_source_group_name = None
     # THE DUAL SWITCH IS A DESIGN CONTROL that happens to live on the
     # Topology tab, so the dialog names it: `WORKING_STATE_DESIGN`
     # reads its widgets off `self`, and every other design term is
@@ -19351,6 +19356,14 @@ class WeavingSpaceDialog(QDialog):
       self._spacing_is_mine = True
     finally:
       blocked(False)
+    # THE DUAL LABEL FOLLOWS THE STORE, and the store was just written
+    # with its signal blocked, so the label is told here: found by the
+    # first probe of the button (2026-09-05), which chose the source
+    # group back and read "Tiled with the dual of this design." over a
+    # map of pentagons for as long as the rebuild took.
+    panel = getattr(self, "topology_panel", None)
+    if panel is not None and hasattr(panel, "_say_whether_the_dual_is_mapped"):
+      panel._say_whether_the_dual_is_mapped(self._mapping_the_dual())
 
     # THE TOPOLOGY EDITS COME BACK BEFORE THE REBUILD, because
     # `_rebuild_unit` is what asks for them: it restores this design's
@@ -22934,6 +22947,16 @@ class WeavingSpaceDialog(QDialog):
       tiled = combo.currentLayer() if combo is not None else None
     dataset = (tiled.name() or "").strip() if tiled is not None else ""
     base = f"{GROUP_BASE_NAME} — {dataset}" if dataset else GROUP_BASE_NAME
+    # A DUAL'S GROUP IS NAMED FOR THE GROUP IT CAME FROM (maintainer's
+    # ruling 1 of 2026-09-05): `<group> — dual`, with the plugin's own
+    # separator, so the pair sort together and the panel says what the
+    # chooser already knows. The source's name is a label taken at the
+    # press; where there was none -- a dual asked for before anything
+    # was generated -- the dataset's own base name takes the suffix.
+    if self._mapping_the_dual():
+      source = getattr(self, "_dual_source_group_name", None)
+      self._dual_source_group_name = None
+      base = f"{source} — dual" if source else f"{base} — dual"
     name = base
     i = 1
     while root.findGroup(name) is not None:
@@ -24370,6 +24393,46 @@ class WeavingSpaceDialog(QDialog):
              self.mod_glyph.isChecked(),
              self.mod_skew_x.value(), self.mod_skew_y.value(),
              self.mod_t_inset.value(), self.mod_p_inset.value()))
+
+  def _generate_the_dual(self) -> None:
+    """Tile the map with this design's dual, in a new group of its own.
+
+    Returns:
+      None. Refuses in words where a run is in flight or the tab has
+      no dual to offer; otherwise sets the dual store, arms a new
+      group through the same door the chooser's "Create new" uses,
+      and presses Generate.
+
+    THE FIVE RULINGS OF 2026-09-05 (CLAUDE.md, "THE DUAL"), in one
+    method. It is a BUTTON rather than a box because a box made the
+    tab ask for a topology OF the dual and die, and because tiling the
+    dual over the source's own group is a wrong map by a new door. The
+    NEW GROUP comes from `_new_group_chosen`, which is the one door to
+    a second map since 2026-08-30, so every guard on that door holds
+    here too. The store is the same `opt_map_dual` the record already
+    carries, so the group made here restores through its record with
+    the label showing and Generate re-tiling the dual (ruling 4); its
+    elements are assigned fresh by the ordinary landing (ruling 5).
+    """
+    from . import topology_edits
+    if self._task is not None:
+      self._report_quietly(
+        "A map is still being drawn, so the dual will have to wait: "
+        "press again once it has landed.")
+      return
+    panel = getattr(self, "topology_panel", None)
+    dual, why = topology_edits.dual_on_offer(
+      getattr(panel, "_topology", None))
+    if dual is None:
+      self._report_quietly(why)
+      return
+    combo = getattr(self, "group_combo", None)
+    handle = combo.currentData() if combo is not None else None
+    group = self._group_for_handle(handle) if handle is not None else None
+    self._dual_source_group_name = group.name() if group is not None else None
+    self._new_group_chosen = True
+    self.opt_map_dual.setChecked(True)
+    self._generate()
 
   def _mapping_the_dual(self) -> bool:
     """Whether the map is being tiled with the design's DUAL.

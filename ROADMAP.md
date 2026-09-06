@@ -433,19 +433,26 @@ the drag-and-landing fixes, so none of these is a stale build.
 **rc16 WAITS FOR THESE**, on the maintainer's decision (ruling 3 of
 the dual). Cheapest and most durable first.
 
-- **THE DUAL BUTTON.** "Map the dual instead" leaves; "Generate the
-  dual and tile it" lands the dual in a NEW group named `<group> —
-  dual`, whose record is the source design plus the existing
-  `map_dual` term shown as a label; its elements are assigned fresh;
-  it refuses in words a design with no topology or a dual short of
-  full cover; it is one-shot and does not follow its source. Records
-  already saying `map_dual` restore through the same term.
-- **THE DUAL IS COMPLETED HERE AND OFFERED UPSTREAM**: one tile per
-  source vertex, from an interior member of each base set, with the
-  promotion mended so the default design's dual builds a Topology
-  (control: the catalogue's own `archimedean 3.3.4.3.4` builds). A
-  differential FIRST -- cover equal to the unit's, one tile per vertex
-  -- and a note in docs/process against the library's own TODO.
+- **THE DUAL BUTTON IS BUILT** (2026-09-05, later the same day).
+  "Generate the dual and tile it" on the Topology tab lands the dual
+  in a NEW group named `<group> — dual` through the chooser's own
+  "Create new" door; the store stays the record's `map_dual` term, a
+  box that is kept but never shown because thirteen readers speak its
+  language, with a label beside the button that follows the store;
+  elements are assigned fresh by the ordinary landing; the button is
+  disabled with its reason where there is no topology, no dual the
+  library can lay out, or a dual short of full cover. Driven on the
+  synthetic fixture: six dual layers beside the source's four, the
+  source untouched, and both groups restoring from their records with
+  the label right. Two registered tests, three entries proved
+  `caught`. 34 sentences now sit in the text-review queue.
+- **THE DUAL IS COMPLETED HERE AND OFFERED UPSTREAM -- DONE** (same
+  day): `complete_dual` builds one tile per source vertex with every
+  copy's centre taken as its base tile's centre translated; coverage
+  1.000000 on eight designs and the library builds a Topology of each,
+  the default design's included. The differential and a two-arm
+  canary are registered; the note is
+  `docs/process/upstream-note-the-dual-is-truncated-and-drifts.md`.
 - **THE TWO TAB DEFECTS ARE FIXED AND GUARDED** (2026-09-05, later the
   same day): `_why_not` measures whether the tiles cover their cell
   before it blames a gap, and a landing's `report([])` no longer erases

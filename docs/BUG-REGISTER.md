@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-524 defect(s) with a regression test.
+526 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1075,6 +1075,10 @@ there is no separate list to remember.
   guarded by `test_several_classes_can_be_moved_together`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
+- **"Map the dual instead" tiled the dual OVER the source's own group, with holes, and left the Topology tab blank. Field report 5, 2026-09-05.**  
+  guarded by `test_the_dual_button_lands_the_dual_in_its_own_group`
+- **"Map the dual" drew the default design's dual with holes over 23% of the map. Field report 5, 2026-09-05.**  
+  guarded by `test_the_dual_button_refuses_where_there_is_no_dual`
 - **the dual could be drawn over a design and not tiled with, though it is a periodic tiling on the same lattice.**  
   guarded by `test_the_dual_can_be_the_design_the_map_is_tiled_with`
 - **the guard sampled a fixed 12 mutants whatever the diff; over a 1,700-line round that certified nearly nothing while reading as a passed gate.**  
@@ -1105,7 +1109,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 46
+- reported by a user: 48
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10

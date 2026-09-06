@@ -1431,6 +1431,36 @@ def _consistent_centre(topology, tile):
   return geom.Point(base.centre.x + dx, base.centre.y + dy)
 
 
+def dual_on_offer(topology, promoted=None):
+  """The dual a design can be tiled with, or the reason there is none.
+
+  Args:
+    topology: a built Topology, or None where the tab holds none.
+    promoted: the dual already promoted to a Tileable, for a caller
+      that holds one; None to promote it here. A seam for the guard
+      that stages a dual short of its cell, which no catalogue design
+      produces any more.
+
+  Returns:
+    (dual, "") where the dual promotes to a Tileable that lays out and
+    covers its cell, else (None, sentence) with the sentence for the
+    person. Three refusals, each a different fact: no topology at all;
+    a dual the library cannot lay out; a dual that would leave holes.
+    The last is ruling 2 of 2026-09-05 -- a map with holes never ships
+    -- and is what the completed dual's coverage check guards.
+  """
+  if topology is None:
+    return None, ("This design has no topology, so it has no dual to "
+                  "tile with.")
+  dual = promoted if promoted is not None else dual_as_tileable(topology)
+  if dual is None:
+    return None, "This design's dual cannot be laid out as a tiling."
+  if covers_its_cell(dual) is not True:
+    return None, ("This design's dual would leave holes in the map, so "
+                  "it is not offered.")
+  return dual, ""
+
+
 def dual_as_tileable(topology):
   """Turn a design's dual into a Tileable that can be mapped.
 

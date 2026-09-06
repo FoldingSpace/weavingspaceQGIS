@@ -10977,6 +10977,34 @@ MUTATIONS = [
            "two copies of one tile, so adjacent dual tiles disagree about "
            "their shared edge and the library's corner matching, at 1e-6, "
            "refuses the result. The default design, 2026-09-05"),
+  dict(name="the-dual-button-asks-for-a-group-of-its-own", file=DIALOG,
+       old="""    self._new_group_chosen = True
+    self.opt_map_dual.setChecked(True)
+    self._generate()""",
+       new="""    self.opt_map_dual.setChecked(True)  # mutation: land in the group on screen
+    self._generate()""",
+       test="test_the_dual_button_lands_the_dual_in_its_own_group",
+       why="the dual tiled OVER the source's own group, replacing the "
+           "map somebody had just made -- the dataset-switch harm of "
+           "2026-08-21 through a new door. Ruling 1 of 2026-09-05"),
+  dict(name="the-dual-group-is-named-for-its-source", file=DIALOG,
+       old="""      base = f"{source} — dual" if source else f"{base} — dual\"""",
+       new="""      pass  # mutation: a dual's group is named like any other""",
+       test="test_the_dual_button_lands_the_dual_in_its_own_group",
+       why="a second 'WeavingSpace tiles — region 2' beside the first, "
+           "with nothing in the panel saying which map is the dual of "
+           "which. The maintainer's own naming, `<group> — dual`"),
+  dict(name="the-dual-is-offered-only-where-it-covers",
+       file=TOPOLOGY_EDITS,
+       old="""  if covers_its_cell(dual) is not True:
+    return None, ("This design's dual would leave holes in the map, so "
+                  "it is not offered.")""",
+       new="""  pass  # mutation: a dual short of its cell is offered""",
+       test="test_the_dual_button_refuses_where_there_is_no_dual",
+       why="a map with holes shipping behind the button: the completed "
+           "dual covers its cell on every design measured, and this is "
+           "what keeps that true for the next design nobody measured. "
+           "Ruling 2 of 2026-09-05"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

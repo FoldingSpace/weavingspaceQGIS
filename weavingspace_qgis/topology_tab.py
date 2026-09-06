@@ -1738,6 +1738,11 @@ class TopologyPanel(QWidget):
   """
 
   edits_changed = pyqtSignal()
+  # THE BUTTON ASKS THE DIALOG TO GENERATE THE DUAL (ruling 1 of
+  # 2026-09-05): the panel knows whether a dual is on offer, and the
+  # dialog is what can land a map in a group. One signal, like the
+  # edits, so the panel never reaches into the dialog.
+  dual_requested = pyqtSignal()
 
   def __init__(self, parent=None):
     """Build the tab's widgets.
@@ -1886,11 +1891,31 @@ class TopologyPanel(QWidget):
     # seconds depending on the design, and that is why it is a tick
     # rather than something the plugin does on its own: the tick is
     # the asking, exactly as it is for the experimental tabs.
+    # IT IS A BUTTON AND A LABEL NOW, NOT A BOX (maintainer's ruling 1
+    # of 2026-09-05, on field report 5). "Generate the dual and tile
+    # it" lands the dual in a group of its own, named for the group it
+    # came from, and the label below says when the group on screen is
+    # one of those. The box is KEPT BUT NEVER SHOWN: it is the one
+    # store of "is the map tiled with the dual", and thirteen readers
+    # -- the geometry signature, the stamp, the shelf key, the working
+    # state's design row -- speak that widget's language. A plain
+    # attribute would mean a new record kind for one flag; a box
+    # nobody can click is a bool with the plumbing already attached.
+    # Nothing here is the two-controls-one-fact fault of C-43: there
+    # is one store, one button that sets it, and a record that
+    # restores it.
     self.map_dual = QCheckBox("Map the dual instead")
-    self.map_dual.setToolTip(
-      "Tile the map with the dual of this design. Slower: the dual "
-      "has to be worked out before anything can be drawn.")
-    side.addWidget(self.map_dual)
+    self.map_dual.toggled.connect(self._say_whether_the_dual_is_mapped)
+    self.dual_button = QPushButton("Generate the dual and tile it")
+    self.dual_button.setToolTip(
+      "Tiles the map with this design's dual, in a new layer group of "
+      "its own.")
+    self.dual_button.setEnabled(False)
+    self.dual_button.clicked.connect(self.dual_requested.emit)
+    side.addWidget(self.dual_button)
+    self.dual_label = QLabel("")
+    self.dual_label.setWordWrap(True)
+    side.addWidget(self.dual_label)
 
     buttons = QHBoxLayout()
     self.apply_button = QPushButton("Apply")
@@ -2154,6 +2179,44 @@ class TopologyPanel(QWidget):
     self.working.setText("")
     for widget in (self.class_combo, self.how_combo, self.apply_button):
       widget.setEnabled(topology is not None)
+    self._offer_the_dual(topology)
+
+  def _offer_the_dual(self, topology) -> None:
+    """Enable the dual button only where a dual can be tiled, and say why not.
+
+    Args:
+      topology: what the tab now holds, or None.
+
+    Returns:
+      None. The button is enabled where `dual_on_offer` hands back a
+      dual, and disabled with the reason in its tooltip otherwise --
+      no topology, a dual the library cannot lay out, or one that would
+      leave holes. Asked at every landing, which is the one place every
+      route to an answer passes through, so the button can never offer
+      a dual of a design that has moved on. (Ruling 2 of 2026-09-05: a
+      map with holes never ships.)
+    """
+    dual, why = edits_module.dual_on_offer(topology)
+    self.dual_button.setEnabled(dual is not None)
+    self.dual_button.setToolTip(
+      why if dual is None else
+      "Tiles the map with this design's dual, in a new layer group of "
+      "its own.")
+
+  def _say_whether_the_dual_is_mapped(self, on: bool) -> None:
+    """The label beside the button: is the group on screen a dual's?
+
+    Args:
+      on: the store's new value.
+
+    Returns:
+      None. The sentence is shown while the map is tiled with the
+      dual and cleared otherwise; it follows the STORE rather than the
+      button, so a group restored from its record says so without the
+      button having been pressed this session (ruling 4).
+    """
+    self.dual_label.setText(
+      "Tiled with the dual of this design." if on else "")
 
   # -------------------------------------------------------- controls
 
