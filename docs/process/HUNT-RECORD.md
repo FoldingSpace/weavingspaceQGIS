@@ -1955,6 +1955,10 @@ the ledger is `defects-2026-09-06.md`.
 | Direction | Confirmed | The lesson |
 | --- | ---: | --- |
 | the specification itself (5th) | 1 | a ruling that quotes a dependency's parameter is a ten-line probe against that dependency, and two stores built to agree with each other BY TEST are checked against the store that draws the map -- the handle and the ghost agreed at twice the library's crest (row 1) |
+| the round's own repairs, write-only (14th) | 1 | a write-only hunt pays when it stops at "nobody reads it" and asks who reads something ELSE instead -- the grab-time stamp had one reader and the drag read the live boxes each frame had rewritten (row 2); and drive a gesture with the number of events a real pointer sends, since the suite's one-signal drag hid it |
+| asymmetry (9th) | 1 | a settling connected to `editingFinished` is only as good as the focus policy of the widget a person moves to NEXT: the guard drove Return, and the drawing takes no focus (row 3) |
+| unreachable branches (5th) | 1 | the literal reading found dead code; the productive move was to ask what SETS a flag rather than what reads it -- a store written before the act it stands for is a precondition that arrives without its event (row 4) |
+| tests that cannot fail (7th) | 0, 2 dead axes | grep the new guards for asserts nested under `if` or `for` before mutating anything: one of eighteen was dead and it was the only conditional assertion in the set |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

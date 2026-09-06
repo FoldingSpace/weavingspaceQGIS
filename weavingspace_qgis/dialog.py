@@ -3448,6 +3448,9 @@ class WeavingSpaceDialog(QDialog):
     # new group and never an identity; set by the button, read once by
     # `_a_name_for_a_new_group`, and cleared there.
     self._dual_source_group_name = None
+    # The dual button's request, `(was_new, was_dual)`, alive from the
+    # press until a Generate launches or refuses; see `_settle_a_dual_request`.
+    self._dual_request = None
     # THE DUAL SWITCH IS A DESIGN CONTROL that happens to live on the
     # Topology tab, so the dialog names it: `WORKING_STATE_DESIGN`
     # reads its widgets off `self`, and every other design term is
@@ -16741,6 +16744,26 @@ class WeavingSpaceDialog(QDialog):
   # ---------------------------------------------------------------- generate
 
   def _generate(self, live: bool = False):
+    """One tiling run, with the dual button's request settled however
+    the run ends.
+
+    Args:
+      live: True for an automatic (debounced) run, as `_generate_run`.
+
+    Returns:
+      whatever `_generate_run` returns. The `finally` is the point:
+      `_generate_run` has eight refusals and a deferral, and the dual
+      button writes its stores BEFORE calling it, so the one place
+      that can tell a launch from a refusal is after the call, on
+      every exit -- the deferred press included, which comes back
+      through this same door.
+    """
+    try:
+      return self._generate_run(live)
+    finally:
+      self._settle_a_dual_request()
+
+  def _generate_run(self, live: bool = False):
     """Validate, guard, and launch one tiling run as a background task,
     unless the change was only ever about colour.
 
@@ -24285,9 +24308,51 @@ class WeavingSpaceDialog(QDialog):
     handle = combo.currentData() if combo is not None else None
     group = self._group_for_handle(handle) if handle is not None else None
     self._dual_source_group_name = group.name() if group is not None else None
+    # THE STORE IS WRITTEN BEFORE THE ACT IT STANDS FOR, and `_generate`
+    # has eight refusals below -- no region layer, no variable, an
+    # inset that swallows the elements, a declined size question --
+    # none of which is this method's to foresee. So the request is
+    # made, and where nothing was launched or deferred the store is put
+    # back: otherwise the box, which is kept but never shown, stayed
+    # ticked with no door back, and the person's next ordinary
+    # Generate drew the DUAL of their design into a new group (round
+    # eight, unreach9, 2026-09-06; driven through the no-variable
+    # refusal here as the second route).
+    # A deferred press comes back through `_generate` later, so the
+    # settling lives where every Generate ends (`_settle_a_dual_request`
+    # in the wrapper's `finally`) rather than after this one call.
+    self._dual_request = (self._new_group_chosen,
+                          self.opt_map_dual.isChecked())
     self._new_group_chosen = True
     self.opt_map_dual.setChecked(True)
     self._generate()
+
+  def _settle_a_dual_request(self) -> None:
+    """Consume or revert the dual button's stores once a Generate ends.
+
+    Returns:
+      None. Where the dual button asked for a run and this Generate
+      LAUNCHED one, the request is spent; where it DEFERRED one -- a
+      press or live tick remembered for a landing -- the request is
+      kept for the Generate that will come back; where it did neither,
+      which is what every refusal leaves, the two stores the button
+      wrote are put back as they were, since a store written before
+      the act it stands for must not outlive a refused act.
+    """
+    asked = getattr(self, "_dual_request", None)
+    if asked is None:
+      return
+    if self._task is not None:
+      self._dual_request = None
+      return
+    if getattr(self, "_press_pending", False) \
+        or getattr(self, "_live_pending", False):
+      return
+    was_new, was_dual = asked
+    self._dual_request = None
+    self._new_group_chosen = was_new
+    self.opt_map_dual.setChecked(was_dual)
+    self._dual_source_group_name = None
 
   def _mapping_the_dual(self) -> bool:
     """Whether the map is being tiled with the design's DUAL.

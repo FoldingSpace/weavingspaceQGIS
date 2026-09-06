@@ -355,6 +355,9 @@ quote them, do not renumber them.
 - **C-318** — The reference column's claim, the thirty-version gap and the refused browser capture  <sub>How we decide things, and the suite's environment</sub>
 - **C-319** — The zigzag click threshold and the odd counts: the grilling of 2026-09-05, with the fac...  <sub>minted</sub>
 - **C-320** — The zigzag handle and ghost stood at twice the crest the library draws: h is peak to peak  <sub>minted</sub>
+- **C-321** — A drag reads its position from where the handle was taken, never from the last frame's ...  <sub>minted</sub>
+- **C-322** — A typed count is settled at the grab, since the drawing takes no focus  <sub>minted</sub>
+- **C-323** — A store written before the act it stands for outlives a refused act: the dual button's ...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10389,3 +10392,60 @@ across step of the drag, which is now a fifth of h per tenth of the
 edge). The ruling's words stand with the clause added; whether the
 maintainer would rather the box itself read in crest units is
 recorded in the day's ledger as a question, not changed.
+
+### C-321 — A drag reads its position from where the handle was taken, never from the last frame's boxes
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-321).</sub>
+
+Round eight's write-only hunt (`repairs16`, 2026-09-06) asked which of
+the last three days' stamps had no reader, and found the reader that
+read something else: `_drag_started_with`, written at the grab for
+exactly this, was read only by `_drag_moved`, while `_on_dragging`
+seeded the drag's position from the LIVE boxes -- which
+`_show_arguments` had rewritten on the previous frame -- and
+`dragging` reports travel cumulative from the press. So h compounded:
+0.3 + 0.01 * N(N+1)/2, measured 0.850 at ten events where 0.850 was
+predicted. Verified here through real Qt events, a 20px drag as one
+move and as twelve: 0.519 against 1.0 (the box's ceiling). Repaired
+by seeding the position from `_drag_started_with`; guarded by
+`test_a_drag_delivered_in_many_moves_records_one_position` and the
+entry `a-drag-is-measured-from-where-the-handle-was-taken`. Ledger
+docs/process/defects-2026-09-06.md, row 2.
+
+### C-322 — A typed count is settled at the grab, since the drawing takes no focus
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-322).</sub>
+
+Round eight's asymmetry hunt (`asym6`, 2026-09-06) drove the two
+routes into `_even_count` and found the typed one open: the settle is
+connected to the count box's `editingFinished`, and the drawing has
+`focusPolicy` NoFocus, so a person who types 3 and grabs the handle
+never fires it -- the box read 3 at the grab and the drag recorded
+the odd count, which on hex-slice 4 class b leaves 4.5% of the design
+as gaps. Apply, which steals focus, settled it, which is the twin that
+worked. Verified here through real key and mouse events. Repaired by
+settling the count box in `_on_grabbed` before the grab-time numbers
+are stamped; guarded by
+`test_a_typed_odd_count_is_settled_when_the_handle_is_taken` and the
+entry `a-typed-count-is-settled-at-the-grab`. Ledger row 3.
+
+### C-323 — A store written before the act it stands for outlives a refused act: the dual button's latch
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-323).</sub>
+
+Round eight's unreachable-branches hunt (`unreach9`, 2026-09-06)
+asked what SETS `opt_map_dual` rather than what reads it: the dual
+button wrote `_new_group_chosen` and ticked the never-shown box, then
+called `_generate`, which has eight refusals below -- no region
+layer, no variable, an inset that swallows the elements, a declined
+size question -- so a refusal left the plugin in dual mode with no
+door back and the next ordinary Generate drew the dual into a new
+group. Verified here through a run refused at the spacing box's floor
+after the topology deferral, and through the no-layer door. The first
+repair checked the stores after the one call and missed the deferred
+press, which comes back through `_generate` later; the repair is a
+wrapper round `_generate` whose `finally` calls
+`_settle_a_dual_request`: spent on a launch, kept across a deferral,
+reverted on anything else. Guarded by
+`test_a_dual_request_that_is_refused_does_not_latch` and the entry
+`a-refused-dual-request-is-put-back`. Ledger row 4.

@@ -57258,6 +57258,221 @@ def test_the_zigzag_ghost_crests_where_the_library_does():
     f"times the one the map gets")
 
 
+def test_a_drag_delivered_in_many_moves_records_one_position():
+  """A gesture is one position however many move events carried it.
+
+  `dragging` reports travel cumulative from the press, and every frame
+  writes its result back into the parameter boxes, so a drag that seeded
+  its position from the LIVE boxes added the whole travel again on each
+  event: a 5px drag delivered as 25 moves recorded h 0.288 where 0.068
+  was asked, and the map was tiled with it. The numbers the handle was
+  taken at are the only honest origin, and this drives the same gesture
+  twice through real Qt events -- once as one move, once as twelve --
+  and requires the same record of both.
+
+  Regression: dragging the zigzag handle recorded a wave several times deeper than the one dragged to, by as much as the machine delivered move events, and that amplitude is what the design was tiled with and the file carried. [hunt]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, handle, along, normal, reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    assert not panel._edits, "PREMISE: the tab already holds an edit"
+    # FROM A SHALLOW WAVE, so the drag's end is one the library lays out:
+    # past about h 0.7 the zigzag is refused and a refused preview
+    # records nothing, which would read as the defect's absence.
+    h_box = next(b for _l, b in panel._argument_rows
+                 if b.property("argument") == "h")
+    h_box.setValue(0.10)
+    _tick(120)
+    sat = float(h_box.value())
+    out = 20.0
+
+    def dragged(moves):
+      # EACH ARM STARTS FROM THE SAME PLACE: the previous drag left the
+      # box at where it dropped, and undo puts the edit away without
+      # putting the box back, so the box and the seat are reset first.
+      h_box.setValue(sat)
+      _tick(120)
+      view._chosen_thing = view._chosen_thing
+      seat = next(w for k, w, _s in view.handles() if k == "zigzag_edge")
+      at = QPoint(int(round(seat.x())), int(round(seat.y())))
+      QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, at)
+      _tick(30)
+      for k in range(1, moves + 1):
+        d = out * k / moves
+        QTest.mouseMove(view, QPoint(int(round(seat.x() + normal[0] * d)),
+                                     int(round(seat.y() + normal[1] * d))))
+        _tick(25)
+      far = QPoint(int(round(seat.x() + normal[0] * out)),
+                   int(round(seat.y() + normal[1] * out)))
+      QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, far)
+      _tick(150)
+      assert panel._edits and panel._edits[-1]["how"] == "zigzag_edge", (
+        f"PREMISE: a {out:.0f}px drag in {moves} moves recorded nothing: "
+        f"{panel._edits}")
+      recorded = float(panel._edits[-1]["args"].get("h", 0.0))
+      panel.undo_button.click()
+      _tick(150)
+      return recorded
+
+    once = dragged(1)
+    position = sat + out / (reach * topology_tab._CREST_OF_H)
+    assert abs(once - position) < 3.0 / (reach * topology_tab._CREST_OF_H), (
+      f"PREMISE: one move event recorded {once:.3f} where the handle was "
+      f"dropped at {position:.3f}")
+    many = dragged(12)
+    assert abs(many - once) < 1e-6, (
+      f"the same gesture recorded h {once:.3f} as one move event and "
+      f"{many:.3f} as twelve, so the drag is adding its travel again on "
+      f"every event rather than reading a position from where the handle "
+      f"was taken")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_typed_odd_count_is_settled_when_the_handle_is_taken():
+  """A count typed without Return is settled at the grab, not only at
+  `editingFinished`.
+
+  The drawing takes no focus, so a person who types 3 into the count
+  box and moves straight to the handle never fires the signal that
+  settles an odd count, and the drag recorded the 3 the ruling of
+  2026-09-05 promised to settle -- on hex-slice 4 class b that leaves
+  4.5% of the design as gaps. Driven through real key and mouse events,
+  with the control arm pressing Return first.
+
+  Regression: a zigzag count typed as 3 and followed by a drag on the handle was recorded as 3, so the map was tiled with an odd count the library lays out with gaps. [hunt]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, handle, along, normal, reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    h_box = next(b for _l, b in panel._argument_rows
+                 if b.property("argument") == "h")
+    h_box.setValue(0.05)
+    _tick(120)
+    n_box = next(b for _l, b in panel._argument_rows
+                 if b.property("argument") == "n")
+    n_box.setFocus()
+    n_box.lineEdit().selectAll()
+    QTest.keyClicks(n_box, "3")
+    _tick(120)
+    assert abs(n_box.value() - 3.0) < 1e-9, (
+      f"PREMISE: typing 3 left the box at {n_box.value()}, so the unsettled "
+      f"state this test is about was never reached")
+    # RE-SEATED, since the count moves the handle along the edge.
+    view._chosen_thing = view._chosen_thing
+    seat = next(w for k, w, _s in view.handles() if k == "zigzag_edge")
+    at = QPoint(int(round(seat.x())), int(round(seat.y())))
+    far = QPoint(int(round(seat.x() + normal[0] * 8.0)),
+                 int(round(seat.y() + normal[1] * 8.0)))
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, at)
+    _tick(30)
+    QTest.mouseMove(view, far)
+    _tick(60)
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, far)
+    _tick(150)
+    assert panel._edits and panel._edits[-1]["how"] == "zigzag_edge", (
+      f"PREMISE: the drag recorded nothing: {panel._edits}")
+    recorded = panel._edits[-1]["args"].get("n")
+    assert abs(float(recorded) - 4.0) < 1e-9, (
+      f"a count typed as 3 with no Return, then a drag on the handle, "
+      f"recorded n {recorded}: the odd count escaped settling because the "
+      f"drawing takes no focus and only editingFinished settled it")
+    assert abs(n_box.value() - 4.0) < 1e-9, (
+      f"the box still reads {n_box.value()} after the drag settled the "
+      f"count to 4, so the record and the box disagree")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_dual_request_that_is_refused_does_not_latch():
+  """The dual button's stores do not outlive a refused Generate.
+
+  The button wrote `_new_group_chosen` and ticked the never-shown
+  `opt_map_dual` BEFORE calling `_generate`, which has eight refusals
+  below; a refusal left the box ticked with no door back, and the
+  person's next ordinary Generate drew the DUAL of their design into a
+  new group. Driven through the no-region-layer refusal -- a project
+  with no layer at all, which is how somebody meets the Topology tab
+  before they have any data -- then a layer added and the ordinary
+  button pressed. The request is settled in the `finally` round
+  `_generate`, so a deferred press that comes back refused is covered
+  by the same line (round eight, unreach9; a run refused at the spacing
+  box's floor, after the deferral, was the second door driven).
+
+  Regression: pressing "Generate the dual and tile it" while Generate could not start latched the plugin into dual mode invisibly, so the next ordinary Generate drew the dual of the design into a new group with nothing on screen to untick. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    assert dlg.layer_combo.currentLayer() is None,       "PREMISE: a region layer is chosen, so the refusal cannot be reached"
+    assert panel.dual_button.isEnabled(),       f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    assert not dlg.opt_map_dual.isChecked() and not dlg._new_group_chosen,       "PREMISE: the dialog is already in dual mode"
+    panel.dual_button.click()
+    _tick(300)
+    _settle_topology(dlg, seconds=60)
+    for _ in range(160):
+      _tick(250)
+      if not getattr(dlg, "_press_pending", False) and dlg._task is None:
+        break
+    _tick(500)
+    assert dlg._task is None, "PREMISE: a run launched with no region layer"
+    after = (dlg.opt_map_dual.isChecked(), dlg._new_group_chosen)
+    assert after == (False, False), (
+      f"after the dual button's Generate was refused for want of a region "
+      f"layer the stores read (map_dual, new_group) = {after}: the request "
+      f"outlived the refusal and the next Generate would draw the dual")
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    _tick(400)
+    dlg.layer_combo.setLayer(layer)
+    _tick(400)
+    dlg.generate_btn.click()
+    _settle(dlg, seconds=90)
+    _tick(500)
+    assert dlg._task is None, "PREMISE: the ordinary run never landed"
+    names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
+    assert names, "PREMISE: the ordinary run landed no group"
+    assert not dlg._mapping_the_dual() and not any("dual" in n for n in names), (
+      f"the ordinary Generate after a refused dual request drew the dual: "
+      f"mapping_the_dual={dlg._mapping_the_dual()}, groups {names}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -90129,6 +90344,12 @@ def main():
         test_the_zigzag_ghost_passes_through_its_handle)
   check("the zigzag ghost crests where the library does",
         test_the_zigzag_ghost_crests_where_the_library_does)
+  check("a drag delivered in many moves records one position",
+        test_a_drag_delivered_in_many_moves_records_one_position)
+  check("a typed odd count is settled when the handle is taken",
+        test_a_typed_odd_count_is_settled_when_the_handle_is_taken)
+  check("a dual request that is refused does not latch",
+        test_a_dual_request_that_is_refused_does_not_latch)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

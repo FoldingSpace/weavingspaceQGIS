@@ -875,7 +875,9 @@ and the ids beside each rule.
   what a landing decided (C-49); a launch state beats the carry, so
   handing a key over is not the same act as letting it fall through
   (C-231); a resume stamps the group with the region it LANDED ON, and
-  stamps the layers too (C-228). Ask of any writer that copies a
+  stamps the layers too (C-228); a gesture's position is measured from
+  where the handle was TAKEN, since each frame rewrites the boxes the
+  next frame would read (C-321). Ask of any writer that copies a
   record: which moment is each field about, and does this writer
   stand at that moment?
 - **WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
@@ -942,7 +944,9 @@ and the ids beside each rule.
   term (C-175); a flag read by one
   consumer outlives the journeys that consumer never runs on (C-212);
   a wanted write that fails still clears, so enabling the write is
-  half a repair (C-178).
+  half a repair (C-178); a store written BEFORE the act it stands for
+  outlives a refused act, so settle it where every exit of the act
+  ends (C-323).
 - **A PREDICATE THAT MERGES TWO FACTS IS RIGHT FOR A WAIT AND WRONG
   FOR A QUESTION** (C-224), and a question built on it merges the same
   two states (C-233). A control one act moves as a side effect is read
@@ -969,7 +973,9 @@ and the ids beside each rule.
 **Numbers, renderers and what a record describes.**
 - **A RANGE IS NOT THE ONLY THING THAT EATS A KEYSTROKE**: a validator,
   a lowered `decimals`, or a `valueChanged` handler that rewrites its
-  own box, each invisible to `setValue` (C-65). A legend is rendered by
+  own box, each invisible to `setValue` (C-65); a settle hung on
+  `editingFinished` never fires when the widget a person moves to next
+  takes no focus, so settle at the grab as well (C-322). A legend is rendered by
   somebody else's formatter, so check what the label says; never make
   class membership depend on a float's last bit; a ladder may hold
   several classes with identical bounds, so a lookup by bounds must

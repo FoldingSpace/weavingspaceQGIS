@@ -2831,6 +2831,16 @@ class TopologyPanel(QWidget):
         if index != self.how_combo.currentIndex():
           self.how_combo.setCurrentIndex(index)
         break
+    # A TYPED COUNT IS SETTLED HERE AS WELL AS AT `editingFinished`,
+    # because the drawing takes no focus: a person who types 3 and
+    # moves straight to the handle never fires that signal, so the
+    # box still read 3 at the grab and the drag recorded the odd count
+    # the ruling of 2026-09-05 promised to settle (round eight, asym6;
+    # measured on hex-slice 4 class b, 4.5% of the design left as gaps).
+    if key == "zigzag_edge":
+      for _label, box in self._argument_rows:
+        if box.property("argument") == "n":
+          self._keep_the_count_even(box)
     # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that
     # moves only the COUNT can be told from one that moved nothing.
     # `_drag_moved` asks whether a gesture asked for anything, and it
@@ -3028,8 +3038,17 @@ class TopologyPanel(QWidget):
       frame = self.view.grabbed_edge()
       if frame is None:
         return
+      # FROM WHERE THE HANDLE WAS TAKEN, NEVER FROM THE LAST FRAME.
+      # `dragging` reports travel cumulative from the press, and each
+      # frame writes its result back into the boxes below, so seeding
+      # the position from the live boxes added the whole travel again
+      # on every move event: a 5px drag delivered as 25 events
+      # recorded h 0.288 where 0.068 was asked (round eight,
+      # repairs16, 2026-09-06). `_drag_started_with` was written for
+      # exactly this and read only by `_drag_moved` until then.
+      started = dict(self._drag_started_with) or dict(args)
       changes = self._drag_argument(
-        key, frame, dx, dy, self.view.unit_span(), current=args)
+        key, frame, dx, dy, self.view.unit_span(), current=started)
       if not changes:
         return
       for name, value in changes.items():

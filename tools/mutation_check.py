@@ -10871,6 +10871,38 @@ MUTATIONS = [
            "only case it is for. The failure is silent: the map stays "
            "correct and the second and a third of work the cache was "
            "built to save goes on being spent"),
+  dict(name="a-drag-is-measured-from-where-the-handle-was-taken",
+       file=TOPOLOGY_TAB,
+       old="""      started = dict(self._drag_started_with) or dict(args)""",
+       new="""      started = dict(args)  # mutation: the last frame, not the grab""",
+       test="test_a_drag_delivered_in_many_moves_records_one_position",
+       why="a drag on the zigzag handle recording a wave several times "
+           "deeper than the one dragged to, by as many move events as the "
+           "machine delivered, since each frame added the whole travel to "
+           "the boxes the last frame had written (round eight, repairs16)"),
+  dict(name="a-typed-count-is-settled-at-the-grab",
+       file=TOPOLOGY_TAB,
+       old="""          self._keep_the_count_even(box)
+    # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that""",
+       new="""          pass  # mutation: only editingFinished settles it
+    # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that""",
+       test="test_a_typed_odd_count_is_settled_when_the_handle_is_taken",
+       why="a count typed as 3 and followed by a drag on the handle being "
+           "recorded as 3, the drawing taking no focus so editingFinished "
+           "never fired, and the map tiled with gaps (round eight, asym6)"),
+  dict(name="a-refused-dual-request-is-put-back",
+       file=DIALOG,
+       old="""    was_new, was_dual = asked
+    self._dual_request = None
+    self._new_group_chosen = was_new
+    self.opt_map_dual.setChecked(was_dual)
+    self._dual_source_group_name = None""",
+       new="""    self._dual_request = None  # mutation: the refusal keeps the stores""",
+       test="test_a_dual_request_that_is_refused_does_not_latch",
+       why="the dual button latching the plugin into dual mode when its "
+           "Generate was refused, so the next ordinary Generate drew the "
+           "dual into a new group with no control on screen to untick "
+           "(round eight, unreach9)"),
   dict(name="the-zigzag-ghost-crests-where-the-library-does",
        file=TOPOLOGY_TAB,
        # AIMED AT THE SCALE between the picture and the map: the

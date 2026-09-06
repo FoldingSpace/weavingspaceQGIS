@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-531 defect(s) with a regression test.
+534 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -100,6 +100,10 @@ there is no separate list to remember.
   guarded by `test_a_dock_edit_of_any_kind_reaches_the_exported_file`
 - **a `layer:` class source was dropped in silence by a Load, because the layer id it named belongs to the session that saved the file. Found by the classsource hunt of 2026-08-28.**  
   guarded by `test_a_donor_comes_home_when_the_map_is_opened`
+- **dragging the zigzag handle recorded a wave several times deeper than the one dragged to, by as much as the machine delivered move events, and that amplitude is what the design was tiled with and the file carried.**  
+  guarded by `test_a_drag_delivered_in_many_moves_records_one_position`
+- **pressing "Generate the dual and tile it" while Generate could not start latched the plugin into dual mode invisibly, so the next ordinary Generate drew the dual of the design into a new group with nothing on screen to untick.**  
+  guarded by `test_a_dual_request_that_is_refused_does_not_latch`
 - **a duplicated output layer survived a re-tile with nothing said, because the guard was written at the adoption door and not at the landing door. Found by the panel-acts hunt of 2026-08-28, ledger row 18.**  
   guarded by `test_a_duplicated_layer_is_named_at_the_landing_as_well`
 - **a support package whose download failed was discarded in silence and provisioning still reported success, bypassing the reason machinery written for exactly that case. Found by the dependency hunt of 2026-08-28.**  
@@ -216,6 +220,8 @@ there is no separate list to remember.
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
 - **a text column counted 0 distinct values, so the many-categories question was never asked for one. Found by the manyareas hunt of 2026-08-28.**  
   guarded by `test_a_text_column_is_counted_before_the_many_categories_question`
+- **a zigzag count typed as 3 and followed by a drag on the handle was recorded as 3, so the map was tiled with an odd count the library lays out with gaps.**  
+  guarded by `test_a_typed_odd_count_is_settled_when_the_handle_is_taken`
 - **the moved-data notice read a fingerprint that cannot see a value edit, so retyping numbers between Generate and Save wrote old tiles beside new data in silence -- the case the notice was written for. Found by the undo hunt of 2026-08-28.**  
   guarded by `test_a_value_edited_after_the_map_was_drawn_is_reported`
 - **2026-08-19. Found by a hunt reading the saved project with `zipfile` and the exported GeoPackage with `sqlite3`, neither of which involves QGIS: the retyped ranges were in the file's QML and the stamp appeared nowhere.**  
@@ -1117,7 +1123,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 138
+- a bug hunt pointed in a named direction: 141
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15
