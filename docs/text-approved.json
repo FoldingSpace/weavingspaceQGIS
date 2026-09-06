@@ -519,6 +519,11 @@
   "excerpt": "Spacing will not help, since each of this layer's {} areas takes one tile unit however large it is drawn; a layer with fewer areas or a tileable with fewer elements would.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "359dd42b37580fed": {
+  "approved": "2026-09-06",
+  "excerpt": ", so the map is tiled with the dual as far as it goes.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "35f33dca9e7daec3": {
   "approved": "2026-08-08",
   "excerpt": "*Four indices of deprivation in a basket weave, and seven in",
@@ -658,6 +663,11 @@
   "approved": "2026-08-27",
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
+ },
+ "4204fddfafc0e0cf": {
+  "approved": "2026-09-06",
+  "excerpt": "Tiled with the dual of this design, taken {} times over.",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "4213e61f21636c4b": {
   "approved": "2026-08-19",
@@ -1359,6 +1369,11 @@
   "excerpt": "Generate the dual and tile it",
   "where": "weavingspace_qgis/topology_tab.py"
  },
+ "7bb0c79e3986181a": {
+  "approved": "2026-09-06",
+  "excerpt": "The GeoPackage path was cleared, choose a new one for saving",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "7d290fe7c9edf875": {
   "approved": "2026-08-08",
   "excerpt": "Tiled or woven? The two carry the same information, and we w",
@@ -1964,6 +1979,11 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "bd0f734ef0ff860f": {
+  "approved": "2026-09-06",
+  "excerpt": "The dual has no further dual to tile with",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "bd18900a1d6065ab": {
   "approved": "2026-08-08",
   "excerpt": "![Anthropogenic biomes at six moments in time across northea",
@@ -2227,6 +2247,11 @@
  "d4a7524d0d47a768": {
   "approved": "2026-08-08",
   "excerpt": "Run this element's ramp the other way round",
+  "where": "weavingspace_qgis/dialog.py"
+ },
+ "d4b12782c5d1069e": {
+  "approved": "2026-09-06",
+  "excerpt": "The layer this map was made from isn't in the project. Add t",
   "where": "weavingspace_qgis/dialog.py"
  },
  "d4bf6e6fd8638c42": {
