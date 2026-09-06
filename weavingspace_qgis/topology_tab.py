@@ -2626,9 +2626,25 @@ class TopologyPanel(QWidget):
     # recurse without end.
 
   def _arguments(self) -> dict:
-    """What the parameter boxes currently say."""
-    return {box.property("argument"): box.value()
-            for _label, box in self._argument_rows}
+    """What the parameter boxes currently say, the zigzag's count settled.
+
+    Returns:
+      {argument: value} off the boxes; where the boxes belong to
+      `zigzag_edge`, `n` is the nearest even count in range whatever
+      the box shows. THE RECORD IS EVEN AT ITS ONE OWNER: the settle
+      on `editingFinished` never fires for a person who types 3 and
+      moves to the drawing (it takes no focus) or straight to Apply,
+      and a settle at the zigzag handle's grab left every other door --
+      a sibling handle, the chooser, Apply itself -- banking or
+      recording the odd count (round eight, repairs18, 2026-09-06). The
+      box itself is settled by `editingFinished` and at the grab.
+    """
+    values = {box.property("argument"): box.value()
+              for _label, box in self._argument_rows}
+    if getattr(self, "_arguments_belong_to", None) == "zigzag_edge" \
+        and "n" in values:
+      values["n"] = float(_even_count(values["n"]))
+    return values
 
   def _push_zigzag_readout(self):
     """Tell the view where the zigzag handle now belongs.
@@ -2859,16 +2875,9 @@ class TopologyPanel(QWidget):
         if index != self.how_combo.currentIndex():
           self.how_combo.setCurrentIndex(index)
         break
-    # A TYPED COUNT IS SETTLED HERE AS WELL AS AT `editingFinished`,
-    # because the drawing takes no focus: a person who types 3 and
-    # moves straight to the handle never fires that signal, so the
-    # box still read 3 at the grab and the drag recorded the odd count
-    # the ruling of 2026-09-05 promised to settle (round eight, asym6;
-    # measured on hex-slice 4 class b, 4.5% of the design left as gaps).
-    if key == "zigzag_edge":
-      for _label, box in self._argument_rows:
-        if box.property("argument") == "n":
-          self._keep_the_count_even(box)
+    # A TYPED COUNT NEEDS NO SETTLING HERE: `_arguments` settles it
+    # wherever the record reads the boxes (round eight, 2026-09-06), and
+    # the drag's own write-back puts the settled count in the box.
     # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that
     # moves only the COUNT can be told from one that moved nothing.
     # `_drag_moved` asks whether a gesture asked for anything, and it

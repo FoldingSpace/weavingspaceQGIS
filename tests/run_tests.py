@@ -57463,6 +57463,13 @@ def test_a_dual_request_that_is_refused_does_not_latch():
     _tick(500)
     assert dlg._task is None, "PREMISE: a run launched with no region layer"
     after = (dlg.opt_map_dual.isChecked(), dlg._new_group_chosen)
+    # EVERY STORE THE REPAIR PUTS BACK, not two of three: the source
+    # group's name and the request itself are read too (trigger9).
+    assert getattr(dlg, "_dual_request", None) is None, (
+      f"the dual request {dlg._dual_request} outlived the refusal")
+    assert getattr(dlg, "_dual_source_group_name", None) is None, (
+      f"the source group's name {dlg._dual_source_group_name!r} "
+      f"outlived the refusal, and would name the next new group")
     assert after == (False, False), (
       f"after the dual button's Generate was refused for want of a region "
       f"layer the stores read (map_dual, new_group) = {after}: the request "
@@ -57633,6 +57640,79 @@ def test_the_dual_is_taken_of_the_design_as_edited():
       f"of {len(landed)} landed tiles, {of_edited} match the dual of the "
       f"EDITED design and {of_plain} the dual of the plain one: the map got "
       f"the dual of a design the tab is not showing")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_typed_odd_count_is_even_at_every_door():
+  """A count typed as 3 with no Return is recorded as 4 by Apply, and by
+  Apply after the chooser has been switched away and back.
+
+  The settle lived on `editingFinished` and, since this morning, at
+  the zigzag handle's grab -- and every other door kept the odd count:
+  the chooser switched to a sibling manipulation banks the boxes into
+  `_argument_memory` before anything settles them and hands the 3
+  straight back, and a plain Apply reads the boxes as they stand. So
+  the record is settled where it is READ, in `_arguments`, the one
+  owner every door goes through.
+
+  Regression: an odd zigzag count typed without Return reached the record through Apply, and through the chooser switched away and back, so the map was tiled with a count the library lays out with gaps. [hunt]
+  """
+  from qgis.PyQt.QtCore import Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, handle, along, normal, reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+
+    def n_box():
+      return next(b for _l, b in panel._argument_rows
+                  if b.property("argument") == "n")
+
+    def type_three():
+      box = n_box()
+      box.setFocus()
+      box.lineEdit().selectAll()
+      QTest.keyClicks(box, "3")
+      _tick(120)
+      assert abs(box.value() - 3.0) < 1e-9, (
+        f"PREMISE: typing 3 left the box at {box.value()}")
+
+    # DOOR ONE: straight to Apply.
+    type_three()
+    assert abs(panel._arguments().get("n", 0.0) - 4.0) < 1e-9, (
+      f"the record reads {panel._arguments().get('n')} off a box showing 3, "
+      f"so the count is not settled where it is read")
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=60)
+    _tick(400)
+    assert panel._edits and abs(float(panel._edits[-1]["args"].get("n")) - 4.0) < 1e-9, (
+      f"Apply recorded {panel._edits[-1]['args'] if panel._edits else None} "
+      f"from a count typed as 3: the odd count reached the record")
+    panel.undo_button.click()
+    _tick(300)
+
+    # DOOR TWO: the chooser switched away and back, which banks the boxes.
+    type_three()
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("rotate_edge"))
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+    _tick(150)
+    assert abs(panel._arguments().get("n", 0.0) - 4.0) < 1e-9, (
+      f"after the chooser came back the record reads "
+      f"{panel._arguments().get('n')}: the bank handed the odd count back")
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=60)
+    _tick(400)
+    assert panel._edits and abs(float(panel._edits[-1]["args"].get("n")) - 4.0) < 1e-9, (
+      f"Apply after the chooser recorded "
+      f"{panel._edits[-1]['args'] if panel._edits else None} from a count "
+      f"typed as 3")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -90519,6 +90599,8 @@ def main():
         test_the_dual_button_refuses_on_a_dual_group)
   check("the dual is taken of the design as edited",
         test_the_dual_is_taken_of_the_design_as_edited)
+  check("a typed odd count is even at every door",
+        test_a_typed_odd_count_is_even_at_every_door)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

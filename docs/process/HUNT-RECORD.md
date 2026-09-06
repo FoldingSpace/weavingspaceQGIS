@@ -1963,6 +1963,9 @@ the ledger is `defects-2026-09-06.md`.
 | backwards from harm (11th) | 1 | vary the MANIPULATION as well as the design before believing a negative: a push leaves the two candidate duals congruent and an area metric read "no difference" on a live defect; a zigzag separated them (row 6) |
 | two stores of one fact (dual) | 1 | three of five pairs held redundantly; the pair that broke was a BOOLEAN standing for a COUNT, the guard judging on one design and the act on another (row 7) |
 | stochastic settled sessions (8th) | (same) | converged on row 7 from 71 seeded sessions; three of its four instrument faults were REST asserted too early or too narrowly, so a hunt whose discipline is "check at rest" first proves its own definition of rest |
+| the round's own repairs, asymmetry (16th, replenished onto 777eec8) | 1 | when a repair is placed at a control's grab, enumerate every OTHER grab that rebuilds or banks that control: the bank ran before the settle, so the door beside the fixed one kept the unsettled value -- and the repair moved to the one owner the record reads (row 8) |
+| tests that cannot fail (8th, at today's guards) | 0, 3 dead axes | `mutation_check` says caught or survived and never WHICH assertion fired: mutate in the worktree and read the traceback |
+| one boundary but not another (dual, cache) | 1 claimed, being judged | the matrix cleared six crossings and the finding came from asking what a crossing CARRIES rather than what it drops -- the output path; and when a docstring says a silence is deliberate, read its reasons, one of which was false on the journey driven |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

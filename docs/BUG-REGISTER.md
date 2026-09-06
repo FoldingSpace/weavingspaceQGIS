@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-536 defect(s) with a regression test.
+537 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -220,6 +220,8 @@ there is no separate list to remember.
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
 - **a text column counted 0 distinct values, so the many-categories question was never asked for one. Found by the manyareas hunt of 2026-08-28.**  
   guarded by `test_a_text_column_is_counted_before_the_many_categories_question`
+- **an odd zigzag count typed without Return reached the record through Apply, and through the chooser switched away and back, so the map was tiled with a count the library lays out with gaps.**  
+  guarded by `test_a_typed_odd_count_is_even_at_every_door`
 - **a zigzag count typed as 3 and followed by a drag on the handle was recorded as 3, so the map was tiled with an odd count the library lays out with gaps.**  
   guarded by `test_a_typed_odd_count_is_settled_when_the_handle_is_taken`
 - **the moved-data notice read a fingerprint that cannot see a value edit, so retyping numbers between Generate and Save wrote old tiles beside new data in silence -- the case the notice was written for. Found by the undo hunt of 2026-08-28.**  
@@ -1127,7 +1129,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 143
+- a bug hunt pointed in a named direction: 144
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

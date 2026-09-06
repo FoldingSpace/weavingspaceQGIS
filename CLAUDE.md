@@ -975,7 +975,8 @@ and the ids beside each rule.
   a lowered `decimals`, or a `valueChanged` handler that rewrites its
   own box, each invisible to `setValue` (C-65); a settle hung on
   `editingFinished` never fires when the widget a person moves to next
-  takes no focus, so settle at the grab as well (C-322). A legend is rendered by
+  takes no focus, so settle where the RECORD reads the box, at its one
+  owner, since a settle at one door left every other door open (C-322). A legend is rendered by
   somebody else's formatter, so check what the label says; never make
   class membership depend on a float's last bit; a ladder may hold
   several classes with identical bounds, so a lookup by bounds must

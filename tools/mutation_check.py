@@ -10880,16 +10880,6 @@ MUTATIONS = [
            "deeper than the one dragged to, by as many move events as the "
            "machine delivered, since each frame added the whole travel to "
            "the boxes the last frame had written (round eight, repairs16)"),
-  dict(name="a-typed-count-is-settled-at-the-grab",
-       file=TOPOLOGY_TAB,
-       old="""          self._keep_the_count_even(box)
-    # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that""",
-       new="""          pass  # mutation: only editingFinished settles it
-    # WHAT THE NUMBERS WERE WHEN THE HANDLE WAS TAKEN, so a drag that""",
-       test="test_a_typed_odd_count_is_settled_when_the_handle_is_taken",
-       why="a count typed as 3 and followed by a drag on the handle being "
-           "recorded as 3, the drawing taking no focus so editingFinished "
-           "never fired, and the map tiled with gaps (round eight, asym6)"),
   dict(name="a-refused-dual-request-is-put-back",
        file=DIALOG,
        old="""    was_new, was_dual = asked
@@ -10903,6 +10893,14 @@ MUTATIONS = [
            "Generate was refused, so the next ordinary Generate drew the "
            "dual into a new group with no control on screen to untick "
            "(round eight, unreach9)"),
+  dict(name="the-count-is-even-where-the-record-reads-it",
+       file=TOPOLOGY_TAB,
+       old="""      values["n"] = float(_even_count(values["n"]))""",
+       new="""      pass  # mutation: the box as it stands""",
+       test="test_a_typed_odd_count_is_even_at_every_door",
+       why="an odd count typed without Return reaching the record through "
+           "Apply, or through the chooser switched away and back, so the "
+           "map was tiled with gaps (round eight, repairs18)"),
   dict(name="the-dual-button-is-not-offered-on-a-dual",
        file=TOPOLOGY_TAB,
        old="""    if dual is not None and self._mapping_a_dual:
