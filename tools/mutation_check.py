@@ -10882,17 +10882,52 @@ MUTATIONS = [
            "the boxes the last frame had written (round eight, repairs16)"),
   dict(name="a-refused-dual-request-is-put-back",
        file=DIALOG,
-       old="""    was_new, was_dual = asked
-    self._dual_request = None
-    self._new_group_chosen = was_new
-    self.opt_map_dual.setChecked(was_dual)
-    self._dual_source_group_name = None""",
+       old="""    # NOTHING LAUNCHED AND NOTHING DEFERRED: a refusal, so put the stores
+    # back through the one helper the cancel path uses too.
+    self._put_back_a_cancelled_dual_request()""",
        new="""    self._dual_request = None  # mutation: the refusal keeps the stores""",
        test="test_a_dual_request_that_is_refused_does_not_latch",
        why="the dual button latching the plugin into dual mode when its "
            "Generate was refused, so the next ordinary Generate drew the "
            "dual into a new group with no control on screen to untick "
            "(round eight, unreach9)"),
+  dict(name="a-chosen-group-is-this-sessions-work",
+       file=DIALOG,
+       old="""    if record:
+      self._landed_this_session = True
+    self._selecting_a_group = True""",
+       new="""    self._selecting_a_group = True  # mutation: the chooser door uncounted""",
+       test="test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work",
+       why="a change of dataset after picking a saved map in the chooser "
+           "keeping that map's file path in silence, the next Save writing "
+           "the other dataset over it (round eight, doors7)"),
+  dict(name="the-readout-reads-the-bank-under-another-verb",
+       file=TOPOLOGY_TAB,
+       old="""      args.update(getattr(self, "_argument_memory", {}).get("zigzag_edge") or {})""",
+       new="""      pass  # mutation: the defaults under another verb""",
+       test="test_the_zigzag_readout_keeps_the_banked_numbers_under_another_verb",
+       why="the zigzag handle jumping to the defaults' position when another "
+           "verb is chosen while a drag from it starts at the banked numbers "
+           "(round eight, repairs20)"),
+  dict(name="a-cancelled-duals-request-is-put-back",
+       file=DIALOG,
+       old="""      self._put_back_a_cancelled_dual_request()""",
+       new="""      pass  # mutation: the close leaves the stores latched""",
+       test="test_a_dual_request_whose_run_is_cancelled_is_put_back",
+       why="a close that cancels the dual's run leaving the plugin in dual "
+           "mode, so the next Generate drew the dual unasked (round eight, "
+           "writeonly6)"),
+  dict(name="the-request-is-spent-at-the-landing",
+       file=DIALOG,
+       old="""    if self._task is not None:
+      # LAUNCHED IS NOT LANDED: a close cancels the task, and the""",
+       new="""    if self._task is not None:
+      self._dual_request = None  # mutation: spent at the launch
+      # LAUNCHED IS NOT LANDED: a close cancels the task, and the""",
+       test="test_a_dual_request_whose_run_is_cancelled_is_put_back",
+       why="the request spent at launch, so a run cancelled before its "
+           "landing had nothing left to put the stores back (round eight, "
+           "writeonly6)"),
   dict(name="the-duals-source-edits-are-restored-from-the-record",
        file=DIALOG,
        old="""    self._dual_source_edits = ([dict(e) for e in frozen]

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-540 defect(s) with a regression test.
+543 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -106,6 +106,8 @@ there is no separate list to remember.
   guarded by `test_a_dual_group_keeps_its_sources_edits_across_a_reopen`
 - **pressing "Generate the dual and tile it" while Generate could not start latched the plugin into dual mode invisibly, so the next ordinary Generate drew the dual of the design into a new group with nothing on screen to untick.**  
   guarded by `test_a_dual_request_that_is_refused_does_not_latch`
+- **pressing the dual button, closing the window before the run landed, reopening the plugin and pressing Generate drew the DUAL of the design into a new group, with nothing said.**  
+  guarded by `test_a_dual_request_whose_run_is_cancelled_is_put_back`
 - **a duplicated output layer survived a re-tile with nothing said, because the guard was written at the adoption door and not at the landing door. Found by the panel-acts hunt of 2026-08-28, ledger row 18.**  
   guarded by `test_a_duplicated_layer_is_named_at_the_landing_as_well`
 - **a support package whose download failed was discarded in silence and provisioning still reported success, bypassing the reason machinery written for exactly that case. Found by the dependency hunt of 2026-08-28.**  
@@ -124,6 +126,8 @@ there is no separate list to remember.
   guarded by `test_a_geopackage_carries_the_no_data_opacity_it_was_given`
 - **a class recoloured in QGIS's styling dock was discarded when the plugin reopened, because the graduated adoption path stopped at the mere presence of a ramp name, while its categorized twin asked whether that ramp explained the colours.**  
   guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
+- **after picking a saved map's group in the chooser and switching to another dataset, the output path stayed aimed at that map's GeoPackage in silence, and the next Save replaced its tables with the other dataset's tiles.**  
+  guarded by `test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work`
 - **a project saved under one spelling of its own folder and reopened under another stopped recognising its dataset's output group, so Generate built a rival group beside the user's map and orphaned it. Shipped in v0.24.3; found by the cross-platform hunt of 2026-08-28, which is the seam nobody had hunted deliberately.**  
   guarded by `test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
@@ -340,6 +344,8 @@ there is no separate list to remember.
   guarded by `test_the_vendored_version_is_checked_where_a_user_reads_it`
 - **the zigzag handle and its ghost stood at h of the edge's length while the library crests at h/2, so a person set a wave by eye and every tile on the map and in the file carried one 2.1 times shallower than the one they were shown.**  
   guarded by `test_the_zigzag_ghost_crests_where_the_library_does`
+- **choosing Rotate or Scale moved the zigzag handle to the defaults' position while the record kept the person's amplitude, so a drag from the drawn handle recorded a wave 1.6 times deeper than promised.**  
+  guarded by `test_the_zigzag_readout_keeps_the_banked_numbers_under_another_verb`
 - **ticking Experimental features opened the Topology tab without building anything, so it showed an empty class chooser beside an enabled Apply button -- and after a design change made with the box off it drew the PREVIOUS design's classes.**  
   guarded by `test_ticking_the_experimental_box_fills_the_topology_tab`
 - **2026-08-19. Measured through the dialog at five classes over 0-12: one element drew 0-1-2-3-4-12 and the other 0-2.4-4.8-7.2-9.6-12, disagreeing everywhere between the ends.**  
@@ -1135,7 +1141,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 147
+- a bug hunt pointed in a named direction: 150
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

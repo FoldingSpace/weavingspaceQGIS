@@ -363,6 +363,9 @@ quote them, do not renumber them.
 - **C-326** — A boolean store standing for a count: the dual of a dual  <sub>minted</sub>
 - **C-327** — A door to a second map clears what the dataset door clears: the create-new door and the...  <sub>minted</sub>
 - **C-328** — A repair that gives a function a new input widens the record and the key that decide wh...  <sub>minted</sub>
+- **C-329** — A flag's writers are the door list: the chooser did not count a restored map as work  <sub>minted</sub>
+- **C-330** — A readout that falls back to defaults under another verb stands where the bank does not...  <sub>minted</sub>
+- **C-331** — Launched is not landed: a request spent at the launch cannot be put back when the run i...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10550,3 +10553,57 @@ them into the edit key; `_build_unit` reads the frozen copy and the
 live shelf stands in only for a record older than the term. Two
 guards, one per store; the follow-the-source half of the two later
 claims is settled by the ruling. Ledger row 10.
+
+### C-329 — A flag's writers are the door list: the chooser did not count a restored map as work
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-329).</sub>
+
+Round eight's doors hunt (`doors7`, 2026-09-06) surveyed the five
+doors to a second map by grepping the writers of
+`_landed_this_session`: `_add_output_layers` and both Load doors set
+it deliberately, against a Save writing another dataset's tiles into
+the file just opened; `_on_group_chosen` did not. So a fresh dialog
+over a project holding a saved map, the group picked in the chooser,
+then another dataset chosen, kept the saved map's path in silence --
+`switched_from_work` False, `_begin_new_dataset` never run -- and the
+next Save replaced `tiles_a_v1` (OGR: x -32..4121 became
+499968..504121). Verified here off the path box and the notice.
+Repaired by counting a restored record as a landing; guarded by
+`test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work`
+and the entry `a-chosen-group-is-this-sessions-work`. Ledger row 11.
+
+### C-330 — A readout that falls back to defaults under another verb stands where the bank does not: the zigzag handle
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-330).</sub>
+
+Round eight's repairs hunt at rows 8-9 (`repairs20`, 2026-09-06)
+asked which reader of the boxes was left on a default once
+`_arguments` became the record's owner: `_push_zigzag_readout` read
+`MANIPULATIONS`' defaults under any verb but zigzag, while
+`_rebuild_arguments` had just banked the person's numbers and a grab
+seeds a drag from the bank. The handle jumped 44px on a 125px edge
+when Rotate was chosen, and a drag from where it was drawn recorded
+h 0.9148 for a promised 0.569; the unit drew 0.435 where the handle
+promised 0.285 under either sibling verb. Verified here off the
+handle's drawn position against the bank (16.5px, then 0.0 after the
+repair). The readout reads the bank over the defaults, the count
+settled; guarded by
+`test_the_zigzag_readout_keeps_the_banked_numbers_under_another_verb`
+and the entry `the-readout-reads-the-bank-under-another-verb`. Row 12.
+
+### C-331 — Launched is not landed: a request spent at the launch cannot be put back when the run is cancelled
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-331).</sub>
+
+Round eight's write-only hunt at today's records (`writeonly6`,
+2026-09-06) found the half row 4's `finally` left open: the request
+was spent the moment `_task` existed, a close cancels that task, and
+`plugin.open_dialog` reuses the dialog object -- so the stores stayed
+latched and the next ordinary Generate drew the dual into a new group.
+Verified here by closing mid-flight: task cancelled, no dual group,
+stores (True, True). The first repair put the stores back AFTER the
+cancel and found nothing to put back, because the task's own end
+reaches `_finish_run`, which now spends the request as a landing; the
+put-back runs before the cancel. Guarded by
+`test_a_dual_request_whose_run_is_cancelled_is_put_back` with two
+entries, one at the put-back and one at the launch. Row 13.

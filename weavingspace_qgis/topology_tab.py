@@ -2670,9 +2670,19 @@ class TopologyPanel(QWidget):
     # zigzag's, the manipulation's declared defaults otherwise, and the
     # handle then always shows the zigzag the current settings describe.
     chosen = self.how_combo.currentData() == "zigzag_edge"
-    args = (self._arguments() if chosen
-            else {name: default for name, _label, _low, _high, default, _step
-                  in edits_module.MANIPULATIONS["zigzag_edge"]["args"]})
+    # UNDER ANOTHER VERB THE BANK ANSWERS, not the declared defaults:
+    # `_rebuild_arguments` has just banked the person's numbers and
+    # `_on_grabbed` seeds a drag from them, so a handle drawn at the
+    # defaults stood 44px from the wave it would record (round eight,
+    # repairs20). The defaults stand in only where nothing was banked.
+    if chosen:
+      args = self._arguments()
+    else:
+      args = {name: default for name, _label, _low, _high, default, _step
+              in edits_module.MANIPULATIONS["zigzag_edge"]["args"]}
+      args.update(getattr(self, "_argument_memory", {}).get("zigzag_edge") or {})
+      if "n" in args:
+        args["n"] = float(_even_count(args["n"]))
     self.view.set_zigzag_readout(
       (args.get("n", 2.0), args.get("h", 0.0), chosen))
     # AND WHERE THE CLAMP HAS BITTEN, THE BOX SAYS SO. Deliberately the

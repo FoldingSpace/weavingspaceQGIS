@@ -1971,6 +1971,9 @@ the ledger is `defects-2026-09-06.md`.
 | stochastic settled sessions (9th) | (same) | a stochastic driver's real yield can be the reading it forces before the first seed; its first attribution (the cache) was wrong until the control arm ran (row 10) |
 | backwards from harm (12th) | (same) | a repair that widens what a map DEPENDS ON must widen the key that decides whether to redraw it -- the fourth widening of `_geometry_signature`, warned of in its own docstring, was missed by the repair that needed it (row 10; the follow-the-source half is settled by ruling 4) |
 | the specification itself (6th) | 0, 1 ruling question | a justification that names a pixel size but is implemented as a fraction of a variable length is two rules; check a snap threshold against the SPACING OF ITS OWN STOPS |
+| the doors to a second map (one-boundary) | 1 | a flag's WRITERS are the door list: grepping the five writers of `_landed_this_session` found the unswept door faster than reading any door (row 11) |
+| the round's own repairs (19th, at rows 8-9) | 1 | when a repair makes one store the single owner a record reads, ask which OTHER reader of that store was left on a hard-coded default (row 12) |
+| write-only at today's records | 1 | when a repair puts a settle in a `finally`, ask what CANCELS the act after it launched -- the wrapper sees every exit of the call and none of the task's (row 13) |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

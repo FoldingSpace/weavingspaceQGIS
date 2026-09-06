@@ -932,7 +932,9 @@ and the ids beside each rule.
   term is coarser than what it stands for: a boolean per element is
   invariant under a permutation. When a repair gives a function a new
   INPUT, widen the record and the key that decide whether the map is
-  redrawn in the same commit (C-328).
+  redrawn in the same commit (C-328); and when one store becomes the
+  owner a record reads, find the reader still on a hard-coded default
+  (C-330).
 - **A DISPLAY RULE IS DISPLAY-ONLY ONLY IF NOTHING RE-READS THE
   DISPLAY** (C-133); a count quoted to a person is asked of the
   geometry, not of two totals (C-131); a guard that rebuilds a layer
@@ -948,7 +950,9 @@ and the ids beside each rule.
   a wanted write that fails still clears, so enabling the write is
   half a repair (C-178); a store written BEFORE the act it stands for
   outlives a refused act, so settle it where every exit of the act
-  ends (C-323).
+  ends (C-323) -- and launched is not landed: spend it at the landing,
+  and put it back BEFORE a cancel, since the task's own end reaches the
+  landing first (C-331).
 - **A PREDICATE THAT MERGES TWO FACTS IS RIGHT FOR A WAIT AND WRONG
   FOR A QUESTION** (C-224), and a question built on it merges the same
   two states (C-233). A control one act moves as a side effect is read
@@ -962,7 +966,9 @@ and the ids beside each rule.
 **Doors, twins and sequences.**
 - **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
   ROOM** (C-52); the create-new door clears the output path as the
-  dataset door does, since a saved file is one map (C-327). Presence
+  dataset door does, since a saved file is one map (C-327); a flag's
+  writers ARE the door list, and the chooser was the third door into
+  the room the two Load doors guard (C-329). Presence
   is not order: a call put back after its twin
   calls it before is worse than one still missing (C-55); a fix written
   into two paths in one commit is diffed hunk against hunk (C-66), and

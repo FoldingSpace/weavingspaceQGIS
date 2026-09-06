@@ -6331,6 +6331,13 @@ class WeavingSpaceDialog(QDialog):
     # paid for once already in a flag no journey cleared.
     self._load_pending = None
     if self._task is not None:
+      # A DUAL REQUEST WHOSE RUN THIS CLOSE CANCELS GOES BACK, and it
+      # goes back BEFORE the cancel: the task's own end reaches
+      # `_finish_run`, which spends the request as a landing would, so
+      # a put-back after the cancel would find nothing to put back. The
+      # dialog object outlives the window, so the stores it wrote would
+      # otherwise meet the next ordinary Generate.
+      self._put_back_a_cancelled_dual_request()
       try:
         self._task.cancel()
       except Exception:
@@ -18349,6 +18356,14 @@ class WeavingSpaceDialog(QDialog):
       return
     self._new_group_chosen = False
     record = self._read_working_state(group)
+    # A MAP CHOSEN HERE IS THIS SESSION'S WORK, exactly as one drawn or
+    # one loaded from a file: both Load doors set this deliberately, and
+    # the chooser -- the third door into the same room -- did not, so
+    # `switched_from_work` stayed False and a change of dataset after
+    # picking a saved group kept its file path in silence; the next Save
+    # wrote the other dataset's tiles over it (round eight, doors7).
+    if record:
+      self._landed_this_session = True
     self._selecting_a_group = True
     try:
       self._point_the_chooser_at((record or {}).get("region"))
@@ -24433,6 +24448,25 @@ class WeavingSpaceDialog(QDialog):
     self.opt_map_dual.setChecked(True)
     self._generate()
 
+  def _put_back_a_cancelled_dual_request(self) -> None:
+    """Revert the dual button's stores when its run is cancelled.
+
+    Returns:
+      None. Where a dual request is still alive -- launched and not yet
+      landed -- the two stores the button wrote go back to what they
+      were and the request is dropped, since no dual group will come
+      of it. A request already spent by a landing is nothing to do.
+    """
+    asked = getattr(self, "_dual_request", None)
+    if asked is None:
+      return
+    was_new, was_dual = asked
+    self._dual_request = None
+    self._new_group_chosen = was_new
+    self.opt_map_dual.setChecked(was_dual)
+    self._dual_source_group_name = None
+    self._dual_source_edits = None
+
   def _settle_a_dual_request(self) -> None:
     """Consume or revert the dual button's stores once a Generate ends.
 
@@ -24449,16 +24483,17 @@ class WeavingSpaceDialog(QDialog):
     if asked is None:
       return
     if self._task is not None:
-      self._dual_request = None
+      # LAUNCHED IS NOT LANDED: a close cancels the task, and the
+      # request spent here left the stores latched with no dual group
+      # made (round eight, writeonly6). The landing spends it and the
+      # close puts it back.
       return
     if getattr(self, "_press_pending", False) \
         or getattr(self, "_live_pending", False):
       return
-    was_new, was_dual = asked
-    self._dual_request = None
-    self._new_group_chosen = was_new
-    self.opt_map_dual.setChecked(was_dual)
-    self._dual_source_group_name = None
+    # NOTHING LAUNCHED AND NOTHING DEFERRED: a refusal, so put the stores
+    # back through the one helper the cancel path uses too.
+    self._put_back_a_cancelled_dual_request()
 
   def _mapping_the_dual(self) -> bool:
     """Whether the map is being tiled with the design's DUAL.
@@ -24679,6 +24714,9 @@ class WeavingSpaceDialog(QDialog):
     self.progress.setVisible(False)
     self.progress.setRange(0, 100)
     self._task = None
+    # THE DUAL REQUEST IS SPENT BY A LANDING, however the run ended:
+    # what landed is what the stores now describe.
+    self._dual_request = None
     # A dock edit made WHILE the run was in flight was ignored by the
     # styleChanged watcher (a run in progress must not be mistaken for
     # a user restyle) and then carried across by the preserved-

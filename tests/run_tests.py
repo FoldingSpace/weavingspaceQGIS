@@ -57996,6 +57996,174 @@ def test_a_second_edit_of_the_source_makes_a_different_dual():
     dlg.deleteLater()
 
 
+def test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work():
+  """Picking a saved map's group in the chooser counts it as this
+  session's work, so a change of dataset clears its file path and says so.
+
+  Both Load doors set `_landed_this_session` deliberately, against a
+  Save writing another dataset's tiles into the file just opened; the
+  chooser, the third door into the same room, did not, so
+  `switched_from_work` stayed False and ruling 1 of 2026-08-21 -- the
+  path cleared on any change of region layer, and announced -- never
+  ran. Driven through a fresh dialog over a project holding a saved
+  map, the chooser's own `activated` signal, then the region chooser.
+
+  Regression: after picking a saved map's group in the chooser and switching to another dataset, the output path stayed aimed at that map's GeoPackage in silence, and the next Save replaced its tables with the other dataset's tiles. [hunt]
+  """
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  dlg, layer, tid = _categorical_dialog()
+  out = os.path.join(tempfile.mkdtemp(prefix="weavingspace_chooser_"), "a.gpkg")
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    _generate_and_wait(dlg)
+    dlg.gpkg_widget.setFilePath(out)
+    assert press_save(dlg), "PREMISE: the first save wrote nothing"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(400)
+
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(300)
+    assert not dlg._landed_this_session, \
+      "PREMISE: a fresh dialog already counts a landing"
+    combo = dlg.group_combo
+    index = next(i for i in range(combo.count()) if combo.itemData(i) is not None)
+    combo.setCurrentIndex(index)
+    combo.activated.emit(index)
+    _tick(500)
+    assert dlg.gpkg_widget.filePath() == out, \
+      f"PREMISE: the chooser did not restore the path: {dlg.gpkg_widget.filePath()!r}"
+    assert dlg._landed_this_session, (
+      "a map chosen in the chooser is not counted as this session's work, "
+      "so the protections `switched_from_work` arms are off")
+    other = make_region_layer()
+    other.setName("regionB")
+    QgsProject.instance().addMapLayer(other)
+    _tick(300)
+    dlg.layer_combo.setLayer(other)
+    _tick(600)
+    assert dlg.gpkg_widget.filePath() == "", (
+      f"after switching dataset the path still names the saved map's file "
+      f"{dlg.gpkg_widget.filePath()!r}, so the next Save would write the "
+      f"other dataset over it")
+    said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
+    assert "cleared" in said, f"the path was cleared with nothing said: {said!r}"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_the_zigzag_readout_keeps_the_banked_numbers_under_another_verb():
+  """The zigzag handle stays where the person's numbers put it when
+  another manipulation is chosen.
+
+  `_push_zigzag_readout` fell back to the declared defaults under any
+  other verb, while `_rebuild_arguments` had just banked the person's
+  numbers and a grab seeds a drag from that bank: the handle jumped 44px
+  on a 125px edge when Rotate was chosen and a drag from where it was
+  drawn recorded h 0.91 for a promised 0.57. The readout reads the bank.
+
+  Regression: choosing Rotate or Scale moved the zigzag handle to the defaults' position while the record kept the person's amplitude, so a drag from the drawn handle recorded a wave 1.6 times deeper than promised. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, handle, along, normal, reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    h_box = next(b for _l, b in panel._argument_rows if b.property("argument") == "h")
+    h_box.setValue(0.6)
+    _tick(150)
+    view._chosen_thing = view._chosen_thing
+    under_zigzag = next(w for k, w, _s in view.handles() if k == "zigzag_edge")
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("rotate_edge"))
+    _tick(200)
+    assert (panel._argument_memory.get("zigzag_edge") or {}).get("h") == 0.6, \
+      f"PREMISE: the bank does not hold 0.6: {panel._argument_memory.get('zigzag_edge')}"
+    view._chosen_thing = view._chosen_thing
+    under_rotate = next(w for k, w, _s in view.handles() if k == "zigzag_edge")
+    moved = ((under_zigzag.x() - under_rotate.x()) ** 2
+             + (under_zigzag.y() - under_rotate.y()) ** 2) ** 0.5
+    assert moved < 1.0, (
+      f"the zigzag handle moved {moved:.1f}px when Rotate was chosen, so it "
+      f"shows the defaults rather than the banked amplitude 0.6 a drag "
+      f"would start from; readout {view._zigzag_readout}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_dual_request_whose_run_is_cancelled_is_put_back():
+  """Closing the window while the dual's run is in flight puts the dual
+  button's stores back, so the next Generate draws the design.
+
+  The request was spent the moment a task existed; a close cancels the
+  task and the dialog object outlives the window, so the stores it
+  wrote met the next ordinary Generate and drew the dual into a new
+  group unasked. The landing spends the request now and the close puts
+  it back.
+
+  Regression: pressing the dual button, closing the window before the run landed, reopening the plugin and pressing Generate drew the DUAL of the design into a new group, with nothing said. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    _generate_and_wait(dlg)
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    for _ in range(200):
+      _tick(20)
+      if dlg._task is not None:
+        break
+    assert dlg._task is not None, "PREMISE: the dual's run never launched"
+    assert dlg._dual_request is not None, \
+      "PREMISE: the request was spent at launch rather than at the landing"
+    dlg.close()
+    _tick(1500)
+    assert dlg._task is None, "PREMISE: the close did not cancel the run"
+    names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
+    assert not any(n.endswith("dual") for n in names), \
+      f"PREMISE: the cancelled run landed a dual group anyway: {names}"
+    assert (dlg.opt_map_dual.isChecked(), dlg._new_group_chosen) == (False, False), (
+      f"after the close cancelled the dual's run the stores read "
+      f"{(dlg.opt_map_dual.isChecked(), dlg._new_group_chosen)}, so the "
+      f"next Generate would draw the dual")
+    dlg.show()
+    _tick(300)
+    _generate_and_wait(dlg)
+    names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
+    assert not dlg._mapping_the_dual() and not any(n.endswith("dual") for n in names), (
+      f"the Generate after a cancelled dual request drew the dual: {names}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -90885,6 +91053,12 @@ def main():
         test_a_dual_group_keeps_its_sources_edits_across_a_reopen)
   check("a second edit of the source makes a different dual",
         test_a_second_edit_of_the_source_makes_a_different_dual)
+  check("a group chosen in the chooser counts as this session's work",
+        test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work)
+  check("the zigzag readout keeps the banked numbers under another verb",
+        test_the_zigzag_readout_keeps_the_banked_numbers_under_another_verb)
+  check("a dual request whose run is cancelled is put back",
+        test_a_dual_request_whose_run_is_cancelled_is_put_back)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",
