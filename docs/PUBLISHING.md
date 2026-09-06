@@ -443,9 +443,10 @@ Three candidates were built and two thrown away to publish one
 (2026-08-31), and not a byte of the plugin changed between them. Measured member
 by member, `weavingspace_qgis-0.24.4rc7.zip`, `...rc8.zip` and
 `...rc9.zip` differ in exactly ONE file, `metadata.txt`, which carries
-the candidate label. What changed twice was a TEST -- and rc16 went
-the same way on 2026-09-06, on a test premise the even-count ruling
-had made false hours earlier (T-143). WHY A TEST FIX COSTS
+the candidate label. What changed twice was a TEST -- and rc16's first
+build went the same way on 2026-09-06, on a test premise the
+even-count ruling had made false hours earlier, the number surviving
+only because no zip, dossier or receipt had been written (T-143). WHY A TEST FIX COSTS
 A NUMBER. `publish_candidate` requires every CI workflow to be green ON
 THE CANDIDATE'S OWN COMMIT, and no later fix turns an earlier commit's
 history green. (P-4.)

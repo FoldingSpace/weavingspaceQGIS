@@ -781,7 +781,7 @@ The accounts are T-138.
   NARROWS a control's range or its set of values, grep the suite for
   every premise that stages the old range before the candidate runs:
   a test set the zigzag count to 1 the night counts went even, and
-  rc16 paid for it (T-143).
+  rc16's first build paid for it (T-143).
 
 ## WHAT THE TESTS TAUGHT ABOUT THE PRODUCT
 
