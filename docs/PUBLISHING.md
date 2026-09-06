@@ -106,37 +106,16 @@ cannot answer that question. (P-1.)
 
 ### A captured stage must never be able to wedge, and must leave a record
 
-Found 2026-08-16, in the machinery rather than the plugin, while a
-candidate sat at seventy minutes on a stage that usually takes
-fourteen. `run_sharded` started every shard with `stdout=PIPE` and
-then called `communicate()` on them ONE AT A TIME. A shard nobody is
-draining keeps writing into a pipe; at 64 KB the buffer fills and its
-`write()` blocks. Measured: shard 2 sat at exactly 20:00.99 CPU for
-over fifty minutes while the other two ran on, with 2374 of 2374
-stack samples in `__write_nocancel` beneath GDAL's error handler.
-
-It was never a deadlock -- the blocked shard resumes when the loop
-reaches it -- which is what made it invisible: the stage completes,
-eventually, and the only symptom is that sharding quietly stops
-buying anything whenever output is heavy. THE SECOND HALF WAS WORSE.
-Because the captured text only reached disk when the stage ENDED, a
-run killed part-way left no stage log at all, so seventy minutes of
-suite output bought exactly nothing.
-
-Each shard now writes to its own file, named for the RUN (a timestamp
-and pid) rather than the shard number, so a relaunch cannot land in a
-live run's file -- the rule this project already learned when two
-runs of one shard appended to `shard0.log` and the counts stopped
-making sense. Guarded by
-`test_no_shard_waits_on_a_pipe_nobody_is_reading`, whose stand-in
-shards each write about 1.3 MB and then wait for each other, so the
-old code stands still rather than merely running slowly.
-
-TWO THINGS TO CHECK OF ANY CAPTURED CHILD, and neither is exotic: can
-it produce more output than a pipe buffer holds while nobody is
-reading, and does its output survive the run being killed? A
-long-running child whose log appears only at the end is one you cannot
-diagnose and cannot interrupt.
+`run_sharded` once started every shard with `stdout=PIPE` and drained
+them one at a time, so a shard writing past 64 KB blocked until the
+loop reached it -- fifty minutes at a fixed CPU figure -- and a run
+killed part-way left no stage log at all, since captured text reached
+disk only when the stage ended. Each shard now writes to its own file,
+named for the RUN rather than the shard so a relaunch cannot land in a
+live run's file; guarded by
+`test_no_shard_waits_on_a_pipe_nobody_is_reading`. Ask of any captured
+child whether it can outrun a pipe buffer while nobody reads, and
+whether its output survives the run being killed. (P-6.)
 
 ### What CI checks about the ARTEFACT, not the source
 
@@ -174,34 +153,17 @@ wrote it, code signing, an app bundle's own interpreter, and whether
 the archive's layout survives that unpacking. `compat.py` exists
 because QGIS moves its APIs and had never run on either platform.
 
-QGIS arrives through Chocolatey's `qgis` package, which installs the
-standalone installer's QGIS -- the same thing a Windows user
-downloads from qgis.org, with its own Python and the
-`python-qgis*.bat` shims. That is the one route somebody was found
-actually driving for this purpose: GispoCoding's plugin template
-runs its tests through that shim on `windows-latest`. The OSGeo4W
-network installer is the other credible route and is used on GitHub
-runners (GRASS drives it, 89 seconds for 22 packages), but no
-workflow was found installing QGIS ITSELF that way, so taking it
-would have meant guessing at installer flags on a job that costs a
-quarter of an hour to retry. conda-forge has a win-64 QGIS and no
-Windows CI using it, and is a different build with a different
-Python besides.
-
-`qgis` and not `qgis-ltr`: the LTR is 3.44, below the 4.0 floor
-`metadata.txt` declares, so the plugin would refuse to load and the
-job would be red about nothing -- the same reason the Linux matrix
-avoids the `latest` image. The version is otherwise whatever
-Chocolatey serves that week, so it is printed every run rather than
-pinned. Nothing is cached: a stale cache key would leave this green
-against a QGIS nobody runs.
-
-It does NOT run `tools/ci_provision.py`. `classFactory` calls
-`deps.add_paths` and imports Qt, `initGui` builds a QAction, and
-nothing on that path touches geopandas -- measured by running the
-same script under macOS QGIS with none of the stack present. A
-provisioning step would buy a download and a second failure surface
-in front of the one question this job asks.
+The Windows leg installs QGIS through Chocolatey's `qgis` package --
+the standalone installer's QGIS with its own Python and the
+`python-qgis*.bat` shims, the one route found actually driven for this
+purpose -- and not `qgis-ltr`, whose 3.44 is below the 4.0 floor
+`metadata.txt` declares. The version is printed rather than pinned and
+nothing is cached, so the job cannot stay green against a QGIS nobody
+runs. It does NOT run `tools/ci_provision.py`: `classFactory`,
+`initGui` and `unload` touch no geopandas, measured under macOS QGIS
+with none of the stack present, so a provisioning step would add a
+download and a second failure surface in front of the one question the
+job asks. (P-7.)
 
 **The published claims are audited**, with `--check`, which asks only
 the questions whose answer is somebody's words: a missing changelog
@@ -324,38 +286,14 @@ test-writing, and treating it as a blocker would either delay every
 release or teach everybody to wave it through.
 
 **AND YET A RED `mutation` WORKFLOW DOES STOP A CANDIDATE, WHICH IS
-NOT A CONTRADICTION AND HAS TWICE BEEN READ AS ONE.** The question
-gets asked because the workflow's NAME is on the red. What is
-actually in it, read off `.github/workflows/mutation.yml` rather than
-off the prose about it:
-
-    Sweep this slice of the catalogue      continue-on-error: true
-    Mutate the lines changed since ...     continue-on-error: true
-    Record which tests touch which lines   exits 1 on a failed shard
-
-So no mutation MEASUREMENT can redden that workflow, and the rule
-above holds exactly as written. What can redden it is provisioning,
-the baseline check, an artefact upload, or the coverage leg -- which
-is not a mutation instrument at all. It runs the WHOLE SUITE three
-ways under the per-test recorder and refuses a partial record, for a
-reason that has nothing to do with sampling: a coverage record missing
-a shard never offers the absent tests the chance to notice a mutant,
-so it overstates survivors silently and in one direction only.
-
-TWICE NOW THAT LEG HAS STOPPED A CANDIDATE AND BEEN RIGHT TO. It took
-rc7 on 2026-08-31 with a real test fault that macOS and Windows found
-independently, and rc10 on 2026-09-01 with one test failing on its own
-premise. Neither was a survivor; both were the suite.
-
-WHAT IS UNSETTLED IS THE SPLIT, and it is a release gate, so it is the
-maintainer's. `publish_candidate` requires every WORKFLOW on the
-candidate's commit to be green; the honest division may be per JOB,
-with the sampling jobs reporting and the whole-suite leg gating. It is
-recorded under "Conflicts to settle by grilling" in ROADMAP.md rather
-than changed in passing, because a gate is changed deliberately or not
-at all. Nothing here has been tightened: that workflow file has not
-moved since 2026-08-19, and `publish_candidate` has asked for every
-workflow since the day it was written.
+NOT A CONTRADICTION.** Every measuring step in `mutation.yml` is
+`continue-on-error`, so no mutation MEASUREMENT can redden it; what can
+is provisioning, the baseline check, an artefact upload, or the
+coverage leg, which runs the WHOLE SUITE three ways under the per-test
+recorder and refuses a partial record. That leg has stopped two
+candidates and been right both times, and neither was a survivor. The
+split question this paragraph once carried was measured moot (R-31).
+(P-8.)
 
 Full reasoning, including what deliberately did NOT move to CI, in
 docs/MUTATION-LOOP.md.
@@ -417,13 +355,8 @@ suite reads are in that list too, because
 failed twice on prose; a documentation edit really can break a test,
 and it is exactly the kind of change that feels as though it cannot.
 
-THAT EXAMPLE NOW DESCRIBES NOTHING, and `release.py` says so at the
-map itself: the coverage stage left the release path and its entry
-left `STAGE_DEPENDS` with it. Kept here because the SHAPE is what the
-flag is for -- a change to machinery that retires one stage's answer
-and no other -- and because a document quietly dropping its own
-worked example loses the reason as well as the example. (Noted
-2026-08-18.)
+(The coverage example above left `STAGE_DEPENDS` with its stage on
+2026-08-18; the SHAPE is what the flag is for, P-9.)
 
 **A skip is honest or it does not happen.** Three stages' output is
 USED (four until the per-test coverage record left the release path;
@@ -501,15 +434,11 @@ waits for what they say.
 writing `dist/weavingspace_qgis-<version>rc<n>.zip`. Nothing is
 committed and nothing is tagged.
 
-One exception to "and the tree is untouched", found on 2026-08-14 and
-recorded rather than tidied away: the candidate MENDS `CITATION.cff`
-to the version being built, so `git status` afterwards shows that one
-file modified. It is harmless -- CITATION.cff does not ship, so the
-receipt digest is unaffected, and the promotion would make the same
-edit -- but the sentence that used to stand here said the tree was as
-clean afterwards as before, and it was not. The number counts up
-from the candidates already in `dist/`, so a new one can never
-overwrite the one somebody is testing.
+One exception: the candidate MENDS `CITATION.cff` to the version being
+built, so `git status` shows that one file modified. CITATION.cff does
+not ship, so the receipt is unaffected, and the promotion would make
+the same edit. The number counts up from the candidates already in
+`dist/`. (P-10.)
 
 The candidate declares itself as `<version>rc<n>` in QGIS's plugin
 manager, though the version in `metadata.txt` on disk is untouched:
@@ -517,22 +446,12 @@ the substitution happens inside the archive only. A tester can
 therefore see at a glance which build they are looking at, which
 matters when the feedback arrives days later.
 
-A candidate also installs itself, into every QGIS profile on this
-machine that ALREADY has the plugin, so it can be tried without going
-through the plugin manager. Profiles that do not have it are left
-alone: putting a plugin into a profile nobody asked about leaves a
-user something to discover and remove, and a testing profile exists
-precisely so that what is in it is deliberate. A `libs/` folder is
-preserved, since those wheels belong to that machine and are not in
-the zip; everything else is replaced, so a file dropped from the
-plugin cannot linger in an installed copy and go on being imported.
-Restart QGIS or use Plugin Reloader afterwards — modules already
-imported stay imported. Skipping the install is `build.py`'s
-`--no-install` rather than a flag on the command above:
-`release.py` declares only `--push`, `--resume` and `--rc`, and
-invokes `build.py` without forwarding anything, so
-`release.py --rc --no-install` is an argparse error. Corrected
-2026-08-18, having documented a flag the command could not take.
+A candidate also installs itself into every QGIS profile that ALREADY
+has the plugin -- never into one that does not -- preserving `libs/`
+and replacing everything else, so a dropped file cannot linger.
+Restart QGIS or use Plugin Reloader afterwards. Skipping the install is
+`build.py --no-install`, since `release.py` forwards nothing to it.
+(P-11.)
 
 ## READING CI: three ways the reading itself fails
 
@@ -864,28 +783,12 @@ bearing a number spends it — zip, dossier, receipt — so deleting one
 does not hand its number back.
 
 **Naming.** EVERY ARTEFACT CARRIES ITS VERSION, in `dist/` and on the
-release page alike. Candidates always did —
-`weavingspace_qgis-<version>rc<n>.zip` — and the release path did not,
-attaching a bare `weavingspace_qgis.zip`; the convention existed and
-had been applied to half the process. The prose that names the
-download follows the artefact rather than the artefact being held
-still for the prose, so README.md, docs/index.html and the attachment
-line `tools/release_notes.py` composes all move with it, through text
-review like any other sentence a user meets. Releases already
-published keep the asset names they went out with: rewriting those
-would break links people already hold.
-
-**And no CHECK writes into `dist/`.** `check_before_push` replays the
-`standards` job, one of whose steps runs `build.py` — so the push gate
-was rebuilding an artefact into the directory that holds the gated
-ones, from whatever tree it happened to be run against. A packaging
-check only asks whether the archive still forms, which a temporary
-directory answers just as well. What made this worth a rule rather
-than a tidy-up: on 2026-08-29 the newest file in a `dist/` holding
-three versioned candidates and their receipts was an unversioned zip
-an hour younger than the published candidate and three bytes different
-from it.
-
+release page alike, and the prose that names the download follows the
+artefact; releases already published keep the asset names they went
+out with. **And no CHECK writes into `dist/`**: `check_before_push`
+replays the packaging step, so it builds into a temporary directory,
+having once left an unversioned zip in `dist/` three bytes different
+from the published candidate. (P-12.)
 
 ## Release bodies wrap; the changelog does not
 

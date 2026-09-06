@@ -20,6 +20,13 @@ quote them, do not renumber them.
 - **P-3** — What a release stopped doing, and why that is not a weakening  <sub>Publishing: the accounts behind the procedure</sub>
 - **P-4** — A TEST REPAIR SPENDS A CANDIDATE NUMBER, AND THAT IS NOT A WASTE  <sub>Publishing: the accounts behind the procedure</sub>
 - **P-5** — Release bodies wrap; the changelog does not  <sub>Publishing: the accounts behind the procedure</sub>
+- **P-6** — The shard that sat fifty minutes on a full pipe, and the log a killed run never wrote, ...  <sub>The third pass of 2026-09-05</sub>
+- **P-7** — How the Windows leg installs QGIS, the routes not taken, and why it does not provision,...  <sub>The third pass of 2026-09-05</sub>
+- **P-8** — Why a red mutation workflow stops a candidate: the workflow read off its own file, in full  <sub>The third pass of 2026-09-05</sub>
+- **P-9** — The coverage stage's departure from STAGE_DEPENDS, kept for the shape  <sub>The third pass of 2026-09-05</sub>
+- **P-10** — The one file a candidate touches, and why it was recorded rather than tidied  <sub>The third pass of 2026-09-05</sub>
+- **P-11** — What a candidate's self-install does and does not touch, and the flag the command could...  <sub>The third pass of 2026-09-05</sub>
+- **P-12** — The unversioned zip in dist/, and the check that wrote it, in full  <sub>The third pass of 2026-09-05</sub>
 
 
 ## Publishing: the accounts behind the procedure
@@ -413,3 +420,192 @@ When fixing a published page, EDIT IT IN PLACE (`gh release edit
 --notes-file`) so the tag, the URL and the attachments are untouched,
 then read the live body back and measure it. A local file that looks
 right proves nothing about the page somebody opens.
+
+### P-6 — The shard that sat fifty minutes on a full pipe, and the log a killed run never wrote, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 107–140 of the 2026-09-05 revision.</sub>
+
+### A captured stage must never be able to wedge, and must leave a record
+
+Found 2026-08-16, in the machinery rather than the plugin, while a
+candidate sat at seventy minutes on a stage that usually takes
+fourteen. `run_sharded` started every shard with `stdout=PIPE` and
+then called `communicate()` on them ONE AT A TIME. A shard nobody is
+draining keeps writing into a pipe; at 64 KB the buffer fills and its
+`write()` blocks. Measured: shard 2 sat at exactly 20:00.99 CPU for
+over fifty minutes while the other two ran on, with 2374 of 2374
+stack samples in `__write_nocancel` beneath GDAL's error handler.
+
+It was never a deadlock -- the blocked shard resumes when the loop
+reaches it -- which is what made it invisible: the stage completes,
+eventually, and the only symptom is that sharding quietly stops
+buying anything whenever output is heavy. THE SECOND HALF WAS WORSE.
+Because the captured text only reached disk when the stage ENDED, a
+run killed part-way left no stage log at all, so seventy minutes of
+suite output bought exactly nothing.
+
+Each shard now writes to its own file, named for the RUN (a timestamp
+and pid) rather than the shard number, so a relaunch cannot land in a
+live run's file -- the rule this project already learned when two
+runs of one shard appended to `shard0.log` and the counts stopped
+making sense. Guarded by
+`test_no_shard_waits_on_a_pipe_nobody_is_reading`, whose stand-in
+shards each write about 1.3 MB and then wait for each other, so the
+old code stands still rather than merely running slowly.
+
+TWO THINGS TO CHECK OF ANY CAPTURED CHILD, and neither is exotic: can
+it produce more output than a pipe buffer holds while nobody is
+reading, and does its output survive the run being killed? A
+long-running child whose log appears only at the end is one you cannot
+diagnose and cannot interrupt.
+
+
+### P-7 — How the Windows leg installs QGIS, the routes not taken, and why it does not provision, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 156–184 of the 2026-09-05 revision.</sub>
+
+QGIS arrives through Chocolatey's `qgis` package, which installs the
+standalone installer's QGIS -- the same thing a Windows user
+downloads from qgis.org, with its own Python and the
+`python-qgis*.bat` shims. That is the one route somebody was found
+actually driving for this purpose: GispoCoding's plugin template
+runs its tests through that shim on `windows-latest`. The OSGeo4W
+network installer is the other credible route and is used on GitHub
+runners (GRASS drives it, 89 seconds for 22 packages), but no
+workflow was found installing QGIS ITSELF that way, so taking it
+would have meant guessing at installer flags on a job that costs a
+quarter of an hour to retry. conda-forge has a win-64 QGIS and no
+Windows CI using it, and is a different build with a different
+Python besides.
+
+`qgis` and not `qgis-ltr`: the LTR is 3.44, below the 4.0 floor
+`metadata.txt` declares, so the plugin would refuse to load and the
+job would be red about nothing -- the same reason the Linux matrix
+avoids the `latest` image. The version is otherwise whatever
+Chocolatey serves that week, so it is printed every run rather than
+pinned. Nothing is cached: a stale cache key would leave this green
+against a QGIS nobody runs.
+
+It does NOT run `tools/ci_provision.py`. `classFactory` calls
+`deps.add_paths` and imports Qt, `initGui` builds a QAction, and
+nothing on that path touches geopandas -- measured by running the
+same script under macOS QGIS with none of the stack present. A
+provisioning step would buy a download and a second failure surface
+in front of the one question this job asks.
+
+
+### P-8 — Why a red mutation workflow stops a candidate: the workflow read off its own file, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 288–321 of the 2026-09-05 revision.</sub>
+
+**AND YET A RED `mutation` WORKFLOW DOES STOP A CANDIDATE, WHICH IS
+NOT A CONTRADICTION AND HAS TWICE BEEN READ AS ONE.** The question
+gets asked because the workflow's NAME is on the red. What is
+actually in it, read off `.github/workflows/mutation.yml` rather than
+off the prose about it:
+
+    Sweep this slice of the catalogue      continue-on-error: true
+    Mutate the lines changed since ...     continue-on-error: true
+    Record which tests touch which lines   exits 1 on a failed shard
+
+So no mutation MEASUREMENT can redden that workflow, and the rule
+above holds exactly as written. What can redden it is provisioning,
+the baseline check, an artefact upload, or the coverage leg -- which
+is not a mutation instrument at all. It runs the WHOLE SUITE three
+ways under the per-test recorder and refuses a partial record, for a
+reason that has nothing to do with sampling: a coverage record missing
+a shard never offers the absent tests the chance to notice a mutant,
+so it overstates survivors silently and in one direction only.
+
+TWICE NOW THAT LEG HAS STOPPED A CANDIDATE AND BEEN RIGHT TO. It took
+rc7 on 2026-08-31 with a real test fault that macOS and Windows found
+independently, and rc10 on 2026-09-01 with one test failing on its own
+premise. Neither was a survivor; both were the suite.
+
+WHAT IS UNSETTLED IS THE SPLIT, and it is a release gate, so it is the
+maintainer's. `publish_candidate` requires every WORKFLOW on the
+candidate's commit to be green; the honest division may be per JOB,
+with the sampling jobs reporting and the whole-suite leg gating. It is
+recorded under "Conflicts to settle by grilling" in ROADMAP.md rather
+than changed in passing, because a gate is changed deliberately or not
+at all. Nothing here has been tightened: that workflow file has not
+moved since 2026-08-19, and `publish_candidate` has asked for every
+workflow since the day it was written.
+
+
+### P-9 — The coverage stage's departure from STAGE_DEPENDS, kept for the shape
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 358–365 of the 2026-09-05 revision.</sub>
+
+THAT EXAMPLE NOW DESCRIBES NOTHING, and `release.py` says so at the
+map itself: the coverage stage left the release path and its entry
+left `STAGE_DEPENDS` with it. Kept here because the SHAPE is what the
+flag is for -- a change to machinery that retires one stage's answer
+and no other -- and because a document quietly dropping its own
+worked example loses the reason as well as the example. (Noted
+2026-08-18.)
+
+
+### P-10 — The one file a candidate touches, and why it was recorded rather than tidied
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 437–446 of the 2026-09-05 revision.</sub>
+
+One exception to "and the tree is untouched", found on 2026-08-14 and
+recorded rather than tidied away: the candidate MENDS `CITATION.cff`
+to the version being built, so `git status` afterwards shows that one
+file modified. It is harmless -- CITATION.cff does not ship, so the
+receipt digest is unaffected, and the promotion would make the same
+edit -- but the sentence that used to stand here said the tree was as
+clean afterwards as before, and it was not. The number counts up
+from the candidates already in `dist/`, so a new one can never
+overwrite the one somebody is testing.
+
+
+### P-11 — What a candidate's self-install does and does not touch, and the flag the command could not take, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 449–465 of the 2026-09-05 revision.</sub>
+
+A candidate also installs itself, into every QGIS profile on this
+machine that ALREADY has the plugin, so it can be tried without going
+through the plugin manager. Profiles that do not have it are left
+alone: putting a plugin into a profile nobody asked about leaves a
+user something to discover and remove, and a testing profile exists
+precisely so that what is in it is deliberate. A `libs/` folder is
+preserved, since those wheels belong to that machine and are not in
+the zip; everything else is replaced, so a file dropped from the
+plugin cannot linger in an installed copy and go on being imported.
+Restart QGIS or use Plugin Reloader afterwards — modules already
+imported stay imported. Skipping the install is `build.py`'s
+`--no-install` rather than a flag on the command above:
+`release.py` declares only `--push`, `--resume` and `--rc`, and
+invokes `build.py` without forwarding anything, so
+`release.py --rc --no-install` is an argparse error. Corrected
+2026-08-18, having documented a flag the command could not take.
+
+
+### P-12 — The unversioned zip in dist/, and the check that wrote it, in full
+
+<sub>Cut from `docs/PUBLISHING.md`, lines 785–808 of the 2026-09-05 revision.</sub>
+
+**Naming.** EVERY ARTEFACT CARRIES ITS VERSION, in `dist/` and on the
+release page alike. Candidates always did —
+`weavingspace_qgis-<version>rc<n>.zip` — and the release path did not,
+attaching a bare `weavingspace_qgis.zip`; the convention existed and
+had been applied to half the process. The prose that names the
+download follows the artefact rather than the artefact being held
+still for the prose, so README.md, docs/index.html and the attachment
+line `tools/release_notes.py` composes all move with it, through text
+review like any other sentence a user meets. Releases already
+published keep the asset names they went out with: rewriting those
+would break links people already hold.
+
+**And no CHECK writes into `dist/`.** `check_before_push` replays the
+`standards` job, one of whose steps runs `build.py` — so the push gate
+was rebuilding an artefact into the directory that holds the gated
+ones, from whatever tree it happened to be run against. A packaging
+check only asks whether the archive still forms, which a temporary
+directory answers just as well. What made this worth a rule rather
+than a tidy-up: on 2026-08-29 the newest file in a `dist/` holding
+three versioned candidates and their receipts was an unversioned zip
+an hour younger than the published candidate and three bytes different
+from it.
