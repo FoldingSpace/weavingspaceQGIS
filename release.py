@@ -974,7 +974,11 @@ def run(step, cmd, env, capture=False):
   return output
 
 
-SHARDS = int(os.environ.get("WEAVINGSPACE_RELEASE_SHARDS", "3"))
+# FOUR since 2026-09-06 (maintainer's instruction, with the suite past
+# eight hundred tests); three from 2026-08-11. Every stall ceiling
+# widens by CONTENTION whenever a shard is in force, so the count is
+# not a timing decision.
+SHARDS = int(os.environ.get("WEAVINGSPACE_RELEASE_SHARDS", "4"))
 
 
 def run_sharded(step, argv, env, capture=False):

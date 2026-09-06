@@ -37,7 +37,9 @@ mutation judgements, differential-sweep cases, per-file audits. Those
 shard cleanly and finish in about a quarter of the time.
 
 The FUNCTIONAL SUITE and the per-test coverage record shard too, as
-of 2026-08-11, three ways inside `release.py`:
+of 2026-08-11, FOUR ways inside `release.py` since 2026-09-06 (three
+before that, on the maintainer's instruction as the suite passed
+eight hundred tests):
 
     WEAVINGSPACE_TEST_SHARD=i/n     every nth registered test
 

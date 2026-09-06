@@ -777,7 +777,11 @@ The accounts are T-138.
 - A ROUND CAN PASS EVERY TEST IT WROTE AND BREAK FOUR IT DID NOT RUN
   (T-72): verify a change to a core path with the whole suite, and
   accept that the candidate is where that happens -- a dozen targeted
-  tests apiece found zero of the actual breakage.
+  tests apiece found zero of the actual breakage. And when a ruling
+  NARROWS a control's range or its set of values, grep the suite for
+  every premise that stages the old range before the candidate runs:
+  a test set the zigzag count to 1 the night counts went even, and
+  rc16 paid for it (T-143).
 
 ## WHAT THE TESTS TAUGHT ABOUT THE PRODUCT
 

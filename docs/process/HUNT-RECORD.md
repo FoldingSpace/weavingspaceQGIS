@@ -1939,6 +1939,39 @@ transaction reaches the commit. Two locks, one word, different halves
 of the code: when a claim names a failure at a particular STEP, stage
 it at that step.
 
+## ROUND EIGHT, PLANNED 2026-09-06 (early): EIGHT HUNTS TO SIXTEEN BUGS
+
+Maintainer's instruction of 2026-09-05 (late): eight hunts as Opus
+subagents on temporary worktrees, replacing hunters as bugs are fixed,
+until sixteen bugs are repaired and guarded. Launched once the
+candidate's own suite is off the machine, since a hunt beside a
+measurement spoils the measurement, while CI runs remotely.
+
+THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
+eleven things already closed since rc15 so none is re-found:
+`repairs16` (write-only at the last three days' repairs), `harm12`
+(backwards from harm, ranked before any source is read), `stoch8`
+(random settled sessions with the dual button and the cache on),
+`stores16` (two stores: the cache against the signature and the
+record, the dual group against its source, the edit's alphabet against
+the topology it replays onto), `asym6` (a cached run against a full
+run feature by feature; the two routes into `_even_count`), `spec6`
+(whether a settled rule is wrong: the five dual rulings, the seven
+zigzag rulings, the cache's allowlist), `unreach9` (the cache's
+declines, the dual's refusals, the click threshold) and `trigger8`
+(the guards written since rc15, per assertion, controls first). Three
+of the eight cannot pattern-match, which is the portfolio rule's
+reserved third.
+
+**THE SWEEP IS PROPOSED BESIDE THEM AND HELD, WITH ITS REASON**, as
+CLAUDE.md requires. Its ground has been touched since it last ran: the
+cache, the dual group and the tab's repairs are all boundary crossings
+it would judge for nothing. What decides the timing is the same as
+round seven's: it is a MEASUREMENT, eight hunts saturate this machine,
+and the maintainer asked for hunts by name; it runs when the round's
+verification queue is empty. Yields are left blank until each claim
+is judged by a route its hunt did not use.
+
 ## THE 24-BUG CAMPAIGN, PLANNED 2026-09-01
 
 The maintainer's instruction, given while `0.24.4rc11` was building:

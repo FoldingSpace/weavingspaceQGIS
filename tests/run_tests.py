@@ -58042,7 +58042,7 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
       "lowering the amplitude did not bring the handle in, so its "
       "distance from the edge is not the amplitude")
 
-    set_box("n", 1.0)
+    set_box("n", 2.0)      # the floor, since counts are even (2026-09-05)
     at_one = seat()
     set_box("n", 4.0)
     assert away_from_start(seat()) < away_from_start(at_one) - 2.0, (

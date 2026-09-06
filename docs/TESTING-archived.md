@@ -173,6 +173,7 @@ quote them, do not renumber them.
 - **T-140** — Tools, scripts and restores: the five episodes in full  <sub>The consolidation of 2026-09-05: one entry per theme</sub>
 - **T-141** — What has actually found defects here, in full  <sub>The consolidation of 2026-09-05: one entry per theme</sub>
 - **T-142** — Lessons, each paid for once: the section in full  <sub>The consolidation of 2026-09-05: one entry per theme</sub>
+- **T-143** — A ruling that narrows a control's range falsifies the premises of tests staging the old...  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -6993,3 +6994,25 @@ attributes them to the script the document last named. Unbounded, that
 produced 31 findings of which nearly all were `git`'s and `gh`'s flags,
 since those commands name no `.py` file and so never displace the owner.
 (T-41.)
+
+### T-143 — A ruling that narrows a control's range falsifies the premises of tests staging the old range: rc16 spent on a zigzag count of 1
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-143).</sub>
+
+The grilling of 2026-09-05 (late) ruled the zigzag count even, 2 to 8,
+and the change was built with three tests and five catalogue entries,
+all proved. The targeted run was the three new tests and two
+neighbours, all green. The candidate rc16 then ran the whole suite and
+`test_the_zigzag_handle_is_where_its_numbers_say` failed on its own
+PREMISE: `set_box("n", 1.0)` read back 2.0, since the box's floor is
+now 2. Two shards had already finished at 268 passed each; the third
+carried the failure, and CI's five suite legs on the same commit were
+about to meet it. The repair was one line, the premise moved to the
+floor of 2, and the candidate number was spent on it (docs/PUBLISHING.md,
+P-4). THE LESSON is a cheap grep: when a ruling narrows what a control
+accepts, every test that stages a value outside the new range is a
+premise about to fail, and `grep -n 'set_box("n", 1' tests/run_tests.py`
+before the candidate would have found it in a second. The general form
+of `_drag_moved`'s pure-function tests was already right (they pass
+dicts and never touch a box); it is the DRIVEN tests, which type into
+the widget, that carry the old range.
