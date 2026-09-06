@@ -323,30 +323,12 @@ day with the discriminator armed
 (`tools/probes/how_often_a_build_never_starts.py`): 117 before a
 session ended and 200 after, none of them stalling.
 
-THE ARITHMETIC IS WORTH DOING RATHER THAN WAVING AT. If the recorded 4
-in 86 were the steady rate -- 4.65% -- then zero in 317 draws has
-probability `0.9535^317`, about 3 in ten million. That rate is
-REJECTED for the conditions of 2026-09-05. The original four were a
-CLUSTER, and a rate read off a cluster does not describe the steady
-state: this project's own correction about rates quoted from too few
-draws, pointing the other way for once, since 86 attempts inside one
-twenty-minute window is itself too few.
-
-AND THE OBVIOUS HYPOTHESIS IS REJECTED TOO. The probe drives ONE
-dialog at a time on an idle machine, which is the least likely state
-in which to catch a scheduling fault, and the other thing measured
-this day is that an oversubscribed machine widens exactly the kind of
-window a manager can be caught in -- three-shard contention is what
-made the harness race land, and that race passed alone every time. So
-the stall was hunted UNDER LOAD as well: three concurrent copies, 45
-attempts each, 135 more draws. NONE STALLED EITHER.
-
-452 ATTEMPTS ACROSS BOTH CONDITIONS, THEN, AND NO REPRODUCTION. That
-is the point at which trying harder to provoke it stops being the
-cheapest move, so the effort moves from REPRODUCING it to CATCHING it:
-the next occurrence will be in the wild, on a runner nobody can log
-into, and it has to arrive already diagnosed.
-
+THE RECORDED 4-IN-86 IS REJECTED at about 3 in ten million, and so is
+contention as the trigger -- the loaded arm caught nothing either. The
+original four were a CLUSTER, and 86 attempts inside one twenty-minute
+window is itself too few draws. 452 draws is the point at which trying
+harder to provoke it stops being the cheapest move, so the effort moves
+from REPRODUCING it to CATCHING it. (R-76.)
 SO THE SUITE'S STALL MESSAGE NOW NAMES WHAT QGIS'S OWN MANAGER HOLDS
 -- the count, the active count, and every task's description and
 status. Until 2026-09-05 `_why_the_topology_tab_is_busy` reported four
@@ -546,6 +528,26 @@ of three -- while the next topology test on that same runner passed in
 4.3 seconds, which is what says the tab was healthy and only the
 allowance was local. (R-12.)
 
+**AND A THIRD HYPOTHESIS ABOUT THE TEARDOWN ABORT IS REFUTED, 2026-09-05,
+BEFORE ANYTHING WAS SHIPPED ON IT.** Recorded because a refuted
+hypothesis is worth as much as a confirmed one here: two guesses at the
+destruction ORDER have already been made and neither held, and this is
+the third thing not to try.
+
+THE HYPOTHESIS was that `dlg.deleteLater()` followed by `_tick(100)`
+does not actually destroy anything, because Qt delivers a
+DeferredDelete event at the loop level where `deleteLater` was called
+and `_tick` runs a NESTED QEventLoop -- so the dialog would outlive the
+block, and the provider would be destroyed later, against a file the
+`finally` had already removed. It fits the abort's shape exactly:
+`corrupted double-linked list`, one CI leg per round and a different
+leg each time, which is what a race looks like when read as a version
+difference.
+
+IT IS SIMPLY FALSE ON THIS BUILD: asked of the C++ object with
+`sip.isdeleted` rather than of Python's `__del__`, a nested `_tick(100)`
+destroys it and `sendPostedEvents` adds nothing. The order was right and
+so was the timing; the cause is still unknown. (R-77.)
 **AND THE TEARDOWN ABORT IS NOT 4.0.0'S, WHICH IS A CORRECTION.** Exit
 134, `corrupted double-linked list`, at `project.clear()`. It was
 recorded as 4.0.0's alone; on the next round it fired on `stable`

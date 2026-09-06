@@ -97,6 +97,10 @@ quote them, do not renumber them.
 
 - **R-75** — The zigzag handle: the 60px zero, nearest-wins, the ghost and the four cues  <sub>0.24.4: accounts of closed work</sub>
 
+- **R-76** — The stall's two hunts of 2026-09-05: the arithmetic, and both rejected arms  <sub>0.24.4: accounts of closed work</sub>
+
+- **R-77** — The deferred-deletion hypothesis, its measurement, and the probe that measured its ow...  <sub>0.24.4: accounts of closed work</sub>
+
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
 
@@ -3169,4 +3173,50 @@ to make review pleasant, which is how a gate becomes decoration.
    screen length, which cost twenty-three edges their zigzag handle
    until they were moved apart. The answer is a third arrangement
    rather than moving one back.
+
+### R-76 — The stall's two hunts of 2026-09-05: the arithmetic, and both rejected arms
+
+<sub>Cut from `ROADMAP.md`, lines 326–350 of the 2026-09-05 revision.</sub>
+
+THE ARITHMETIC IS WORTH DOING RATHER THAN WAVING AT. If the recorded 4
+in 86 were the steady rate -- 4.65% -- then zero in 317 draws has
+probability `0.9535^317`, about 3 in ten million. That rate is
+REJECTED for the conditions of 2026-09-05. The original four were a
+CLUSTER, and a rate read off a cluster does not describe the steady
+state: this project's own correction about rates quoted from too few
+draws, pointing the other way for once, since 86 attempts inside one
+twenty-minute window is itself too few.
+
+AND THE OBVIOUS HYPOTHESIS IS REJECTED TOO. The probe drives ONE
+dialog at a time on an idle machine, which is the least likely state
+in which to catch a scheduling fault, and the other thing measured
+this day is that an oversubscribed machine widens exactly the kind of
+window a manager can be caught in -- three-shard contention is what
+made the harness race land, and that race passed alone every time. So
+the stall was hunted UNDER LOAD as well: three concurrent copies, 45
+attempts each, 135 more draws. NONE STALLED EITHER.
+
+452 ATTEMPTS ACROSS BOTH CONDITIONS, THEN, AND NO REPRODUCTION. That
+is the point at which trying harder to provoke it stops being the
+cheapest move, so the effort moves from REPRODUCING it to CATCHING it:
+the next occurrence will be in the wild, on a runner nobody can log
+into, and it has to arrive already diagnosed.
+
+### R-77 — The deferred-deletion hypothesis, its measurement, and the probe that measured its ow...
+
+<sub>Cut from `ROADMAP.md`, lines 547–561 of the 2026-09-05 revision.</sub>
+
+IT IS SIMPLY FALSE ON THIS BUILD, asked of the C++ object with
+`sip.isdeleted` rather than of Python's `__del__` -- a Python reference
+still in scope hides the answer, which is how the FIRST version of this
+measurement measured its own scoping and got the opposite result:
+
+    deleteLater() + nested _tick(100)   C++ gone = True
+    deleteLater() + sendPostedEvents    C++ gone = True
+    deleteLater() alone, nothing run    C++ gone = False
+
+So the nested loop delivers those events, `sendPostedEvents` adds
+nothing, and the destruction was happening when the comments said it
+was. The order was right and so was the timing; the cause is still
+unknown.
 
