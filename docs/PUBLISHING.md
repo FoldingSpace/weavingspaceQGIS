@@ -35,7 +35,7 @@ is spent rather than after.
 
 It exists for the Windows leg, where the suite is seventy-five
 minutes of a job that could have answered in fifteen, and where a
-window-width regression once cost two full rounds (P-P-13).
+window-width regression once cost two full rounds (P-13).
 
 The candidate's gates take about ninety minutes on this Mac; GitHub's
 amd64 runners finish the Linux matrix in about twenty. Run them in
@@ -77,7 +77,7 @@ it in the SAME COMMIT, and a divergence lives as an exemption with its
 reason in `tools/check_standards.py`, read at every push. The rule
 binds in CLAUDE.md; what the macOS leg found on its first complete
 run, and the months Windows ran nothing but an install-and-load:
-P-P-14.
+P-14.
 
 ### Before the branch exists: is Linux still running what we run?
 
@@ -140,7 +140,7 @@ leg installs QGIS through Chocolatey's `qgis` package rather than
 `qgis-ltr`, whose 3.44 is below the floor `metadata.txt` declares,
 prints the version rather than pinning it, caches nothing, and does
 NOT run `tools/ci_provision.py`, since `classFactory`, `initGui` and
-`unload` touch no geopandas. (P-7, P-P-15.)
+`unload` touch no geopandas. (P-7, P-15.)
 
 **The published claims are audited**, with `--check`, which asks only
 the questions whose answer is somebody's words: a missing changelog
@@ -221,7 +221,7 @@ release earns a minor bump, and that is the only thing that moves it.
 The reason: what follows a release is patch-shaped by construction,
 and reaching for X+1 by default claims a release is bigger than it
 is, a claim made by whoever types the branch name at the end of a
-long session (maintainer's instruction, 2026-08-14; P-P-16).
+long session (maintainer's instruction, 2026-08-14; P-16).
 
 The first act on that branch is the version bump in `metadata.txt`,
 which immediately makes `sync_release_content --check` fail for want
@@ -305,7 +305,7 @@ has lost were the ones mentioned only in conversation.
 
 `--resume` exists because three candidates were once abandoned in one
 evening, each after most of the gates had passed, on faults none of
-which was in the plugin (P-P-17).
+which was in the plugin (P-17).
 
 `--resume` skips a stage that passed before against EXACTLY the
 inputs it has now. Nothing is skipped without the flag: a full run
@@ -334,7 +334,7 @@ and only where their output survives in `reports/stage-logs/`, the
 saved text being handed to the caller. Every skip announces itself
 with the time the stage originally passed, because a gate that did
 not run is a thing a reader must be told rather than left to infer
-from a short log. (P-P-18.)
+from a short log. (P-18.)
 
 **When NOT to use it.** A candidate for promotion is built by a run
 that measured this tree, and `--resume` is for getting back to that
@@ -375,7 +375,7 @@ characteristic failure. THE TEST TO APPLY TO ANY STAGE IN A RELEASE
 PATH: who reads its output, and what would they do differently? If
 the honest answer is nobody, or nothing before the artefact ships, it
 belongs on demand or on somebody else's machine, reporting. (P-3,
-P-P-19.)
+P-19.)
 
 ## A release candidate, first
 
@@ -419,14 +419,14 @@ clean log: pass the flag and strip the codes. A RUNNING job's log is
 404 while a completed job's is readable at once, which is why
 `tools/platform_probe.py` runs first. And `gh --jq` takes a filter
 and not jq's own flags, so `--jq --arg` is silently no filter at all:
-pipe to `jq` proper. (P-P-20.)
+pipe to `jq` proper. (P-20.)
 
 ## What the legs take
 
 Compare a running job against THE SAME JOB ON THE PREVIOUS ROUND,
 never against a figure in prose, which is true until somebody adds a
 test: this project has had that both ways round, a ceiling sized from
-a stale number and a healthy run read as over-running (P-P-21).
+a stale number and a healthy run read as over-running (P-21).
 Measured across three rounds of one day at 727 tests:
 
     Linux suite legs   60, 66, 68 minutes
@@ -518,7 +518,7 @@ code publishes the page, usually within a minute.
 
 The changelog is approved once and then goes stale under you: 0.24.1's
 was signed off in the morning saying nothing else had changed, and
-shipped after an afternoon that changed something else (P-P-22). So
+shipped after an afternoon that changed something else (P-22). So
 the last thing before `release.py` is a reading, not a gate: put `git
 diff <previous tag>..HEAD -- weavingspace_qgis/` beside the entry and
 check it still describes the diff. `metadata.txt` is in the
@@ -548,7 +548,7 @@ Warnings, Preview -- never a fixed set, since a fixed set produces
 empty headings and a changelog that looks like a form. The two readers
 of a release page are the two readers of an entry. (Maintainer's
 instruction, 2026-08-13; the entries from 0.23.0 on are the examples;
-P-P-23.)
+P-23.)
 
 **A changelog says what a user CAN now do, not what the software now
 always does.** A capability written as a guarantee is a promise the
@@ -557,7 +557,7 @@ it appears" became "can now mean ... if that is what you want", since
 two elements agree only when somebody has set them up to. When a
 sentence describes a behaviour, ask what has to be true for it to
 hold; if the answer is anything at all, the sentence needs the
-condition in it. (Maintainer's correction, 2026-08-14; P-P-24.)
+condition in it. (Maintainer's correction, 2026-08-14; P-24.)
 
 **The comprehensive half is generated**: how many tests ran and how
 many guard a defect that actually happened, what is attached and what
@@ -587,7 +587,7 @@ over synthetic grids, keep the region outlines on, show a legend, and
 size the image so the pattern is legible rather than decorative. A
 figure from the published article is better still where its licence
 allows; attribute it in the caption and record the licence beside the
-file. (User instruction, 2026-08-08; P-P-25.)
+file. (User instruction, 2026-08-08; P-25.)
 
 ## The QGIS plugin repository
 

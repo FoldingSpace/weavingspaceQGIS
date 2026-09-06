@@ -56,7 +56,7 @@ shard prints how many tests it was OFFERED and the totals must agree,
 since a probe registered from inside a test once consumed a slot
 (`sharded=False` now); and every stall ceiling widens by two and a
 half times under sharding, against a measured contention cost of
-15-50%. (M-1, M-M-8.)
+15-50%. (M-1, M-8.)
 
 What still does NOT shard is a MEASUREMENT beside another
 measurement -- a census, the aggregate coverage report, anything
@@ -92,7 +92,7 @@ Files you will actually touch:
 | `weavingspace_qgis/bridge.py` | Data conversion and symbology. |
 | `tests/data/` | Packaged fixtures: a real Auckland dataset, a generated categorical GeoPackage, and two importable QML colour mappings. Not shipped in the plugin zip. |
 | `tools/make_test_fixtures.py` | Regenerates the categorical fixtures (tests assert on their exact colours; regenerate deliberately). |
-| `tools/coverage_report.py` | Which plugin lines the suite never reaches. Run it when you are deciding where to write tests; it is off the release path, having cost half an hour a candidate and gated nothing (M-M-9). |
+| `tools/coverage_report.py` | Which plugin lines the suite never reaches. Run it when you are deciding where to write tests; it is off the release path, having cost half an hour a candidate and gated nothing (M-9). |
 | `tools/mutation_check.py` | Breaks each guarded behaviour and requires its test to fail. Run before substantial releases. |
 | `tools/doc_archive.py`, `docs/DOC-ARCHIVING.md` | The binding documents are split into a live half that carries the rules and an `-archived.md` half that carries the account behind each one, under ids the live half quotes; the package's docstrings have the same split, into `docs/DOCSTRINGS-archived.md`. The tool checks that every pointer leads somewhere, that no account is stranded, that each live document is inside its line budget and keeps its SHAPE (a how-to-add section, fixed sections, a capped inbox, no date-led entries), and mints ids; `--suggest` says what the next pass would look at. |
 | `tools/check_no_secrets.py` | Refuses to publish credentials, key material, private files or machine paths. Runs twice inside every release, and is worth running by hand before any commit. |
@@ -163,7 +163,7 @@ that will actually start, and `PYTHONHOME` and `QGIS_PREFIX_PATH` by
 trying them against a throwaway profile; the macOS CI job calls the
 same script, so the runner and this machine cannot drift apart about
 how to start QGIS's Python. The hardcoded prefix that left QGIS with
-no colour ramps on any unseeded machine: C-317, M-M-10.
+no colour ramps on any unseeded machine: C-317, M-10.
 
 Windows (OSGeo4W shell):
 
@@ -312,7 +312,7 @@ comes from which group is SELECTED now, a fact on screen rather than a
 flag, and `_new_group_chosen` means one thing, set only when somebody
 picks "create new". The report that prompted the replacement -- three
 scopes answering one act three ways, none named on screen -- and the
-first build's conflation: M-M-11. The rulings are in CLAUDE.md.
+first build's conflation: M-11. The rulings are in CLAUDE.md.
 
 **AND THE SIZE GUARD ASKS RATHER THAN REFUSES.** (Same day.) Above
 `MAX_TILES_CONFIRM` a run is confirmed; above `MAX_TILES_HARD` the
@@ -426,7 +426,7 @@ dump is not by itself evidence that QGIS said anything.
 **So a session whose Generate has never succeeded hears nothing**,
 since no run has landed and no layer is watched: a dump from a
 reporter's session was EMPTY where six reproductions had all worked
-(M-M-12). When a dock edit appears not to reach the plugin, ask FIRST
+(M-12). When a dock edit appears not to reach the plugin, ask FIRST
 whether a run has landed in that session; and when adding a third
 route by which element layers come into existence, connect the watch
 there too, since a layer the plugin holds but does not hear goes on
@@ -487,7 +487,7 @@ does not choose where the file goes; a Save does, and a file whose own
 record named another file would point a resume at a stranger's map.
 
 That split was got wrong twice in one evening, both times by carrying
-too little (M-M-13). Whenever you add a key to this record, ask which
+too little (M-13). Whenever you add a key to this record, ask which
 of the two moments it is about.
 
 **AND THE THREE STORES ARE NOT SYMMETRICAL, which decides what happens
@@ -662,7 +662,7 @@ channels reach the patch's edge and are not holes at all (measured
 edited geometry was cleared AT THE DROP and the un-edited design stood
 until the asynchronous rebuild landed -- 1.7 seconds on `laves
 3.3.4.3.4`, nineteen on `hex-colouring 7`, the field report against
-0.24.4rc15 (M-M-14).
+0.24.4rc15 (M-14).
 
 **THE PREVIEW IS KEPT WHERE AN EDIT WAS RECORDED, AND THE LANDING
 CLEARS IT**: `show_topology` sets `_preview = None` as its own third
@@ -709,7 +709,7 @@ span. Two predicates would come apart the day somebody changed one.
 It was found from a runner -- about one run in eight here, three legs
 failing on the drag guard's own premise -- and a stack printed from a
 patched `show_topology` named the caller on the first failing attempt
-(M-M-15).
+(M-15).
 
 ### Whose file is it, and when was that decided
 
@@ -755,7 +755,7 @@ nobody rewriting the file underneath us can change a string we are
 holding: a colleague's save that dropped `tiles_b_landcover` left a
 layer naming a table that was gone, the element was skipped as saved
 AND counted as written, the drop removed what they HAD written, and
-the plugin said "Saved" (M-M-16). A layer whose table was dropped
+the plugin said "Saved" (M-16). A layer whose table was dropped
 under it still answers `isValid` True and `featureCount()` 40 and
 yields ZERO features, so writing it would replace a real table with an
 empty one. So the save writes what it can, REMOVES NOTHING once a file
@@ -791,7 +791,7 @@ PAIR.** `CONTROLS_A_PUMP_TAKES_DOWN` is taken and restored by one owner
 that both pumping acts call, so a fourth control joins a list rather
 than being remembered at two sites; LOAD was live through every write
 until 2026-09-02, and a Load delivered by the save's own pump
-repointed every element layer mid-loop (M-M-17).
+repointed every element layer mid-loop (M-17).
 
 WHAT IS DELIBERATELY NOT IN IT: the two file CHOOSERS, since a chooser
 records what you would save to or load from and does nothing on its
@@ -812,7 +812,7 @@ included.
 ## The save's three doors, after 2026-09-02
 
 Seven defects were repaired in one campaign day and five of them were
-in the save; the accounts are M-M-18. What a maintainer needs to hold
+in the save; the accounts are M-18. What a maintainer needs to hold
 in their head, because the pieces only make sense together:
 
 **A CANCEL HAS THREE MOMENTS AND THEY ARE ANSWERED DIFFERENTLY.**
@@ -889,7 +889,7 @@ LAYERS, so stamping the group alone left the two disagreeing, the
 binding let go of the map just opened, and the next Generate built a
 rival group whose Save wrote into the opened map's own tables -- at
 both doors, which is what said the defect was older than the flag
-that revealed it (M-M-19). `_tell_the_layers_which_region_we_landed_on`
+that revealed it (M-19). `_tell_the_layers_which_region_we_landed_on`
 is called from both branches and stamps NOTHING where the recovery
 landed on nothing.
 
@@ -961,7 +961,7 @@ written, and repoint every layer at a table the rollback removed.
 
 The button was briefly DISABLED during the write instead, and the
 maintainer chose to ship the callback (2026-09-01) rather than grey a
-control at the moment somebody most wants it (M-M-20).
+control at the moment somebody most wants it (M-20).
 
 A CANCELLED FIRST SAVE LEAVES AN EMPTY FILE, because the writer
 creates the data source before the transaction opens. That follows the
@@ -972,7 +972,7 @@ that nothing was.
 **AND THE FLAG DOES NOT OUTLIVE THE ACT IT WAS SET FOR.** On the
 commonest journey -- a wait for a REDRAW or a topology build -- nothing
 opens the file and nothing consumes `_save_cancelled`, so left
-standing it stopped the person's NEXT save (M-M-21). It is cleared
+standing it stopped the person's NEXT save (M-21). It is cleared
 where the intent is dropped, safe in both directions since a write
 that DID read it has already returned. THE GENERAL FORM: when a repair
 adds state read by ONE consumer, enumerate the journeys where that
@@ -1016,7 +1016,7 @@ region its SENDER drew from, a path that does not exist on the
 recipient's machine, so stamping the group with the record leaves
 `_point_the_chooser_at` finding nothing -- with two senders' maps
 open, returning to the first gave it the SECOND sender's data, and the
-next Save would have written it over the first sender's file (M-M-22).
+next Save would have written it over the first sender's file (M-22).
 The fallback to the record survives for the case where recovery lands
 on NOTHING, since capturing the chooser then would file the resumed
 group under a dataset it was not made from.
@@ -1069,7 +1069,7 @@ is in flight is REMEMBERED and honoured when that run lands. Until
 2026-08-28 a press and a live tick shared one flag, and with live
 update off a remembered press was discarded in silence at the live
 path's second gate, leaving layers tagged for elements the design no
-longer had (M-M-23).
+longer had (M-23).
 
 So there are two flags now and they are honoured differently.
 `_live_pending` is a deferred live tick and still restarts the live
@@ -1237,7 +1237,7 @@ experimental and behind the box above.
 because `Topology.__init__` is eager: eight setup passes and a dual
 graph, 0.8 to 21 seconds across the catalogue with `hex-colouring 7`
 at the slow end (the narrower figure this paragraph once carried
-justified a synchronous build inside a save, M-M-24; docs/TOPOLOGY.md
+justified a synchronous build inside a save, M-24; docs/TOPOLOGY.md
 has the spread and the decomposition). It is queued by whatever
 rebuilds the UNIT and never by a colour or a ramp, the boundary
 `_geometry_signature` already draws for re-tiling, and
@@ -1259,7 +1259,7 @@ retires a contract two registered tests state. And the message is its
 own label rather than `note`, which already means "the answer, or the
 reason there is none" and which the suite's `_settle_topology` reads
 as an answer having ARRIVED: one store, two meanings, met in a QLabel
-(M-M-25).
+(M-25).
 
 **AND A BUILD QGIS NEVER STARTS IS SAID TO BE ONE.** A task was
 measured sitting `Queued` for 133 seconds with the pool reading
@@ -1286,7 +1286,7 @@ the result invalid, not floating point and not the amplitude.
 which removes corners that are merely VERY CLOSE and then the colinear
 ones where this module's dedupe removed only exact repeats; with it
 first, all four measured designs draw where ours alone refused two
-(`tools/probes/zigzag_cleaners.py`, both arms in one run; M-M-26).
+(`tools/probes/zigzag_cleaners.py`, both arms in one run; M-26).
 OURS IS KEPT AS THE FALLBACK because this is a VENDORED dependency and
 a re-vendor that dropped the function would take the repair with it
 in silence; `make_valid` runs on whatever survives both.
@@ -1315,15 +1315,14 @@ pointer, where two states lit half the drawing. **AND THE HIT TEST
 FOLLOWS THE EDGE**, `_distance_to_edge` measuring to the nearest point
 ON the line rather than to a disc at its midpoint, with the vertex
 reach down from 12px to 8 because 12px at each end claimed more than
-half of a median 43px edge. (M-M-27.)
+half of a median 43px edge. (M-27.)
 
 **AND IT WAS REBUILT AGAIN ON 2026-08-31**, on the maintainer's report
 that the tab was unusable and their standard for what would fix it: it
 "should be easy to use and easy to learn", it "has to be perceivable",
-and "hover states aren't as good as shapes that make sense". Four
-things changed, and the reasoning for each is in docs/TOPOLOGY.md.
+and "hover states aren't as good as shapes that make sense".
 
-Four things changed, each argued in docs/TOPOLOGY.md (M-M-28). THE
+Four things changed, each argued in docs/TOPOLOGY.md (M-28). THE
 VIEW FITS THE UNIT, NOT THE PATCH: `n_tiles` is the library's count of
 the unit's own tiles, and the neighbouring copies draw as context
 running off the edges, where fitting all 36 drew the thing being
@@ -1334,9 +1333,14 @@ for a push -- since a hover label must be discovered before it can
 teach and a first-time reader never hovers. A HANDLE IS A POSITION,
 NOT A DISTANCE TRAVELLED, the zigzag's amplitude included since
 2026-09-05, so where the pointer has taken the end handle IS a polar
-coordinate about the edge's middle; and A POINT WITH NO LABEL IS NOT
-HIT-TESTED OR SEATED, since a zigzag adds two hundred unlabelled
-corners. AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING:
+coordinate about the edge's middle -- and a click that slips under
+half a seat of travel from the grab point records nothing, the
+amplitude's threshold being sized from the glyph as the count's
+deadband is, since the box's floor was under a pixel on the tab's own
+edges (grilled 2026-09-05, C-319; the count is even from the same
+grilling, `_even_count` settling a typed odd one up); and A POINT WITH
+NO LABEL IS NOT HIT-TESTED OR SEATED, since a zigzag adds two hundred
+unlabelled corners. AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING:
 `push_vertex` has a rail along the one direction a push can take, and
 no handle at all where that direction cancels.
 
@@ -1360,7 +1364,7 @@ UNREACHABLE EVERYWHERE, since `_handle_at` returns the first within
 reach in a fixed order: turn and zigzag stand at 30 and 60 along the
 same normal now, having been 20.4px apart inside a 26px reach on two
 designs of three; the other side of the edge was tried first and lands
-on the vertices, which are tested after handles (M-M-29).
+on the vertices, which are tested after handles (M-29).
 
 WHAT IS STILL NOT BUILT is the audit's other design, merging scale and
 rotate into one end handle. It is refused rather than pending: one
@@ -1399,7 +1403,7 @@ drop keeps.
 `_lattice_offsets` takes the two shortest non-parallel translations
 out of the vectors' VALUES, key-shape agnostic, where a lookup by
 `(1, 0)` and `(0, 1)` missed every hex-keyed family and drew one copy
-in silence. (M-M-30.)
+in silence. (M-30.)
 
 ### How an edit that cannot be drawn is told apart from one that did nothing
 
@@ -1436,7 +1440,7 @@ be told, or they meet a control that takes a click and does nothing.
 difference over the unit's own area, with the measurement at the
 function -- after three wrong forms: an absolute tolerance, a
 statistic, and `shapely.equals_exact`, which compares coordinate
-sequences the library restarts on the way past (M-M-31).
+sequences the library restarts on the way past (M-31).
 
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
 which is the family, the element count and whether the dual is
@@ -1588,7 +1592,7 @@ flag's -- five sites read only the box, one only the flag, one both --
 and the maintainer retired the checkbox rather than teaching the two
 to agree, since a boundary between "once" and "always" that will
 never read clearly is one nobody should have to hold in their head
-(M-M-32). The retirement was a DELETION at the landing, `force_new`
+(M-32). The retirement was a DELETION at the landing, `force_new`
 already reading the flag as one of its four terms.
 
 ## The Design tab's layout, and what decides it
@@ -1880,7 +1884,7 @@ report. The commit rule paid for itself on 2026-08-31: bf1bbbf to
 6190917 carried TWELVE commits with the version string `0.0.7.89` at
 both ends, and two patches retired themselves in that round when
 upstream dropped the scipy spline, the tool NAMING them rather than
-writing a broken vendor (M-M-33).
+writing a broken vendor (M-33).
 
 | family | what it does | offered upstream |
 |---|---|---|
@@ -2039,7 +2043,7 @@ already sits ABOVE its own check, an asymmetry guarded by
 `the-button-restyles-before-it-asks-about-the-source`. Each of the ten
 gates names itself behind `WEAVINGSPACE_ADOPT_DUMP` -- `LIVE-GATE
 source-gone`, `LIVE-GATE too-many-tiles` -- after live update stopping
-in silence had cost two diagnoses (M-M-34).
+in silence had cost two diagnoses (M-34).
 
 The general form, which is the reason this paragraph exists at all:
 when a guard starts answering differently, follow its return value

@@ -88,7 +88,14 @@ MANIPULATIONS = {
     # selector they pass is a STRING OF MANY CLASSES rather than one.
     # Both were learnt from `examples/topology-working.ipynb` after a
     # first reading nearly filed this as a defect in the library.
-    "args": (("n", "Zigzags", 1.0, 8.0, 2.0, 1.0),
+    # EVEN COUNTS ONLY, 2 to 8 in steps of 2 (maintainer's decision,
+    # 2026-09-05): the library's docstring says zigzag "will only work
+    # correctly if n is even", and the tab audit measured class b of
+    # the default design opening a gap at every odd count. The tab's
+    # drag snaps to even and settles a typed odd count; a record that
+    # carries an odd count from before this is still applied, and the
+    # change list reports the gap it opens, as it always did.
+    "args": (("n", "Zigzags", 2.0, 8.0, 2.0, 2.0),
              ("h", "Amplitude", 0.01, 1.0, 0.25, 0.05),
              ("smoothness", "Smoothness", 0.0, 6.0, 3.0, 1.0)),
     "fragile": True,

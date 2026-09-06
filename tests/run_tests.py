@@ -57485,18 +57485,31 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   # ALONG, PAST THE DEADBAND: the count moves, and in the direction the
   # drawing shows -- toward the start is a shorter wavelength, so MORE.
   # From n=2 the peak is at 25; dragging 10 back along puts it near 15,
-  # and 100/(2*15) is 3.3, which rounds to 3.
+  # and 100/(2*15) is 3.3 -- which snaps to FOUR, not three, because
+  # the count is even (maintainer's decision, 2026-09-05: the library
+  # lays out only even counts, and class b of the default design
+  # opened a gap at every odd one).
   raised = panel._drag_argument(None, "zigzag_edge", frame,
                                 -0.10, 0.0, span, current=at_two)
-  assert raised.get("n") == 3, (
-    f"dragging the peak toward the edge's start did not raise the "
-    f"count as the wavelength shortened: {raised}")
+  assert raised.get("n") == 4, (
+    f"dragging the peak toward the edge's start gave n={raised.get('n')} "
+    f"where 3.3 should snap to the even count 4: either the count did "
+    f"not rise as the wavelength shortened, or odd counts are back")
 
+  # From n=4 the peak is at 12.5; dragging 12 along puts it near 24.5,
+  # and 100/(2*24.5) is 2.04, so the count comes down to 2.
+  at_four = dict(at_two, n=4.0)
   lowered = panel._drag_argument(None, "zigzag_edge", frame,
-                                 0.15, 0.0, span, current=at_two)
-  assert lowered.get("n") == 1, (
+                                 0.12, 0.0, span, current=at_four)
+  assert lowered.get("n") == 2, (
     f"dragging the peak toward the edge's middle did not lower the "
     f"count as the wavelength grew: {lowered}")
+  # AND NO DRAG PRODUCES AN ODD COUNT, wherever it stops.
+  for along in (-0.05, -0.10, -0.15, -0.20, 0.05, 0.10):
+    got = panel._drag_argument(None, "zigzag_edge", frame,
+                               along, 0.0, span, current=at_two).get("n")
+    assert got is None or got % 2 == 0, (
+      f"a drag of {along} along the edge produced the odd count {got}")
 
   # AND IT IS CLAMPED TO WHAT THE BOX WOULD ACCEPT, because a drag that
   # ran past a control's range once recorded a number the box would not
@@ -57551,6 +57564,237 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   assert not panel._drag_moved(None, "zigzag_edge", {"h": 0.0, "n": 2.0},
                                {"n": 2.0}), (
     "PREMISE: a drag that moved neither parameter was read as a drag")
+
+  # AND THE AMPLITUDE'S CLICK THRESHOLD IS TRAVEL FROM WHERE THE HANDLE
+  # WAS, UNDER THE SEAT THE PANEL PASSES (maintainer's decision,
+  # 2026-09-05). A handle at 0.30 that comes back reading 0.31 was
+  # clicked, not dragged; one that comes back at 0.40 was dragged; and
+  # a slip on a handle at nought -- the case that recorded an invisible
+  # wave and paid for a rebuild -- is a click too.
+  seat = 0.06                       # 6px of a 100px edge
+  assert not panel._drag_moved(None, "zigzag_edge", {"h": 0.31, "n": 2.0},
+                               {"h": 0.30, "n": 2.0}, seat), (
+    "a pixel of slip on a handle at 0.30 was read as a drag")
+  assert panel._drag_moved(None, "zigzag_edge", {"h": 0.40, "n": 2.0},
+                           {"h": 0.30, "n": 2.0}, seat), (
+    "PREMISE: a tenth of the edge of travel was read as a click")
+  assert not panel._drag_moved(None, "zigzag_edge", {"h": 0.01, "n": 2.0},
+                               {"h": 0.0, "n": 2.0}, seat), (
+    "a slip of a hundredth on a handle at nought was read as a drag, "
+    "which is the invisible wave the decision of 2026-09-05 closed")
+  assert panel._drag_moved(None, "zigzag_edge", {"h": 0.02, "n": 2.0},
+                           {"h": 0.0, "n": 2.0}), (
+    "PREMISE: with the box's floor as the deadband, two hundredths is a "
+    "drag, so the seat is what makes the difference")
+
+
+def _the_zigzag_handle_on_the_default_design(dlg):
+  """Open the Topology tab on laves 3.3.4.3.4, select an edge, choose
+  zigzag, and return (panel, view, handle, along, normal, reach).
+
+  Shared by the two driven zigzag guards written after the grilling of
+  2026-09-05, and the same journey
+  `test_the_zigzag_handle_keeps_its_amplitude_when_moved_along` walks.
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+
+  dlg.opt_experimental.setChecked(True)
+  dlg.live_check.setChecked(False)
+  dlg.show()
+  _tick(200)
+  dlg.n_spin.setValue(4)
+  _tick(200)
+  _choose_family(dlg, "laves 3.3.4.3.4")
+  _tick(300)
+  assert _wait_for_the_topology(dlg), \
+    "PREMISE: no topology was built, so there is no handle to grab"
+  assert _the_topology_tab_is_quiet(dlg), (
+    "PREMISE: a topology build never stopped being outstanding -- "
+    + _why_the_topology_tab_is_busy(dlg))
+  panel = dlg.topology_panel
+  view = panel.view
+  view.resize(600, 600)
+  _tick(100)
+  view.grab()
+  _tick(50)
+  topology = view._drawn()
+  seats = [view._to_screen(v.point.x, v.point.y)
+           for v in topology.points.values()]
+  aimed = None
+  for edge in topology.edges.values():
+    coords = list(edge.get_geometry().coords)
+    (ax, ay), (bx, by) = coords[0], coords[-1]
+    point = view._to_screen(ax + (bx - ax) * 0.5, ay + (by - ay) * 0.5)
+    if not (0 <= point.x() <= view.width() and 0 <= point.y() <= view.height()):
+      continue
+    clear = min(((point.x() - s.x()) ** 2 + (point.y() - s.y()) ** 2) ** 0.5
+                for s in seats)
+    if clear > 12.0:
+      aimed = QPoint(int(round(point.x())), int(round(point.y())))
+      break
+  assert aimed is not None, "PREMISE: no edge is drawn clear of its vertices"
+  QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                   QtNamespace.KeyboardModifier.NoModifier, aimed)
+  _tick(150)
+  assert panel._selection[0] == "edge", \
+    f"PREMISE: the click selected {panel._selection}, not an edge"
+  panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+  _tick(100)
+  start, finish, reach = view._chosen_edge_on_screen()
+  run, rise = finish.x() - start.x(), finish.y() - start.y()
+  along = (run / reach, rise / reach)
+  normal = (-rise / reach, run / reach)
+  handle = next((where for key, where, _shape in view.handles()
+                 if key == "zigzag_edge"), None)
+  assert handle is not None, "PREMISE: the zigzag handle is not drawn"
+  return panel, view, handle, along, normal, reach
+
+
+def test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click():
+  """A press on the zigzag handle that moves a pixel records nothing;
+  one that moves past half a handle seat records the zigzag.
+
+  THE THRESHOLD WAS THE BOX'S FLOOR, 0.01 of the edge's length, which
+  on the 94px and 69px edges the default design draws at the window's
+  floor is under a pixel -- so a click that slipped one pixel recorded
+  a wave nobody could see and paid for a rebuild of the topology. The
+  grilling of 2026-09-05 sized it from the glyph instead, as the
+  count's deadband already was: half a 12px seat. This drives both
+  arms on the widget, since the seat is a number of PIXELS and only the
+  view knows how long the edge is drawn.
+
+  Regression: a click on the zigzag handle that slipped a pixel recorded an invisible zigzag and rebuilt the topology, because the amplitude's click threshold was under a pixel on the tab's own edges. Settled by grilling, 2026-09-05. [user]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, handle, along, normal, reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    seat = topology_tab._AMPLITUDE_DEADBAND_PX
+    assert 1.0 < seat < reach, (
+      f"PREMISE: the seat is {seat}px against an edge drawn {reach:.0f}px "
+      f"long, so the two arms below cannot be told apart")
+    assert not panel._edits, "PREMISE: the tab already holds an edit"
+    # THE HANDLE ALREADY SITS AT THE BOX'S AMPLITUDE, so a drag out adds
+    # to that rather than starting from the edge.
+    sat = float(next(b for _l, b in panel._argument_rows
+                     if b.property("argument") == "h").value())
+
+    def dragged(delta_across):
+      at = QPoint(int(round(handle.x())), int(round(handle.y())))
+      far = QPoint(int(round(handle.x() + normal[0] * delta_across)),
+                   int(round(handle.y() + normal[1] * delta_across)))
+      QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, at)
+      _tick(30)
+      QTest.mouseMove(view, far)
+      _tick(60)
+      previewed = dict(panel._drag_from or {})
+      QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, far)
+      _tick(100)
+      return previewed
+
+    # ONE PIXEL: previewed, since the pointer moved, and then a click.
+    previewed = dragged(1)
+    assert previewed, "PREMISE: a one-pixel move produced no preview at all"
+    assert not panel._edits, (
+      f"a press on the zigzag handle that slipped one pixel recorded "
+      f"{panel._edits}: the amplitude's click threshold is not sized "
+      f"from the glyph")
+    # PAST THE SEAT: a zigzag, of about that many pixels of the edge.
+    out = seat + 4.0
+    previewed = dragged(out)
+    assert panel._edits and panel._edits[-1]["how"] == "zigzag_edge", (
+      f"a drag of {out:.0f}px out from the edge recorded nothing: "
+      f"{panel._edits}")
+    recorded = float(panel._edits[-1]["args"].get("h", 0.0))
+    assert abs(recorded - (sat + out / reach)) < 0.02, (
+      f"the recorded amplitude {recorded:.3f} is not where the handle "
+      f"was dropped, {sat + out / reach:.3f} of the edge")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
+def test_the_zigzag_count_box_offers_even_counts_only():
+  """The zigzag count box runs 2 to 8 by twos, and a typed odd count is
+  settled to the nearest even one when editing finishes.
+
+  The library's `zigzag_edge` says it "will only work correctly if n
+  is even", and the tab audit of 2026-09-05 measured class b of the
+  default design opening a gap of 0.35 to 0.63% at every odd count. A
+  box offering a value the library documents as unsupported offers
+  something that works by the luck of the geometry, so the maintainer
+  ruled odd counts out (grilled, 2026-09-05). Typing is the door a
+  range and a step cannot close -- a spin box accepts what is typed --
+  so that arm is driven with keystrokes.
+
+  Regression: the zigzag count box offered odd counts, and class b of the default design opened a gap at each of them, reported only after the edit was applied. Settled by grilling, 2026-09-05. [user]
+  """
+  from qgis.PyQt.QtCore import Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  spec = dict((name, (low, high, default, step)) for name, _label, low,
+              high, default, step in
+              topology_edits.MANIPULATIONS["zigzag_edge"]["args"])
+  assert spec["n"] == (2.0, 8.0, 2.0, 2.0), (
+    f"the count is declared as {spec['n']}, not 2 to 8 by twos")
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, _view, _handle, _along, _normal, _reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    box = next(b for _l, b in panel._argument_rows
+               if b.property("argument") == "n")
+    assert (box.minimum(), box.maximum(), box.singleStep()) == (2.0, 8.0, 2.0), (
+      f"the count box offers {box.minimum()} to {box.maximum()} by "
+      f"{box.singleStep()}")
+    assert "even" in box.toolTip(), \
+      f"the box does not say its counts are even: {box.toolTip()!r}"
+
+    def typed(text):
+      box.setFocus()
+      box.lineEdit().selectAll()
+      QTest.keyClicks(box, text)
+      QTest.keyClick(box, QtNamespace.Key.Key_Return)
+      _tick(50)
+      return box.value()
+
+    assert typed("3") == 4.0, f"typing 3 left the count at {box.value()}"
+    assert typed("5") == 6.0, f"typing 5 left the count at {box.value()}"
+    assert typed("6") == 6.0, f"typing 6 moved the count to {box.value()}"
+    # And the arrows step by two from an even count.
+    box.stepUp()
+    assert box.value() == 8.0, f"stepping up from 6 gave {box.value()}"
+    box.stepDown(); box.stepDown(); box.stepDown()
+    assert box.value() == 2.0, f"three steps down from 8 gave {box.value()}"
+    # PREMISE for the settling arm: it is the settling, not the range,
+    # that turns 3 into 4 -- a QDoubleSpinBox accepts a typed 3.
+    box.blockSignals(True)
+    try:
+      box.setValue(3.0)
+      assert box.value() == 3.0, "PREMISE: the box refuses 3 by itself"
+    finally:
+      box.blockSignals(False)
+    panel._keep_the_count_even(box)
+    assert box.value() == 4.0, f"settling left the count at {box.value()}"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
 
 
 def test_a_build_landing_does_not_eat_the_numbers_you_typed():
@@ -89792,6 +90036,10 @@ def main():
         test_one_live_update_switch_seen_from_two_tabs)
   check("a drag along an edge sets the zigzag count",
         test_a_drag_along_an_edge_sets_the_zigzag_count)
+  check("a pixel of slip on the zigzag handle is a click",
+        test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click)
+  check("the zigzag count box offers even counts only",
+        test_the_zigzag_count_box_offers_even_counts_only)
   check("a build landing does not eat the numbers you typed",
         test_a_build_landing_does_not_eat_the_numbers_you_typed)
   check("the zigzag handle is where its numbers say",

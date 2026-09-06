@@ -1791,7 +1791,15 @@ Confirmed with the user via an explicit design review:
   THE EDGE while zigzag is chosen, cresting at the handle, with four
   painted, never-clicked cues -- deeper, shallower, tighter, wider --
   each a miniature of what it produces, computed at paint time and
-  stored nowhere.
+  stored nowhere. Two more, grilled later the same day (C-319): (6) A
+  CLICK THAT SLIPS UNDER HALF A SEAT IS A CLICK: the amplitude's
+  threshold is travel from where the handle was grabbed, sized from the
+  glyph as the count's deadband is, since 1% of the edge was under a
+  pixel at the window's floor and recorded an invisible wave. (7) THE
+  COUNT IS EVEN, 2 TO 8, a typed odd count settling up, on the
+  library's own word that zigzag works only for even n; and the
+  readout's clamp STANDS, the box carrying the count past where the
+  drag is exact.
 - **THE DUAL: FIVE RULINGS OF 2026-09-05.** (Field report 5; the
   measurements are R-79, the refusals and the gaps distinction C-312.)
   (1) "Map the dual instead" is a BUTTON, "Generate the dual and tile

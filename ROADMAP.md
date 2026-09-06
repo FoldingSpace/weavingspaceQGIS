@@ -168,13 +168,13 @@ closed below, and so is everything the maintainer asked for before the
 next candidate -- the dual button and the completed dual, the two tab
 defects, the three settled conflicts, the Topology tab audit, the
 documents re-audit and the self-fixing documents, the docstrings pass
-and the two studies. What is still open is NOT code and does not hold
-a candidate: three decisions that are the maintainer's -- the zigzag
-threshold question, and the two the tab audit reported (odd zigzag
-counts open a gap; the count readout's clamp bites at the window's own
-size). The product stall of R-4 is parked under "Later, or never" on
-the maintainer's decision, and the text-review queue was cleared on
-2026-09-05.
+and the two studies. The three decisions that were the maintainer's
+-- the zigzag threshold, odd zigzag counts, the count readout's clamp
+-- were settled by grilling late on 2026-09-05 (CLAUDE.md, the zigzag
+handle's rulings 6 and 7; the clamp stands), and the two that changed
+code are built and guarded. The product stall of R-4 is parked under
+"Later, or never" on the maintainer's decision, and the text-review
+queue holds only the three tooltip sentences those rulings wrote.
 
 ### Closed: the two suite failures and the harness race
 
@@ -204,10 +204,10 @@ whose mechanism was not what reading suspected and whose five rulings
 are in CLAUDE.md (R-79). The accounts, with the candidate eliminated
 and the threshold question left open, are R-82.
 
-ONE QUESTION FROM REPORT 2 IS STILL UNPROVED: `_drag_moved` treats a
-zigzag under `abs(h) > 0.01` as a click, and whether that sits where a
-person's "I meant that" does is unmeasured; amplitude is the one
-parameter whose useful values start small.
+THE QUESTION FROM REPORT 2 IS SETTLED: the click threshold was the
+box's floor, under a pixel on the tab's own edges, and is now half a
+handle seat of travel from where the handle was grabbed (ruling 6 of
+the zigzag handle, CLAUDE.md; C-319).
 
 ### Done: the dual button, the three settled conflicts, and the maintainer's four asks (2026-09-05)
 

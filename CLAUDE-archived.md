@@ -353,6 +353,7 @@ quote them, do not renumber them.
 - **C-316** — Two relationships: the maintainer's framing of 2026-08-25 in full, with the open list a...  <sub>How we decide things, and the suite's environment</sub>
 - **C-317** — How the suite's QGIS prefix is discovered, and the months it ran with no ramps at all  <sub>How we decide things, and the suite's environment</sub>
 - **C-318** — The reference column's claim, the thirty-version gap and the refused browser capture  <sub>How we decide things, and the suite's environment</sub>
+- **C-319** — The zigzag click threshold and the odd counts: the grilling of 2026-09-05, with the fac...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10287,3 +10288,67 @@ a network and a pyodide load per case, for a column that goes red
 whenever the app lags the library, which is the app's business. The
 gap as it was measured, and the earlier reading the old claim rested
 on: C-263.
+
+### C-319 — The zigzag click threshold and the odd counts: the grilling of 2026-09-05, with the facts put to the maintainer
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-319).</sub>
+
+Four decisions were put to the maintainer one at a time late on
+2026-09-05, with the facts measured first, on the items the tab audit
+had reported rather than changed and the one entry deferred to 0.24.5.
+
+THE ZIGZAG CLICK THRESHOLD. `_drag_moved` treated a zigzag whose
+amplitude `h` was under 0.01 of the edge's length as a click. On the
+default design at the window's floor (1034x458) the two edge classes
+draw at 94px and 69px, so 1% of the edge is 0.9px and 0.7px; at
+1500x950 they draw at 236px and 173px, 2.4px and 1.7px. The threshold
+therefore sat where "the pointer moved at all" sits rather than where
+"I meant that" does: a click on a zero-amplitude handle that slipped a
+pixel recorded an invisible wave, listed it as an edit, and paid for a
+rebuild of the topology (0.8 to 21 seconds). The other direction was
+safe, since 0.01 is also the box's floor and any visible zigzag clears
+it. The count's own deadband was already sized from the glyph (a tenth
+of the edge, just under one 12px seat). DECIDED: size the amplitude's
+threshold from the glyph too, half a seat (6px) of across-travel from
+the grab point, and compare with where the handle WAS rather than with
+zero, since a handle at 0.3 that is clicked comes back reading 0.3.
+Built as `_AMPLITUDE_DEADBAND_PX`, `_amplitude_deadband` (the seat over
+the chosen edge's screen length) and the extra argument to
+`_drag_moved`; guarded by `a-pixel-of-slip-on-the-zigzag-handle-is-a-
+click` and `the-seat-is-measured-on-the-edge-drawn`.
+
+ODD ZIGZAG COUNTS. The audit's table: class a sound at n=1..5, class b
+opening a gap of 0.63%, 0.40% and 0.35% at n=1, 3, 5 and none at 2
+and 4; the library's docstring says zigzag "will only work correctly
+if n is even", `start` being "a temporary hack" toward odd counts. The
+tab reported the gap after the fact. Three ways were offered: even
+counts only; warn before and allow; leave it. DECIDED: even counts
+only, since a control offering a value the library documents as
+unsupported offers something that works by the luck of the geometry,
+and a request for odd counts belongs upstream. Built as the args table
+`(2.0, 8.0, 2.0, 2.0)`, `_COUNT_FLOOR` of 2, `_COUNT_STEP`, `_even_count`
+for the drag's snap and for a typed count settled when editing
+finishes -- halves settle UP, since Python's `round` sent a typed 5 to
+4 in the first draft -- guarded by `the-zigzag-count-snaps-to-even`,
+`a-typed-odd-count-is-settled-to-even` and
+`the-count-box-declares-odd-counts`. A record carrying an odd count
+from before is still applied and still reported.
+
+THE COUNT READOUT'S CLAMP. Held 15px clear of the vertices, the handle
+is exact only to n=3 and n=2 at the floor and n=7 and n=5 at 1500x950;
+with even counts that is 2 by drag at the floor and 4 by the box, 6 by
+drag at the larger size. Loosening the clearance to 8px, and raising
+the drawing's floor, were offered. DECIDED: leave it; the box carries
+the count past where the drag is exact and the readout says so, and
+loosening the clearance would put the handle back inside the vertex's
+reach, which cost 23 edges their handle on 2026-08-31.
+
+THE RESTYLE-PATH VARIABLE SWITCH. `gdf_to_layer` is 0.24s at spacing
+250 and 1.7s at 150 now that the tiled-frame cache has taken the join;
+a switch moves 0.0% of tiles on the packaged data and 20.2% on a
+multi-source shape; four hazards recorded; 527 catalogue entries anchor
+on `dialog.py`. Into 0.24.4 after this candidate, and dropping it, were
+offered. DECIDED: it stays in 0.24.5, differential first.
+
+R-4's stall the maintainer had already parked earlier the same evening:
+ignored until it recurs, the defence and the probe staying.

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-528 defect(s) with a regression test.
+530 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1029,6 +1029,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_is_never_adopted_onto_the_ladders_own_edge`
 - **a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5.**  
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
+- **a click on the zigzag handle that slipped a pixel recorded an invisible zigzag and rebuilt the topology, because the amplitude's click threshold was under a pixel on the tab's own edges. Settled by grilling, 2026-09-05.**  
+  guarded by `test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click`
 - **"Map the dual" drew the default design's dual with holes over 23% of the map, and the Topology tab could not build the dual's structure. Field report 5, 2026-09-05.**  
   guarded by `test_a_promoted_dual_covers_its_cell_and_the_library_builds_it`
 - **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
@@ -1101,6 +1103,8 @@ there is no separate list to remember.
   guarded by `test_the_table_headers_read_as_designed`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
   guarded by `test_the_unclassed_list_fades_without_a_graphics_effect`
+- **the zigzag count box offered odd counts, and class b of the default design opened a gap at each of them, reported only after the edit was applied. Settled by grilling, 2026-09-05.**  
+  guarded by `test_the_zigzag_count_box_offers_even_counts_only`
 - **the zigzag handle stood 60px off its edge whatever the amplitude, so its position claimed an amplitude it did not have and read as belonging to nothing.**  
   guarded by `test_the_zigzag_handle_is_where_its_numbers_say`
 - **the zigzag amplitude was read as the drag's travel rather than the handle's position, so moving the handle along the edge to step the count flattened the zigzag to nothing. Found by the Topology tab audit, 2026-09-05.**  
@@ -1113,7 +1117,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 50
+- reported by a user: 52
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10

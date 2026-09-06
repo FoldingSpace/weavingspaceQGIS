@@ -193,7 +193,49 @@ _COUNT_DEADBAND = 0.10
 # it before `_within_the_box` ever sees the value -- and a drag that
 # ran past the box's range once recorded a number the box would not
 # show (archimedean 4.8.8, 2026-09-01).
-_COUNT_FLOOR, _COUNT_CEILING = 1, 8
+_COUNT_FLOOR, _COUNT_CEILING = 2, 8
+# THE COUNT IS EVEN. (Maintainer's decision, 2026-09-05, grilled.) The
+# library's own `zigzag_edge` says it "will only work correctly if n
+# is even", and the tab audit measured it: on the default design
+# class a was sound at every count while class b opened a gap of
+# 0.63%, 0.40% and 0.35% at n=1, 3 and 5 and none at 2 and 4. A box
+# offering a value the library documents as unsupported offers
+# something that works by the luck of the geometry, so the drag snaps
+# to even counts, the box steps by two, and a typed odd count is
+# settled to the nearest even one when editing finishes. A request for
+# odd counts belongs upstream, beside the existing notes.
+_COUNT_STEP = 2
+# A CLICK ON THE ZIGZAG HANDLE THAT SLIPS A PIXEL IS STILL A CLICK.
+# (Maintainer's decision, 2026-09-05, grilled.) The amplitude's click
+# threshold used to be 0.01 of the edge's length -- the box's floor --
+# which on the 94px and 69px edges the default design draws at the
+# window's floor is 0.9px and 0.7px: not where "I meant that" sits but
+# where "the pointer moved at all" sits, so a click on the handle that
+# slipped one pixel recorded a wave nobody could see and paid for a
+# rebuild of the topology. SIZED FROM THE GLYPH, as the count's
+# deadband is: half a 12px seat, so a gesture that never leaves the
+# handle's own drawn shape cannot record an amplitude, and past it the
+# amplitude is where the handle sits, as before. Typing in the box is
+# unaffected, since this is asked only of a drag.
+_AMPLITUDE_DEADBAND_PX = 6.0
+
+
+def _even_count(value) -> int:
+  """The even count nearest a number, inside the count's range.
+
+  Args:
+    value: a count a drag or a keyboard produced, whole or not.
+
+  Returns:
+    An even integer between `_COUNT_FLOOR` and `_COUNT_CEILING`. An odd
+    count is exactly halfway between two even ones, and Python's
+    `round` settles halves to the even NUMBER -- 2.5 to 2 and 1.5 to 2
+    -- which sent a typed 5 to 4 and a typed 3 to 4 in the first
+    draft; halves settle UP here, so 3 becomes 4 and 5 becomes 6, and
+    the same rule serves the drag's snap and the typed count.
+  """
+  even = int(math.floor(float(value) / _COUNT_STEP + 0.5)) * _COUNT_STEP
+  return max(_COUNT_FLOOR, min(_COUNT_CEILING, even))
 
 
 def _point_to_segment(point, start, finish) -> float:
@@ -1376,6 +1418,17 @@ class TopologyView(QWidget):
     reach = (run * run + rise * rise) ** 0.5
     return None if reach <= 0 else (start, finish, reach)
 
+  def chosen_edge_length_on_screen(self):
+    """How long the chosen edge is drawn, in widget pixels.
+
+    Returns:
+      The length, or None where no edge is chosen or its geometry will
+      not answer. Asked by the panel to size the zigzag's click
+      threshold from the glyph rather than from the edge's fraction.
+    """
+    edge = self._chosen_edge_on_screen()
+    return None if edge is None else edge[2]
+
   def zigzag_readout_is_exact(self) -> bool:
     """Whether the zigzag handle is where its count says it is.
 
@@ -2502,6 +2555,19 @@ class TopologyPanel(QWidget):
       box.setValue(remembered.get(name, default))
       box.setToolTip(f"{label} for this change.")
       box.setProperty("argument", name)
+      if key == "zigzag_edge" and name == "n":
+        # EVEN COUNTS ONLY, and a typed odd one is settled rather than
+        # refused: `setSingleStep(2)` from a floor of 2 makes the
+        # arrows step 2, 4, 6, 8, but a spin box accepts what is typed
+        # into it, so the settling happens when editing finishes --
+        # the honest moment, where the person sees 3 become 4, rather
+        # than a `valueChanged` handler rewriting the box under their
+        # keystrokes, which is one of the things this project has
+        # already found eating what somebody typed.
+        box.setToolTip("Zigzags for this change: even counts only, "
+                       "since the library lays out only those.")
+        box.editingFinished.connect(
+          lambda b=box: self._keep_the_count_even(b))
       self._argument_grid.addWidget(caption, row, 0)
       self._argument_grid.addWidget(box, row, 1)
       # THE ZIGZAG'S HANDLE IS A READOUT OF THESE BOXES, so a box that
@@ -2568,11 +2634,13 @@ class TopologyPanel(QWidget):
           self.how_combo.currentData() != "zigzag_edge":
         continue
       box.setToolTip(
-        "Zigzags for this change."
+        "Zigzags for this change: even counts only, since the library "
+        "lays out only those."
         if exact else
-        "Zigzags for this change. This edge is too short to place that "
-        "many apart on the drawing, so the handle has stopped moving "
-        "with the count -- this box is where the count is.")
+        "Zigzags for this change, even counts only. This edge is too "
+        "short to place that many apart on the drawing, so the handle "
+        "has stopped moving with the count -- this box is where the "
+        "count is.")
 
   def _on_class_chosen(self):
     """Highlight whatever class the chooser now names, and re-offer
@@ -2848,8 +2916,8 @@ class TopologyPanel(QWidget):
         # toward the edge's start shortens the wavelength and so RAISES
         # the count, which is what the drawing shows: the peaks crowd.
         wanted = length / (2.0 * moved) if moved > 1e-9 else _COUNT_CEILING
-        changes["n"] = max(_COUNT_FLOOR,
-                           min(_COUNT_CEILING, round(wanted)))
+        # TO THE NEAREST EVEN COUNT, since odd ones are not offered.
+        changes["n"] = _even_count(wanted)
       return changes
     # A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED.
     # (Maintainer's instruction, 2026-08-31: the interaction has to be
@@ -3121,12 +3189,45 @@ class TopologyPanel(QWidget):
     # rather than editing anything. The test is on what the drag
     # actually asked for, per manipulation, because "nothing moved"
     # is a different number for an angle than for a fraction.
-    if not self._drag_moved(key, args, self._drag_started_with):
+    if not self._drag_moved(key, args, self._drag_started_with,
+                            self._amplitude_deadband()):
       self.view.show_preview(None)
       return
     self._record({"classes": data[1], "how": key, "args": args})
 
-  def _drag_moved(self, key, args, started=None) -> bool:
+  def _amplitude_deadband(self) -> float:
+    """Half a handle seat, as a fraction of the chosen edge's length.
+
+    Returns:
+      `_AMPLITUDE_DEADBAND_PX` over the chosen edge's screen length,
+      so the same pixels of slip mean the same thing on a long edge
+      and a short one; the box's floor, 0.01, where no edge is chosen
+      or the view cannot measure it, which is the pure-function
+      default `_drag_moved` carries.
+    """
+    reach = self.view.chosen_edge_length_on_screen()
+    if not reach:
+      return 0.01
+    return _AMPLITUDE_DEADBAND_PX / reach
+
+  def _keep_the_count_even(self, box):
+    """Settle a typed zigzag count to the nearest even one.
+
+    Args:
+      box: the count's spin box, after editing finished.
+
+    Returns:
+      None. Moves the box only where its value is odd or outside the
+      count's range, so an even count typed is left exactly as typed
+      and nothing is rewritten under a keystroke.
+    """
+    value = float(box.value())
+    even = _even_count(value)
+    if abs(even - value) > 1e-9:
+      box.setValue(even)
+
+  def _drag_moved(self, key, args, started=None,
+                  amplitude_deadband=0.01) -> bool:
     """Did this drag ask for anything?
 
     Args:
@@ -3138,6 +3239,11 @@ class TopologyPanel(QWidget):
         `test_every_handle_a_drag_offers_commits_what_it_previewed` --
         which is a fair thing for a test to do of a function that is
         about its arguments, and the reason to keep it that way.
+      amplitude_deadband: the smallest change of the zigzag's `h`
+        that counts as a gesture, as a fraction of the edge's own
+        length. The panel passes half a handle seat in the chosen
+        edge's screen pixels (`_amplitude_deadband`); the default is
+        the box's floor, for a caller with no drawing to measure.
 
     Args:
       key: the manipulation.
@@ -3175,11 +3281,20 @@ class TopologyPanel(QWidget):
       # a gesture that moved only the count would have been discarded
       # as a click -- which is the "nothing happened" this tab has
       # already been reported for once.
-      started = (started or {}).get("n")
-      stepped = (started is not None
-                 and round(float(args.get("n", started)))
-                 != round(float(started)))
-      return stepped or abs(args.get("h", 0.0)) > 0.01
+      was = (started or {})
+      was_n = was.get("n")
+      stepped = (was_n is not None
+                 and round(float(args.get("n", was_n)))
+                 != round(float(was_n)))
+      # THE AMPLITUDE MOVED FROM WHERE IT WAS, not "is not zero": the
+      # handle is a position, so a click on a handle already at 0.3
+      # comes back reading 0.3, and only travel from there is a
+      # gesture. Under half a seat of travel it is a click, whatever
+      # the box's floor is (the decision of 2026-09-05, at
+      # `_AMPLITUDE_DEADBAND_PX`).
+      was_h = float(was.get("h", 0.0))
+      return stepped or (abs(float(args.get("h", 0.0)) - was_h)
+                         > amplitude_deadband)
     if key == "rotate_edge":
       return abs(args.get("angle", 0.0)) > 0.5
     if key == "scale_edge":

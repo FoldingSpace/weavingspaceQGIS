@@ -650,7 +650,16 @@ and changes only its precision. Guarded by the dual differential,
 which now asks the two spacings that disagreed to agree with each
 other and with the catalogue's snub square.
 
-**Two things measured and reported rather than changed.**
+**Two things measured and reported, and settled by the grilling later
+the same day** (maintainer's decisions, 2026-09-05): the count box
+offers EVEN COUNTS ONLY, 2 to 8, a typed odd count settling up to the
+next even one, on the library's own word; and the readout's clamp
+stands, the box carrying the count past where the drag is exact. A
+third decision from the same grilling sized the amplitude's click
+threshold from the glyph -- half a 12px seat of travel from where the
+handle was grabbed -- since 1% of the edge's length was under a pixel
+on the edges below, so a click that slipped a pixel recorded an
+invisible wave and rebuilt the topology.
 
 AN ODD ZIGZAG COUNT OPENS A GAP, on one class and not the other:
 
@@ -666,8 +675,9 @@ only work correctly if n is even", the `start` parameter being "a
 temporary hack" toward odd counts. The tab reports it honestly -- the
 row reads "from here the tiles no longer meet" and the mark agrees
 before and after a Save and Load -- so this is ruling 5 working
-(validity shown rather than enforced). Whether the tab should say so
-before an odd count is applied is in ROADMAP.md.
+(validity shown rather than enforced). Since the grilling the box no
+longer offers an odd count; a record carrying one from before is still
+applied, and still reported.
 
 THE COUNT READOUT'S CLAMP BITES AT THE WINDOW'S OWN SIZE. The zigzag
 handle sits on the first peak, `length / (2n)` along, and is held 15px

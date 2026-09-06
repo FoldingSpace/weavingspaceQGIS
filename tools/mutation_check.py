@@ -10684,10 +10684,12 @@ MUTATIONS = [
        # RE-ANCHORED 2026-09-05, when `_drag_moved` gained the numbers
        # the drag started from so a count-only gesture could be told
        # from a click. The line moved; the behaviour it guards did not.
-       old="""    if not self._drag_moved(key, args, self._drag_started_with):
+       old="""    if not self._drag_moved(key, args, self._drag_started_with,
+                            self._amplitude_deadband()):
       self.view.show_preview(None)
       return""",
-       new="""    if not self._drag_moved(key, args, self._drag_started_with):
+       new="""    if not self._drag_moved(key, args, self._drag_started_with,
+                            self._amplitude_deadband()):
       return      # mutation: keep a preview nothing was recorded from""",
        test="test_the_drop_keeps_the_picture_it_was_showing",
        why="the promise that the drawing never shows an edit the "
@@ -10828,8 +10830,8 @@ MUTATIONS = [
        # AIMED AT THE MAPPING ITSELF. Without it the drag carries the
        # amplitude alone, which is the state field report 3 described:
        # the count reachable only through the numeric boxes.
-       old="""        changes["n"] = max(_COUNT_FLOOR,""",
-       new="""        changes["_n"] = max(_COUNT_FLOOR,  # mutation: n never set""",
+       old="""        changes["n"] = _even_count(wanted)""",
+       new="""        changes["_n"] = _even_count(wanted)  # mutation: n never set""",
        test="test_a_drag_along_an_edge_sets_the_zigzag_count",
        why="the zigzag's count being unreachable from the drawing, "
            "which is field report 3 against rc15. `along` is computed "
@@ -11062,6 +11064,55 @@ MUTATIONS = [
            "moved eight pixels along the edge recorded h 0.01 and n 1. "
            "Ruling 1 of 2026-09-05 says the distance from the edge IS the "
            "amplitude; the tab audit found the arithmetic disagreeing"),
+  dict(name="a-pixel-of-slip-on-the-zigzag-handle-is-a-click",
+       file=TOPOLOGY_TAB,
+       old="""      return stepped or (abs(float(args.get("h", 0.0)) - was_h)
+                         > amplitude_deadband)""",
+       new="""      return stepped or (abs(float(args.get("h", 0.0)) - was_h)
+                         > 1e-9)  # mutation: any slip is a drag""",
+       test="test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click",
+       why="a click on the zigzag handle that slipped a pixel recording "
+           "an invisible wave and rebuilding the topology: the amplitude's "
+           "threshold was the box's floor, under a pixel on the tab's own "
+           "edges. Sized from the glyph by the grilling of 2026-09-05"),
+  dict(name="the-seat-is-measured-on-the-edge-drawn",
+       file=TOPOLOGY_TAB,
+       old="""    reach = self.view.chosen_edge_length_on_screen()
+    if not reach:
+      return 0.01
+    return _AMPLITUDE_DEADBAND_PX / reach""",
+       new="""    return 0.01  # mutation: the box's floor, whatever the edge's length""",
+       test="test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click",
+       why="the panel handing `_drag_moved` the box's floor instead of half "
+           "a seat over the chosen edge's screen length, so the decision "
+           "of 2026-09-05 would hold in the pure function and not on the "
+           "drawing where a person's slip happens"),
+  dict(name="the-zigzag-count-snaps-to-even", file=TOPOLOGY_TAB,
+       old="""        changes["n"] = _even_count(wanted)""",
+       new="""        changes["n"] = max(_COUNT_FLOOR, min(_COUNT_CEILING, round(wanted)))  # mutation: odd counts by drag""",
+       test="test_a_drag_along_an_edge_sets_the_zigzag_count",
+       why="a drag producing an odd zigzag count, which the library "
+           "documents as unsupported and which opened a gap on class b of "
+           "the default design at every odd count (0.35-0.63%). Ruled out "
+           "by the grilling of 2026-09-05"),
+  dict(name="a-typed-odd-count-is-settled-to-even", file=TOPOLOGY_TAB,
+       old="""    value = float(box.value())
+    even = _even_count(value)
+    if abs(even - value) > 1e-9:
+      box.setValue(even)""",
+       new="""    return  # mutation: a typed 3 stays 3""",
+       test="test_the_zigzag_count_box_offers_even_counts_only",
+       why="a typed odd count reaching the library through the one door a "
+           "range and a step cannot close -- a spin box accepts what is "
+           "typed -- so the even-only ruling would hold for the arrows and "
+           "the drag and not for the keyboard"),
+  dict(name="the-count-box-declares-odd-counts", file=TOPOLOGY_EDITS,
+       old="""    "args": (("n", "Zigzags", 2.0, 8.0, 2.0, 2.0),""",
+       new="""    "args": (("n", "Zigzags", 1.0, 8.0, 2.0, 1.0),  # mutation: 1 to 8 by ones""",
+       test="test_the_zigzag_count_box_offers_even_counts_only",
+       why="the declared range and step going back to 1 to 8 by ones, so "
+           "the arrows offer 3 and 5 again and the floor of 1 is a count "
+           "the library says will not lay out"),
   dict(name="a-corner-with-no-class-is-not-selectable", file=TOPOLOGY_TAB,
        old="""      if not (getattr(vertex, "label", None) or ""):
         continue
