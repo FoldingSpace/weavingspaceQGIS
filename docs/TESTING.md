@@ -731,6 +731,28 @@ cheapest design. `_wait_for_the_topology` also RAISES with what the
 tab is still waiting on rather than returning a bare False, so the
 next occurrence names its own cause. (T-132.)
 
+## A WAITER THAT RETURNS ON ANY ANSWER RETURNS ON THE OLD ONE
+
+2026-09-05, driving field report 5, and it is T-107's shape one more
+time. `_wait_for_the_topology` returns as soon as the panel holds a
+topology -- which, after a change that queues a rebuild, is the
+PREVIOUS one. A probe read "the build has been running for forty
+seconds" off a reading taken half a second after the tick, and the
+product was landing in 1.2s the whole time. WHEN A WAITER'S EXIT
+CONDITION IS ALREADY TRUE AT THE MOMENT OF ASKING, it is not a wait:
+take a fingerprint of the thing before the act and wait for it to
+MOVE, as the drop probe of 2026-09-04 does. (T-133.)
+
+## AN INVARIANT CANNOT BE A FINGERPRINT
+
+Same day. A guard told an edited dual from a plain one by summing the
+dual tiles' AREAS, and the sums differed -- because the dual it
+measured was truncated and slivered. A COMPLETE dual covers exactly
+the cell it repeats in whatever an edit did to its shapes, so once the
+completion landed both sums were 250,000 and the premise said the edit
+moved nothing. Before choosing a fingerprint, ask whether the quantity
+is CONSERVED by the change it is meant to see; perimeter was not.
+
 ## Ceilings, and the two ways to get them wrong
 
 A watchdog exists to catch a HANG. It is not a performance budget, and

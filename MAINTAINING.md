@@ -633,6 +633,44 @@ the file gets the tiling that was sent -- and it falls through with a
 sentence where there is no dual, since an inset opens gaps and a
 gapped design has no topology.
 
+### The dual is completed here, and a button makes it a map
+
+`topology_edits.complete_dual` builds the dual's frame from the
+topology's own `dual_tiles` -- one polygon per vertex of the unit --
+with every copy's centre taken as its base tile's centre translated.
+It exists because the library's `get_dual_tiles` labels the dual with
+the SOURCE's tile ids sliced to the dual's count, so pandas keeps as
+many rows as the source has tiles, and because the library's tile
+centre is a numerical search run per copy, landing about a unit apart
+on two copies of one tile. The default design's dual came back four
+tiles of six covering 77% of the ground, and the library refused to
+build a Topology of it while building the same tiling from its own
+catalogue. Both go upstream in
+docs/process/upstream-note-the-dual-is-truncated-and-drifts.md, and
+`test_the_library_still_truncates_and_drifts_the_dual` asks the
+library directly whether either is still there. Both the map and the
+file's `weavingspace_dual_no_crs` table come from this frame.
+
+**"GENERATE THE DUAL AND TILE IT" IS A BUTTON ON THE TOPOLOGY TAB**,
+not a box (the five rulings of 2026-09-05, in CLAUDE.md). It lands
+the dual in a new group named `<group> — dual` through the chooser's
+own "Create new" door, so every guard on that door holds; the store of
+"is this map tiled with the dual" is still the record's `map_dual`
+term, a box that is kept but never shown because thirteen readers
+speak its language, with a label beside the button that follows the
+store -- told directly after a record restore, which writes the store
+with its signal blocked. `topology_edits.dual_on_offer` is the one
+owner of whether a dual is offered: no topology, a dual the library
+cannot lay out, or one short of its cell, each with its sentence, and
+the button is disabled with that sentence at every landing. Elements
+are assigned fresh by the ordinary landing.
+
+`covers_its_cell` is the coverage question -- the tiles' area against
+the prototile's -- and it is deliberately not `gaps()`: that measures
+holes in a patch's union, which is what an edit opens, and an inset's
+channels reach the patch's edge and are not holes at all (measured
+0.0 on an inset that leaves 35% of the cell bare).
+
 ### The drop keeps the picture it was showing
 
 `_commit_the_drag` used to open with `show_preview(None)`, so the
@@ -1618,10 +1656,21 @@ symmetric difference over the unit's own area, with the measurement at
 the function.
 
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
-which is the family and the element count. Move the design away and
-the edits go quiet; bring it back and they return. This is the same
-shape as the per-field scheme memory: what stays ACTIVE changes, what
-is REMEMBERED does not.
+which is the family, the element count and whether the dual is
+mapped. Move the design away and the edits go quiet; bring it back
+and they return. This is the same shape as the per-field scheme
+memory: what stays ACTIVE changes, what is REMEMBERED does not.
+
+**AND EVERY OTHER DESIGN TERM STAYS OUT OF THE KEY, WITH THE REPLAY
+REPORTING INSTEAD** (maintainer's ruling on conflict 7, 2026-09-05).
+A scale in one axis splits the default design's two edge classes into
+four, so a replayed `a` names a different set of edges while the
+change list reads the same. Widening the key would have an ordinary
+modifier tweak put somebody's edits away; so each edit records the
+alphabet it was aimed against at the panel's one recording door, and
+`apply` compares that with the design it replays onto and says, in
+`CLASSES_MOVED`, that the classes have moved -- still applying what
+the labels name now. Guarded as a topology-matrix aftermath.
 
 **And the shelf rides the working state**, so a saved project brings
 back what somebody did to the topology rather than only the design
@@ -2341,8 +2390,11 @@ For a side-by-side check of the gallery against the original
 renderer, `tools/visual_reference_report.py` builds
 `reports/v<version>/visual-comparison.pdf`: each case's QGIS render
 next to weavingspace's own `TiledMap.render` output on identical
-inputs, which is also exactly what the web app draws (it pins the same
-library version). It needs a Python with geopandas *and* matplotlib —
+inputs -- the VENDORED library at the commit `VENDOR-VERSION.txt`
+records, which is the only thing the comparison measures and the only
+claim it makes (maintainer's ruling, 2026-09-05; the web app pins an
+older library and is no longer spoken for). It needs a Python with
+geopandas *and* matplotlib —
 not QGIS's own (macOS code-signing refuses PyPI C extensions in the
 signed QGIS process); any virtualenv with those two packages works.
 

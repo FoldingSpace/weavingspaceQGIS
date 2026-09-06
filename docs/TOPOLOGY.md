@@ -549,6 +549,37 @@ from one position to nine, and laves, hex-colouring 4 and
 square-colouring 5 are unmoved at nine, which is the control that says
 the change did not simply make every answer nine.
 
+## The dual, completed, and the two library defects behind its holes
+
+Field report 5 against rc15 said "Map the dual" gave an error while
+the tab drew the dual perfectly well. Driven on 2026-09-05 (probes
+`dev/probes/fr5_*`, arms A to M; the measurements are R-79 in
+ROADMAP-archived.md), the box asked the tab for a topology OF the dual
+and the library refused; and the map itself had holes. Two defects in
+the vendored library, measured on the default design:
+
+    generate_dual holds        6 dual tiles (one per vertex)
+    get_dual_tiles returns     4 rows   -- labelled with the SOURCE's
+                                          tile ids sliced to the count
+    those 4 cover              77% of the cell
+    all 6, library centres     99.77%  -- polylabel run per copy lands
+                                          about a unit apart, slivers
+                                          along every shared edge
+    all 6, consistent centres  100.000000%, and Topology(dual) BUILDS
+
+The library builds the snub-square tiling from its own catalogue
+entry, which is what said the refusal was the dual's construction and
+not the tiling. `complete_dual` takes each copy's centre as its base
+tile's centre translated, and upstream is asked for both fixes in
+docs/process/upstream-note-the-dual-is-truncated-and-drifts.md.
+
+The box became a button, "Generate the dual and tile it", landing the
+dual in `<group> — dual`; the rulings are in CLAUDE.md and the
+mechanism in MAINTAINING.md. And a design's gaps are a different
+question from the dual's: insets are already built before, and a
+weave's strand width is baked into strand construction, which is the
+R-40 boundary.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

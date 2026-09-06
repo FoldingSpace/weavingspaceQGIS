@@ -9,11 +9,11 @@ matplotlib — QGIS's own Python cannot be used, see below):
 "What the renders should have been" is defined here as the output of
 weavingspace's *own* matplotlib renderer (``TiledMap.render``), run on
 the very same tile units, synthetic region, variables, and colour
-ramps as the plugin's gallery cases. This is simultaneously the web
-app's ground truth: MapWeaver runs this library (pinned at 0.0.7.59,
-pinned) inside pyodide and draws through this same render call, so the
-reference column shows what the web app would draw for these inputs,
-without the browser in the loop. Each PDF page shows the reference beside the plugin's QGIS
+ramps as the plugin's gallery cases. The reference is the VENDORED
+library at the commit `weavingspace_qgis/vendor/VENDOR-VERSION.txt`
+records, and that is the whole of the claim (maintainer's ruling,
+2026-09-05): the MapWeaver web app pins an older library and is not
+spoken for here. Each PDF page shows the reference beside the plugin's QGIS
 render, with the case's acceptance criterion and the measured detail
 from the gallery run underneath.
 
@@ -1098,9 +1098,9 @@ def main():
                                figsize=(11, 6.2 * len(results)))
       axes = axes.reshape(len(results), 2)
       for row, (plug_png, r_png, label, ok_c, m) in enumerate(results):
-        ref_title = ("reference: original Python library, continuous\n"
-                     "(the MapWeaver web app's default look — the app\n"
-                     "pins this library and this same TiledMap.render)"
+        ref_title = ("reference: vendored Python library, continuous\n"
+                     "(TiledMap.render at the vendored commit; the\n"
+                     "colours are the ramps QGIS resolved for the case)"
                      if "parity" in label else
                      f"reference: original Python library\n"
                      f"classed to match ({scheme}, k={k})")

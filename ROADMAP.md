@@ -472,13 +472,28 @@ the dual). Cheapest and most durable first.
   route by name: the tab must speak exactly when the alphabet moved
   and stay quiet when it did not. Entry proved `caught` against the
   matrix.
-- **THE READER ASSIGNS THE FIRST n** (was conflict 1): a Load or a
-  group selection restores the design's n elements from the record's
-  first n entries in element order and keeps the surplus as memory.
-- **THE PDF MEASURES THE VENDOR** (was conflict 5): its caption and
-  docs/PUBLISHING.md name `TiledMap.render` from the vendored library
-  at its recorded commit and drop the web-app claim. Wording through
-  text review, which is the maintainer's act.
+- **THE READER ASSIGNS THE DESIGN'S OWN ELEMENTS -- MEASURED, AND
+  ALREADY SO** (was conflict 1, 2026-09-05, later). Driven rather than
+  coded, on the maintainer's note that a test per item is not the
+  method: a six-element record with its `n` lowered to four was applied
+  through `_apply_working_state`, and the table came back with four
+  rows carrying the record's own first four variables, the surplus two
+  ids keeping their ramp, reverse and opacity records as memory
+  (`dev/probes/conflict1_a_record_with_more_elements_than_its_design.py`).
+  The one caveat, said plainly: on widening back to six the surplus
+  rows re-derive their VARIABLE by the cycling default rather than
+  reading it off the record, which is the ordinary count-change
+  behaviour and not this record's; if a person's variable is to be
+  memory too, that is a widening of ruling 6 and a decision. No code
+  changed and no test was added; the record is a faithful superset
+  and the reader already reads it as the ruling says.
+- **THE PDF MEASURES THE VENDOR -- DONE** (was conflict 5, 2026-09-05,
+  later): the PDF's reference caption, the report tool's own docstring,
+  MAINTAINING.md's release section and CLAUDE.md's suite section all
+  name `TiledMap.render` from the vendored library at its recorded
+  commit and say the web app is not spoken for; the old three-way
+  paragraph is C-263. Nothing here is text a plugin user meets, so the
+  review queue is untouched by it.
 - **AND A GENERAL AUDIT OF THE TOPOLOGY TAB** (maintainer's ask,
   2026-09-05: "audit the topology tab more generally to make sure it
   functions as expected"), after the items above: every control and

@@ -297,6 +297,7 @@ quote them, do not renumber them.
 - **C-261** — The six boundaries icon mode was driven across, and how each was read  <sub>How we decide things: the accounts behind them</sub>
 
 - **C-262** — The 48-design spread behind multi-class selection, and cairo measured against laves  <sub>Design decisions already settled</sub>
+- **C-263** — The "three-way" comparison paragraph as it stood before the reference column was ruled to measure the vendor alone  <sub>The test suite: what it is for and how it runs</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -6784,3 +6785,39 @@ What found them was the mutation workflow's coverage leg,
   (cairo)` and the well-known Archimedean and Laves names come with
   it, through `text_review` like any other prose.
 
+
+### C-263 — The "three-way" comparison paragraph as it stood before the reference column was ruled to measure the vendor alone
+
+<sub>Cut from `CLAUDE.md`, lines 2529–2556 of the 2026-09-05 revision,
+when the maintainer ruled (conflict 5) that the PDF measures the
+vendor and the web-app claim is dropped rather than re-measured.</sub>
+
+On "three-way" comparison (library vs web app vs plugin): the PDF's
+reference column IS both of the first two at once, because MapWeaver
+pins this same library version and draws through this same
+TiledMap.render call inside pyodide — a browser screenshot would
+re-photograph the identical code path with UI chrome added, so no
+separate column exists. CONDITION TO WATCH, AND THE GAP HAS WIDENED:
+the vendor is 0.0.7.89 at upstream commit 6190917 since 2026-08-31,
+while the app still pins 0.0.7.59 — thirty versions rather than the
+two this paragraph used to describe, and now twelve further commits
+on top of them. The earlier reading, kept
+because it is what the claim rested on: relative to .59 the vendor
+at 0.0.7.61 differed by MIT licence headers, comment blocks, the
+STRtree tileable filter (the optimisation this project offered
+upstream, output-identical over twenty configurations when offered),
+and a one-word bugfix in get_regularised_prototiles_background
+(prototile ids on the regularised-prototile frame — a path the plugin
+does not draw through), none of which changes what TiledMap.render
+paints for the gallery's cases.
+WHAT THE BUMP MEANS FOR THE CLAIM, said plainly rather than assumed:
+six of the twelve library modules changed behaviourally at 0.0.7.89,
+so the sentence "the reference column speaks for both" is now a
+claim about a thirty-version gap and is only as good as the
+colourspace comparison that re-measures it every run. That gate is
+against the VENDOR, which is the plugin's own reference and the right
+one; what it no longer speaks for with any confidence is the WEB APP.
+This is exactly the condition the paragraph named — a bump while the
+app lags — so a live browser capture is the honest third column from
+here, and the decision to add one is the maintainer's. Recorded
+2026-08-26.

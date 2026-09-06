@@ -163,6 +163,7 @@ quote them, do not renumber them.
 - **T-131** — The contention factor that knew about sharding and nothing about the platform  <sub>Lessons, in full</sub>
 
 - **T-132** — The three intermittents, the armed failure, and why the fix went to the waiter  <sub>Lessons, in full</sub>
+- **T-133** — Field report 5's probe arms: the waiter that did not wait, the instrumented landing, and how the forty seconds were the harness's  <sub>Lessons, in full</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -4822,3 +4823,38 @@ a race as though it were that stall, so the next real occurrence is
 recognisable as itself. A hunt of 117 attempts the same day, with the
 discriminator armed, caught none.
 
+
+### T-133 — Field report 5's probe arms: the waiter that did not wait, the instrumented landing, and how the forty seconds were the harness's
+
+<sub>The account behind "A WAITER THAT RETURNS ON ANY ANSWER RETURNS
+ON THE OLD ONE" in `docs/TESTING.md`, written 2026-09-05 straight into
+the archive.</sub>
+
+Thirteen probe arms (`dev/probes/fr5_*`) drove the report before it
+was put to the maintainer. Arm D ticked "Map the dual", called
+`_wait_for_the_topology(dlg, seconds=40)`, and read `_topology_task`
+still set and the task manager reporting the build `Running` --
+which was written up, for an hour, as a build that took over forty
+seconds and never landed. Arm F polled by hand every quarter second
+and saw the same build land at 1.2s. The difference was the waiter:
+its first exit condition is `panel._topology is not None`, and after
+a tick that queues a rebuild the panel still holds the topology from
+BEFORE the tick, so it returned at once and arm D's "after the wait"
+reading was taken about half a second after the tick. T-107 records
+this shape for `_the_topology_tab_is_quiet`; this is the same fault
+in the waiter written to replace it, for the case where the panel is
+not empty but stale.
+
+Arm H then INSTRUMENTED rather than replaced: `topology_edits.build`
+and `TopologyPanel.set_unit` were wrapped to log their arguments and
+call through. That is what showed the worker returning `(None, gaps
+sentence)`, `set_unit` being handed that sentence, and the note
+reading empty afterwards -- from which `report([])` was found in a
+minute. Reading the code had not found it; the two writers are
+sixty lines apart and each is correct alone.
+
+The forty seconds cost an hour and were never the product's. The
+lesson that went to the live half is the one that would have saved
+it: a waiter whose exit condition can already be true at the moment
+of asking is not a wait, and the fix is to fingerprint the thing
+before the act and wait for it to move.

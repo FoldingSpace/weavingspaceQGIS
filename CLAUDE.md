@@ -2526,35 +2526,18 @@ anything leaves the machine. Rerun the comparison alone with
 `./.venv-reference/bin/python3 tools/visual_reference_report.py
 reports/v<version>/` after a gallery run has populated the PNGs.
 
-On "three-way" comparison (library vs web app vs plugin): the PDF's
-reference column IS both of the first two at once, because MapWeaver
-pins this same library version and draws through this same
-TiledMap.render call inside pyodide — a browser screenshot would
-re-photograph the identical code path with UI chrome added, so no
-separate column exists. CONDITION TO WATCH, AND THE GAP HAS WIDENED:
-the vendor is 0.0.7.89 at upstream commit 6190917 since 2026-08-31,
-while the app still pins 0.0.7.59 — thirty versions rather than the
-two this paragraph used to describe, and now twelve further commits
-on top of them. The earlier reading, kept
-because it is what the claim rested on: relative to .59 the vendor
-at 0.0.7.61 differed by MIT licence headers, comment blocks, the
-STRtree tileable filter (the optimisation this project offered
-upstream, output-identical over twenty configurations when offered),
-and a one-word bugfix in get_regularised_prototiles_background
-(prototile ids on the regularised-prototile frame — a path the plugin
-does not draw through), none of which changes what TiledMap.render
-paints for the gallery's cases.
-WHAT THE BUMP MEANS FOR THE CLAIM, said plainly rather than assumed:
-six of the twelve library modules changed behaviourally at 0.0.7.89,
-so the sentence "the reference column speaks for both" is now a
-claim about a thirty-version gap and is only as good as the
-colourspace comparison that re-measures it every run. That gate is
-against the VENDOR, which is the plugin's own reference and the right
-one; what it no longer speaks for with any confidence is the WEB APP.
-This is exactly the condition the paragraph named — a bump while the
-app lags — so a live browser capture is the honest third column from
-here, and the decision to add one is the maintainer's. Recorded
-2026-08-26.
+THE REFERENCE COLUMN MEASURES THE VENDOR, AND SAYS SO. (Maintainer's
+ruling, 2026-09-05, closing the conflict recorded 2026-08-26.) The
+PDF's reference is `TiledMap.render` from the vendored library at the
+commit `VENDOR-VERSION.txt` records, and that is the whole of its
+claim: the web app pins a library thirty versions behind the vendor,
+six of twelve modules changed behaviourally in between, and a sentence
+saying the column "speaks for both" had become a claim nothing here
+measured. A live browser capture was refused rather than deferred --
+a network and a pyodide load per case, for a column that goes red
+whenever the app lags the library, which is the app's business. The
+gap as it was measured, and the earlier reading the old claim rested
+on: C-263.
 
 - **A TEST FOR A PROMISE IS A MATRIX, NOT A CASE, and this is the
   DEFAULT rather than a technique to reach for occasionally.** Where the
