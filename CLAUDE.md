@@ -971,7 +971,9 @@ and the ids beside each rule.
 **Doors, twins and sequences.**
 - **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
   ROOM** (C-52); the create-new door clears the output path as the
-  dataset door does, since a saved file is one map (C-327); a flag's
+  dataset door does, since a saved file is one map (C-327), and it
+  clears AT THE DOOR, since a landing's clearing also wipes a path
+  chosen after it (C-338); a flag's
   writers ARE the door list, and the chooser was the third door into
   the room the two Load doors guard (C-329); a binding that returns
   nothing lets two stores name two maps, so a helper that "forces"
@@ -1814,8 +1816,9 @@ Confirmed with the user via an explicit design review:
   past a deadband of a tenth of the edge sized from the glyph, and
   the count SNAPS because the stops are the counts. (3) THE HANDLE'S
   PLACE ALONG THE EDGE IS THE COUNT, the even counts spread evenly
-  between two seats at 0.15 and 0.85 of the edge, eight nearest the
-  start (maintainer's ruling of 2026-09-06, superseding the first-peak
+  between two seats at 0.25 and 0.60 of the edge, two on its own first
+  crest and eight clear of the end handles (maintainer's ruling of
+  2026-09-06, superseding the first-peak
   placement, whose stops crowded inside the deadband so four and six
   could only be typed; C-336). (4) THE ALONG-POSITION IS CLAMPED 15px
   clear of both vertices, and on an edge too short for its seats the

@@ -12,11 +12,13 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-06 (midday), with ROUND EIGHT CLOSED AT SIXTEEN:
-twenty-seven hunts in five waves, sixteen product defects closed
-(ledger `defects-2026-09-06.md`), two claims left open and one
-settled by ruling, six dead axes tallied apart and four of them
-repaired. See its section below.
+Last updated 2026-09-06 (evening), with ROUND EIGHT CLOSED AT EIGHTEEN:
+twenty-seven hunts in five waves, eighteen product defects closed
+(ledger `defects-2026-09-06.md`; the two claims left open at midday
+were repaired that evening as rows 17 and 18), one claim settled by
+ruling and the round's ruling question settled by a fourth option the
+maintainer supplied, six dead axes tallied apart and four repaired.
+See its section below.
 Before it, 2026-09-02 (night), with ROUND SEVEN JUDGED: five
 defects, ledger rows 22 to 26, two of them reached by two hunts and
 one by three. The campaign passed its twenty-four. Its slate and its aim are in

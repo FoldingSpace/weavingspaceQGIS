@@ -1351,7 +1351,10 @@ half a seat of travel from the grab point records nothing, the
 amplitude's threshold being sized from the glyph as the count's
 deadband is, since the box's floor was under a pixel on the tab's own
 edges (grilled 2026-09-05, C-319; the count is even from the same
-grilling, `_even_count` settling a typed odd one up); and A POINT WITH
+grilling, `_even_count` settling a typed odd one up; and since
+2026-09-06 the count's seat along the edge interpolates the even
+counts between 0.25 and 0.60 of it, C-336, while the Amplitude box
+shows the crest's distance and holds `h`, C-337); and A POINT WITH
 NO LABEL IS NOT HIT-TESTED OR SEATED, since a zigzag adds two hundred
 unlabelled corners. AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING:
 `push_vertex` has a rail along the one direction a push can take, and

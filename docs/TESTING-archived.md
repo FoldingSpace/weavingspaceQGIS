@@ -175,6 +175,8 @@ quote them, do not renumber them.
 - **T-142** — Lessons, each paid for once: the section in full  <sub>The consolidation of 2026-09-05: one entry per theme</sub>
 - **T-143** — A ruling that narrows a control's range falsifies the premises of tests staging the old...  <sub>minted</sub>
 - **T-144** — A gate that reads this machine's disk reports this machine: gitignored files named in t...  <sub>minted</sub>
+- **T-145** — A bounded store sliced by length is empty at its ceiling  <sub>minted</sub>
+- **T-146** — A settle that did not count a deferred press  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7060,3 +7062,37 @@ restrictions as a one-off"), with `--despite-ci` naming the fix
 commit in the release body, because the receipt digests only files
 that ship and none of them moved. The number was therefore not
 spent, which is the exception to P-4 and not its rule.
+
+### T-145 — A bounded store sliced by length is empty at its ceiling
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-145).</sub>
+
+Two guards written on 2026-09-06 read `said.SAID[said_before:]`, the
+slice written after their act, so that an earlier test's notice
+could not satisfy them in one process (trigger10's dead axis). The
+store is bounded at `said.CEILING` (500) by deleting from the front,
+so once a process has said five hundred things `len` stops growing
+and the slice is empty however much the act said. Both guards passed
+alone and under `run_some`, and both failed in rc17's first build,
+in shards 0 and 3, two hundred tests into the process. They clear
+the store before the act now; `said.clear()` empties it in place, so
+the dialog's view of it follows. The general form: a slice by length
+is a claim that the store only grows, so ask what bounds it.
+
+### T-146 — A settle that did not count a deferred press
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-146).</sub>
+
+`_settle` answered quiet when no task and no timer were live. A
+Generate that must wait for a topology replay leaves neither: it
+arms `_press_pending` and returns. In rc17's first build, four
+shards on one machine, two dual tests pressed the dual button --
+which since the chain queues the unit's rebuild -- and the press
+deferred behind the topology build; `_settle` returned at once and
+both tests read "no element layer landed", after 68 and 47 seconds.
+Alone, and in the suite's own order alone, both pass: the deferral
+needs the machine loaded enough for the rebuild to outrun the press.
+The mutation runner's clean run had failed the same two entries once
+that afternoon, unexplained at the time; this is the explanation.
+`_settle` counts `_press_pending` and `_live_pending` now, at the one
+owner (T-100), so every caller learned it at once.

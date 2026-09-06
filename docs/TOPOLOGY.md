@@ -745,8 +745,10 @@ hunt measured the stops against the deadband -- from four the next
 lay 0.042 and 0.021 of the edge away against a deadband of 0.10, so
 four and six could be typed and never dragged to -- and the
 maintainer ruled that the handle's place along the edge interpolates
-the even counts between two seats, 0.15 and 0.85 of the edge, eight
-nearest the start. The stops are 0.233 of the edge apart, every count
+the even counts between two seats, 0.25 and 0.60 of the edge, two on
+its own first crest and eight clear of the end handles (a first form
+reached 0.85 and met the scale handle at the window's floor). The
+stops are 0.117 of the edge apart, every count
 is one drag away, and the clamp above bites only on an edge too short
 for the seats. The handle no longer sits on the first crest; the
 ghost still does, at the library's pitch (C-336).

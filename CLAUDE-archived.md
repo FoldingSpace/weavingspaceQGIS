@@ -372,6 +372,7 @@ quote them, do not renumber them.
 - **C-335** — A per-file memory answers absent for a file being created: a Save As asks the file the ...  <sub>minted</sub>
 - **C-336** — The zigzag count interpolates along the edge: the seats spread evenly, eight nearest th...  <sub>minted</sub>
 - **C-337** — The Amplitude box shows the crest's distance and holds the library's h  <sub>minted</sub>
+- **C-338** — The clearing belongs at the door, not at the landing  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10757,10 +10758,14 @@ options (size the deadband from the stops; step one stop per
 gesture; leave it), and answered with a fourth: have the ends of the
 deadbands be the two ends of the count and interpolate between them,
 to the even counts. So the handle's place along the edge is a
-straight interpolation over 2, 4, 6, 8 between two seats at 0.15 and
-0.85 of the edge (`_COUNT_SEATS`, `_count_seat`, `_count_at`), eight
-nearest the start since a drag that way still crowds the peaks; the
-stops are 0.233 of the edge apart against the deadband's 0.10, every
+straight interpolation over 2, 4, 6, 8 between two seats at 0.25 and
+0.60 of the edge (`_COUNT_SEATS`, `_count_seat`, `_count_at`): two on
+its own first crest, where the default handle always sat, and eight
+clear of the end handles -- a first form seated the ends at 0.15 and
+0.85, eight nearest the start, and rc17's second build measured the
+zigzag handle 19.1px from the scale handle inside a 13px reach at the
+window's floor (M-29's rule, caught by its own guard). The stops are
+0.117 of the edge apart against the deadband's 0.10, every
 count is one drag away, and the readout is exact wherever the edge
 has room for the seats. What it gives up is ruling 3's picture: the
 handle no longer sits on the first crest, which for a count of two
@@ -10802,3 +10807,24 @@ says what the number is. Guarded by
 `test_the_amplitude_box_shows_the_crests_distance` and the entries
 `the-amplitude-box-shows-the-crest` and
 `the-amplitude-box-takes-the-crest`.
+
+### C-338 — The clearing belongs at the door, not at the landing
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-338).</sub>
+
+Row 9 of 2026-09-06 cleared the output path when a run landed in a
+new group asked for on purpose -- Create new, or the dual button --
+so a saved map was not overwritten by the next Save. rc17's first
+build found three older tests failing "Save wrote nothing to ''",
+each having set a path AFTER the door: the dataset switched (which
+clears at its own door), a file named, Generate. The landing's
+clearing wiped the path they chose. A landing cannot tell an
+inherited path from one chosen since the door; the door can, since
+at the door the path in the box IS the previous map's. So the
+clearing moved to the chooser's Create new branch and to the dual
+press, as the dataset door already does; a refused dual press puts
+the path back (C-323); and the record follows from the empty box at
+launch, which retired the entry that had guarded the launch
+snapshot's blanking as one mechanism with the door's. Two older
+tests choose their path again before a deliberate Save, which is
+the faithful conversion under the ruling (T-42).

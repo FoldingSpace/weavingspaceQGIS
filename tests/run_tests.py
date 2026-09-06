@@ -59023,8 +59023,8 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   (Ruling 2 of 2026-09-05, on field report 3: the count was reachable
   only through the numeric boxes, while `along` was computed on the
   drag path and thrown away.) The glyph sits at the count's seat, the
-  even counts spread evenly along the edge since 2026-09-06, eight
-  nearest the start -- and the count is whole, so it snaps.
+  even counts spread evenly along the edge since 2026-09-06, two at
+  a quarter and eight at 0.60 -- and the count is whole, so it snaps.
 
   THE DEADBAND IS THE HALF WORTH GUARDING. A gesture aimed ACROSS an
   edge still resolves to a little travel ALONG it: `scale_edge` was
@@ -59074,13 +59074,13 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   # the count is even (maintainer's decision, 2026-09-05: the library
   # lays out only even counts, and class b of the default design
   # opened a gap at every odd one).
-  # THE SEATS ARE EVENLY SPACED (2026-09-06): from two at 0.85 of the
-  # edge, a quarter of the edge toward the start lands at 0.60, nearer
-  # four's seat at 0.617 than two's.
+  # THE SEATS ARE EVENLY SPACED (2026-09-06): from two at 0.25 of the
+  # edge, an eighth of the edge toward its far end lands at 0.37,
+  # nearer four's seat at 0.367 than two's.
   raised = panel._drag_argument(None, "zigzag_edge", frame,
-                                -0.25, 0.0, span, current=at_two)
+                                0.12, 0.0, span, current=at_two)
   assert raised.get("n") == 4, (
-    f"dragging the handle a quarter of the edge toward its start gave "
+    f"dragging the handle an eighth of the edge toward its far end gave "
     f"n={raised.get('n')} where four's seat is nearest: either the count "
     f"did not rise, or odd counts are back")
   # AND EVERY COUNT IS ONE DRAG AWAY, which the first-peak placement
@@ -59088,17 +59088,19 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   # edge away, inside the deadband, so six was typed or nothing.
   at_four = dict(at_two, n=4.0)
   stepped = panel._drag_argument(None, "zigzag_edge", frame,
-                                 -0.23, 0.0, span, current=at_four)
+                                 0.12, 0.0, span, current=at_four)
   assert stepped.get("n") == 6, (
     f"a drag of one seat's spacing from four gave n={stepped.get('n')}, "
     f"not six: the count cannot be dragged one stop at a time")
   lowered = panel._drag_argument(None, "zigzag_edge", frame,
-                                 0.20, 0.0, span, current=at_four)
+                                 -0.20, 0.0, span, current=at_four)
   assert lowered.get("n") == 2, (
-    f"dragging the peak toward the edge's middle did not lower the "
-    f"count as the wavelength grew: {lowered}")
+    f"dragging the handle back toward the edge's start did not lower "
+    f"the count: {lowered}")
   # AND NO DRAG PRODUCES AN ODD COUNT, wherever it stops.
-  for along in (-0.05, -0.10, -0.15, -0.20, 0.05, 0.10):
+  # 0.16 lands at 0.41 of the edge, where the interpolation reads 4.74:
+  # a count that rounds to five and must snap to four.
+  for along in (-0.05, -0.10, -0.15, -0.20, 0.05, 0.10, 0.16, 0.22):
     got = panel._drag_argument(None, "zigzag_edge", frame,
                                along, 0.0, span, current=at_two).get("n")
     assert got is None or got % 2 == 0, (
@@ -59506,7 +59508,7 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
   (Rulings 1, 3 and 4 of 2026-09-05, on field reports 3 and 4; the
   along-position re-ruled on 2026-09-06.) The handle sits at its
   count's SEAT along the edge -- the even counts spread evenly between
-  two seats, eight nearest the start -- and `h` of the edge's length
+  two seats, two at a quarter and eight at 0.60 -- and `h` of the edge's length
   out along the normal. So its distance from the edge IS the amplitude
   and its place along the edge IS the count.
 
@@ -59655,7 +59657,7 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
     set_box("n", 2.0)      # the floor, since counts are even (2026-09-05)
     at_one = seat()
     set_box("n", 4.0)
-    assert away_from_start(seat()) < away_from_start(at_one) - 2.0, (
+    assert away_from_start(seat()) > away_from_start(at_one) + 2.0, (
       "raising the count did not walk the handle toward the edge's "
       "start, so its place along the edge is not the count")
 

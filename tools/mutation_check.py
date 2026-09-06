@@ -11350,8 +11350,8 @@ MUTATIONS = [
            "of 2026-09-05 would hold in the pure function and not on the "
            "drawing where a person's slip happens"),
   dict(name="the-zigzag-count-snaps-to-even", file=TOPOLOGY_TAB,
-       old="""  return _even_count(float(_COUNT_CEILING) - t * (_COUNT_CEILING - _COUNT_FLOOR))""",
-       new="""  return int(round(float(_COUNT_CEILING) - t * (_COUNT_CEILING - _COUNT_FLOOR)))  # mutation: odd counts back""",
+       old="""  return _even_count(float(_COUNT_FLOOR) + t * (_COUNT_CEILING - _COUNT_FLOOR))""",
+       new="""  return int(round(float(_COUNT_FLOOR) + t * (_COUNT_CEILING - _COUNT_FLOOR)))  # mutation: odd counts back""",
        test="test_a_drag_along_an_edge_sets_the_zigzag_count",
        why="a drag producing an odd zigzag count, which the library "
            "documents as unsupported and which opened a gap on class b of "

@@ -176,12 +176,13 @@ code are built and guarded. The product stall of R-4 is parked under
 "Later, or never" on the maintainer's decision, and the text-review
 queue is empty, the three tooltip sentences those rulings wrote
 having been approved before rc16 was built. AFTER rc16, ROUND EIGHT
-CLOSED SIXTEEN DEFECTS on 2026-09-06 (docs/process/defects-2026-09-06.md,
-rows 1-16, most of them in the Topology tab's dual and zigzag work
-of the days before), so the next candidate carries them; three
-sentences those repairs wrote await review, two claims are left open
-in the ledger, and the count's drag deadband against its stops is a
-question for the maintainer.
+CLOSED EIGHTEEN DEFECTS on 2026-09-06 (docs/process/defects-2026-09-06.md,
+rows 1-18, most of them in the Topology tab's dual and zigzag work
+of the days before), three rulings landed the same evening -- duals
+chain, the count interpolates along the edge, the amplitude box
+shows the crest (C-334, C-336, C-337) -- every sentence was approved,
+and rc17 carries the lot; its first build found eight failures in
+ground the targeted runs had passed (T-145, T-146, C-338).
 
 ### Closed: the two suite failures and the harness race
 

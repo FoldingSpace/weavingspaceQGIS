@@ -177,19 +177,25 @@ _HANDLE_REACH = 13.0
 # `zigzag_readout_is_exact` answers it. (Ruling 4 of 2026-09-05.)
 _CLEAR_OF_VERTEX = 15.0
 # WHERE ALONG THE EDGE THE COUNT'S TWO ENDS SIT, as fractions of the
-# edge from its start: the ceiling nearest the start, the floor nearest
-# the far vertex, and the even counts between them spread evenly. THE
+# edge from its start: the floor nearest the start, the ceiling toward
+# the far end, and the even counts between them spread evenly. THE
 # COUNT INTERPOLATES (maintainer's ruling, 2026-09-06): the handle used
 # to sit on the wave's first peak, `length / (2n)` along, so its stops
 # crowded toward the start as the count rose -- from four the next lay
 # 0.042 and 0.021 of the edge away against a deadband of 0.10, and four
 # and six could be typed but never dragged to. Spread evenly the stops
-# are 0.233 of the edge apart, every count is one drag away, and the
+# are 0.117 of the edge apart, every count is one drag away, and the
 # readout is exact wherever the edge has room for the seats. The ghost
 # still crests at the library's own pitch, so the drawing is honest
-# about the wave while the handle reads the count. Eight nearest the
-# start, since a drag that way still crowds the peaks.
-_COUNT_SEATS = (0.15, 0.85)
+# about the wave while the handle reads the count. TWO SITS AT A
+# QUARTER, which is the first crest of a two-count wave, so the default
+# handle is where it always was; and EIGHT STOPS AT 0.60, since the
+# end handles stand at the edge's end and two handles closer than
+# twice the reach make one unclickable (M-29): a first form seated the
+# ends at 0.15 and 0.85 and rc17's second build measured the zigzag
+# handle 19.1px from the scale handle inside a 13px reach at the
+# window's floor. At 0.60 on the floor's 69px edge it is 28.9px clear.
+_COUNT_SEATS = (0.25, 0.60)
 # HOW FAR ALONG AN EDGE A DRAG MUST TRAVEL BEFORE IT MOVES THE COUNT,
 # as a fraction of that edge's own length. A gesture aimed ACROSS an
 # edge still resolves to a little travel ALONG it -- `scale_edge` was
@@ -288,14 +294,14 @@ def _count_seat(count) -> float:
 
   Returns:
     The fraction of the edge, from its start, at which that count's
-    seat lies: the ceiling at `_COUNT_SEATS[0]`, the floor at
+    seat lies: the floor at `_COUNT_SEATS[0]`, the ceiling at
     `_COUNT_SEATS[1]`, and the counts between spread evenly. ONE OWNER
     with `_count_at` below, so the handle and the drag that moves it
     cannot disagree about where a count is.
   """
   near, far = _COUNT_SEATS
   held = min(float(_COUNT_CEILING), max(float(_COUNT_FLOOR), float(count)))
-  t = (float(_COUNT_CEILING) - held) / float(_COUNT_CEILING - _COUNT_FLOOR)
+  t = (held - float(_COUNT_FLOOR)) / float(_COUNT_CEILING - _COUNT_FLOOR)
   return near + t * (far - near)
 
 
@@ -312,7 +318,7 @@ def _count_at(fraction) -> int:
   """
   near, far = _COUNT_SEATS
   t = min(1.0, max(0.0, (float(fraction) - near) / (far - near)))
-  return _even_count(float(_COUNT_CEILING) - t * (_COUNT_CEILING - _COUNT_FLOOR))
+  return _even_count(float(_COUNT_FLOOR) + t * (_COUNT_CEILING - _COUNT_FLOOR))
 # A CLICK ON THE ZIGZAG HANDLE THAT SLIPS A PIXEL IS STILL A CLICK.
 # (Maintainer's decision, 2026-09-05, grilled.) The amplitude's click
 # threshold used to be 0.01 of the edge's length -- the box's floor --
@@ -3105,8 +3111,8 @@ class TopologyPanel(QWidget):
         moved = here + along
         # THE NEAREST EVEN COUNT TO WHERE THE HANDLE NOW IS, the seats
         # spread evenly along the edge (2026-09-06). Dragging toward
-        # the edge's start RAISES the count, which is what the drawing
-        # shows: the peaks crowd.
+        # the edge's far end RAISES the count; two sits on its own
+        # first crest and eight stops clear of the end handles.
         changes["n"] = _count_at(moved / length if length > 1e-9 else 0.0)
       return changes
     # A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED.

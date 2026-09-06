@@ -586,7 +586,10 @@ The accounts are T-135.
   the cheapest build (T-132, T-133, T-107, T-96). One owner answers "is
   it quiet", the repair belongs at the waiter and not at its
   twenty-one callers (T-100), and a waiter that gives up says what it
-  was still waiting on.
+  was still waiting on -- and it counts a DEFERRED press as work still
+  coming, since a Generate waiting for a topology replay leaves no
+  task and no timer, and two dual tests read "nothing landed" under a
+  loaded machine (T-146).
 - A PREMISE ASKED IN THE SAME BREATH AS A SETTLE READS THE OLD STATE
   (T-91); staging and asserting are different moves (T-98); a reading
   taken after a fixed number of ticks, or before the aiming clicks, is
@@ -683,7 +686,9 @@ The accounts are T-137.
   since a control and the arithmetic behind it calling one function
   cannot disagree (T-102). Instrumentation must not be able to replace
   the verdict: a `[found]` block that can crash is evidence you will
-  not have, and it reads every store a refusal can land in.
+  not have, and it reads every store a refusal can land in -- CLEARED
+  before the act rather than sliced by length after it, since a
+  bounded store's slice is empty at its ceiling (T-145).
 - A CLAIM HAS A DIRECTION, AND A HARM NAMED BY READING IS A
   HYPOTHESIS: a reported drop ran the opposite way round when driven
   (T-120); three of nine hunt claims described the code correctly and
@@ -781,7 +786,9 @@ The accounts are T-138.
   NARROWS a control's range or its set of values, grep the suite for
   every premise that stages the old range before the candidate runs:
   a test set the zigzag count to 1 the night counts went even, and
-  rc16's first build paid for it (T-143).
+  rc16's first build paid for it (T-143); rc17's first build paid
+  EIGHT over eighteen repairs and a ruling, four of them the session's
+  own instruments (T-145, T-146, C-338).
 
 ## WHAT THE TESTS TAUGHT ABOUT THE PRODUCT
 

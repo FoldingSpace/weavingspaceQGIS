@@ -41,6 +41,18 @@ configuration tried. The difference was not the model. The first was
 asked for a structural property that either exists or does not; the
 second was asked, in effect, for a failure.
 
+Updated 2026-09-06, after ROUND EIGHT of the 24-bug campaign's
+successor: twenty-seven hunts in five waves, eighteen product defects
+closed the same day, six dead axes tallied apart. Eleven of the
+eighteen were in the round's own repairs or the three days' work
+before it, the repairs-attract-defects claim holding for the eighth
+round running; three findings converged from two or more directions;
+and the round's one ruling question, put with three options, was
+answered with a fourth. What the first whole suite run afterwards
+found is the other half: eight failures in ground every targeted run
+had passed, four of them the session's own instruments (T-145,
+T-146). A hunt asks what MIGHT be broken; the suite asks what IS.
+
 Updated 2026-08-28, after ROUND TEN: twenty-three hunts kept at eight
 at a time, twenty-four confirmed defects, sixteen repaired the same
 evening. Three things it settles for whoever is being briefed. The two
