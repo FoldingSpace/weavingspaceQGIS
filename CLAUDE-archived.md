@@ -298,6 +298,61 @@ quote them, do not renumber them.
 
 - **C-262** — The 48-design spread behind multi-class selection, and cairo measured against laves  <sub>Design decisions already settled</sub>
 - **C-263** — The "three-way" comparison paragraph as it stood before the reference column was ruled to measure the vendor alone  <sub>The test suite: what it is for and how it runs</sub>
+- **C-264** — The watcher faults and shell traps of 2026-08-10 to 2026-09-02, one entry each, as they...  <sub>Lessons: watchers, long jobs, gates and the shell, as they stood</sub>
+- **C-265** — The Qt, QGIS and library lessons, one entry each, as they stood before consolidation  <sub>Lessons: Qt, QGIS and the libraries, as they stood</sub>
+- **C-266** — The record, store and file lessons, one entry each, as they stood before consolidation  <sub>Lessons: records, stores, keys, landings and the file, as they stood</sub>
+- **C-267** — The guard, test, fixture, probe and catalogue lessons, one entry each, as they stood be...  <sub>Lessons: guards, tests, fixtures, probes and the catalogue, as they stood</sub>
+- **C-268** — The method lessons -- reading, measuring, repairing and releasing -- one entry each, as...  <sub>Lessons: method, as they stood</sub>
+- **C-269** — The web-app rule's two sanctioned uses and the checker's wording exemption, as they stood  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-270** — Worktrees scattered through the shared scratch folder, and how the live one was brought...  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-271** — Where the wearing metaphor reached a user, and why the internal uses were left  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-272** — Why the ledger exists: twenty-six defects and eleven unguarded fixes in one day  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-273** — The documentation standard's scope and its four specifics, as stated in full  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-274** — The register that drifted for a session before the generators were enforced  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-275** — The split of the binding documents: the measure, the last-sentence trap, and what is ex...  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-276** — Publishing a candidate: what the tool refuses and what it does not loosen, as stated in...  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-277** — Branches named for their version and the roadmap that lists what is owed, as stated in ...  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-278** — The platform probe: what it holds and why its list lives in the tool  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-279** — What .gitignore had conflated with keeping a push small  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-280** — Eighteen red pushes across six hours, and the one command that reads ci.yml  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-281** — Why CI runs beside the gates and fixes go in a worktree  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-282** — Why the consent gate stays the only route to PyPI, in full  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-283** — The forty minutes a candidate used to cost to a belief about the gate order  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-284** — What --resume skips, what STAGE_DEPENDS names, and why a skip must be honest  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-285** — Why a release from a pre-candidate branch leaves the page describing the previous version  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-286** — The receipt: what it digests and what it deliberately ignores  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-287** — Seventeen entries scored caught by a harness whose child could not import qgis  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-288** — Seven catalogue entries anchored on text that no longer existed  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-289** — The changelog under the plugin manager, the release page and the cutter  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-290** — Two ceilings sized from this machine in one day, and the three-leg spread  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-291** — Why the skills are named here: authorship was not the problem, invocation was  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-292** — The testing documents' standing, as stated in full  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-293** — The mutation commitments, as stated in full  <sub>Hard rules and required practices: the accounts behind them</sub>
+- **C-294** — Colour belongs to QGIS: the 35 stock names that never installed, and the eight palettes...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-295** — The seven (then eight) rulings of 2026-08-21 with their preamble, sequencing note and t...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-296** — The output-group rulings of 2026-08-25 with the report, what they retire, and what was ...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-297** — The file-shows-its-limit and switch-door-speaks rulings of 2026-08-26, in full  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-298** — The return-leg and style-follows-the-field rulings of 2026-08-26, in full  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-299** — The five rulings of 2026-08-27 with what they retire, the two building decisions and th...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-300** — Numbers stored as text: the measurement on QGIS 4.0.3 and the three spellings of 3  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-301** — The ramp-you-are-offered test against ruling 4, in full  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-302** — The first full suite on the branch, and the document it found  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-303** — Two element ceilings: the two blockers and the doubled alphabet's sort order  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-304** — An output group named for its dataset: the panel that prompted it and the six suite sit...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-305** — A kept scheme is held, not owned: the mechanism and the two tests it reconciled  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-306** — The field report against rc5 that made the table follow the renderer  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-307** — The consent box that named three distributions and fetched seven  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-308** — The consent-order gate moved by a comment naming the download  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-309** — Handles as positions, and shapes that say what they do: the two rulings as recorded  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-310** — The variable-switch rulings of 2026-09-05 with their reasoning, in full  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-311** — The zigzag handle's four rulings with the 60px reading, the deadband measurement and th...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-312** — The dual's five rulings with what was refused and the gaps distinction, in full  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-313** — The six decisions of 2026-09-01 with their measurements, in full  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-314** — Nothing ends while a save is outstanding: the two questions answered and the cancel cav...  <sub>Design decisions: the accounts around the rulings</sub>
+- **C-315** — Inventing a question: the growth-ceiling ask written up as a re-opened rule  <sub>How we decide things, and the suite's environment</sub>
+- **C-316** — Two relationships: the maintainer's framing of 2026-08-25 in full, with the open list a...  <sub>How we decide things, and the suite's environment</sub>
+- **C-317** — How the suite's QGIS prefix is discovered, and the months it ran with no ramps at all  <sub>How we decide things, and the suite's environment</sub>
+- **C-318** — The reference column's claim, the thirty-version gap and the refused browser capture  <sub>How we decide things, and the suite's environment</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -6821,3 +6876,3414 @@ This is exactly the condition the paragraph named — a bump while the
 app lags — so a live browser capture is the honest third column from
 here, and the decision to add one is the maintainer's. Recorded
 2026-08-26.
+
+### C-264 — The watcher faults and shell traps of 2026-08-10 to 2026-09-02, one entry each, as they stood before consolidation
+
+<sub>Cut from `CLAUDE.md`, lines 2353–2626 of the 2026-09-05 revision.</sub>
+
+- **A WORK LINE THAT CANNOT SHOW A DEAD WORKER, MADE AGAIN.** (Same
+  day, and this file has carried it since 2026-08-29.) A process list
+  piped through a three-line tail, against four-plus matching
+  processes, silently dropped a shard -- and its absence was read as an
+  aborted worker, with a diagnosis about which known teardown abort it
+  might be built on top before anything checked. All three shards were
+  alive with healthy cpu. LIST EVERY WORKER, and when a worker seems to
+  have gone, ask the process table without a cap before asking what
+  killed it.
+- When batch-editing via heredoc Python scripts: assert every anchor
+  BEFORE any write, and beware a trailing comma turning a string into a
+  tuple (it aborted two patch runs here); for single replacements prefer
+  the Edit tool. (C-19.)
+- **A file worth rebuilding is a file worth not editing with string
+  surgery.** `dev/state-of-play.md` was truncated to zero the same
+  night by a `.split()/.join()` expression that looked fine. It is
+  gitignored, so there was no copy to recover; it was rebuilt from the
+  session that broke it and carries a provenance note saying so.
+  Prefer Edit for prose, and where a script must rewrite a whole file,
+  write it to a temporary path and compare lengths before replacing.
+- When waiting on a long background run, key the wait on the PROCESS
+  ENDING, not on log text you predicted. A watcher polling for "tests
+  recorded" sat in a sleep loop for twelve hours because the tool
+  actually prints "recorded 75 tests", and its fallback pattern
+  ("Error") missed the crash line too, which read "Fatal Python error".
+  (C-20.)
+- **SEED a watcher with what is already true before it reports
+  anything.** Ten watcher faults on this project by 2026-08-12 and the
+  last three were all this one: a poller started with an empty "seen"
+  set announces its first sighting as news, so historical CI failures
+  and a stage log from the previous night arrive as though they had just
+  happened. (C-21.)
+- **Two watchers must never share a log file.** The eleventh watcher
+  fault here, 2026-08-14: a CI watcher was re-armed for a new commit
+  while its predecessor was still running, both wrote to the same path,
+  and the OLD one appended `FINISHED: cancelled` underneath the NEW
+  one's header. (C-22.)
+- **A WHOLESALE SPAN REWRITE TAKES ITS NEIGHBOURS.** Deleting everything
+  between two anchors removed TWO tests on 2026-08-16, not the one
+  intended, because another sat between them -- and one registration
+  then named a function that no longer existed, which would have broken
+  the suite at `main()`. (C-23.)
+- **AND THE OPPOSITE EDIT IS QUIETER: A SECOND DEFINITION REPLACES THE
+  FIRST AND NOTHING GOES MISSING.** Also 2026-08-16, hours later.
+  Widening `_label_for` for the three kinds of absence was done by
+  writing a NEW method below the old one instead of changing it. WHEN A
+  HELPER MUST ANSWER DIFFERENTLY FOR TWO CALLERS, that is the signal to
+  look at the callers, not to write a second helper: the parentheses
+  that mark the categorical catch-all now live at that call site, and
+  the one method answers plainly. (C-24.)
+- **A GATE WHOSE EXIT NOBODY BRANCHES ON IS NOT A GATE EITHER, and the
+  second visit pushed.** 2026-08-25: `check_standards; echo;
+  check_before_push; echo; git commit && git push` -- both gates printed
+  their failures, both echoes exited 0, and the commit chained off the
+  ECHO. A tree the push gate had just called CI-red reached the public
+  branch one command after the words appeared on screen, which is the
+  2026-08-15 fault with the pipe replaced by a semicolon. (C-26.)
+- **A GATE PIPED INTO ANYTHING IS NOT A GATE.** `check_before_push |
+  tail -2` returns TAIL's exit status, so a shell `&&` after it fires
+  whatever the gate said. That is how a tree failing the standards check
+  reached the branch on 2026-08-15, one command after the gate reported
+  the failure on screen -- the words were right there and the exit code
+  was gone. (C-27.)
+
+- **A WATCHER IS A PROGRAM, AND A PROGRAM CAN DIE.** The thirteenth
+  fault here, 2026-08-15: a CI poller with associative arrays, a nested
+  here-string loop and two embedded Python readers exited 1 partway
+  through a run, having reported two jobs of eleven. (C-28.)
+
+- **A FALLBACK THAT APPENDS INSTEAD OF REPLACING, AND THE FIFTEENTH
+  WATCHER FAULT.** 2026-08-20: a nagging watcher was written to exit
+  when its work list emptied, and it read the count as `left=$(grep -c .
+  "$LIST" || echo 0)`. (C-29.)
+- **THIS MACHINE'S `/usr/bin/grep` IS ugrep, AND `-q` WITH `-v`
+  ANSWERS WRONGLY.** Measured 2026-08-24: `printf 'alpha\nbeta\n' |
+  grep -qv alpha` exits 1 though `-v` alone selects a line. A CI
+  watcher built its exit on `grep -qv completed` and declared two
+  workflows finished while five jobs ran. Count matches
+  (`grep -v ... | wc -l`) instead of trusting quiet mode's exit here.
+- **`nohup ... &` EXITS 0 AS THE LAUNCHER, and a report of that exit
+  describes the wrong process.** A five-test run "completed, exit 0"
+  with three verdicts printed: the notification was the launching
+  shell's, while the QGIS runner had minutes left. Wait on the
+  RUNNER'S pid (`until ! kill -0 $PID`), and read the summary line
+  before believing a verdict count -- no "N passed, M failed" means
+  nothing has finished, whatever exited.
+- **AND THE MIRROR IMAGE: A LAUNCHER THAT FAILS MAY HAVE STARTED THE JOB
+  FIRST.** (2026-08-27.) `LOG=... && nohup python3 release.py --rc >
+  "$LOG" 2>&1 &` mis-scoped its variable and reported an error, so the
+  launch was read as having not happened and the candidate was launched
+  again. (C-30.)
+- **READ THE LINE THAT ASSIGNS A TOOL'S VERDICT BEFORE TRUSTING THE
+  WORD.** (2026-08-27.) The catalogue sweep prints `caught` or
+  `ATTENTION`, and its own source is `verdict = "caught" if
+  proc.returncode == 0 else "ATTENTION"` -- so ATTENTION mostly means a
+  SURVIVOR, the word SURVIVED never appears in a sweep log at all, and
+  `grep -c SURVIVED` answers zero however bad the news is. (C-31.)
+- **AND A SUMMARY THAT NAMES WHAT IT SUMMARISES IS CAUGHT BY ANY FILTER
+  LOOKING FOR IT.** The same sweep ends with `NEEDS ATTENTION (re-run
+  each alone): <every flagged name>`, so a `grep ATTENTION` over the log
+  picks up the summary beside the verdicts -- and `sed` leaves a
+  non-matching line untouched, so a whole sentence arrived as one "name"
+  and the loop word-split it into fifty. (C-32.)
+- **`gh run list --commit` MATCHES THE FULL FORTY-CHARACTER SHA, AND A
+  SHORT ONE RETURNS NOTHING AT ALL.** (Same day, and it is the sixteenth
+  watcher fault here.) A watcher keyed to `eb1ed8b` waited two hours and
+  then reported that no run had ever been created; a second, written
+  after reading that, reported the same within two minutes. (C-33.)
+- **A `PASS` LINE IS LOST TO A PIPE, SO SILENCE PLUS EXIT 0 IS NOT A
+  PASS.** `tests/run_tests.py` ends through `os._exit`, so when stdout
+  is not a terminal the buffered `PASS <name>` is discarded and
+  `tools/run_some.py` exits 0 having said nothing, while a FAILURE's
+  traceback reaches unbuffered stderr and survives. (C-34.)
+- **AND THE TWO INTERPRETERS ARE NOT INTERCHANGEABLE.** Tests run under
+  `$QGIS_PY`; edits and `tools/mutation_check.py` run under `env -u
+  PYTHONHOME -u PYTHONPATH python3`. Swapping them fails in two
+  directions that both read as a broken test: `env -u ... python3` hands
+  you the SYSTEM interpreter, which dies at `import qgis`, and a bare
+  `python3` under a sourced QGIS environment dies at `Failed to import
+  encodings` having applied no edit at all. (C-35.)
+- **`exists` THEN `remove` IS A RACE, AND EVERYTHING HERE SHARDS.**
+  (2026-08-28.) `tests/run_tests.py`'s `main()` cleared its scenario
+  record by asking whether the file was there and then removing it.
+  Three coverage recorders start within a second of each other; all
+  three saw it, two removed it, and the third died with
+  FileNotFoundError BEFORE RUNNING A SINGLE TEST. Nothing announced
+  that: the survivors ran on, the progress count rose, and the record
+  would have been missing a third of the suite -- which overstates
+  survivors, because a test missing from the record is never offered the
+  chance to notice a mutant. (C-36.)
+- **A WATCHER THAT SUBSTITUTES "NOTHING" FOR A FAILED CALL REPORTS
+  ITSELF TWICE.** (Same day, the seventeenth watcher fault.) A CI poller
+  deduplicated by comparing this pass's verdicts against the last, and
+  guarded `gh` with `|| echo "[]"` so a transient failure could not kill
+  the loop. (C-37.)
+- A watcher that REPEATS itself misleads as badly as one that goes
+  silent: a monitor grepping a whole log each pass re-reported the
+  same historical failure every 45 seconds as though it were news,
+  which makes the current state unreadable. Track an offset per file
+  and emit only what is new. Between this and the twelve-hour poll
+  above, the rule is: a watcher must report change, not state.
+- **TWO OF THIS PROJECT'S INSTRUMENTS LIE, and both cost hours on
+  2026-08-18.** `print()` inside a Qt signal handler goes nowhere under
+  a test that captures output, so an empty dump read as proof the code
+  never ran when it ran every time -- AN EMPTY LOG IS NOT EVIDENCE OF
+  ABSENCE. And a plain `python3` heredoc run AFTER sourcing the QGIS
+  environment dies at bootstrap and applies NO edit, so the run that
+  follows measures the unmodified file and reports fiction; use `env -u
+  PYTHONHOME -u PYTHONPATH python3`, the same hazard that kills
+  `release.py` and `mutation_check.py`. (C-88.)
+
+- **THE EIGHTEENTH WATCHER FAULT: A WORK LINE THAT CANNOT SHOW A DEAD
+  WORKER.** (2026-08-29.) The five-minute beat reported running work
+  through `ps | ... | head -2`, so with a release parent and THREE test
+  shards it showed the parent and ONE shard. ASK OF ANY WATCHER WHETHER
+  ITS OUTPUT CAN EXPRESS THE FAILURE, not merely whether it is correct
+  about what it shows. (C-148.)
+
+- **AND THE FIFTEENTH, COPIED FORWARD WITHOUT ITS REASON.** The same
+  beat carried `owed=$(grep -c ... || echo "?")`, which is the exact
+  fault this file has recorded since 2026-08-20: `grep -c` PRINTS `0`
+  and EXITS 1 when nothing matches, so the fallback APPENDS to a
+  perfectly good answer instead of replacing it. (C-149.)
+
+- **A FINISHED JOB'S LOG IS READABLE WHILE ITS RUN GOES ON.**
+  `gh run view --log-failed` refuses until the whole RUN completes,
+  which on this project means waiting for hour-long siblings; `gh api
+  repos/<owner>/<repo>/actions/jobs/<id>/logs` returns a completed
+  job's output immediately. That is the difference between a
+  fifteen-minute diagnosis and an hour of waiting, and it is what the
+  platform probe's speed is worth in practice. Pass
+  `--allow-escape-sequences` and strip them.
+
+- **`mutation_check` MUST RUN ITS CHILD OFFSCREEN, AND THE DOCUMENTED
+  INVOCATION DID NOT.** (Same day, three diagnostic rounds.) The command
+  this file gives -- `env -u PYTHONHOME -u PYTHONPATH python3
+  tools/mutation_check.py` -- passes no `QT_QPA_PLATFORM`, while the
+  suite always sets `offscreen`. (C-168.)
+
+- **A DOWNLOADED ARTEFACT HAS A FRESH MTIME AND AN OLD RESULT.** (Same
+  day, the nineteenth watcher fault here and a new road.) The night's
+  beat picks the newest failing log with `find -mmin -240`, which is the
+  right guard against a glob sweeping up every run there has ever been
+  -- and it assumes mtime is when the WORK happened. (C-172.)
+
+- **THE TWENTIETH AND TWENTY-FIRST WATCHER FAULTS ARE ONE RULE: KEY ON
+  THE THING, NOT A SNAPSHOT OF IT.** (2026-08-31, both mine, both within
+  ten minutes of arming a watcher, and both while the candidate was
+  building.) This file already carries that rule from 2026-08-12, where
+  a poller pinned to one commit sha sat silent while two more pushes
+  superseded it. (C-185.)
+
+- **THREE MORE FROM THE SAME MORNING, ALL CAUGHT BY HAND-RUNNING THE
+  WATCHER ONCE BEFORE ARMING IT.** That is the practice this file has
+  been recommending since the tenth fault, and it is the first time it
+  has been done here before rather than after. (C-186.)
+
+- **`lines[-1]` ON A FILE ENDING IN A NEWLINE REPLACES THE EMPTY STRING,
+  SO THE EDIT APPENDS INSTEAD OF REPLACING.** (2026-08-31, and it
+  reached the point of publication.) A paragraph of a candidate's
+  release notes was rewritten by assigning to `lines[-1]` after
+  `read().split("\n")`. (C-189.)
+
+- **A WATCHER'S HEADLINE MUST CARRY WHAT IS LIVE, NOT WHAT MATTERS IN
+  GENERAL.** (2026-08-31, the truncation fault three times in one day
+  and the third is the interesting one.) A notification is TRUNCATED, so
+  a line below the cut is a line nobody reads. (C-190.)
+
+- **AND I COMMITTED PAST A RED GATE, HAVING READ IT.** (2026-09-01.)
+  `check_standards` printed exit 1 and the commit ran anyway, because
+  the chain was `check; echo; git commit` and the commit branched off
+  the ECHO. That is this file's own entry about a gate whose exit nobody
+  branches on, made by somebody who had quoted it the same day. (C-200.)
+
+- **THE TWENTY-SECOND WATCHER FAULT WAS CAUGHT BEFORE ARMING, WHICH IS
+  THE FIRST TIME.** (2026-09-01.) `gh` reads the repository from the
+  WORKING DIRECTORY, so a watcher launched from a scratch folder asks
+  about nothing, gets an empty answer, and reports nothing -- which is
+  indistinguishable from a quiet branch. (C-203.)
+
+- **A WATCHER'S OWN SHELL IS PART OF THE WATCHER, AND `/bin/bash` HERE
+  IS 3.2.** (2026-09-01, the twenty-third watcher fault.) A standing
+  beat tracked "failures I have already reported" in an associative
+  array. (C-211.)
+
+- **A WATCHER KEYED TO ONE RUN ENDS WITH THAT RUN.** (Same evening.)
+  The beat armed over a sharded suite was correct and useful, and when
+  the suite was stopped it stopped too -- leaving nothing watching the
+  work that followed, at the exact moment the maintainer asked where
+  the watcher was. A watcher over a JOB and a watcher over the SESSION
+  are different instruments: the second reports what is running, says
+  "nothing running" in those words rather than going quiet, and
+  outlives any single measurement.
+
+- **AN ENVIRONMENT SCRIPT THAT PRINTS BARE ASSIGNMENTS NEEDS `set -a`,
+  OR THE CHILD NEVER SEES THEM.** (Same day, caught before it cost
+  anything.) `tools/macos_qgis_env.sh` prints KEY=value lines, so a
+  plain eval sets SHELL variables and exports nothing -- and the run
+  then dies with "No module named 'encodings'" while the shell believes
+  PYTHONHOME is set, which reads as a broken interpreter rather than a
+  missing export. (C-214.)
+
+- **A CANDIDATE'S OWN SUITE IS READ SHARD BY SHARD, AND THE PARTITION IS
+  THE PROOF.** (2026-09-01, the rc10 candidate.) The stage line says one
+  number and the log carries three: 250, 249 and 249 tests, each shard
+  naming the SAME total of 748. That agreement is what makes a slice a
+  partition rather than three overlapping runs -- the first sharded run
+  this project ever made read 285, 285 and 286, and slices that disagree
+  about the size of the whole mean something ran twice or not at all.
+  (C-215.)
+
+- **CHECK YOUR OWN ARITHMETIC BEFORE REPORTING A PARTITION AS
+  BROKEN.** (Same day.) I read a summary log and made the shards sum
+  to 749 against a local 748, and said so -- which under this
+  project's own rule means something ran twice or not at all. Asked of
+  the shard logs themselves, all three say "of 748" and 250 plus 249
+  plus 249 is 748. The partition was exact and the discrepancy was
+  mine. A suspected instrument fault is still a claim, and it wants
+  the same measurement as any other before it is written down.
+
+- **THE TWENTY-FOURTH WATCHER FAULT: A JOB NAME HAS A SPACE IN IT.**
+  (2026-09-02, mine, in a watcher armed at the maintainer's asking to
+  reach a green candidate.) The reading was `for job in $JOBS` over
+  lines like `suite (4.0.3)=success`, which the shell splits at the
+  space -- so every line arrived as `tests (4.0.3)=success` and there
+  was no telling the SUITE from the INSTALL. Both are green far more
+  often than not, so the log read plausibly and said nothing. (C-230.)
+
+- **THE TWENTY-FIFTH WATCHER FAULT: ARMED THROUGH A PIPE, AND THE LESSON
+  WAS MINE FROM THAT MORNING.** (2026-09-02.) A watcher was launched as
+  its script piped into `tail`, which buffers to EOF -- so a watcher
+  running perfectly well printed NOTHING, and the maintainer said so
+  before any beat arrived. (C-235.)
+
+### C-265 — The Qt, QGIS and library lessons, one entry each, as they stood before consolidation
+
+<sub>Cut from `CLAUDE.md`, lines 1097–1288 of the 2026-09-05 revision.</sub>
+
+**Qt/QGIS UI.**
+- Data & colours handlers must NEVER trigger _rebuild_unit or
+  _refresh_table. The rebuild replaces every table cell widget, and a
+  rebuild debounced from one chooser pick lands mid-interaction with
+  the next ("race among choosers": open dropdowns die, picks commit to
+  dead widgets). Data-tab changes go through _refresh_preview_colours;
+  a regression test asserts widget *identity* survives the debounce.
+- A widget setCellWidget()ed into a hidden column can paint at the
+  table's origin; and "blank" cells must be made by *removing* the
+  widget, since some render paths paint hidden cell widgets anyway.
+- sizeHint is stale before a real layout pass: invalidate child
+  layouts and re-measure after showEvent, or you size to phantom rows.
+- grab() of a never-shown dialog renders unreliable widget visibility
+  offscreen; probe state programmatically, screenshot only after
+  show().
+- QgsMapLayerComboBox re-emits layerChanged whenever project layers
+  churn (i.e. after every generation): its handler must be idempotent
+  and guarded (auto-spacing fires once per layer id; outputs are
+  tagged with a custom property and excluded so the plugin never
+  offers its own output as a region).
+- Label anchors: centroid for the visual centre; representative_point
+  only as the inside-the-polygon fallback for concave shapes (it comes
+  from a bbox-midheight scanline and reads off-centre). **Testing.** The
+  full record now lives in `docs/TESTING.md`, which is REQUIRED READING
+  before writing or changing tests, together with
+  `docs/MUTATION-TESTING.md` for the campaign that keeps the suite
+  honest. (C-13.)
+- **A TEMPORARY LIST FROM A QGIS GETTER FREES ITS CONTENTS.**
+  `renderer.ranges()[0].symbol()` and `categories()[0].symbol()` read
+  memory that has just been released: one segfaulted QGIS outright,
+  the other returned a plausible WRONG COLOUR (#000000) that looked
+  exactly like the Qt double-ownership bug and sent an hour after the
+  wrong cause. Bind the list to a name first, then subscript it.
+- **A SIGNAL CONNECTED TO THE PROJECT OUTLIVES THE WINDOW THAT MADE IT,
+  AND SO DOES A COMBO.** 0.24.3 added two hooks onto
+  `QgsProject.instance()` -- `_settle_layer_choice` and the pair around
+  `layersRemoved` -- and neither carried the retirement gate
+  `_on_project_read` already had. (C-25.)
+- macOS code-signing (library validation) refuses PyPI C extensions
+  inside the signed QGIS process; side tooling that needs matplotlib
+  runs in .venv-reference, never in QGIS's Python.
+
+- **`styleChanged` FIRES ONLY ON `setRenderer`; AN EDIT MADE ON THE LIVE
+  RENDERER IS SILENT, AND ITS `triggerRepaint()` IS THE ONLY TRACE.**
+  (2026-08-20, ledger row 28, reported four times before it was
+  measured.) The styling panel installs a whole renderer for some acts
+  (adding a class, Classify, a paste) and edits the held renderer in
+  place for others (a plain colour change) -- so the plugin followed the
+  first kind and was structurally deaf to the second, while
+  MAINTAINING.md asserted the opposite in as many words. (C-105.)
+- **`ranges()` AND `categories()` HAND BACK COPIES, so editing one is a
+  NO-OP on the layer -- and a probe that does it measures nothing.**
+  (2026-08-20, twice in one hour: a signal probe's row and a guard's
+  first draft.) `ranges[0].symbol().setColor(...)` recoloured a
+  temporary; the renderer never changed; "no signal fired" was reported
+  about an edit that had not happened. (C-106.)
+
+- **A WIDGET THAT RETAINS LAYER OBJECTS MUST BE REBUILT WHEN LAYERS ARE
+  REMOVED, AND A DEAD POINTER'S ADDRESS GETS REUSED.** (2026-08-27,
+  found by the saving branch's first full suite.) The region chooser
+  keeps the plugin's own output out of its list through
+  `setExceptedLayerList`, which stores the layer OBJECTS. That list was
+  rebuilt at construction, at a project read, at a resume and after a
+  landing -- and never when layers were REMOVED. So after File > New the
+  combo went on excluding a set of destroyed pointers, and a layer
+  allocated where a dead one had been was excluded for being somebody
+  else: the chooser offers NOTHING while the project plainly holds a
+  polygon layer, and Generate refuses for want of a region with nothing
+  on screen to explain it. (C-116.)
+
+- **A CALLABLE THAT OUTLIVES ITS DIALOG MUST ASK BEFORE IT TOUCHES IT,
+  AND A LAMBDA IS NOT A BOUND METHOD.** (2026-08-29, a reproducible
+  SEGMENTATION FAULT.) Qt drops a connection to a bound METHOD when the
+  receiving QObject dies. (C-139.)
+
+- **A WIDTH IN PIXELS IS A CLAIM ABOUT A FONT, AND SETTING A FONT IS NOT
+  SWITCHING A PLATFORM.** (2026-08-29, and the second half is the part
+  that will catch somebody again.) The assignment table's nine column
+  widths were constants measured against the 9pt Sans Serif that
+  `QT_QPA_PLATFORM=offscreen` supplies -- which every runner and every
+  CI job sets. (C-140.)
+
+- **`isVisible` IS FALSE IN A WINDOW NOBODY HAS SHOWN, SO IT CANNOT ASK
+  WHETHER SOMETHING IS HIDDEN.** (2026-08-29.) A guard for the save's
+  progress bar asserted `not progress.isVisible()` before and after, and
+  BOTH halves passed with the repair mutated away -- the entry SURVIVED
+  and said so. (C-145.)
+
+- **A GUARD ON A PyQGIS CALL THAT RETURNS A TUPLE CAN NEVER FIRE.**
+  (2026-08-30, and it cost this project categorical colour on every text
+  column.) `if not provider.addFeatures(features):` reads as careful
+  code. (C-152.)
+- **A QTabWidget LAYS OUT ONLY ITS CURRENT PAGE, so measuring the others
+  measures the container.** (2026-08-30, and I reported the result to
+  the maintainer before re-measuring it.) Sweeping every tab for
+  controls stretched to the window returned 640px for a Save button, a
+  Load button, a Clear button, two combos and a spin box across three
+  tabs -- and 640px was the PAGE WIDTH. Those pages had never been
+  current, so nothing in them had been through a layout pass and every
+  child reported its parent's size, which reads exactly like a control
+  with no width of its own. SO: `setCurrentIndex`, pump, THEN measure --
+  and the same caution reaches any stacked widget, any collapsed dock
+  and anything else whose children Qt does not lay out until somebody
+  looks at it. (C-156.)
+- **A `processEvents()` LOOP LETS NO WALL TIME PASS, so a QgsTask never
+  finishes.** (Same day.) A probe pumped four hundred iterations waiting
+  for the topology build and concluded no topology could be built -- on
+  a design whose own `can_build` answered True. (C-157.)
+- **A LAYOUT PASS THAT WIDENS WHAT IT MEASURES IS A FEEDBACK LOOP; A
+  MARGIN IS NOT.** (Same day, and it is the fourth failed repair to this
+  one layout.) Two form blocks stacked in a QVBoxLayout end their label
+  columns a few pixels apart, because a group box frames its own form
+  and that inset is unknowable before a layout pass. (C-159.)
+- **A STACKED WIDGET'S MINIMUM IS THE LARGEST OF ITS PAGES, AND THAT IS
+  WHY ONE TAB CAN SET THE WHOLE WINDOW'S SIZE.** (Same day, maintainer's
+  ask that the first tab open narrower.) The Design tab needs 550px and
+  Data & colours 1004 because of the assignment table, so the window
+  opened at 1296 whichever tab was in front, and a floor of 1180px in
+  `_fit_to_design` made sure of it. (C-160.)
+- **A SINGLE-SHOT TIMER THAT IS "DROPPED" IS LOST, NOT LATE -- AND THE
+  COMMENT SAYING OTHERWISE IS THE WORSE HALF.** (Same day, in a repair
+  written hours earlier by the same hand.) A gate refusing a live tick
+  while a save writes returned without re-arming `_live_timer`, which is
+  `setSingleShot(True)` and had just FIRED to reach the gate; its only
+  two `start()` sites are a fresh control change and `_finish_run`.
+  (C-165.)
+
+- **A `ResizeToContents` COLUMN RE-MEASURES ON EVERY `setItem`.** (Same
+  day, and it was a regression introduced by that morning's own fix.)
+  The Messages tab's answer column was pushed off the viewport, so three
+  columns were given resize MODES -- which cured the layout and cost ten
+  to eighteen SECONDS per message once the log reached its 500-row
+  ceiling, on the main thread, with live update making the plugin speak
+  on every tweak. (C-166.)
+
+- **A WIDGET INSIDE A LAYOUT DOES NOT KEEP A SIZE YOU HAND IT, SO THE
+  WINDOW IS THE LEVER.** (2026-08-31, and THREE of four failed attempts
+  at one guard turned on this alone.) A test that resizes a child to its
+  own floor measures nothing: the layout hands that child whatever is
+  left over on the next pass, and the resize is gone before anything can
+  read it. (C-191.)
+- **A FLOOR ON ONE PANE IS TAKEN OUT OF THE PANE BESIDE IT.** (Same
+  day.) The Topology tab's drawing had a 180px floor and got exactly
+  180px of an 825px window, because the column of controls beside it
+  claims its own preferred width first -- so the floor was not a floor
+  but the whole allowance. ASK OF ANY SIZE FLOOR WHERE THE ROOM COMES
+  FROM, and measure the neighbour in the same breath. (C-192.)
+- **A WIDGET THAT RE-DERIVES ITS VIEW TRANSFORM FROM WHAT IT DRAWS HAS
+  MADE THE TRANSFORM AN OUTPUT OF THE GESTURE.** (2026-09-01, reported
+  by a hunt from the pixels and verified here from the numbers.) The
+  Topology view fits to what it is drawing, and during a drag that is
+  the PREVIEW; a drag freezes its origin and the unit's span at the
+  press and reads later positions as fractions of that frame. ASK OF ANY
+  PAINT-TIME FIT WHETHER A GESTURE'S FROZEN ORIGIN OUTLIVES IT. (C-198.)
+
+- **ONE STORE, ONE MEANING -- AND A QLabel IS A STORE.** (2026-09-01.)
+  The Topology tab was given a sentence saying a build was coming, and
+  it went into `note`, which already means "the answer, or the reason
+  there is none". (C-208.)
+
+- **A DEPENDENCY THAT ANSWERS BY RETURN VALUE CANNOT BE CAUGHT BY
+  `except`.** (2026-09-02, and it was the sharpest defect of the
+  campaign's first day.) `write_gpkg_layers` wrapped its commit in a
+  `try`, with a comment explaining that a commit which will not go
+  through leaves the file as it was. (C-220.)
+- **A FILTER IS A VIEW, AND `getFeatures()` HONOURS ONE.** (Same day,
+  found by the specification hunt.) A person who sets a filter on an
+  element layer in QGIS -- the Query Builder in Layer Properties -- had
+  every tile it hides written OUT of their saved GeoPackage at the next
+  Save, permanently, under the word "Saved". (C-226.)
+- **`findData` COMPARES THROUGH QVariant, SO A TUPLE NEVER MATCHES AN
+  EQUAL TUPLE.** (2026-09-02, and the first repair built on it changed
+  nothing whatever.) The topology class chooser carries `(target,
+  label)` as its item data; `combo.findData(wanted)` answers -1 for a
+  pair that is plainly in the list, while the verb chooser's own
+  `findData` beside it works perfectly -- because its data is a STRING.
+  The repair looked right, ran, and the probe reported the identical
+  before-and-after, which is the shape this file already names: a
+  verdict that will not budge is almost always the instrument. (C-239.)
+
+- **A NUMERICAL CENTRE FOUND TO AN ABSOLUTE TOLERANCE BREAKS A
+  SYMMETRY DIFFERENTLY AT EVERY SCALE.** (2026-09-05, the Topology tab
+  audit.) The dual's corners are the source tiles' centres, and the
+  library's centre is polylabel to one map unit -- so the default
+  design's dual had three edge classes at a spacing of 3000 and ten
+  with no symmetry at 2900, and an edit aimed at class `a` of the dual
+  named different edges after a spacing change. A tolerance relative to
+  the tile's own size gives the snub square's two classes at every
+  spacing. ASK OF ANY NUMERICAL ANSWER THAT FEEDS A SYMMETRY OR AN
+  EQUALITY what its tolerance is measured in, and whether the thing it
+  measures is the same size in every run. The measurements are in
+  docs/TOPOLOGY.md under the audit.
+
+### C-266 — The record, store and file lessons, one entry each, as they stood before consolidation
+
+<sub>Cut from `CLAUDE.md`, lines 1167–1683 of the 2026-09-05 revision.</sub>
+
+- **WHEN YOU CHANGE A NAME OR A FORMAT, FIND EVERY READER -- BY SYMBOL
+  AS WELL AS BY LITERAL.** (2026-08-26, twice within an hour, on one
+  small change.) Naming output groups for their dataset was swept
+  through the suite by grepping the string "WeavingSpace tiles", which
+  found six sites and mended them; the RELEASE GATE then failed on two
+  more that pin the same name through `GROUP_BASE_NAME`. (C-48.)
+
+- **A STAMP TAKEN AWAY FROM A LANDING MAY CARRY ONLY WHAT A LANDING
+  DECIDED.** (2026-08-26, ledger rows 55-57, three regressions in one
+  mechanism.) `_stamp_working_state` takes the design, the output path
+  and the region from the launch snapshot when it is given one and from
+  the LIVE CONTROLS when it is not -- which was harmless while landings
+  were the only writers, and became three defects the day round nine
+  added two writers that never stand at a landing. ASK OF ANY WRITER
+  THAT COPIES A RECORD: which moment is each field about, and does this
+  writer stand at that moment? (C-49.)
+
+- **A STRING THAT CARRIES A PATH INSIDE IT IS A PATH.** (2026-08-26, the
+  Windows red of six CI rounds.) `same_destination` exists because one
+  file has two spellings -- Windows short names, case folding,
+  separators -- and it was applied faithfully to output PATHS while
+  seven sites went on comparing LAYER SOURCES with `==`. A source only
+  looks like an opaque token; it is a path plus `|layername=`, and a
+  project save respells the path half. ASK OF ANY IDENTIFIER WHETHER A
+  FILESYSTEM EVER TOUCHED IT. (C-50.)
+
+- **A GUARD ADDED TO ONE DOOR BELONGS AT EVERY DOOR INTO THE SAME
+  ROOM.** (2026-08-25, and it is the sharpest thing the group-unit build
+  taught.) A regression showed that taking a group over while a run was
+  IN FLIGHT erased the evidence the landing was about to read, so
+  `self._task is not None` was added to `_bind_group_to_dataset`.
+   THE HABIT: when a guard goes in, grep for every caller of the thing
+  it protects and ask which of them can be in the same state. (C-52.)
+
+- **PRESENCE IS NOT ORDER, AND A CALL PUT BACK IN THE WRONG PLACE IS
+  WORSE THAN ONE STILL MISSING.** (2026-08-26, and FOUR hunts of eight
+  found it independently -- the most this method has ever converged
+  here.) `_resume_from_gpkg`'s take-over branch was missing
+  `_recover_the_source`; the repair added it AFTER
+  `_apply_working_state`, where the twin calls it BEFORE and says why at
+  its own call site: a variable cannot be restored to a column the
+  region layer in force does not have. (C-55.)
+
+- **BEFORE CLEARING ON AN ABSENCE, ASK WHAT MAKES THE RECORD ABSENT.**
+  (Same day, and it is the other half of the same evening.) A restore
+  was taught to CLEAR a record where the incoming one is silent about it
+  -- the cure for a real defect three hunts had reported, where one
+  output group's colours rode onto another. (C-56.)
+
+- **WHEN A REPAIR GIVES ONE STORE A NEW WRITE, ENUMERATE EVERY STORE
+  THAT ALREADY HELD THAT FACT.** (Same day, the round's last two
+  findings, and the shape this project meets most often.) A restyle was
+  taught to write the GROUP's record, with a comment arguing exactly
+  why. The FILE's record was given its write hours later, by a different
+  commit, on the landing path alone -- so it inherited the gap the first
+  write had just closed: the file's STYLES were updated by a restyle and
+  its RECORD was not, and a colleague opening that GeoPackage without
+  the project resumed a design the user had abandoned, their first
+  Generate repainting the map back to it. (C-57.)
+
+- **A RECORD ASSEMBLED FROM TWO MOMENTS MUST SAY WHICH MOMENT EACH FIELD
+  CAME FROM.** (Same day.) The working state deliberately takes its
+  DESIGN from the launch snapshot and its ELEMENTS live, and both halves
+  are right for good reasons written at the code. MEASURED ON
+  2026-08-26, AND THE FAULT WAS THE OTHER WAY ROUND. This entry said
+  `region` travelled with the design half and therefore filed a new
+  dataset's hand-picked colours under the old dataset's source. (C-58.)
+
+- **A BLANK THE PLUGIN IMPOSED IS NOT A CHOICE THE USER MADE.** An
+  element left on "---" stays unassigned through rebuilds, because
+  cycling a default back in would undo a deliberate switching-off. But a
+  table built when NO FIELDS were on offer leaves every row blank for a
+  reason that has nothing to do with anybody's intent, and honouring
+  those blanks is how a plugin opened before its data ends up refusing
+  to draw and blaming the user for not assigning a variable -- the field
+  report of 2026-08-15. `_fieldless_build` tells the two apart. (C-60.)
+- **A RANGE IS NOT THE ONLY THING THAT EATS A KEYSTROKE.** Four defects
+  on 2026-08-17 were controls silently refusing what a person typed, and
+  each was invisible to `setValue`, which clamps without complaint. The
+  mechanisms differ and the tell is identical: a validator refusing a
+  keystroke past `maximum` (the pinned-bound box at 100x the data; the
+  Ramp Display Range's two percent boxes, each clamped by the OTHER's
+  current value, so from a window of (0, 40) typing 60 kept SIX);
+  `decimals` lowered to tidy a display, so Rotate at zero places turned
+  22.5 into 22; and a `valueChanged` HANDLER THAT REWRITES ITS OWN BOX
+  -- `_skip_zero_scale` fired per keystroke because keyboard tracking
+  was on, so typing -0.5 announced a landing on zero after the leading
+  nought and the design came back UN-MIRRORED at a size that looks
+  exactly right. (C-65.)
+
+- **A REFRESH WITH ONE CALLER IS A REFRESH THAT ONLY WORKS ONCE.**
+  `_refresh_ramp_icons` redraws a row's ramp swatch in its own
+  direction and is called from exactly one place, the Reverse toggle;
+  `_make_ramp_combo` built every item forward. So the flip lasted
+  until the next rebuild -- and a Generate rebuilds, because adding
+  output layers makes the layer combo re-emit, as do a spacing
+  change, a family change and reopening the project. A user then read
+  a reversed element by a forward swatch and chose its next ramp from
+  a dropdown showing every ramp the wrong way round. Shipping since
+  v0.23.0. GREP THE CONSTRUCTOR AS WELL AS THE UPDATER, and ask what
+  rebuilds the widget.
+
+- **WHEN A FIX IS WRITTEN INTO TWO PATHS IN ONE COMMIT, DIFF THE TWO
+  HUNKS AGAINST EACH OTHER**, not each against its own neighbourhood.
+  2026-08-17: `_add_output_layers` retires an undrawable pin and THEN
+  stamps, saying at that line why ("the last moment before the value is
+  stamped"); `_restyle_only` stamped and then retired. Both calls were
+  born in one commit and the order was reversed on one side, so the
+  twin's own explanation sat fifteen hundred lines from the path that
+  got it wrong. (C-66.)
+
+- **CLEARING IS RIGHT WHEN THE USER LET SOMETHING GO, AND WRONG WHEN THE
+  PLUGIN MERELY STOPPED DECIDING.** (2026-08-18, three defects in the
+  deferral family.) `_stamp_category_colours` clears both stamped
+  records when there is nothing to record, which stops a layer carrying
+  stale choices and is correct. `_assignments` reports a DEFERRING row
+  with its picks and pins as None -- indistinguishable at that site from
+  a user who cleared everything -- so restyling an element in QGIS
+  erased its pinned bounds and hand-picked colours from the saved
+  project while the open window still showed them. (C-69.)
+
+- **WHEN A FIX WIDENS A CALL SO IT STOPS IGNORING X AND Y, ENUMERATE
+  EVERY KEY OF THE RECORD THE CALLER COULD HAVE READ.** 2026-08-17 and
+  18: `_table_id_colours` built each element's preview colour from the
+  ramp NAME, and was wrong SIX TIMES -- a deferring element's layer, the
+  Ramp Display Range, the row's Reverse, hand-picked class and category
+  colours, a column with nothing to classify, and a constant column that
+  the renderer colours from the middle of the window. (C-71.)
+
+- **ONE POLYGON DOING TWO JOBS CHANGES BOTH WHEN YOU SHRINK IT.** (Same
+  day, patch 4.) The tiling grid's extent said which cells were WANTED
+  and also PHASED the lattice, since the meshgrid origin comes from its
+  own bounds. Shrinking it moved every tile: one design drew 2,772 tiles
+  both ways with 2,622 differing, every one still touching the region.
+  (C-82.)
+- **A PAIRED ARTEFACT INHERITS THE IDENTITY OF WHAT IT IS PAIRED WITH**,
+  so every reader keyed on that identity silently gains a second answer,
+  and every writer that maintained the original has a twin that does
+  not. (C-15.)
+- **A NAME THE USER CAN EDIT IS NOT AN IDENTITY, AND MUST NEVER BE A
+  KEY.** Every record in `dialog.py` keys on a custom property except
+  the output group, which was found with `findGroup(self._group_name)`
+  -- so renaming the group in the layers panel, which is an ordinary
+  thing to do, made it invisible and the next run built a rival over the
+  same four GeoPackage tables, the abandoned group redrawing the new
+  data under the old class breaks. (C-16.)
+- **ENUMERATE WHAT A CLEAR SITE LEAVES**, not what it clears. Three
+  places in dialog.py clear per-element state and no two cleared the
+  same set; the first two were fixed and the commit message NAMED the
+  third, which was then not looked at. Reading the list of records a
+  site clears tells you nothing about the record missing from it.
+- **WHEN A FIX WIDENS A SIGNATURE, ASK WHETHER THE NEW TERM IS COARSER
+  THAN WHAT IT STANDS FOR.** A boolean per element ("does this need a
+  split") is INVARIANT UNDER A PERMUTATION, so swapping two elements'
+  variables left each holding the other's split -- values drawn as no
+  data and gaps drawn as nothing. It carries the field now.
+- **WHEN A FIX IS INSERTED INTO AN EXISTING SEQUENCE, CHECK ITS ORDER
+  AGAINST THE TWIN**, not merely that the line is present. `setOpacity`
+  went in after `embed_style`, so the layer in the project was right
+  and the GeoPackage kept 1.0: the map a user sends on was not the map
+  they made, and the project's copy being correct is exactly what hid
+  it.
+- **A LEGEND IS RENDERED BY SOMEBODY ELSE'S FORMATTER.** A bound moved
+  by an amount "too small to see" is printed by QGIS at four decimals
+  once the value passes about 1e5, so a map of populations or dollars
+  showed `100,000,000,000 - 999,999,999,000`. Check what the label
+  says, not only what the number is.
+- **DO NOT MAKE MEMBERSHIP DEPEND ON THE LAST BIT.** Stepping a bound
+  by one ulp made a tile's class depend on a float's final bit, and
+  the GeoPackage round trip duly painted 2,413 of 48,948 pixels
+  differently. Anything that stores, reloads or recomputes a number
+  can move that bit.
+- **ASK WHETHER THE RECORD DESCRIBES THE DATA OR ONE RUN'S OUTPUT.** An
+  element's class breaks come from the whole region and survive a
+  re-tile, so keeping them is safe. Its paired layer's CATEGORIES
+  enumerate the kinds of absence one tiling happened to produce -- a
+  different spacing hands the same element a kind it did not have, and
+  a carried categorized renderer has no entry for it AND NO CATCH-ALL,
+  so those tiles paint nothing. Gating the twin on the element's own
+  question put holes in the map.
+- **A CARRIED RENDERER IS KEPT ONLY WHILE IT CAN DRAW WHAT IS THERE**,
+  and rebuilt otherwise. Losing a custom fill is visible and undoable;
+  an unpainted area is neither, so that is the right way to fail.
+- **A RENDERER WITH NO CATEGORIES COVERS EVERYTHING.** A single symbol
+  paints every feature whatever its value, which is what somebody
+  usually sets in Layer Properties -- treating "no categories" as
+  "covers nothing" threw away the very styling the carry-over exists
+  to preserve.
+
+- **A WATCHER MAY ONLY ADOPT WHAT A PERSON LEFT BEHIND.** Anything that
+  reads state off a layer and records it must run at REST: not while the
+  dialog is writing renderers (`_applying_style`), not while a run is in
+  flight (`_task`), and not while a landing is still being reconciled
+  (`_preserved_this_run`). (C-89.)
+
+- **A CACHE OF ONE IS NO CACHE WHEN THERE ARE TWENTY-THREE OF
+  ANYTHING.** (2026-08-19, ledger row 4.) `_classification_values`
+  REPLACED its cache dict on every miss, on the sound reasoning that a
+  stale fingerprint's values must never sit there being wrong -- and
+  replacing it threw away every OTHER column's entry at the same time.
+   WHEN A FIX IS ABOUT STALENESS, ASK WHAT ELSE IT DISCARDS -- the
+  safety property here needed only that entries whose fingerprint has
+  moved go, not that everything go. (C-94.)
+
+- **A COPY REPRODUCES THE WHOLE CLASSIFICATION, AND THE RECORD GREW
+  UNDER IT.** (2026-08-19, ledger rows 21 and 22.)
+  `_copy_classification` built its record from breaks and pin flags and
+  never read `floor` or `ceiling`, then wrote that record WHOLESALE --
+  so a copy left the source's range behind AND destroyed the target's.
+   WHEN A RECORD GAINS A KEY, GREP EVERY SITE THAT ENUMERATES ITS KEYS.
+   WHEN A FIX MOVES A CHANGE FROM ONE PATH ONTO ANOTHER, ASK WHAT THE
+  OLD PATH WAS DOING FOR IT BESIDES THE OBVIOUS. (C-95.)
+
+- **ABSENT IS NOT MOVED: when a NEW guard reads an OLD record, ask which
+  paths leave that record deliberately empty.** (2026-08-20, found by
+  three hunts independently.) A guard added the day before skipped an
+  element whose row signature differed from `_last_signatures` -- right
+  in itself, since between a control change and the restyle that answers
+  it the layer is merely BEHIND. It asked with `!=
+  self._last_signatures.get(tile_id)`, and `_adopt_existing_group`
+  leaves that record EMPTY on purpose, saying so in its own docstring:
+  the dialog cannot know which assignments produced layers it has only
+  just met. (C-107.)
+- **A LADDER MAY HOLD SEVERAL CLASSES WITH IDENTICAL BOUNDS, so a lookup
+  by bounds must not stop at the first match.** (2026-08-20, and it was
+  a defect in the fix above, caught within the hour.) A constant column,
+  a tied column and `{1, 5, 9}` at k=5 all produce degenerate ranges,
+  and `addClass` then inserts another `(0.0, 0.0)` class -- which
+  collides with any fixture whose first real class is also degenerate.
+  (C-109.)
+- **RETIREMENT IS A FACT ABOUT THE OBJECT, NOT AN ABSENCE IN A
+  REGISTRY.** (2026-08-27.) Every long-lived handler here is gated by
+  "am I the dialog in charge", and that record was only ever cleared by
+  SUCCESSION -- so a plugin the user DISABLED left it naming a dialog
+  they had disposed of, which went on adopting dock edits, rewriting the
+  project's group record and speaking into QGIS's message bar about
+  controls in a window there was no longer any way to open, until QGIS
+  restarted. (C-115.)
+
+- **A LAYER BUILT ON ANOTHER LAYER'S SOURCE IS THAT LAYER TO ANYTHING
+  THAT LOOKS UP BY SOURCE.** (2026-08-27.) The map-unit outlines layer
+  is built on the REGION'S OWN SOURCE, deliberately, since nothing is
+  copied; and it carries `weavingspace_output`, which is what keeps it
+  out of the region chooser. (C-117.)
+
+- **A DANGLING REFERENCE IS NOT A DISAGREEMENT, WHICH IS WHY NOTHING
+  COMPLAINS.** (2026-08-27.) An element may take its classes from
+  another element's LAYER, and the choice is stored as `layer:<layer
+  id>` -- while a re-tile gives every element a new layer with a new id.
+   WHAT IS STILL OPEN, and is a ruling rather than a defect: a donor
+  that MOVES is followed one run late, because the landing reads its
+  template from the donor's outgoing layer while the donor is being
+  re-seeded in the same pass. (C-119.)
+
+- **A REPAIR'S OWN REPAIR NEEDS THE SAME SUSPICION, AND THE FIRST ONE
+  CAN BE WORSE THAN THE DEFECT.** (2026-08-28, the moved-data notice,
+  wrong three ways in one evening and every one of them mine.) It kept
+  ONE reading in a session-wide slot and compared it against whichever
+  dataset the region chooser held, so returning to an earlier map
+  through the group chooser told somebody their file disagreed with
+  itself when nothing had been touched. (C-124.)
+- **OWNERSHIP IS NOT A NAME PREFIX, AND AN ELEMENT ID IS A LETTER EVERY
+  MAP SHARES.** (Same day.) The stale-table drop scoped itself to "this
+  map's own elements" and decided that by `tiles_<id>`, so saving into a
+  GeoPackage holding a colleague's map DELETED their `tiles_a_*` and
+  `tiles_b_*` while leaving their `tiles_zz_*` and their own tables --
+  one line after a question promising to "leave the rest of the file
+  alone", and against the method's own Returns block. (C-126.)
+- **AND AN UNBOUND RETURN IS A FAILURE NOBODY HEARS.** The same loop
+  called `_fetch_dist` and discarded its `(fetched, reason)`, so a
+  support package lost to a dropped connection left `LAST_FAILURES`
+  empty, provisioning reporting success, and the user meeting "No
+  module named 'dateutil'" with nothing to say why. The reason
+  machinery written for exactly that case was bypassed by one unbound
+  call, three lines from the loop that binds it correctly.
+
+- **A GUARD THAT REBUILDS A LAYER FROM ITS SOURCE STRING LOSES
+  EVERYTHING THE USER SET ON THE LAYER.** (2026-08-28.) A CRS somebody
+  assigned -- the ordinary repair for a shapefile with no `.prj` --
+  lives on the layer, never in `source()`. (C-130.)
+- **A COUNT QUOTED TO A PERSON MUST BE ASKED OF THE GEOMETRY, NOT OF TWO
+  TOTALS.** (2026-08-28.) The icon-mode sentence subtracted a TILE count
+  from an AREA count to say which elements were short. (C-131.)
+- **A PER-FILE FACT MUST NOT LIVE ON A SESSION-WIDE CONTROL.**
+  (2026-08-28, round ten, and it was a repair of mine that put it
+  there.) "Include the source data" is one checkbox and the answer it
+  stands for belongs to a FILE: whether THAT GeoPackage carries a copy
+  of the region. (C-132.)
+- **A DISPLAY RULE IS ONLY DISPLAY-ONLY IF NOTHING RE-READS THE
+  DISPLAY.** (2026-08-28.) `MarkableSpinBox.textFromValue` abbreviates a
+  large number to "1.02M" and its docstring says it touches neither the
+  stored value nor the validator. (C-133.)
+- **A RECORD SEEDED BY ADOPTION IS A RECORD THAT ASSUMES A PROJECT.**
+  (2026-08-28.) The stale-table drop took its candidates from the
+  session's own record of what it had written, plus the tables of
+  elements the map still has -- and a DROPPED element is in neither.
+  (C-135.)
+- **A RESTORE IS A LANDING, FOR EVERYTHING THAT ASKS WHETHER THE
+  CONTROLS DESCRIBE THE MAP.** (2026-08-28.) `_last_geometry_sig` is how
+  `_restyle_only` knows the tiles on screen are the tiles these controls
+  ask for, and only `_add_output_layers` ever set it -- so on a map this
+  dialog did not DRAW the restyle path was unreachable at its first
+  line. (C-141.)
+
+- **"ALREADY THERE" IS A QUESTION FOR THE FILE, NOT FOR A STRING THAT
+  NAMES IT.** (2026-08-29, ledger row 35.) A save treats a layer whose
+  source already names a table in this file as saved already --
+  correctly, since the second press on any map meets it -- and it asked
+  the SOURCE STRING, which nobody rewriting the file can change.
+  (C-143.)
+
+- **A SAVE THAT PUMPS THE EVENT LOOP MUST TAKE ITS BUTTONS DOWN, AND THE
+  TWO ARE ONE DECISION.** (Maintainer's decision 3, 2026-08-29.) Every
+  call the save's write loop makes is one of QGIS's or OGR's own
+  per-layer APIs, and each opens the GeoPackage, so the seconds grow
+  with the layers already in the file: 134 of them at the 256-element
+  ceiling, with a 50 ms heartbeat recording ZERO beats. WHEN A
+  JUSTIFICATION ENUMERATES THE DOORS IT CLOSES, COUNT THE DOORS -- and
+  count them again whenever the interface gains one, because a sentence
+  naming two controls goes on reading correctly for ever while a third
+  sits beside them. (C-144.)
+
+- **WHEN THREE REPAIRS TO A MECHANISM FAIL, SUSPECT THE PROMISE.**
+  (2026-08-29, and it cost most of an afternoon.) The assignment table's
+  columns were taught to grow to their content, and the same commit
+  asserted that no column ever elides. (C-150.)
+
+- **AND A FIX THAT WIDENS A SCOPE RE-AIMS EVERY TRIAL THAT COMPARED
+  AGAINST THE OLD ONE.** (Same day, and the fix exposed it within the
+  hour.) With maps painted map-wide, the reopen path's adoption trial
+  was still computed from each ELEMENT's own values, so it reproduced
+  nothing and the walk "recovered" every ramp colour as somebody's
+  HAND-PICKS. After a reopen those rows read Custom, picks outrank the
+  ramp, and one later edit left one colour meaning two things. (C-154.)
+- **WHEN ONE FUNCTION IS MADE THE OWNER OF "WHAT IS X", CHECK EVERY
+  OTHER KEY FOR TERMS THAT WERE NEVER X TERMS.** (2026-08-31, found by
+  TWO hunts independently -- one from the boundaries, one backwards from
+  harm.) `_capture_design` was extracted that morning as the one answer
+  to "what is the design", and the save's staleness guard was moved onto
+  it. (C-174.)
+
+- **AN ARMED TIMER IS NOT A RUN THAT WILL START.** (2026-08-31.)
+  `_queue_live` arms the live timer on every output-affecting change
+  WHATEVER the checkbox says, and `_maybe_live_generate` then declines
+  at its second gate. THE RULE THIS JOINS is the project's own about
+  deferred work: ask what CONSUMES a remembered intent, and whether that
+  consumer can DECLINE for a reason having nothing to do with the act
+  deferred. AND WHEN A PROJECT DOCUMENTS ONE READING AS "A SECOND
+  READING OF ONE QUESTION", DIFF THE TWO TERM BY TERM. (C-175.)
+
+- **A HAND-KEPT LIST DRIFTS EVEN WHERE A COMMENT SAYS TO KEEP IT IN
+  STEP.** (2026-08-31, twice in one day.) `check_standards.USER_FACING`
+  decides which files the hard rules are enforced over, and its own
+  comment asks that it match `text_review`'s SOURCES and DOCUMENTS.
+  `metadata.txt` joined the review queue on 2026-08-12 and never joined
+  this one -- so the `changelog=` and `about=` entries, which QGIS's
+  plugin manager displays and which `release_notes.py` puts at the top
+  of the GitHub release body, were unchecked for a HARD RULE and for
+  Canadian spelling. (C-177.)
+
+- **A WANTED WRITE THAT FAILS STILL CLEARS, SO ENABLING THE WRITE IS
+  HALF A REPAIR.** (2026-08-31, and it is the third failed repair to one
+  method in one day.) `_write_or_drop_the_topology` refused to write a
+  motif while the experimental box was unticked, and stopping it asking
+  the box changed nothing observable: on the commonest journey nothing
+  has BUILT a topology, so `wanted` stayed false. (C-178.)
+
+- **AN OWNERSHIP QUESTION THAT OUR OWN ACT MAKES TRUE IS NOT AN
+  OWNERSHIP QUESTION.** (2026-09-01, found by the stochastic hunt and
+  widened by a second.) `_this_map_owns_the_file` answers True as soon
+  as the file is in `_gpkg_tables_written`, which OUR FIRST PRESS puts
+  there -- so a colleague's GeoPackage is theirs on press one and ours
+  on press two, and every remover gated on that answer was handed a
+  licence on the second press. (C-196.)
+
+- **AND THE FIRST REPAIR FOR IT SPARED EVERYTHING, BECAUSE THE RECORD
+  DOES NOT SPELL IT `variable`.** The drop was taught to name candidates
+  from the file's own record rather than match them by prefix, composing
+  table names through `bridge.element_table_name` from
+  `element.get("variable")` -- a key `WORKING_STATE_ELEMENT` does not
+  have, since it is `var`. (C-197.)
+
+- **A LANDING THAT ARRIVES MID-GESTURE MUST WAIT FOR THE POINTER TO COME
+  UP.** (2026-09-01, found FROM A RUNNER.) `show_topology` clears the
+  drag preview and the chosen thing, which is right for a rebuild and
+  wrong while somebody is dragging: a topology build finishing under
+  their hand put the un-edited design back, dropped the highlight saying
+  what they were aiming at, and left the drop to commit an edit out of a
+  record they could no longer see. ASK OF ANY BACKGROUND RESULT WHETHER
+  IT MAY LAND ON A GESTURE, and where an intermittent failure is on a
+  PREMISE rather than an assertion, suspect something erasing the state
+  the premise is about rather than a slow machine. (C-201.)
+
+- **NAME THE ACTOR THAT EMPTIES A THING AND THE ACTOR THAT FILLS IT,
+  AND WHERE THEY DIFFER, ASK WHAT HAPPENS IN BETWEEN.** (Maintainer's
+  instruction, 2026-09-05, to sweep for the shape field report 1 was
+  one instance of; C-244 is the rule it generalises.) The sweep found
+  one fault in eleven stores, and it was invisible to reading: the
+  Topology tab's parameter boxes were torn down and rebuilt at their
+  DEFAULTS by every build that landed, so `n` typed as 6 came back 2 on
+  an ordinary journey. Both halves are healthy code -- a landing
+  refreshing its controls, and a rebuild seeding boxes from the
+  catalogue -- and only the INTERVAL between them is wrong, which is
+  why an eye passes over it and a test premise does not.
+  WHAT MAKES THIS CHEAP TO ASK is that the answer is usually "the same
+  actor", and the table of the ten that were sound is in ROADMAP.md
+  under the sweep. What makes it worth asking at all is that the two
+  faults of this shape found here so far -- a preview reverted for
+  1.676s, and a typed number replaced in silence -- both reached a
+  user, and neither showed up as an error anywhere.
+
+- **A FLAG READ BY ONE CONSUMER OUTLIVES THE JOURNEYS THAT CONSUMER
+  NEVER RUNS ON.** (2026-09-01, found by writing the guard for a button
+  added the same day.) The waiting window's Cancel sets
+  `_save_cancelled`, which `write_gpkg_layers` reads BETWEEN TABLES and
+  answers with a rollback. (C-212.)
+
+- **WHEN A NAME GAINS A LABEL, SWEEP EVERY READER OF THE QUESTION, AND
+  THE SILENT ONES FIRST.** (Same day.) The label/key separation of the
+  morning gave `laves 3.3.4.3.4` the displayed name `laves 3.3.4.3.4
+  (cairo)`, and the product moved cleanly: items carry the key as data,
+  records store the key, one owner answers "which design is this".
+  (C-213.)
+
+- **A WAIT ONLY AN OUTER FRAME CAN END IS NOT A WAIT.** (Same day.)
+  `_save_the_map` turns the event loop once per element behind its
+  progress bar, so a close or a quit arriving during a write is
+  delivered by THAT WRITE'S OWN PUMP -- and the hold it reaches then
+  runs NESTED INSIDE the write, spinning until `_saving_now` clears,
+  which only the suspended frame beneath it can do. (C-221.)
+- **AN "EMPTY" FILE IS A QUESTION ABOUT CONTENT, NOT ABOUT BYTES.**
+  (Same day.) The ownership question decided whether a GeoPackage was
+  somebody else's with `os.path.getsize(path) > 0`, and a data source
+  OGR has created and nothing has written to is 65,536 bytes of header
+  holding no layer. (C-222.)
+- **A TABLE KEYED BY A FAMILY DOES NOT GROW WITH THE FAMILY.** (Same
+  day.) `_drag_moved` answers "did this gesture ask for anything" per
+  manipulation, because each has its own idea of nothing -- zero travel
+  for a nudge, half a degree for a rotation, one per cent for a scale.
+   WHEN A HANDLE LIST, A VERB LIST OR A MODE LIST GAINS A MEMBER, GREP
+  EVERY TABLE KEYED BY THAT LIST -- and guard the SHAPE, so the next
+  member is covered by whoever adds it. (C-223.)
+- **A PREDICATE THAT MERGES TWO FACTS IS RIGHT FOR A WAIT AND WRONG FOR
+  A QUESTION.** (2026-09-02, found by two hunts independently and from
+  opposite directions, which is the strongest confirmation this method
+  produces.) `_a_save_is_outstanding` answers "is there a save that has
+  been asked for and not finished", deliberately merging a PROMISE made
+  with the KEEPING of it, because to the person who pressed the button
+  they are one act. (C-224.)
+- **A FRAME MUST NOT REPORT THE OUTCOME OF AN ACT IT CANNOT SEE.** (Same
+  day, the other end of the same mechanism.) `write_gpkg_layers` asks
+  `should_stop` BETWEEN TABLES, so a Cancel landing during the styling
+  or the repointing -- 13.0s of a 256-element save -- cannot be served
+  and the write finishes. (C-225.)
+- **A RECORD FILLED BY A LANDING AND CLEARED BY NOTHING ANSWERS FOR A
+  MAP IT HAS NEVER SEEN.** (Same day, found by backwards-from-harm at
+  the end of a list that had ranked it fifteenth.) `_element_tables` is
+  written when a map LANDS and cleared by neither the Load door nor a
+  group switch, so a session that has drawn any map carries THAT map's
+  table names -- and an opened map's elements share their ids with it.
+  (C-227.)
+- **AND WHEN A RESUME STAMPS ONE STORE, IT STAMPS THE OTHER.** (Same
+  day, found by the hunt aimed at the same morning's repairs, which is
+  that direction's eleventh outing for eleven.) A resume stamps the
+  GROUP's record with the region the recovery LANDED ON, and it must: a
+  self-contained file records the SENDER'S own path and nothing on the
+  recipient's machine answers to it. (C-228.)
+- **A LAUNCH STATE BEATS THE CARRY, SO HANDING A KEY OVER IS NOT THE
+  SAME ACT AS LETTING IT FALL THROUGH.** (2026-09-02, ledger rows 22 and
+  23, and the second is my own repair's defect found within the hour by
+  the hunt replenished onto it.) `_stamp_working_state` merges a launch
+  state OVER the record already on the group, so a resume that hands
+  `region_crs` across unconditionally stamps the FILE's answer onto a
+  group whose own record a LANDING wrote. (C-231.)
+
+- **A KEY THAT ENUMERATES TWO OF A DESIGN'S TERMS IS A SECOND DEFINITION
+  OF THE DESIGN.** (2026-09-02, ledger row 24, and THREE hunts of one
+  round reached it from three directions -- backwards from harm, the
+  specification itself, and the stochastic sessions, which is the
+  strongest confirmation this method produces.)
+  `topology_edits.shelf_key` was the family and the element count, and
+  "Map the dual instead" moves neither -- so a design and its dual
+  shared one shelf, and an edit made on the dual was replayed onto the
+  design's own like-named edge the moment the box came off. (C-232.)
+
+- **A QUESTION BUILT ON A MERGED PREDICATE MERGES THE SAME TWO STATES.**
+  (Maintainer's ruling, 2026-09-02: "a panel's close button shouldn't
+  stop a save, it should prompt whether to interrupt save".) Ledger row
+  5 mended `_a_save_is_outstanding` for merging a promise with the
+  keeping of it -- right for a WAIT, wrong for a QUESTION -- and the
+  repair taught the Close arm to stop a write. (C-233.)
+
+- **A CONTROL ONE ACT MOVES AS A SIDE EFFECT IS READ BY ANOTHER ACT AS A
+  DECISION.** (Maintainer's ruling, 2026-09-02: "the save should happen
+  first. then the load".) A Save kept while a re-tile is coming is a
+  promise, and `_honour_a_queued_save` re-reads the output chooser at
+  the moment of the write so that somebody who changes their mind about
+  where the map goes is obeyed. (C-234.)
+
+- **A LANDING IS HELD FOR A GESTURE, AND THE CLICK BEFORE THE PRESS IS
+  NOT A GESTURE.** (2026-09-02, macOS CI at `743e73b`.) The ruling of
+  2026-09-01 holds a build that lands mid-drag until the pointer comes
+  up, and `gesture_in_progress()` is true from the press to the release
+  -- so the window between the CLICK that chooses a class and the PRESS
+  that grabs its handle is uncovered, and a landing there applies at
+  once. WHEN A DOCSTRING NAMES A HAZARD, CHECK EVERY PATH THROUGH THAT
+  FUNCTION HONOURS IT. (C-240.)
+
+- **CLEARING A PREVIEW AT THE DROP PUTS THE OLD PICTURE BACK FOR THE
+  WHOLE OF AN ASYNCHRONOUS REBUILD.** (2026-09-04, a field report
+  against 0.24.4rc15 confirmed and repaired.) `_commit_the_drag` opened
+  by clearing the drag preview, which reads as tidy -- the gesture is
+  over, so put the transient thing away -- and the answer that replaces
+  it arrives SECONDS LATER off another thread. THE RULE: a transient
+  picture is cleared by the thing that REPLACES it, not by the act that
+  requested the replacement. (C-244.)
+
+### C-267 — The guard, test, fixture, probe and catalogue lessons, one entry each, as they stood before consolidation
+
+<sub>Cut from `CLAUDE.md`, lines 1304–1844 of the 2026-09-05 revision.</sub>
+
+- **A GREEN SUBSET IS NOT A GREEN SUITE, AND THIS PROJECT BELIEVED ONE
+  TWICE IN ONE DAY.** (2026-08-26.) Round nine was verified by
+  targeted runs -- every fix's own test, every neighbour anybody
+  thought of -- and shipped FOUR regressions, each one an ordinary
+  journey: open the plugin in a project that already holds a map and
+  every row came up blank with Generate refusing for want of a
+  variable. What found them was the mutation workflow's coverage
+  leg, which runs the WHOLE suite. The rule already written is that a
+  change to a core path is verified by the whole suite; what this adds
+  is the failure mode when it is skipped -- all four survived a hunt
+  round aimed at exactly that code, because a hunt asks what MIGHT be
+  broken and the suite asks what IS. (C-254.)
+
+- **ATTRIBUTION BEATS DELTA, AND THREE NARROW GUARDS ARE THE SIGNAL TO
+  STOP PATCHING ROUTES.** (2026-08-26, ledger row 48, and it is the
+  sharpest thing the bulletproofing round taught.) The categorized
+  adoption walk asked what CHANGED -- adopt any colour differing from
+  what the plugin would seed NOW -- and a landing that keeps a renderer
+  over an unreadable class source makes that question lie: `expected`
+  falls back to automatic colours while the map honestly wears the
+  template, so the template's own colours were adopted as a person's
+  hand-picks and outranked the template forever. THE RULE: when the
+  third narrow guard leaks, stop asking which route is missing and ask
+  whether the question is right. (C-51.)
+
+- **EVERY EXIT FROM A LONG METHOD NAMES ITSELF, AND A MODAL REFUSAL
+  IS THE QUIETEST OF ALL.** (2026-08-26.) Live update has named its
+  ten gates since two diagnoses were lost to its silence; `_generate`
+  has EIGHT exits and named none, so a Windows-only failure where the
+  recovery run left no file, no layers and no message could not be
+  read off a log at all. Each exit dumps now, and the
+  keep-the-previous-result guard prints its whole decision rather
+  than the fact of it.
+  THE MODAL IS THE PART TO REMEMBER: a guard that refuses through a
+  QMessageBox lands in the shim's MODALS in a headless suite and never
+  reaches the message bar, so a run refused there is indistinguishable
+  from a run that was never launched. Two stores, read by different
+  code. Read both. (C-255.)
+
+- **What ELEVEN defects taught about that feature pair, 2026-08-15.**
+  Six hunts pointed at the pinned bounds and copy-to alone found eleven,
+  every one a wrong map rather than a crash, and four rules come out of
+  them that generalise past this feature. A RECORD HOLDING TWO CLAIMS
+  must be tested with both in force: the pin record holds copied
+  boundary VALUES and per-end pin FLAGS, each worked alone, and together
+  the pin did nothing while the button stayed down and the number was
+  stamped. (C-64.)
+
+- **A GUARD THAT RUNS BEFORE A RE-READ MUST BE ASKED WITH RE-READ
+  VALUES TOO.** The rule that everything the colour editor writes is
+  re-read at the landing was complete and still lost a user's work:
+  `_retire_an_undrawable_pin` was handed the LAUNCH SNAPSHOT, so pins
+  the editor had accepted against the live class count were retired
+  as the run landed -- the stamp removed so a reopen could not
+  recover them, and the sentence blaming the user's data. The same
+  guard also judged a COPIED ladder against the receiving column,
+  which is a carve-out `make_graduated_renderer` has carried since
+  copying arrived: a copy is a claim about the ladder, not about what
+  these values support.
+
+- **A GUARD THAT ASKS ABOUT ONE THING MUST NOT STAND IN FRONT OF AN EXIT
+  THAT IS ABOUT ANOTHER.** Three defects in one day, 2026-08-17, all
+  this shape, and each cost a user their work rather than a crash. A
+  COLOUR comparison at the head of `_graduated_layer_edited` stood in
+  front of every `embed_style` exit, so a break retyped in QGIS reached
+  the map, the project and the .qgz and never the GeoPackage a colleague
+  opens -- since 2026-08-10, and invisible because the map was right.
+   THE HABIT: at every early `return`, `continue` or `break`, name what
+  the guard is FOR and then read what lies below it. (C-67.)
+
+- **A GATE THAT CHECKS HALF OF WHAT IT NAMES IS WORSE THAN NO GATE**,
+  because the other half is then believed to be checked. 2026-08-18:
+  `sync_release_content.check_vendor_claims` promises in its own
+  docstring that "prose claims about the vendored library match the
+  recorded stamp", and did `stamp.split()[0]` -- the VERSION alone. The
+  stamp is written "0.0.7.89 (bf1bbbf)" precisely because upstream does
+  not always bump the version when the code moves, which is what
+  MAINTAINING.md tells a re-vendorer, so the half that exists FOR that
+  reason was the half nothing compared. (C-70.)
+
+- **WHEN A FIX THREADS A "WHO FIRED THIS" ARGUMENT THROUGH A FAMILY OF
+  HANDLERS, GREP THE CALLS THEY MAKE TO EACH OTHER.** 2026-08-17, and
+  found by two independent hunts within an hour of each other, not by
+  the suite. Giving an Unclassed end two pin controls meant every
+  handler had to learn which control fired, so `source` was threaded
+  through three signatures and every call site updated -- except one
+  handler calling ANOTHER handler, `self._bound_edited(which)` inside
+  `_bound_moved`. (C-73.)
+- **A GUARD YOU HAVE NOT WATCHED FIRE IS A GUARD YOU HAVE NOT GOT, AND
+  AN EDIT CAN REPORT SUCCESS WITHOUT LANDING.** (2026-09-04.) A stage
+  table reported TWO calls to a constructor against its parent's one.
+  The matcher was suspected, a guard was written to refuse two functions
+  of one name, the probe was re-run, the guard did not fire -- and
+  docs/PERFORMANCE.md then recorded the matcher as CLEARED on the
+  strength of that silence. (C-80.)
+- **A STAGE, A ROW OR A KEY THAT NAMES A FUNCTION WHICH DOES NOT EXIST
+  REPORTS NOTHING, AND THAT READS AS COSTING NOTHING.** (Same day.) A
+  generation profile listed a stage under a name no function has -- the
+  no-data split is not called what the probe called it -- so the row
+  never appeared, its work read as free, and docs/PERFORMANCE.md
+  honestly listed that split as UNMEASURED the whole time the probe
+  claimed to measure it. (C-81.)
+- Tests must run with an EMPTY project. Everything shares the one
+  QgsProject singleton, so a test that leaves layers behind changes
+  which layer the next dialog picks; a single real failure once
+  cascaded into four unrelated ones.
+- A test that PASSES is not a test that WORKS. It has to fail when the
+  behaviour it names is broken, and the only way to know is to break it.
+  Every test written to close a mutation gap gets an entry in
+  `tools/mutation_check.py`, which does exactly that and runs at
+  release. (C-14.)
+- The highest-value shape here is UI-against-library: drive the
+  dialog, build the same map by calling weavingspace directly with
+  what those settings MEAN, compare geometry element by element and
+  then interior pixels. Write the expected side from the settings,
+  never from `_build_unit`, or the test agrees with the bug.
+- Every test that produces a map checks it visually (`visual_pair` or
+  `visual_gamut`), and those checks appear in the release PDF.
+
+- **A GUARD THAT TESTS SIGN DOES NOT TEST FINITENESS.** `span > 0` is
+  perfectly true of infinity, and log10 of it overflows through a Qt
+  slot, so the button silently does nothing and QGIS shows a Python
+  error window.
+- **MAGNITUDE IS A FIXTURE DIMENSION.** Every fixture in this suite
+  lived between 0 and about 50, so arithmetic that is correct there
+  and wrong at 1e12 or 1e-9 shipped green three times. A relative
+  epsilon is an ABSOLUTE gap: 1e-9 of 2e12 is two thousand, wide
+  enough to swallow a real value and draw it as a hole. When a change
+  depends on the size of a number, the sweep crosses magnitudes or it
+  proves nothing.
+- **A TEST FOR A PROMISE IS A MATRIX, NOT A CASE, and this is the
+  DEFAULT rather than a technique to reach for occasionally.** Where the
+  thing under test is a family of behaviours -- "edit the symbology in
+  QGIS and the plugin follows", "a number you type is the number used"
+  -- enumerate the atomic actions as ROUTES, cross them with synthetic
+  data SHAPES chosen for failure modes rather than realism, and add an
+  axis for what happens NEXT, because arrival and survival are different
+  promises. (C-83.)
+
+- **A GUARD MUST NOT REPAIR WHAT IT MEASURES, NOR RUN WHERE THERE IS
+  NOTHING TO SEE.** (2026-08-19, three in one sitting, every one caught
+  by the catalogue rather than by reading.) A visual guard hid and
+  re-showed the mark to get a contrast -- calling the very methods the
+  mutation removed, so it mended the product and then measured the
+  mended product. (C-84.)
+- **A MATRIX CATCHES ONLY WHAT ITS CELLS MAY COMPLAIN ABOUT.**
+  (2026-08-19.) The symbology matrix crosses twelve routes with nine
+  shapes, three aftermaths and three schemes, and it caught NONE of
+  three defects that landed in one evening -- an affordance drawn under
+  the widget that covers it, a ceiling with no edge to mark, a bound of
+  1e9 elided out of its box. (C-86.)
+
+- **A GUARD MEASURES THE GROUND, NOT THE BOX ROUND IT.** (2026-08-19,
+  ledger row 23, and it cost a colleague their map rather than a little
+  time.) The size guard estimated tiles from a CIRCLE enclosing the
+  region's bounding rectangle, while the library tiles that circle and
+  then CLIPS to the polygons. (C-93.)
+
+- **A CHECK THAT CAN ONLY CONFIRM IS NOT A CHECK.** Unwrapping the rc9
+  release notes, the script reported "unwrapped: 14 blocks" and I read
+  that as success -- but the number needed was how many were still
+  WRONG, and nine of eleven paragraphs had been skipped because they
+  open with bold and my list-item guard matched `*`. (C-97.)
+
+- **WHEN TWO THINGS SHOULD DRAW THE SAME MAP, COMPARE WHAT THEY DREW,
+  NOT WHAT THEY LOOK LIKE.** (2026-08-19, comparing the plugin against
+  the library on the maintainer's own data.) The two paint with
+  different colours by construction -- a two-colour matplotlib colormap
+  against seeded QGIS renderers -- so pixels would report a difference
+  that means nothing. (C-99.)
+
+- **A NAME THAT CARRIES A NUMBER IS SORTED AS TEXT, AND rc10 COMES
+  BEFORE rc2.** (2026-08-19, ledger row 25.) `release.py` named the
+  candidate it had just built by sorting
+  `dist/weavingspace_qgis-*rc*.zip` and taking the last entry. (C-100.)
+- **A DEPENDENCY'S CHEAP ANSWER IS A CACHED ANSWER, AND A GUARD BUILT ON
+  ONE IS HONEST ONLY AFTER SOMETHING INVALIDATES IT.** (2026-08-20,
+  ledger row 32.) `compat.layer_data_is_available` asked a layer whether
+  it was valid and its provider whether it was valid, and its own
+  Returns block promised that caught "a layer whose file has been
+  deleted ... including the case where the layer itself still claims to
+  be valid". THE HABIT: when a guard asks a dependency whether something
+  is still true, ask what would have to HAPPEN for that answer to be
+  refreshed. (C-101.)
+- **AND ITS TEST HAD BEEN EXERCISING THE HONEST PATH ALL ALONG.** The
+  sibling guard called `reload()` in its own setup before asking
+  anything -- which is the one act that makes QGIS tell the truth, and
+  the one act a user never performs. (C-102.)
+- **A GUARD THAT LANDS WITHOUT A TEST OF ITS OWN LOOKS GUARDED, BECAUSE
+  THE NEIGHBOUR IT RE-ANCHORED STILL PASSES.** The edge rule for pinned
+  bounds went in on 2026-08-19, correctly re-anchoring the catalogue
+  entry standing on the line it changed -- and that entry proves ends
+  are adopted AT ALL, not that they are kept off the ladder's edge.
+  (C-104.)
+
+- **A GUARD COMPUTED AS A DELTA IS ARMED FOR ONE INVOCATION.**
+  (2026-08-20, ledger row 2, and it defeated a guard written the
+  previous day.) `count_moved` was measured across
+  `_row_follows_the_renderer` INSIDE ONE HANDLER CALL, to stop a class
+  added in QGIS having its shuffled colours adopted. (C-108.)
+- **WHEN A GUARD STARTS ANSWERING DIFFERENTLY, FOLLOW ITS RETURN VALUE
+  INTO EVERY TUPLE IT IS A MEMBER OF, not only into its callers.**
+  (2026-08-20, a regression from the previous day's own fix.)
+  `compat.layer_data_is_available` was corrected to answer False for a
+  moved file. (C-111.)
+- **A REPAIR AIMED AT AN ACT MUST BE RE-AIMED AT THE ACT'S ABSENCE.**
+  (2026-08-27, two hunts from different directions in one afternoon.) On
+  2026-08-26 the stale-table drop was taught to take a saved STYLE with
+  the table it removes, which mends every case where something is
+  deleted. (C-112.)
+
+- **A GUARD WHOSE CONDITION IS RIGHT CAN STILL BE AIMED AT NOTHING.**
+  (2026-08-27.) The queued restamp's new guard reads `_fieldless_build`,
+  and that flag was measured TRUE at exactly the moment the defect
+  fires. (C-113.)
+
+- **AN INSTRUMENT THAT HOLDS A FILE CHANGES WHAT IT MEASURES, AND BYTES
+  REMEMBER PAGES NOBODY REFERENCES.** (2026-08-27, twice inside one
+  test.) A guard read a GeoPackage through a `QgsVectorLayer` it left
+  alive, and the open handle made the NEXT run fail at the sqlite level:
+  zero tables, read as the product's fault. (C-114.)
+
+- **ENUMERATE THE PRODUCERS OF A SECOND CLAIMANT, NOT JUST THE ONE YOU
+  BUILT.** (2026-08-27.) The paired-layer rule of 2026-08-16 says a
+  paired artefact inherits the identity property of the thing it is
+  paired with, so every lookup keyed on that property gains a second
+  answer. (C-118.)
+
+- **BREAK EVERY ROUTE AT ONCE, OR THE CATALOGUE MEASURES THE OTHER
+  ONE.** (2026-08-27, three times in a day.) A fix written as two guards
+  -- skip our own output AND check the chooser took -- survives having
+  either one mutated, because the other still sends the walk to its
+  fallbacks. (C-120.)
+
+- **A RULING THAT GIVES A FACT A SECOND WRITER PUTS AN OLDER ENTRY TO
+  SLEEP, AND NOBODY IS TOLD.** (2026-08-28, deciding all thirty-four
+  survivors of the branch's full sweep; the round is written up in
+  `docs/process/catalogue-triage-2026-08-28.md`.) Thirty-three of the
+  thirty-four predated v0.24.3, and almost none was a weak test. The
+  fortnight's rulings each added a store or a mechanism -- the group's
+  working state, `_painted_ladders` attribution, a gate behind a
+  timer, a follow that brings a row up to a layer's count before the
+  colour handlers run -- and every one left an older single-site entry
+  unable to fail. The catalogue's count went on describing 559
+  guarded behaviours while a version's worth of them had quietly
+  become second lines of defence.
+  SO WHEN A RULING ADDS A WRITER, RE-JUDGE THE ENTRIES OVER THE OLD
+  ONE, in the same round. This file already says to enumerate every
+  store that holds a fact when a repair gives one store a new write;
+  this is that rule pointed at the CATALOGUE rather than at the code.
+  THREE SHAPES RECUR and each makes a single-site entry permanently
+  red: one limb of a FALLBACK CHAIN (`group = lookup() or
+  findGroup(name)`, `lost = pending or watched`), one of two READINGS
+  of the same fact a few lines apart (a combo's default seeded, then
+  re-selected from the record twenty-two lines below), and one TERM of
+  a tuple whose siblings answer the same question (the run signature
+  carries a layer's identity and its fingerprint). The repair is to
+  anchor the whole decision, which cannot be split again by the next
+  alternative somebody adds.
+
+- **AN INERT MUTATION AND A REDUNDANTLY HELD ONE BOTH REPORT SURVIVED,
+  AND THEY NEED OPPOSITE REPAIRS.** (Same day.) An entry excluding modes
+  from the no-data split was mutated by adding a literal to a list read
+  from `mode` -- while deferral lives in `mode_raw`, so the mutation
+  matched nothing and changed nothing. (C-121.)
+
+- **A TREATMENT WHOSE CONTROL ALSO FAILS HAS MEASURED NOTHING**, and
+  it nearly cost twelve wrong retirements twice in one day. Breaking
+  every entry on a test "to see whether the axis is live" includes the
+  sibling entry that already CATCHES, so the failure is guaranteed
+  before the survivors are touched; pairing a survivor with a catching
+  sibling has the same defect. Run the control -- the co-broken thing
+  alone -- and read the treatment only when the control passes. Every
+  redundancy verdict of that round carries its control.
+
+- **COVERAGE SAYS A LINE RAN, NOT THAT ITS BRANCH WAS TAKEN.** Sixteen
+  tests execute `if len(expected) != len(actual):` and every one
+  evaluates it false, so removing the guard changes nothing for them;
+  exactly one test ever takes the branch. A per-test coverage record
+  answers "could this test possibly notice" and not "does this test
+  exercise the case", and for a GUARD the two questions differ.
+
+- **THE PER-TEST COVERAGE RECORD IS KEYED BY A TEST'S DISPLAY NAME,
+  NOT ITS FUNCTION NAME**, which is what `check()` registers it under.
+  `mutate_auto.display_to_function` is the mapping; borrow it rather
+  than writing a second one. Looking a catalogue entry's `test=` up in
+  the record directly misses every time, and the answer -- "not in the
+  record" for all thirty-four -- reads exactly like a finding about
+  the entries.
+
+- **RANKING CANDIDATES CANNOT CHANGE A VERDICT; UNDER A CAP IT DECIDES
+  WHAT WAS ASKED.** Sampling "the eight most focused" tests covering a
+  line by the SIZE of their coverage record put region outlines and
+  legend labels to a mutation about layer removal, and "0 of 8 notice"
+  read as evidence. (C-122.)
+
+- **A UNIFORM VERDICT IS ALMOST ALWAYS THE INSTRUMENT.** Three of this
+  project's own tools were found wrong in one day by that tell alone:
+  thirty-four "not in the record", then "0 of 8" everywhere, then
+  DIFFERS everywhere because a comparison counted `region_7c23c`
+  against `region_bb6b7` as a changed decision. Before believing a
+  result that came back the same for every input, run the instrument
+  against a case whose answer you already know.
+
+- **`mutation_check` APPLIES EXACTLY ONE REPLACEMENT, BY DESIGN**, so a
+  fact held at two DISTANT sites cannot be guarded by any single entry.
+  The run signature's identity and fingerprint terms are 47 lines apart,
+  and an anchor spanning both breaks on any edit between them. (C-123.)
+
+- **A GUARD WHOSE PRECONDITION IS A LOSSY DIGEST IS ONLY AS GOOD AS WHAT
+  THE DIGEST OMITS.** (Same day.) The same notice read
+  `_layer_fingerprint` -- the feature count, the extent, the field
+  names, the CRS -- none of which an ordinary VALUE EDIT moves. (C-125.)
+- **AND ITS OVERRIDE MUST BE KEYED BY THE SAME SUBJECT.** (Same
+  evening, in the repair for the entry below.) Keying the FACT by file
+  and then guarding it with a session-wide "has anybody touched the
+  box" bool answers a different question: one tick anywhere in a
+  session made every self-contained file opened afterwards strippable.
+  The question is "has this person spoken SINCE THIS FILE was opened",
+  which is a count against a count. When you key something by subject,
+  read every condition that governs it and key those too.
+- **A SUITE CAN HOLD A CONTROL AT A VALUE NO USER HOLDS.** (2026-08-28.)
+  Every resume test in this suite unticks live update, which is ON by
+  default -- so the whole family was driven at a setting nobody has, and
+  pressing Load with the default re-tiled the opened map into memory a
+  second later and emptied the saved file. ASK OF ANY TEST FAMILY WHICH
+  CONTROL IT HOLDS CONSTANT, and whether a person holds it there.
+  (C-134.)
+- **AN INTERMITTENT FAILURE UNDER LOAD CAN BE THE SUITE INTERMITTENTLY
+  REACHING A REAL DEFECT.** (2026-08-28.) A per-test coverage re-record
+  failed one test of 645, in a shard running beside two others on a
+  loaded machine. ASK OF ANY DEFECT WHETHER THE JOURNEY THAT REACHES IT
+  IS ONE A PERSON CAN DRIVE, and measure that as separately as you
+  measure the mechanism. (C-136.)
+
+- **A RECOVERY MUST REPORT WHICH OF ITS ROUTES ANSWERED, AND WHAT IS
+  STAMPED IS WHAT IT LANDED ON.** (2026-08-29, ledger row 23, and the
+  two halves of that claim turned out to be one mechanism.) A
+  self-contained GeoPackage records the region its SENDER drew from,
+  which on their machine is an ordinary layer and on the recipient's is
+  a path that does not exist -- so the data comes back from the copy
+  inside the file, and the record and the layer in force stop describing
+  the same thing. (C-142.)
+
+- **A TEST LEG THAT RUNS AFTER THE STATE IT IS ABOUT MEASURES NOTHING.**
+  (2026-08-29, paying back the catalogue triage's second bad trade.) A
+  re-tile leg asserting that a taken-back element is re-seeded ran on
+  the element the arm ABOVE had just reclaimed -- whose layer wore the
+  plugin's own renderer, so the landing found nothing to carry and the
+  assertion held whatever the gate said. (C-146.)
+
+- **A BACKSLASH-NEWLINE INSIDE A NON-RAW ANCHOR IS A LINE
+  CONTINUATION.** (2026-08-29.) A catalogue entry anchored on a source
+  line ending in `\\` stored it as ONE collapsed line and matched
+  nothing. `r"""..."""` keeps it. (C-147.)
+
+- **A TEST THAT SUPPLIES ITS OWN INPUT MEASURES THE FUNCTION, NOT THE
+  PRODUCT, AND CAN HIDE A SHIPPED DEFECT FOR MONTHS.** (Same day, and it
+  is the transferable half of the entry above.)
+  `test_one_colour_means_one_value_across_elements` -- the guard for a
+  settled ruling -- passes `classify_from=layer`, the region layer,
+  which is A SOURCE THE DIALOG NEVER SUPPLIES. The ruling was therefore
+  verified against a FUNCTION while the product handed over something
+  else entirely, and no differential crossed the gap: file-against-map
+  agrees, because both sides carry the same wrong colours. (C-153.)
+- **THE DROP HAS BEEN WRONG FOUR TIMES: THE MISSING FACT IS WHAT THE
+  ARTEFACT DESCRIBES, NOT WHETHER WE MAY REMOVE IT.** (2026-08-30.)
+  `_write_or_drop_the_topology` decides whether a saved unit and dual
+  belong in the file. v1 dropped whenever the experimental box was
+  unticked -- and the box is unticked on EVERY new dialog, so opening a
+  saved map and pressing Save DELETED its motif. v2 guarded with a
+  per-file memory plus a count of box touches, and ticking the box to
+  LOOK at the tab counted as speaking about the file. v3 drops only
+  where a build has ASSESSED this design and found no topology -- but
+  with the box off no build runs, so ignorance is the PERMANENT state of
+  the common journey and v3 makes ignorance mean "spare": save laves,
+  switch to a design with no topology at all, Save, and the file keeps
+  the laves motif while its record says `topology_written: True`.
+  (C-155.)
+- **A TEST'S POSITIVE CONTROL CAN BE THE DEFECT YOU ARE ABOUT TO FIX.**
+  (Same day.) `test_no_design_control_is_stretched_to_the_ window`
+  proved its own measurement was live by asserting the region chooser
+  DOES take the width, "meant to take the width going". (C-158.)
+- **A COMPARATOR THAT IS SENSITIVE TO REPRESENTATION CANNOT ANSWER A
+  QUESTION ABOUT APPEARANCE.** (2026-08-31, and it is the third wrong
+  instrument in one function.) `_same_shape` exists to say whether a
+  manipulation moved anything a person could see, and it asked
+  `shapely.equals_exact`, which compares COORDINATE SEQUENCES: two rings
+  covering identical ground read as different the moment one of them
+  begins at another vertex. ASK OF ANY COMPARATOR WHAT IT IS ACTUALLY
+  COMPARING -- the thing, or the way the thing is written down. (C-162.)
+
+- **AND AN EXACT QUESTION MUST NOT BE ASKED WITH A TOLERANCE.** (Same
+  day, the other half of the same defect.) Whether a design holds the
+  class an edit names is answerable EXACTLY, from the topology, by name,
+  before any geometry exists. (C-163.)
+
+- **A GUARD THAT COMPARES THREE OF TWENTY-SIX FIELDS IS A SECOND
+  DEFINITION OF THE THING IT GUARDS, AND IT GOES STALE.** (2026-08-31,
+  and TWO hunts found it independently by different routes -- the most
+  this method has converged here.) The save's staleness guard asked
+  whether "the design on screen is the one the map was drawn at" by
+  comparing family, element count and the topology edit list, while the
+  KEY it writes beside the motif hashes `_topology_stamp()` -- the
+  spacing and every modifier included. (C-164.)
+
+- **AN ENTRY MUST BREAK THE ROUTE THE GUARD WALKS, NOT A ROUTE.** (Same
+  day, twice, and it cost four attempts on one entry.) A gate was given
+  three callers -- the shelf writer, the family handler and the
+  element-count handler -- and an entry mutating any ONE of them
+  survived, because changing the element count REPOPULATES the family
+  list and the family handler re-asks anyway. (C-167.)
+
+- **WHEN YOU ADD A STEP TO A SEQUENCE, ASK WHAT IT RESETS.** (Same day,
+  found by a hunt auditing a harness rather than a product.) The
+  topology matrix grew a baseline Generate, placed between choosing a
+  manipulation and clicking Apply. (C-169.)
+
+- **RE-WRAPPING A PARAGRAPH DISARMED A PROSE GATE.** (Same day.) A guard
+  finds a sentence in the user guide with a regular expression whose
+  gaps were mostly literal spaces. Correcting a number made the word
+  shorter, the paragraph was re-wrapped to tidy the ragged line, and the
+  newline landed between "fifty-six" and "for a tiling" -- where a
+  literal space cannot match. (C-171.)
+
+- **A TRIPLE-BACKTICK FENCE SHIFTS EVERY INLINE SPAN BELOW IT, AND A
+  PROSE GOES BLIND FROM THERE DOWN.** (2026-08-31, found by re-reading
+  the procedural documents at the maintainer's asking, which is a
+  direction docs/process/HUNT-RECORD.md carries a row for.) A fence line
+  carries THREE backticks; a span pattern needs a non-backtick between a
+  pair, so the first two cannot pair and the THIRD opens a span running
+  to the next backtick. (C-173.)
+
+- **A GATE THAT OPENS A DOOR MUST ASK FOR WHAT IS BEHIND IT.**
+  (2026-08-31, found by two hunts independently.) `opt_experimental`
+  reached `_gate_experimental_tabs` and a touch counter; the topology
+  build runs only from `_rebuild_unit`. (C-176.)
+
+- **A TEST THAT MATCHES A PHRASE COPIED OUT OF THE PRODUCT IS BROKEN BY
+  THE MAINTAINER'S OWN EDIT.** (2026-08-31, and the route is new.) An
+  arm counted messages containing `"cannot carry"`. The maintainer
+  reworded that notice, `tools/text_review.py --apply` wrote the new
+  sentence into the source, and the filter matched nothing -- so the arm
+  counted zero and its "at most once" assertion held whatever the code
+  did. (C-179.)
+
+- **THE VENDOR-CLAIM GATE READS "commit <sha>" ANYWHERE IN THREE FILES,
+  SO WRITING ABOUT SOMEBODY ELSE'S COMMIT TRIPS IT.** (2026-08-31, met
+  while mending the claims the re-vendor had made stale.)
+  `check_vendor_claims` compares every `commit <hex>` in README.md,
+  MAINTAINING.md and CLAUDE.md against the stamp -- which is what makes
+  it catch a document naming the vendor's old commit, and what makes it
+  complain about a sentence that merely MENTIONS another one. (C-183.)
+
+- **A RE-VENDOR'S REAL QUESTION IS ONE NO GATE HERE ASKS.** (2026-08-31,
+  upstream bf1bbbf to 6190917.) The colourspace comparison scores the
+  plugin against `TiledMap.render` from THE SAME vendored library, so a
+  change upstream moves both sides together and they go on agreeing --
+  "a differential cannot see a fault its expected side shares", arriving
+  at the dependency. (C-184.)
+
+- **THE ENTRY DESCRIBING THE FENCE FAULT IS WHAT BLINDED THE GATE
+  NEXT.** (2026-08-31, hours after the fence repair, and found by
+  planting a control rather than by reading.) This morning's lesson was
+  written as a bullet opening `- **A ` followed by three literal
+  backticks and the word FENCE. `_prose_outside_fences` toggles only on
+  a line that STARTS with the fence, and that line starts with a dash --
+  so the three backticks stayed in the prose, and three is ODD. The span
+  pattern pairs positionally over the whole document, so from that line
+  to the end of the file every backtick pairs with the wrong neighbour.
+   SO: DESCRIBE A DELIMITER, DO NOT QUOTE IT, which is the rule this
+  project already keeps for a path that no longer exists. (C-188.)
+
+- **TWO SUFFICIENT FIXES TO ONE OUTCOME MAKE EVERY SINGLE-SITE ENTRY
+  SURVIVE, AND THAT IS INFORMATION.** (Same day, four attempts before
+  the question was put the right way round.) Two independent repairs
+  kept a pair of handles outside the hit test's reach, and the test
+  asserts the OUTCOME, so mutating either one left the assertion true.
+  (C-193.)
+- **A SETTLE RETURNS BEFORE THE RESULT IS ADOPTED, SO A PREMISE ASKED IN
+  THE SAME BREATH READS THE OLD STATE.** (Same day.) A guard asserted,
+  immediately after waiting for the topology build to go quiet, that the
+  design no longer carried a topology -- and the assertion failed while
+  a direct measurement of the very same dialog said it should pass.
+  (C-194.)
+
+- **A HARNESS THAT MATCHES A SENTENCE THE PRODUCT SAYS IS RETUNED BY THE
+  NEXT SENTENCE.** (Same day, and it had been true of every save test in
+  the suite.) `press_save` waited out a deferred press by matching "will
+  be saved afterwards" in what the plugin said. (C-209.)
+
+- **A GUARD OVER THE WHOLE TREE CANNOT TELL YOUR OWN EDIT FROM WHAT IT
+  IS WATCHING FOR.** (Same day, twice in one hour.) A chain proving
+  catalogue entries asserted the tree was restored by asking `git diff
+  --quiet` over everything, and stopped on a document I had regenerated
+  myself twenty minutes earlier. (C-210.)
+
+- **AN INSTRUMENT THAT DIES AFTER REPORTING LOOKS EXACTLY LIKE THE THING
+  IT MEASURES DYING.** (2026-09-01.) A two-arm probe printed both its
+  readings and then took a SEGMENTATION FAULT at interpreter teardown,
+  holding dialogs alive past `exitQgis`. (C-219.)
+- **A PROBE'S CONTROL CAN MOVE THE THING BOTH ARMS ARE ABOUT.**
+  (2026-09-02, verifying row 24.) The control for "an ordinary design
+  change moves the shelf key" changed the ELEMENT COUNT -- which
+  repopulates the family list and lands on whatever that count offers,
+  so `hex-slice 4#4` became `square-colouring 5#5` and every later
+  reading was about a design nobody had chosen. (C-236.)
+
+- **AN ASSERTION THAT NAMES A MOMENT IS A CLAIM ABOUT WHEN ITS OWN
+  READING WAS TAKEN.** (2026-09-02, CI's coverage leg on rc13's own
+  commit, and it spent that candidate.) `a build that lands mid drag
+  does not wipe the gesture` failed on its main assertion rather than on
+  a premise -- "the panel adopted a new topology mid-gesture" -- on one
+  shard of three, each naming the same total of 772, while the same test
+  passed in the candidate's own local suite. (C-237.)
+
+- **A WAIT HELPER THAT DOES NOT WIDEN IS A CEILING SIZED ON THE FASTEST
+  MACHINE THE SUITE WILL EVER RUN ON.** (2026-09-02, rc14, and it spent
+  a second candidate in two days.) Every allowance in this suite is
+  `CONTENTION` times something -- 2.5 for a sharded run times each
+  platform's declared slowness, so a three-shard Linux job gets seven
+  and a half times this Mac's patience. (C-238.)
+
+- **A GUARD CAN BE AIMED AT A STATE WITHOUT KNOWING WHAT PRODUCES IT.**
+  (Same day, and it is the other half of the entry above.) The stall's
+  CAUSE is undiagnosed -- QGIS accepts a topology build, leaves it
+  `Queued`, and never starts it -- and the state it leaves was measured
+  exactly: a task the dialog believes is in flight, reading Queued, with
+  `active=0` on the pool. (C-243.)
+
+- **AN AUDIT READS EVERY STORE AFTER EVERY ACT, and it found three
+  defects three matrices had passed over.** (Same day, the maintainer's
+  ask.) Driving every control and handle on the Auckland data with live
+  update at its default, and reading the selection owner, both
+  choosers, the tick list, the drawing, the boxes, the record, the
+  marks, the note, the shelf, the unit and the map after each act,
+  found the zigzag's amplitude read as a drag delta, unlabelled corners
+  selectable, and the dual above. None of those is a single store
+  being wrong; each is two stores disagreeing after an ordinary act,
+  which is what a per-behaviour test cannot see and a full reading can.
+  The probe is `dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`.
+
+### C-268 — The method lessons -- reading, measuring, repairing and releasing -- one entry each, as they stood before consolidation
+
+<sub>Cut from `CLAUDE.md`, lines 1512–1798 of the 2026-09-05 revision.</sub>
+
+- **A HARM NAMED BY READING IS A HYPOTHESIS, EXACTLY LIKE A SITE.**
+  (2026-08-26, judging nine hunt claims.) This file already says that a
+  location reasoned out of the source reads exactly like one somebody
+  proved. Three of those nine described the code CORRECTLY -- a guard
+  really was missing from two of three doors, an embedded region really
+  does load under a source string the gate can never match, both
+  measured -- and not one of them costs a user anything, because in
+  every case a second mechanism answers first. (C-53.)
+
+- **A GATE CAN BE SATISFIED BY A SENTENCE DENYING IT.** (2026-08-26.)
+  `check_roadmap` is the first stage of every release and refuses a
+  candidate while the version's section lists work; it decided that by
+  searching for the words "nothing outstanding". The section carried,
+  honestly, "the reason this section does not yet say 'nothing
+  outstanding'" -- followed by a page of owed work -- and the gate read
+  the denial as the declaration and cleared the tree. (C-54.)
+
+- **A REPRODUCTION CAN STOP REPRODUCING BECAUSE A NEIGHBOURING RULE
+  CHANGED, AND THE DEFECT IS NOT DEAD -- ITS DOOR HAS MOVED.**
+  2026-08-18, writing the guard for `_restyle_only`. Its committed probe
+  reached pin retirement by moving the Classes spinner, and that route
+  had been REFUSED hours earlier when a class count stopped being
+  allowed to destroy a pin. ASK WHICH DOOR THE PROBE USED AND WHETHER
+  THAT DOOR IS STILL OPEN. (C-68.)
+
+- **A PROJECTION IS NOT A MEASUREMENT, AND ITS DIRECTION OF ERROR IS
+  KNOWABLE IN ADVANCE.** (Same day.) A third column of a performance
+  table was published as arithmetic -- the factors measured, their
+  composition not -- and put a Generate at about 0.73s against the
+  1.038s later measured, because each avoided tile was costed at the
+  average tile's share of the work. That is fair for a term that scales
+  with tiles and too generous for one where the per-object geometry is
+  uniform and the assembly is not. Quote a division as a division, say
+  which way it is likely to be wrong, and replace it with a
+  measurement rather than quietly swapping the number.
+
+**Adding a thing that PAIRS with an existing thing.** (2026-08-16, the
+No Data layer. Six defects in one day, all one shape, and the shape
+recurs whenever a feature gives an element a second layer, a second
+record or a second table.)
+- **DECIDE ABOVE THE THING, NOT INSIDE IT.** "This cannot be classified
+  at all" was implemented inside `make_graduated_renderer`, which
+  promises a QgsGraduatedSymbolRenderer and whose callers read its
+  ranges; returning a different class from it crashed the dialog on
+  the very column the change was about. It belongs in `seed_renderer`.
+
+**Changing something a classifier or a renderer decides.** (2026-08-16,
+three withdrawn attempts at one fix in a single afternoon.)
+- **WHEN THREE ATTEMPTS FAIL, THE APPROACH IS WRONG, NOT THE
+  CONSTANT.** Each fix here was a smaller step than the last and each
+  found a new way for a real value to fall into the gap it created.
+  The withdrawal, with the symptom left VISIBLE instead (empty classes
+  hatched), was the right answer and should have come sooner.
+
+**Carrying a record across a run.** (2026-08-16, the paired layer's
+renderer, found by a hunt hours after the carry-over was written.)
+**Process.**
+- **TARGETED RUNS CANNOT FIND WHAT THEY DO NOT NAME**, and three
+  candidate builds aborted proving it (2026-08-16). Each abort was the
+  same fault -- something counts or renders an element and looks only at
+  `_element_layer_ids` -- and each time it was fixed in the instances a
+  keyword search turned up, because the keyword matched what had just
+  been fixed. (C-17.)
+- Check upstream's actual semantics before reimplementing behaviour:
+  "unclassed" turned out to be matplotlib's linear Normalize (so 50
+  equal intervals, not a new scheme), and categorical colours follow
+  ListedColormap's sampling: code/(k-1) mapped through int(x*N), clamped
+  — 5 on tab10 = entries 0,2,5,7,9. An earlier "derivation" used round()
+  and got 0,2,4,7,9, painting the middle category purple instead of
+  brown; only the colourspace comparison against an actual upstream
+  render caught it. (C-18.)
+- After changing behaviour, re-audit nearby docstrings: this project's
+  standard makes stale documentation actively harmful, and an audit
+  found three lies (libs "appended", live update "after first
+  Generate", the removed shared-file box).
+- **WHEN A REPRODUCTION WILL NOT REPRODUCE, MEASURE THE SESSION THAT IS
+  BROKEN.** (2026-08-19.) Six reproductions of a reported defect were
+  built here, against the reporter's own data, and every one worked. Two
+  dumps behind `WEAVINGSPACE_ADOPT_DUMP` and one run by the person
+  holding the failure answered it in a minute: the dump was EMPTY, so
+  the plugin had never been told, because that session's Generate had
+  failed and `styleChanged` is connected only when a run lands or a
+  group is adopted. (C-85.)
+- **WHEN A CHANGE BREAKS A TEST, BISECT BY DISABLING RATHER THAN BY
+  REASONING, after ONE hypothesis fails.** Insert an early `return` at
+  successive points through the new code; the first point that turns
+  PASS into FAIL contains the culprit. (C-87.)
+
+- **A GITHUB RELEASE BODY PRESERVES SINGLE NEWLINES, so NEVER hard-wrap
+  one.** Release notes written at the usual 72 columns arrive as literal
+  line breaks, and on a phone that means a sentence broken mid-clause --
+  "nothing is promoted," ending a line, `main` starting the next --
+  because the renderer never gets to wrap to the viewport. (C-96.)
+
+- **A LIST ITEM NEEDS THE SPACE.** `- `, `* `, `+ ` and `1. ` are
+  bullets; `**bold` is a paragraph. Guarding on the bare character
+  silently skipped most of a document.
+
+- **A GLOB IS HOW A LOG'S DATE GETS SKIPPED.** (2026-08-19, and the
+  THIRD time this project has read a stale log as current.) The rule
+  already written is that every excerpt from a log must be dated before
+  it is read. (C-98.)
+
+- **VERIFY AGAINST WHAT SHIPPED, NOT WHAT YOU WROTE.** The second pass
+  at those notes was checked by reading the LIVE page back and
+  measuring every line, not by inspecting the local file. Where a
+  publish step exists between the file and the reader, the reader's
+  copy is the only one that counts.
+
+- **A FIX APPLIED TO A TWIN THAT DOES NOT HAVE THE FAULT IS DEAD CODE
+  THAT READS AS PROTECTION.** (2026-08-20, ledger row 34.) The rule that
+  a colour equal to the renderer's SOURCE SYMBOL is QGIS's clone rather
+  than somebody's decision is right on the graduated path, and was
+  written onto the categorized path in the same edit out of the usual
+  and correct suspicion about pairs. (C-103.)
+- **WHEN CI TIMINGS MOVE, COMPARE THE SUSPECT ON A MACHINE YOU CONTROL
+  BEFORE BELIEVING THE ORDERING.** (2026-08-20.) Windows ran 89 minutes
+  against a 53-59 minute history; the largest grower was 2.6x; and it
+  was the one test that most exercises the path a fix landed the same
+  day had opened. (C-110.)
+- **A SITE NAMED BY READING IS A HYPOTHESIS, AND IT READS EXACTLY LIKE
+  ONE SOMEBODY PROVED.** (2026-08-20, the same defect.) Where that
+  refusal lived was worked out from the source, written into the
+  handover, and copied from there into ROADMAP.md, MAINTAINING.md and
+  docs/TESTING.md in one documentation round -- all four naming
+  `_generate`, which a debounced tick never reaches, and all four
+  calling the refusal silent when it says a sentence that is false.
+  (C-129.)
+
+- **A REPORT ABOUT A VERSION OR A BEHAVIOUR IS FIRST A QUESTION ABOUT
+  WHICH BUILD IS INSTALLED.** (2026-08-29.) The maintainer reported that
+  the title bar "no longer shows the rc version properly". (C-137.)
+- **A CLAIM'S MECHANISM IS USUALLY RIGHT AND ITS HARM USUALLY IS NOT,
+  AND THE DOOR IT NAMES IS WHEREVER THE HUNT WAS STANDING.**
+  (2026-08-29, taking sixteen owed claims to the end.) This file already
+  says a harm named by reading is a hypothesis. AND TWO OF THE FOURTEEN
+  ARE STILL OWED A GUARD AT THEIR OWN DOOR, having been closed by a fix
+  written for another claim: a claim that has stopped reproducing is not
+  a claim that is tested. (C-138.)
+
+- **PROVE THE QUANTITY THE FAILURE MEASURES, NOT ONE THAT SOUNDS
+  EQUIVALENT.** (Same day, and it is why the four repairs above each
+  looked finished.) The guard for the ceiling measured
+  `minimumSizeHint()`; the tests that were failing measure `dlg.width()`
+  after `show()`. ASK OF ANY GUARD: is this the number the red run
+  prints? (C-151.)
+
+- **A DEDUPE WRITTEN FOR AN UNREACHABLE HARM IS DELETED, NOT KEPT.**
+  (Same day.) `_report_quietly` does not deduplicate, so a new notice on
+  a gate reachable from every live tick looked certain to repeat -- a
+  warning that fires constantly being one people learn to ignore.
+  (C-170.)
+
+- **UPSTREAM MOVED TWELVE COMMITS WITHOUT BUMPING ITS VERSION, AND FIXED
+  ONE OF OUR FINDINGS.** (2026-08-31.) The vendored stamp reads
+  `0.0.7.89 (bf1bbbf)`; upstream's head is `6190917` with `topology.py`
+  at +179/-207 and `_tiling_geometries.py` at +44/-67 -- and the version
+  string is `0.0.7.89` at BOTH ends. (C-180.)
+
+- **PROFILE THE THING A PERSON WAITS FOR, BECAUSE THE COST IS OFTEN NOT
+  WHERE THE SUBJECT IS.** (2026-08-31, asked whether the symmetry work
+  could speed up tiling the plane.) It cannot -- covering the plane is
+  TRANSLATION, and that half is already vectorised: 191,184 tiles are
+  built in 2.7s of numpy and STRtree, which is upstream having taken
+  this project's own optimisation. (C-182.)
+
+- **A DOCUMENTATION MERGE IS NOT A NO-OP FOR THE SUITE.** (Same day.)
+  `test_every_documented_command_still_exists` opens CLAUDE.md,
+  MAINTAINING.md, README.md and ROADMAP.md, which is exactly why those
+  four are in `STAGE_DEPENDS` -- a documentation edit really can break a
+  test, and it is the kind of change that feels as though it cannot.
+  (C-187.)
+
+- **A FIX APPLIED WHERE THE FAULT CANNOT BE REACHED IS DEAD CODE THAT
+  READS AS PROTECTION, AND I WROTE ONE WITHIN AN HOUR OF WRITING THE
+  RULE'S OTHER HALF.** (2026-09-01.) A margin pass returned early for
+  want of a layout pass, under a comment promising to try again later
+  while nothing scheduled a later, so it was taught to re-arm a timer.
+  (C-195.)
+
+- **THE DESIGN A CLAIM IS DRIVEN ON CAN REFUTE A REAL DEFECT.**
+  (2026-09-01, twice in one afternoon, both mine.) A vertex drag past
+  its control's range records an out-of-range value on `archimedean
+  4.8.8` and cannot on `laves 3.3.4.3.4`, where the library refuses the
+  oversized nudge before anything is recorded; and a drag's frame drifts
+  when a VERTEX is held and not when an EDGE is scaled, since only the
+  first grows the extent the fit re-measures. (C-199.)
+
+- **A RECORDED "DECISION" IS A HYPOTHESIS TOO: CHECK IT IS STILL ONE
+  BEFORE PUTTING IT TO ANYBODY.** (2026-09-01, and it is this file's
+  own rule about inventing questions, met from the other side.) The
+  roadmap carried an open question -- does `publish_candidate` require
+  every workflow, or every workflow whose red would stop a release --
+  whose stated worry was that a genuine sampling survivor would one
+  day block a candidate and start the `--despite-ci` habit. It cannot.
+  Every measuring step in `mutation.yml` is `continue-on-error`: the
+  catalogue sweep, `mutate_auto` on changed lines, the census and the
+  gallery render. What CAN redden that workflow is provisioning, the
+  baseline check, an artefact upload, or the coverage leg, which
+  checks each shard's exit and refuses a partial record -- and the two
+  reds of 2026-08-31 were both that leg. So the gate already means
+  what the 2026-08-11 decision says. ASK OF ANY RECORDED QUESTION
+  WHETHER ITS PREMISE STILL HOLDS before spending somebody's attention
+  on it; a question written months ago describes the software of that
+  day.
+
+- **A FIGURE WITH NO INSTRUMENT BESIDE IT IS FOLKLORE, AND A READER WILL
+  SAY SO.** (2026-09-01, from a colleague reading the symmetry note.)
+  Their two comments were "I have no idea what code it's running to find
+  that the hex 7-colouring is especially egregious" and "what did it do
+  with the rough implementations it claims to have written". THE RULE:
+  when a document quotes a measurement, name the code that made it in
+  the same sentence, and re-run it before quoting it again. (C-202.)
+
+- **AND ALL FOUR WERE BUILT THE SAME DAY, with what each turned out to
+  cost.** (2026-09-01, after the grilling above.) THE LABEL/KEY
+  SEPARATION WAS THE ONE THE OTHERS SAT ON, and it touched more than the
+  catalogue: `family_combo` was built with `addItems(names)`, so 13
+  product sites and 121 suite sites treated the chooser's TEXT as the
+  design's identity. (C-204.)
+
+- **OPENING A GEOPACKAGE COSTS TIME PROPORTIONAL TO ITS LAYERS, AND A
+  HELD HANDLE DOES NOT ANSWER IT.** (2026-09-01, measured against GDAL
+  directly for the first time.) That sentence had stood in four
+  documents since 2026-08-29, INFERRED from the shape of the save's own
+  growth rather than asked of the dependency -- a cause named by
+  reading, which reads exactly like one somebody proved. (C-205.)
+
+- **A COMPARISON ACROSS TWO RUNS ON A BUSY MACHINE IS NOT A
+  MEASUREMENT.** (Same day, and it nearly put a wrong number in a commit
+  message.) A 32-element save read 1.1s in one run and 2.9s in the next
+  ON IDENTICAL CODE, with the machine's load average between 18 and 37
+  all session. (C-206.)
+
+- **OGR HANDS BACK A DATETIME IN ITS OWN FORMAT, SO A VALUE COPIED OUT
+  OF A ROW IS A DISPLAY RATHER THAN WHAT WAS STORED.** (Same day.)
+  Writing this project's own `layer_styles` rows meant reproducing what
+  QGIS puts there, so the columns were read off a file QGIS had written
+  -- and the update_time copied from that reading was OGR's rendering,
+  not the stored text. (C-207.)
+
+- **A DOCUMENTATION EDIT CANNOT INVALIDATE A CANDIDATE, AND KNOWING THAT
+  IS WHAT MAKES THE HOUR AFTER ONE USABLE.** The receipt digests exactly
+  the files that SHIP, taken with `build.py`'s own `shipped_files()`,
+  and it deliberately ignores tests, tooling and documentation --
+  because those cannot change what a reviewer installed, and a gate that
+  fired on a comment in the suite is a gate people learn to route
+  around. (C-216.)
+
+- **A WORKFLOW'S NAME IS NOT ITS CONTRACT, AND THIS ONE HAS BEEN MISREAD
+  TWICE.** (2026-09-01, on the maintainer asking whether the mutation
+  gate had been tightened.) It had not, and nothing about it had moved
+  since 2026-08-19. Read off `.github/workflows/mutation.yml` rather
+  than off the prose about it: both measuring steps carry
+  `continue-on-error`, so no survivor can redden that workflow and the
+  decision of 2026-08-11 holds exactly as written. THE HABIT: when a
+  gate's behaviour surprises you, open the gate, not the document that
+  describes it. (C-217.)
+
+- **AND I EDITED A DOCUMENT THE RUNNING SUITE READS.** (Same day, and it
+  is the tree-lock rule with the roles reversed.) That rule is usually
+  stated about SOURCE -- do not edit what a gate is measuring -- and
+  `STAGE_DEPENDS` names CLAUDE.md, MAINTAINING.md, README.md and
+  ROADMAP.md for exactly this reason: `test_every_documented_
+  command_still_exists` opens them, so a documentation edit really can
+  turn a running candidate red, and it is the kind of change that feels
+  as though it cannot. (C-218.)
+- **AND A DEPENDENCY'S REFUSAL CAN STOP BEING TRUE WHILE THE RULE IT
+  JUSTIFIED STANDS.** Measured 2026-09-02 with the plugin out of the
+  way: a `QgsVectorLayer` on `path|layername=tiles_b_v1`, copied into
+  `tiles_b_v1` through an open OGR update transaction the way
+  `bridge._write_one_layer` does, wrote 40 of 40 features, raised
+  nothing, and committed `OGRERR_NONE`. (C-229.)
+- **A PATCH THAT REWRITES ANOTHER PATCH'S OUTPUT TAKES ITS MARKER WITH
+  IT.** (2026-09-04, found by the suite rather than by reading.)
+  `vendor_weavingspace.py` decides whether a patch is already in a file
+  by looking for its own `new` text, which doubles as the marker.
+  (C-241.)
+
+- **A RATE QUOTED FROM TOO FEW DRAWS IS NOT A MEASUREMENT, AND I
+  PUBLISHED TWO.** (2026-09-04, chasing the topology matrix's one
+  failing cell.) The cell reproduced on the second of two attempts, and
+  I reported it as DETERMINISTIC; the next run of the same probe
+  answered in 1.43s both times. THE HABIT: before reporting a rate, ask
+  how many draws would be needed to tell it from zero, and print the
+  conditions of every arm beside its verdict. (C-242.)
+
+### C-269 — The web-app rule's two sanctioned uses and the checker's wording exemption, as they stood
+
+<sub>Cut from `CLAUDE.md`, lines 36–61 of the 2026-09-05 revision.</sub>
+
+- **Never mention the web app (or MapWeaver) in user-facing text.**
+  Plugin users do not know it exists and have no reason to care;
+  telling them a feature "reproduces the web app" or "is ground the
+  web app does not cover" explains the plugin in terms of something
+  they cannot see. Describe what the control does. The app remains a
+  maintainer-facing fact — catalogue parity, the reference renderer,
+  CLAUDE.md and MAINTAINING.md — and the paper's title may of course
+  name it in a citation. ONE exception, added the same day: the help
+  tab and user guide may name and link MapWeaver among the further
+  reading, as another platform for making these maps with the same
+  library. Never as an explanation of what a control does.
+  (Explicit user instruction, 2026-08-07.)
+  A SECOND SANCTIONED USE, settled 2026-08-16: PROVENANCE. README.md
+  and docs/index.html say the plugin "echoes and extends our earlier
+  (also handwritten) web-based interface", inside the paragraph about
+  who wrote this and how, and the maintainer ruled that fine. The rule
+  forbids explaining what the software DOES in terms of something the
+  reader cannot see; it does not forbid saying where the software came
+  from. A prose hunt raised it on 2026-08-16 and the answer is here so
+  the next one need not.
+  WORTH KNOWING WHILE YOU READ THAT: `check_standards` greps for
+  `web app` and `MapWeaver`, so that sentence passes because of its
+  wording rather than because the checker understands the exemption.
+  If the rule is ever tightened, tighten the checker and declare this
+  as an exception in the same commit -- an exemption that survives
+  only by synonym is not an exemption anybody decided.
+
+
+### C-270 — Worktrees scattered through the shared scratch folder, and how the live one was brought home
+
+<sub>Cut from `CLAUDE.md`, lines 90–109 of the 2026-09-05 revision.</sub>
+
+- **EVERYTHING FOR THIS PROJECT LIVES INSIDE THE PROJECT DIRECTORY.**
+  (Maintainer's rule, 2026-08-29: "nothing associated with this
+  project should be outside of the weavingspace-qgis-plugin ... the
+  claude scratch is shared by everyone".) Worktrees included -- they
+  may live anywhere git allows, and that is not a reason to scatter
+  them through a shared folder. Five had accumulated there and a dozen
+  more under `/private/tmp`.
+  RETIRE A WORKTREE WHEN ITS WORK IS MERGED OR ABANDONED, and know
+  that REMOVING A WORKTREE DOES NOT DELETE ITS BRANCH -- which is what
+  makes retirement safe here, since `check_roadmap --merge` looks for
+  `for-<version>/*` BRANCHES and would fail if one went missing. Check
+  that after any clean-up rather than trusting it.
+  AND MOVING THE LIVE ONE IS USUALLY THE WRONG SHAPE: the tidiest end
+  is to check its branch out in the project directory itself and
+  retire the outside folder, which puts everything in one place
+  instead of relocating a second copy. Anything gitignored --
+  `dev/`, `dist/`, `reports/` -- has to be carried across first, and
+  every colliding file backed up rather than overwritten, because
+  those directories are exactly where the things git is not protecting
+  live.
+
+
+### C-271 — Where the wearing metaphor reached a user, and why the internal uses were left
+
+<sub>Cut from `CLAUDE.md`, lines 115–127 of the 2026-09-05 revision.</sub>
+
+- **When writing about VISUALIZATION, say "display", never "wear".**
+  An area DISPLAYS an icon; a tile DISPLAYS a class colour. The
+  metaphor of a thing wearing its symbology had spread through this
+  project's own prose -- some fifty-odd uses across the package and
+  the binding documents -- and it reached the user exactly once, in
+  the icon-mode coverage notice written on 2026-08-19, which is where
+  the maintainer met it and ruled it out. It reads as ours rather than
+  as plain description, and a reader meeting "these areas wear an icon"
+  has to translate before they can act. (Maintainer's rule,
+  2026-08-19.) The existing internal uses are NOT swept: rewording a
+  phrase that appears inside settled-rule language in CLAUDE.md,
+  docs/TESTING.md and the generated documents is its own decision, and
+  the rule binds new prose from here.
+
+
+### C-272 — Why the ledger exists: twenty-six defects and eleven unguarded fixes in one day
+
+<sub>Cut from `CLAUDE.md`, lines 129–147 of the 2026-09-05 revision.</sub>
+
+- **A DAY THAT FINDS MANY DEFECTS GETS A LEDGER, and the ledger is
+  COMMITTED.** `docs/process/defects-2026-08-17.md` is the model: one
+  row per defect with what a user lost, where it lives, when it
+  arrived, and an OWES column naming exactly which of
+  test-and-catalogue-entry it still lacks -- plus the open ones, with
+  their reproductions and any attempted fix that FAILED and why not to
+  repeat its shape.
+  IT EXISTS BECAUSE THE OTHER THREE PLACES CANNOT HOLD IT. ROADMAP.md
+  carries only what is outstanding, so a defect fixed without a guard
+  drops out of it; `dev/state-of-play.md` is gitignored and rewritten
+  every session; and a conversation ends. On 2026-08-17 twenty-six
+  defects were found in one day and eleven fixes went in without
+  guards -- exactly the state that is invisible everywhere else and
+  reads as finished.
+  Write it when a session passes roughly ten defects, point at it from
+  ROADMAP.md and from the handover, and keep the OWES column honest:
+  `--` means the fix rests on its hunt's reproduction alone, which is
+  not what this project calls fixed.
+
+
+### C-273 — The documentation standard's scope and its four specifics, as stated in full
+
+<sub>Cut from `CLAUDE.md`, lines 152–178 of the 2026-09-05 revision.</sub>
+
+- **Documentation standard**: all new code carries docstrings and
+  section comments written for a weavingspace-literate, QGIS-naive
+  maintainer — explain each QGIS/Qt concept at its point of use. This
+  is an explicit user requirement; match the density of the existing
+  modules. It applies to **everything this project writes** — the
+  plugin package, `tools/`, `tests/`, `build.py` and `release.py`
+  alike — and not merely to code inside the plugin folder. The
+  checker enforced it on the package only until 2026-08-09, which
+  left the tooling ungoverned while that tooling grew to rewrite
+  shipped source, decide the mutation score and write into a user's
+  QGIS profiles. `vendor/` is the one exclusion, because it is
+  upstream's code held verbatim: our conventions there would either
+  be discarded at the next re-vendor or fail forever. (User
+  instruction, 2026-08-09.) Specifically:
+  - document INPUTS AND OUTPUTS, not just purpose: an Args block that
+    says what each argument means and what happens when it is
+    omitted, a Returns block that says what the caller gets and
+    whether anything was mutated, and Raises where a caller could
+    reasonably be surprised;
+  - say what a value means in this project's terms ("the passing
+    pattern as typed, e.g. 1,2,2,1"), not its type alone;
+  - add comments in the MIDDLE of longer functions, at the points a
+    reader would otherwise stop and wonder — why this order, why this
+    guard, why this apparently redundant step;
+  - when a choice has a reason that is not obvious from the code
+    (thread safety, an upstream semantic, a Qt quirk, a bug this
+    prevents), the reason belongs at that line.
+
+
+### C-274 — The register that drifted for a session before the generators were enforced
+
+<sub>Cut from `CLAUDE.md`, lines 161–180 of the 2026-09-05 revision.</sub>
+
+- **Generated documents are regenerated, never remembered.**
+  `docs/TEST-MAP.md` and `docs/BUG-REGISTER.md` are produced from the
+  suite — the map from the `check()` registrations, the register from
+  the `Regression:` lines — so neither is ever hand-edited and both
+  are regenerated whenever the suite gains, loses or renames a test:
+
+      python3 tools/test_map.py
+      python3 tools/bug_register.py
+
+  A generated document nobody regenerates is worse than none, because
+  it keeps its authority while losing its accuracy, and the map is
+  consulted precisely when deciding where to write tests next. This
+  used to rely on somebody noticing — the register drifted for a
+  whole session and was corrected only when the user asked — so it no
+  longer relies on anyone: `tools/check_standards.py` recounts both
+  with the GENERATORS' OWN rules and fails when either document
+  disagrees with the suite, and `release.py` regenerates both. If you
+  add a test and the standards check complains, it is telling you to
+  run the two commands above, not to edit a number. (Made enforced
+  2026-08-09, after the user pointed out they kept having to ask.)
+
+
+### C-275 — The split of the binding documents: the measure, the last-sentence trap, and what is exempt, in full
+
+<sub>Cut from `CLAUDE.md`, lines 172–208 of the 2026-09-05 revision.</sub>
+
+- **A BINDING DOCUMENT IS SPLIT IN TWO, AND THE SPLIT IS PART OF
+  UPDATING IT.** (Maintainer's instruction, 2026-09-05, after these
+  five documents reached 18,997 lines between them and this one reached
+  7,048.) The live half keeps the RULE -- the lesson's headline, the
+  decision, the procedure, the command -- and `<NAME>-archived.md`
+  keeps the ACCOUNT of what it cost to learn, under an id the live half
+  quotes: this file's ids are `C-1` upward, and MAINTAINING.md,
+  ROADMAP.md, docs/TESTING.md and docs/PUBLISHING.md each have their
+  own letter. Nothing is deleted; one grep gets the rest.
+  THE MEASURE IS THE RULE PLUS ABOUT ONE CLAUSE OF EVIDENCE.
+  (Maintainer's ruling, 2026-09-05, with room to break it where the
+  situation demands: a ruling keeps its whole statement, a procedure
+  keeps every step, a debt keeps what names it.) A bare imperative is a
+  platitude nobody applies, so keep the clause that makes the rule
+  believable -- and not the day, the wrong first hypothesis or the
+  measurement, which are what the archive is for.
+  AND THE RULE IS USUALLY THE LAST SENTENCE, NOT THE FIRST. These
+  entries narrate first and generalise last, so a cut that keeps the
+  opening keeps the STORY and archives the RULE. That was got wrong
+  thirty-eight times on the day of the split. Read to the END of an
+  entry before deciding what it is, and
+  `python3 tools/doc_archive.py --stranded` reports the shape after.
+  WHEN YOU APPEND A LONG ACCOUNT, SPLIT IT AS YOU WRITE IT -- the rule
+  into the live document, the account straight into the archive. That
+  is the moment you still know which half is which, and it costs
+  nothing then and an afternoon later.
+  IT IS ASKED FOR RATHER THAN REMEMBERED. `python3 tools/doc_archive.py`
+  checks that every pointer leads somewhere, that no account is
+  stranded where nothing points at it, and that each live document is
+  inside its budget; `check_standards` runs it, so it runs at every
+  push and every release. IDS ARE NEVER RENUMBERED, because they are
+  quoted in the documents, in commits and in conversations.
+  WHAT IS EXEMPT is in docs/DOC-ARCHIVING.md, and the one to know is
+  ROADMAP.md: nothing a version still OWES may move, because the
+  release gate reads that file and a debt somebody has to look up is a
+  debt that gets forgotten. Architecture is exempt too -- MAINTAINING.md
+  lost two paragraphs to the first pass and that was the right answer.
+
+
+### C-276 — Publishing a candidate: what the tool refuses and what it does not loosen, as stated in full
+
+<sub>Cut from `CLAUDE.md`, lines 208–231 of the 2026-09-05 revision.</sub>
+
+- **EVERY CANDIDATE IS PUBLISHED TO GITHUB AS A PRE-RELEASE, and that
+  is part of the process rather than a separate permission.**
+  (Maintainer's instruction, 2026-08-21, making standard what had been
+  done by hand ten times.) A candidate that passes every gate is
+  published with `python3 tools/publish_candidate.py --notes <file>`:
+  a tag `v<version>rc<N>` on the candidate's own commit, a release
+  titled `<version>rcN — release candidate`, marked PRE-RELEASE so it
+  never becomes Latest and never displaces a real version, carrying
+  the three things a tester needs -- the zip they install, the
+  per-test report, and the colourspace comparison PDF.
+  THIS DOES NOT LOOSEN THE RULE BELOW IT. Publishing a RELEASE --
+  tagging on `main`, making something Latest -- remains the
+  maintainer's explicit call, and `release.py` still refuses anywhere
+  but `main`. What changed is that a CANDIDATE, which promotes
+  nothing and leaves `main` untouched, no longer waits on a second
+  permission: testers cannot test what has not been sent to them, and
+  the ten that went out before this were each published by somebody
+  remembering to.
+  THE TOOL REFUSES rather than guesses: no receipt matching the tree,
+  a tag already taken, CI not green on that commit, or no notes. The
+  override is `python3 tools/publish_candidate.py --despite-ci
+  <reason>`, which prints the reason IN the release. The numbers in the
+  body are read rather than typed. What each refusal is for: C-3.
+
+
+### C-277 — Branches named for their version and the roadmap that lists what is owed, as stated in full
+
+<sub>Cut from `CLAUDE.md`, lines 235–254 of the 2026-09-05 revision.</sub>
+
+- **Work for a LATER version lives on a branch named for that
+  version, and everything owed by a version is written in
+  ROADMAP.md.** Two ways work goes missing, both closed by the same
+  gate. A branch written for a release and never merged: branches are
+  named `for-<version>/<slug>`, so work parked for 0.24.1 cannot
+  reach 0.24.0 by accident and work meant for 0.24.0 cannot be left
+  out of it. And an idea nobody wrote down: ROADMAP.md holds
+  branch-backed entries AND things wanted with no code yet, because
+  an idea that lived only in a conversation is gone when the
+  conversation is.
+  `tools/check_roadmap.py --merge` is the FIRST stage of every
+  release -- before standards, before the suite -- and it merges
+  branches due for this version, refuses when the version's roadmap
+  section still lists outstanding work, and stops rather than
+  resolving a merge conflict, because a conflict is a question about
+  intent. DEFERRING an entry to a later version is legitimate and is
+  the USER'S decision: it is made by moving the entry to a later
+  section, an edit no tool may make on their behalf. Delete an entry
+  when it lands; a roadmap nobody prunes becomes a diary.
+  (User instruction, 2026-08-11.)
+
+
+### C-278 — The platform probe: what it holds and why its list lives in the tool
+
+<sub>Cut from `CLAUDE.md`, lines 242–262 of the 2026-09-05 revision.</sub>
+
+- **THE PLATFORM QUESTIONS RUN FIRST ON EVERY LEG, so a second
+  machine's answer costs minutes rather than an hour.**
+  `tools/platform_probe.py` runs before the functional suite on
+  Windows, macOS and the Linux matrix, and holds the tests whose
+  verdict is decided by something this development machine cannot
+  vary honestly: font metrics, locale, and how a window manager
+  assembles a dialog. Together they take seconds.
+  IT WAS PAID FOR ON 2026-08-29, by a font-metrics failure Windows
+  reported seventy-five minutes into its job and nothing local could
+  have caught: C-4.
+  IT DOES NOT REPLACE THE SUITE and nothing may be moved out of the
+  suite into it. This is the release gates' cheapest-first ordering
+  applied to CI: a fast refusal earns its place precisely because the
+  expensive measurement still follows.
+  THE LIST OF TESTS LIVES IN THE TOOL, not in `ci.yml`, because a
+  list of names in YAML is a hand-kept list nothing can check -- and
+  a name in it that no longer exists in the suite is a FAILURE there
+  rather than a skip, since a probe silently running four tests where
+  it names five is the matches-nothing-reports-nothing fault this
+  file already records twice.
+
+
+### C-279 — What .gitignore had conflated with keeping a push small
+
+<sub>Cut from `CLAUDE.md`, lines 307–322 of the 2026-09-05 revision.</sub>
+
+- **The process is PUBLIC; only working files and private material
+  are not.** Two different questions, and they were conflated: the
+  rule above is about keeping a pre-candidate PUSH small, and it had
+  leaked into .gitignore as though the repository should be quiet
+  about how the work is done. It should not. `docs/process/` carries
+  the test-campaign records, the perceptual colour findings and the
+  note sent upstream -- including its retraction of a diagnosis that
+  blamed somebody else's commit, because a project publishing only
+  its correct diagnoses is publishing a fiction.
+  What stays out is what has no reader but the next session:
+  one-shot patch scripts, scratch, and `dev/state-of-play.md`, which
+  is rewritten every session and whose durable content is promoted
+  into these binding documents as it earns its place -- publishing it
+  would duplicate them in a less reliable form. The test is not "is
+  this tidy" but "who reads this, other than us tomorrow".
+  (User instruction, 2026-08-11.)
+
+
+### C-280 — Eighteen red pushes across six hours, and the one command that reads ci.yml
+
+<sub>Cut from `CLAUDE.md`, lines 314–342 of the 2026-09-05 revision.</sub>
+
+- **EVERY push to a branch CI watches is a push that gets watched,
+  not only the pre-candidate one.** The rule below was written for
+  the pre-candidate push and read as though ordinary commit pushes
+  were a different kind of act. They are not: `ci.yml` runs on all of
+  them. On 2026-08-12 the branch went red at 07:52 on the text-review
+  gate and stayed red for EIGHTEEN pushes across six hours, while
+  work continued on top of it, and it surfaced only because the
+  maintainer forwarded a GitHub notification. Nothing in the process
+  was looking. So: after a run of commits, ask what the last push
+  did -- `gh run list --branch <branch> --limit 1` is one second --
+  and never let a session end without knowing the branch's colour.
+  The specific trap here is worth naming, because it will recur: the
+  local checks all passed the whole time, because approving prose is
+  the USER'S act and no local gate may do it. A GATE ONLY A PERSON CAN
+  SATISFY IS EXACTLY THE ONE THAT GOES UNSATISFIED. So the local habit
+  is now ONE command, and it reads its own contents out of `ci.yml`.
+  (C-258.)
+
+      python3 tools/check_before_push.py
+
+  It runs every step of the `standards` job in order -- currently the
+  rule check, the secrets audit, the text-review check, the
+  published-content audit and the packaging check -- and says out
+  loud which steps it could not run rather than passing over them. A
+  hand-kept list of somebody else's checks drifts, silently, and the
+  drift is found by the thing the list was meant to prevent; add a
+  step to that job and it runs here from the next invocation with
+  nobody editing anything. It does NOT run the QGIS jobs, which is
+  what CI is for. (2026-08-12.)
+
+
+### C-281 — Why CI runs beside the gates and fixes go in a worktree
+
+<sub>Cut from `CLAUDE.md`, lines 323–338 of the 2026-09-05 revision.</sub>
+
+- **Linux CI runs BESIDE the local gates, not after them, and its
+  fixes are made in a WORKTREE, and the push is watched.** A CI
+  watcher is armed in the same breath as the push and reports
+  twice -- run appeared, run finished with each job's verdict --
+  because its SILENCE after a push means the run was never
+  created (usually org Actions policy), which is worth knowing in
+  a minute rather than twenty. Push the branch first so GitHub's
+  runners (about twenty minutes) are already answering while
+  `release.py --rc` reads the working tree for ninety; then fix
+  whatever CI reports in `git worktree add ../ws-ci-fixes`, never in
+  the frozen tree, and merge when both have answered. A candidate is
+  promoted only when local gates and the Linux matrix are both
+  green. The worktree part is not fussiness: editing a tree that a
+  gate or a sweep is reading produced two spoiled measurements in one
+  night. Procedure in docs/PUBLISHING.md. (User instruction,
+  2026-08-10.)
+
+
+### C-282 — Why the consent gate stays the only route to PyPI, in full
+
+<sub>Cut from `CLAUDE.md`, lines 331–348 of the 2026-09-05 revision.</sub>
+
+- **What CI needs is never paid for out of what a user is promised.**
+  The QGIS containers ship no scientific stack, so CI must provision
+  geopandas and the rest before the suite can run -- and the plugin
+  can already do that, behind the consent dialogue. The forbidden
+  shortcut is a flag or environment variable letting CI skip the
+  dialogue, because it would put a consent-free download path into
+  the SHIPPED plugin, which is the one thing a plugin repository
+  reviewer looks hardest at. The provisioning therefore lives in
+  `tools/ci_provision.py`, outside `build.shipped_files()`: a
+  maintainer running a program that installs packages is consent,
+  software installing them unasked is not.
+  `test_pypi_provisioning_is_reached_only_through_consent` holds the
+  line across every shipped file and is in the mutation catalogue.
+  Calling the plugin's OWN provisioner rather than pip is deliberate
+  and is the point of the Linux leg: wheel-tag matching, the numpy
+  1.x floor, the support-package fetch and the pyproj data
+  redirection only ever execute there. Full reasoning in
+  docs/PUBLISHING.md. (2026-08-11, after the first Linux run.)
+
+
+### C-283 — The forty minutes a candidate used to cost to a belief about the gate order
+
+<sub>Cut from `CLAUDE.md`, lines 346–364 of the 2026-09-05 revision.</sub>
+
+- **Do not re-run a gate the release is about to run.** The gates
+  are ordered cheapest-first for exactly this reason: standards and
+  secrets take seconds, and the FUNCTIONAL SUITE IS THE FOURTH STAGE,
+  so a failing suite aborts a candidate about twenty-four minutes in
+  having cost little more than the suite itself. Running that suite
+  standalone "to be safe" beforehand therefore buys no earlier
+  warning and doubles the wait; the same goes for the coverage
+  record, the gallery and the reference comparison. Run a subset
+  while iterating (`tools/run_some.py`), then go straight to
+  `release.py --rc` and let the gates do the whole-tree work once.
+  The habit this replaces cost roughly forty minutes per candidate
+  and was justified by a belief about the gate order that was simply
+  wrong. What DOES belong before a candidate is the cheap work the
+  gates only CHECK rather than perform: regenerate `docs/TEST-MAP.md`
+  and `docs/BUG-REGISTER.md` (the standards check compares them
+  against the suite and stops the build on a stale count), and settle
+  the text-review queue, which is the user's act and cannot be done
+  by a gate at all. (User instruction, 2026-08-10, after noticing the
+  duplication.)
+
+
+### C-284 — What --resume skips, what STAGE_DEPENDS names, and why a skip must be honest
+
+<sub>Cut from `CLAUDE.md`, lines 375–396 of the 2026-09-05 revision.</sub>
+
+- **`--resume` exists so a defect in the MACHINERY does not cost a
+  re-run of the SOFTWARE's gates, and it is opt-in.** Three
+  candidates were abandoned in one evening (2026-08-11), each after
+  most gates had passed, and not one of the three faults was in the
+  plugin. `release.py --resume` skips a stage that passed before
+  against exactly the inputs it has now; without the flag nothing is
+  ever skipped, because a full run is what a release means. What
+  counts as unchanged is `STAGE_DEPENDS`, narrower than the tree and
+  wider than what ships: editing `tests/run_tests.py` retires the
+  suite's answer though no shipped byte moved, and a fix to
+  `tools/coverage_per_test.py` retires the coverage record and
+  nothing else. The documents the suite READS are in that list,
+  because `test_every_documented_command_still_exists` opens them and
+  has failed twice on prose. A skip must be honest as well as fast:
+  the four stages whose output is used may only be skipped when that
+  output survives in `reports/stage-logs/`, and the saved text is
+  handed back, since a report quoting an empty capture describes
+  nothing. Every skip announces the time the stage first passed.
+  Guarded by `test_resuming_skips_only_what_still_holds`. A candidate
+  meant for PROMOTION is built by a run that measured this tree;
+  resume is for recovering from an interruption, not for avoiding
+  measurement. (2026-08-11.)
+
+
+### C-285 — Why a release from a pre-candidate branch leaves the page describing the previous version
+
+<sub>Cut from `CLAUDE.md`, lines 382–401 of the 2026-09-05 revision.</sub>
+
+- **A release is published FROM `main`, and release.py refuses
+  anywhere else.** `--push` runs `git push origin HEAD`, so it sends
+  whatever branch you are standing on, and a tag does not care what
+  branch it is on. Promote from a pre-candidate branch and the result
+  is a perfectly real GitHub Release sitting beside a project page
+  and a README that still describe the PREVIOUS version, because
+  Pages serves `docs/` from `main` and the repository's front page is
+  `main`'s README. Nothing in git objects; only somebody visiting the
+  page finds out. So the sequence has a checkout in the middle of it
+  -- `git checkout main && git merge --ff-only pre-<version>rc<n>` --
+  and `release.py` stops before committing or tagging if you are
+  elsewhere, naming that exact command. It refuses rather than
+  merging on anyone's behalf, because merging is a decision, and
+  `--ff-only` is the guard: if it will not fast-forward, something
+  reached `main` that this candidate never saw. The fast-forward
+  leaves the tree byte-identical, so the receipt still matches and
+  nothing is re-measured. Guarded by
+  `test_a_release_publishes_from_the_branch_the_page_is_served_from`.
+  (Found 2026-08-11 while writing the sequence out, before it had
+  been done wrongly rather than after.)
+
+
+### C-286 — The receipt: what it digests and what it deliberately ignores
+
+<sub>Cut from `CLAUDE.md`, lines 388–405 of the 2026-09-05 revision.</sub>
+
+- **A release PROMOTES a candidate; it never re-derives one.** A
+  candidate that passes every gate writes a receipt
+  (`dist/CANDIDATE-<label>.receipt.json`) holding a digest of exactly
+  the files that ship, taken with `build.py`'s own `shipped_files()`
+  so the two rules cannot drift. `release.py` then REFUSES unless a
+  receipt matches the tree in front of it, and having found one it
+  skips the suite, gallery, coverage and reference comparison — those
+  measured this artefact already, and re-running them would measure
+  whatever the tree looks like now rather than what somebody
+  installed. Change one shipped byte after the candidate and the
+  release stops and says which case it is. The digest deliberately
+  ignores tests, tooling and documentation: those cannot change what
+  a reviewer ran, and a gate that fires on a comment in the suite is
+  a gate people learn to route around. Guarded by
+  `test_a_release_needs_a_matching_candidate` and
+  `test_the_release_digest_watches_what_ships`. (User instruction,
+  2026-08-09: a release must not be triggerable except on a clean
+  candidate, and must not redo work the candidate already did.)
+
+
+### C-287 — Seventeen entries scored caught by a harness whose child could not import qgis
+
+<sub>Cut from `CLAUDE.md`, lines 430–447 of the 2026-09-05 revision.</sub>
+
+- **A HARNESS THAT LAUNCHES A TEST MUST LAUNCH IT WITH AN INTERPRETER
+  THAT CAN RUN IT, AND MUST REFUSE OTHERWISE.** `mutation_check`
+  launched every test with `sys.executable` -- and this project's own
+  rule is to invoke that module as `env -u PYTHONHOME -u PYTHONPATH
+  python3`, because a plain python3 carrying the QGIS environment dies
+  at bootstrap. The interpreter that leaves you with is the SYSTEM
+  one, which has no QGIS, so every test died at `import qgis.core` and
+  a test that "failed" is scored CAUGHT. On 2026-08-19 the catalogue
+  therefore reported success for seventeen entries in a row, including
+  one whose test was later proved unable to fail by construction.
+  THE SHAPE IS THE ONE THIS FILE ALREADY NAMES TWICE: a check that can
+  only confirm is not a check. Ask of any harness what it does when
+  the thing it drives cannot start at all -- if the answer is
+  indistinguishable from success, that is the defect, whatever else is
+  true. The tool now resolves `QGIS_PY` and refuses to judge anything
+  when that interpreter cannot import qgis, naming the command that
+  fixes it. A harness that stops is worth more than one that reports,
+  because its verdicts get written down.
+
+
+### C-288 — Seven catalogue entries anchored on text that no longer existed
+
+<sub>Cut from `CLAUDE.md`, lines 437–455 of the 2026-09-05 revision.</sub>
+
+- **A catalogue entry that matches nothing REPORTS nothing, which
+  reads exactly like success.** Each entry in `tools/mutation_check.py`
+  finds its `old` text in a source file and replaces it. When that
+  text is edited away, the entry applies no mutation, finds no
+  survivor and exits clean: the behaviour it names is unguarded while
+  the catalogue still lists it, and the count of entries goes on
+  overstating how much is actually held. Found 2026-08-15 with SEVEN
+  of 243 entries in that state — five orphaned by the constant-column
+  rework the day before, two by the same evening's own fixes — and
+  the first re-anchored entry then SURVIVED, because either of two
+  branches now delivers its result and mutating one alone changed
+  nothing its test could see. `tools/check_standards.py` now reads
+  every entry with `ast` (the entries name their file through module
+  constants, so a literal-only reader finds none, which its own count
+  caught on the first run) and fails when an anchor is absent. Two
+  habits go with it: when you edit a line, expect to re-anchor the
+  entry standing on it, and when a mutation is CAUGHT, check it was
+  applied rather than trusting a clean exit.
+
+
+### C-289 — The changelog under the plugin manager, the release page and the cutter
+
+<sub>Cut from `CLAUDE.md`, lines 445–469 of the 2026-09-05 revision.</sub>
+
+- **One changelog, TWO RENDERERS, and it must read in both.** The
+  `changelog=` entry is shown by QGIS's plugin manager, which
+  displays the metadata text as it stands, and by the GitHub release
+  page, which renders MARKDOWN -- where single newlines fold into one
+  paragraph, so a shape that worked in the plugin manager arrived on
+  the release page as a wall of prose. (C-259.)
+  The general rule, which is what the next person needs: WHEN ONE
+  TEXT IS SHOWN BY TWO RENDERERS, CHECK IT IN BOTH BEFORE BELIEVING
+  IT READS. Same words is a virtue -- it is why the plugin manager
+  and the release page cannot drift -- but it is not the same as
+  same appearance, and this project reached for the first and assumed
+  the second. That applies beyond the changelog: `about` in
+  metadata.txt, the README against the project page, and any
+  message that might one day be shown in a rich widget as well as a
+  plain one.
+  AND A THIRD RENDERER IS THE ONE THAT CUTS THE ENTRY OUT. The entry is
+  delimited rather than stored -- it ends at a lookahead for a line
+  opening with digits -- and one indented header ran the 0.24.4 entry on
+  through the whole of 0.24.3. C-8.
+  ITS OWN TEST COULD NOT SEE IT, and that is the transferable half: a
+  SHAPE ASSERTION CANNOT TELL ONE RECORD FROM TWO, since two entries
+  joined end to end satisfy "a paragraph then bold bullets" exactly.
+  Where a tool cuts one record out of a document holding several,
+  assert the CUT -- that the piece stops where the next begins and
+  carries none of its neighbour's furniture. (C-260.)
+
+
+### C-290 — Two ceilings sized from this machine in one day, and the three-leg spread
+
+<sub>Cut from `CLAUDE.md`, lines 520–539 of the 2026-09-05 revision.</sub>
+
+- **A ceiling a healthy run can reach is worse than no ceiling, and
+  is sized from the SLOWEST machine ever measured.** Made twice on
+  2026-08-11, hours apart: a forty-minute CI job limit sized against
+  a twenty-four-minute macOS suite (the Linux legs took 52-54 THAT
+  DAY -- measured again on 2026-08-31 at 60, 66 and 68 minutes for the
+  three of them, the suite having grown to 727 tests since, which is
+  why the figure is dated rather than stated flat: an entry warning
+  against sizing a ceiling from a stale number is the last place a
+  stale number should sit -- and
+  one leg was cancelled mid-run), and a six-hundred-second per-test
+  watchdog against a test that had already been measured at 550 on a
+  Linux runner. Both produced a red result that meant nothing, which
+  is precisely how people learn to ignore red results -- the same
+  argument this project already makes for keeping the visual gallery
+  out of CI. Before setting any limit, find the slowest MEASURED
+  figure and multiply, rather than reasoning from the machine in
+  front of you; and when the same code takes 392s, 486s and 550s on
+  three legs of one run, the spread is the runner and the limit has
+  to clear all of it. A stall watchdog is for catching a HANG, not
+  for enforcing a performance budget.
+
+
+### C-291 — Why the skills are named here: authorship was not the problem, invocation was
+
+<sub>Cut from `CLAUDE.md`, lines 560–584 of the 2026-09-05 revision.</sub>
+
+- **Five procedures live as SKILLS, and the rules here name them so
+  they get invoked.** `.claude/skills/second-machine` is read before
+  adding CI to anything, when a suite that passes locally fails
+  elsewhere, and before concluding that a second machine's failure
+  is a defect in the code -- most are assumptions, and today's first
+  Linux run was seventy failures of which sixty-nine were one
+  missing package and exactly one was a real product defect.
+  `.claude/skills/long-job-supervision` now also covers HOW to shard
+  rather than only that one should, because the first sharded run
+  here produced slices that disagreed about the size of the suite. `.claude/skills/tests-that-can-fail` is read
+  before writing or reviewing a test, and whenever a new test passes
+  first time — it catalogues the ways a test passes without
+  exercising anything, which this project has produced at a rate of
+  roughly one in five. `.claude/skills/dependency-bug-workaround` is
+  read before compensating for a bug in QGIS or any other dependency;
+  it is why the NULL class-break workaround carries a canary test that
+  will announce the day QGIS fixes it. Skills record the documents
+  they were derived from with a sha256, and
+  `tools/check_standards.py` fails when a source has changed since —
+  a skill teaching a superseded procedure is worse than none, because
+  it is followed with confidence. Naming them here is deliberate: the
+  `long-job-supervision` skill already described the CPU-versus-elapsed
+  check and the "wait on the process, not on predicted log text" rule,
+  and both were rediscovered the hard way in a session that never
+  invoked it. Authorship was not the problem; invocation was.
+
+
+### C-292 — The testing documents' standing, as stated in full
+
+<sub>Cut from `CLAUDE.md`, lines 571–589 of the 2026-09-05 revision.</sub>
+
+- **The testing documents are binding, are read BEFORE tests are
+  written or changed, and are UPDATED the moment one of them is proved
+  incomplete.** A lesson learned and not written down is a lesson
+  about to be paid for twice, which is the provenance of a good many
+  entries in these files. `docs/TESTING.md` holds the shapes that earn
+  their keep here and the lessons each paid for once; nearly every
+  rule in it exists because its absence cost this project real time.
+  `docs/MUTATION-TESTING.md` holds the campaign and its commitments,
+  and `docs/MUTATION-LOOP.md` is the runbook for running that campaign
+  again from scratch: how to launch a cycle (`tools/loop/cycle.sh`),
+  how to supervise it so the machine is never idle and no watcher goes
+  silent or repeats itself (`tools/loop/health.sh`, a stage monitor
+  and a ten-minute heartbeat), how to triage a survivor into one of
+  five kinds, and when the campaign may be called finished.
+  Treat both as you would the hard rules above: when you find yourself
+  about to do something they warn against, the document is right and
+  the shortcut is not. When one of them turns out to be wrong, change
+  the document deliberately and say why, exactly as with the
+  standards checker.
+
+
+### C-293 — The mutation commitments, as stated in full
+
+<sub>Cut from `CLAUDE.md`, lines 607–627 of the 2026-09-05 revision.</sub>
+
+- **Mutation testing has commitments, and they bind.** The full
+  reasoning is in `docs/MUTATION-TESTING.md`; what must not be
+  forgotten while working: close a survivor with the test the
+  BEHAVIOUR deserves, never one aimed at the mutated token, and if
+  you cannot state the harm a user would suffer, it is not a gap —
+  mark it equivalent (with evidence) or accept it and say why. Prefer
+  DELETING a line that does not earn its keep to writing a test that
+  defends it. Equivalence claims are demonstrated, not asserted:
+  apply the mutation in a sandbox and compare everything a test could
+  see, then record the evidence in `EQUIVALENT` in
+  `tools/mutate_auto.py`. Keep exclusions narrow and declared in the
+  source — the only one is table column widths in pixels, and an
+  earlier "pixel geometry" version of it was too broad, since
+  geometry in this application usually means the map. Report rates
+  per module as well as blended, so deterministic logic cannot hide
+  behind Qt plumbing. Certify OUT OF SAMPLE: improvement rounds fix
+  what they find, then a final batch runs with the suite frozen, and
+  the number quoted is the conservative Clopper–Pearson bound rather
+  than the raw fraction. None of this is optional politeness — every
+  one of these rules exists because its absence would have let a
+  number rise while the software stayed the same.
+
+### C-294 — Colour belongs to QGIS: the 35 stock names that never installed, and the eight palettes lost the same evening
+
+<sub>Cut from `CLAUDE.md`, lines 1303–1313 of the 2026-09-05 revision.</sub>
+
+- **COLOUR BELONGS TO QGIS.** Ramps come from QgsStyle, and where a name
+  means something there already, QGIS's meaning wins. The plugin
+  installs only palettes QGIS LACKS -- 36 of them, tab10, the
+  matplotlib-only families and the eight ColorBrewer QUALITATIVE sets --
+  tagged "mapweaver", additive only. Settled by `/grill-me` on
+  2026-08-15 after measuring that 35 of the palette file's 63 entries
+  were also stock ColorBrewer names, so they had never installed on any
+  fresh QGIS since 0.23.0: the plugin's maps were already drawn with
+  QGIS's colours and the project had simply not noticed. **"LACKS" IS
+  ANSWERED BY THE STYLE LIBRARY, NEVER BY WHAT QGIS CAN GENERATE**, and
+  getting that wrong the same evening cost eight palettes. (C-38.)
+
+
+### C-295 — The seven (then eight) rulings of 2026-08-21 with their preamble, sequencing note and the three enforcement lessons, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1406–1503 of the 2026-09-05 revision.</sub>
+
+- **A CHANGE OF REGION DATASET: THE SEVEN RULINGS OF 2026-08-21.**
+  (Settled by a full grilling, on the maintainer's report that the
+  current model surprised its own designer during a demo of several
+  datasets in a row, plus a colleague's report of a saved file
+  silently overwritten. The proposal grilled was "reset everything,
+  carry symbology for variables in common"; made precise, most of it
+  converged on machinery already built the day before, and these
+  seven are what remained to decide.)
+  1. THE OUTPUT PATH CLEARS on any change of region layer --
+     same-schema included, because B's map written over A's file
+     destroys a result either way -- and the clearing is announced.
+     Re-generating the SAME dataset still overwrites in place, which
+     is the settled replace-in-place contract, untouched.
+  2. THE NEXT GENERATE AFTER A SWITCH BUILDS A FRESH GROUP, through
+     the same door a person uses to ask for one (the checkbox then,
+     the chooser's "Create new" since 2026-08-30). The previous
+     dataset's result stays in the project; a demo accumulates its
+     maps side by side. A-B-A makes a third group.
+  3. A DROPPED COLUMN TAKES ITS WHOLE SCHEME: mode, ramp, Reverse,
+     class count and class source all re-derive -- exactly the set a
+     COPY overwrites, so switching and copying agree about what a
+     scheme is. One partition, used twice.
+  4. OPACITY STAYS WITH THE ELEMENT, as through every other change of
+     scheme; the single colour becomes a record of an unworn style,
+     kept silently under the existing ruling.
+  5. THE DESIGN NEVER RESETS, WITH ONE DOOR: when the new dataset
+     SEEMINGLY cannot fill it -- fewer seemingly-usable columns
+     (non-identifier, text included) than elements -- the plugin ASKS,
+     naming both numbers and what Yes does ("Change to a design with 2
+     elements?"). Yes recomposes to that element count with its
+     default family, one column each; No keeps the design with
+     columns shared, as today. Modifiers survive either way. The
+     maintainer's wording rulings: the question says CONCRETELY what
+     it will do, and the column count is hedged ("seemingly"), because
+     the usable-column heuristic is a guess.
+  6. THE MEMORY IS KEPT AND WIDENED: everything the switch deactivates
+     is recorded by element AND field -- the hand-picks and pins
+     always were; the scheme limbs join them -- and switching back
+     restores it. What stays ACTIVE changes; what is REMEMBERED does
+     not. The scheme memory is session-scoped, unlike the stamped
+     colour records, which is an implementation choice to revisit if
+     a reopened project turns out to need it.
+  7. THE SAME-NAME CARVE-OUT STANDS AS BUILT: setups follow surviving
+     column names, and the hundred-values question guards a column
+     that keeps its name while changing its kind.
+  SEQUENCING: all of it into 0.24.3, as rc17, on the maintainer's
+  explicit choice over splitting or deferring -- accepting that scope
+  grows on a version whose candidate is out for feedback.
+  A MODAL JOINS THE LAYER-CHANGE PATH with ruling 5, where the
+  threshold question set the precedent; the no-modal rule guards
+  GENERATION paths and is untouched.
+  8. NO RESIDUE OF ONE DATASET -- COLUMN NAMES INCLUDED -- MAY STEER
+     OR REACH ANOTHER. (Maintainer's ruling, 2026-08-24, widening a
+     question first asked about the shelf: "make sure there is no
+     leakage between datasets/gpkg -- leakage of column names, for
+     example".) The session's field-keyed memory -- hand-picked
+     colours, pinned bounds, the scheme shelf -- lives in PER-DATASET
+     BANKS keyed by layer id, swapped on any change of layer by
+     `_swap_dataset_memory`; the three attributes are views into the
+     current bank. A dropped scheme files under the dataset it was
+     made ON (the rebuild runs after the swap, hence the pending
+     pointer). A CARVE FOR "VARIABLES IN COMMON" WAS BUILT
+     AND ENDED THE SAME DAY by the maintainer's own question: a
+     categorical scheme's hand-picks are keyed by VALUE STRINGS and a
+     pin holds data-derived NUMBERS, so carrying them to a same-named
+     column would put one dataset's confidential values into another's
+     .qgz and GeoPackage through the landing stamp. Nothing tells
+     "same wards, next year" from "unrelated data with a coincident
+     name", so silence sides with the confidential case: the STYLE
+     keeps by name (mode, ramp, Reverse, class count -- choices, not
+     data) and VALUE-LADEN RECORDS NEVER CROSS; sharing a ladder
+     across files is an explicit act. Files were measured clean
+     (stamps carry only the displayed field) and are guarded AT THE
+     FILE: a test builds a second dataset SHARING the confidential
+     column's name and reads the GeoPackage's bytes, requiring none of
+     the first dataset's value strings or other column names. Consequences accepted and
+     documented: a re-added layer is a new identity and forfeits
+     session memory, and KEEP-BY-NAME OUTRANKS THE BANK -- an element
+     that comes home carrying a surviving column name keeps it rather
+     than consulting the shelf, which is the composition of rulings 6
+     and 7 rather than a new one.
+  WHAT COUNTS AS "A CHANGE OF DATASET" IS LEAVING A DATASET THIS
+  SESSION HAS BUILT FROM, and that one clause covers every case: a
+  recovery is not a switch, an auto-landing in a busy project is not a
+  dataset the user chose, and a pre-generate fiddle is a first choice
+  because nothing is built yet. `switched_from_work` in
+  `_on_layer_changed` is the one place the boundary lives.
+  THREE RULES CAME OUT OF ENFORCING IT, each paid for by a defect.
+  WHEN A RULING STARTS PRODUCING A SECOND ARTEFACT BY DEFAULT, RE-DRIVE
+  EVERY PATH THAT ASSUMED ONE -- adoption took the newest group and ran
+  at construction, so reopening a project holding two datasets' maps
+  and generating on the first DELETED the second. WHEN A RULE IS ABOUT
+  "THE THING IN FORCE", ASK WHAT NULLS THE RECORD YOU ARE READING, and
+  whether the answer is a user's act or somebody else's cleanup:
+  `switched` asked about the watched layer OBJECT, which removing the
+  layer nulls, so removing a region layer and picking another skipped
+  every protection. And the chooser is never the only door. (C-245.)
+
+
+### C-296 — The output-group rulings of 2026-08-25 with the report, what they retire, and what was rejected, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1454–1538 of the 2026-09-05 revision.</sub>
+
+- **THE OUTPUT GROUP IS THE UNIT OF WORK: THE RULINGS OF 2026-08-25.**
+  (Settled by a full grilling, on a colleague's report from a real
+  demo of several datasets in a row, and on a probe that measured
+  every claim in it. It COMPLETES the rulings above rather than
+  reversing them, and it retires some of their machinery.)
+  WHAT THE REPORT FOUND: the design, the value-laden records and the
+  output group were three scopes answering ONE act in three ways, none
+  of them named anywhere on screen, so returning to a dataset gave back
+  its colours and pins and somebody else's design. The colleague's
+  diagnosis is the sentence to keep -- inferring all of this "is OK as
+  far as it goes, but it's too hard to be reliable and not produce
+  weird seeming behaviour relatively often". (C-246.)
+  1. THE DIALOG CARRIES A DROPDOWN OF OUTPUT GROUPS, on the first tab
+     beside the region chooser, with a "create new" entry. It is not a
+     memory feature: the group is a QGIS-side artefact that already
+     exists, already carries an identity in `weavingspace_region`, and
+     was already being chosen on every run by a rule the user could
+     neither see nor override.
+  2. DATASET AND GROUP ARE BOUND SYMMETRICALLY -- choosing either
+     selects the other. Built with signals blocked, as
+     `_sync_pin_controls` already does, or setting a control right
+     fires the handler that set it right.
+  3. WHERE A DATASET OWNS SEVERAL GROUPS, choosing it selects the most
+     RECENT, read off the project's own layer order rather than
+     remembered. A fact about the project beats a guess about intent,
+     and it survives a reopen where a session record would not.
+  4. THE WHOLE WORKING STATE BELONGS TO THE GROUP: family, kind,
+     element count, spacing, modifiers, icon mode, and every element's
+     variable, style, ramp, Reverse, class count, class source,
+     colours, pins and opacity. Selecting a group RESTORES all of it,
+     so nothing is inferred -- the direct answer to the diagnosis
+     above. Stored in the group's own custom properties, so it
+     persists with the project for free.
+     THE RESTORE WHITELIST IS THE RECORD'S REAL DEFINITION, exactly as
+     it is for `_adopt_dock_bounds`: a key missing from it is dropped
+     in SILENCE on every reopen, so the record is right all session
+     and wrong the moment the project comes back. Widen that list in
+     the same commit as the record, always.
+  5. THE GEOPACKAGE IS RESUMABLE, and the source comes back BY
+     REFERENCE -- the path is already recorded on every output layer
+     -- with EMBEDDING THE SOURCE as an explicit opt-in, for a file
+     somebody else is meant to carry on with. That keeps the ordinary
+     file small and private and makes portability a choice the user
+     makes, which is the same shape as the dependency consent and as
+     ruling 8's "sharing a ladder across files is an explicit act".
+  6. ELEMENT TABLES ARE TRIMMED to the symbolised variable plus the
+     identifiers, and named `tiles_<tid>_<variable>`. Adoption goes on
+     reading the old `tiles_<tid>`, because files and projects already
+     exist that use it. Names are sanitised and collisions handled: a
+     GeoPackage folds case, so `tiles_a` and `tiles_A` become one
+     table with both writes reporting success (measured 2026-08-14).
+     TRIMMING IS ONLY SAFE BECAUSE OF 5. The colleague's argument for
+     carrying every column was that a tiling may be missing data in
+     some variables, so the full set hedges a lossy encoding. With the
+     source recoverable, switching a variable RE-TILES from the source
+     rather than reading a column carried along just in case.
+  WHAT THIS RETIRES. `_fresh_group_for_new_data` goes: the protection
+  it gave comes from WHICH GROUP IS SELECTED now, not from arming a
+  flag. Much of the per-dataset bank's job goes with it, though not
+  all -- styling done before anything is generated has no group to
+  belong to yet. A group belongs to exactly one dataset, so per-group
+  is a NARROWER scope than ruling 8's per-dataset banks, and nothing
+  here weakens that ruling.
+  WHY IT DOES NOT REVERSE RULING 2. That ruling arms a fresh group on
+  a switch so the map of the dataset you LEFT survives. Under the
+  binding, A-generate-B-generate-back-to-A lands on A's own group and
+  replaces that map in place while B's is untouched -- which is what
+  the colleague asked for, and what ruling 2 was reaching for through
+  a proxy.
+  WHAT WAS REJECTED, recorded so nobody re-litigates it silently. REWIND
+  TO ONE SHOT -- save but do not resume, forget everything on an unsaved
+  switch -- had the strongest single argument in the room, that nine of
+  the eleven defects of 2026-08-25 were in exactly the machinery it
+  deletes; it was refused because it costs the one behaviour the
+  colleague singled out as working. THE MIDDLE OPTION, keep inferring
+  and put the design in the per-dataset bank, is much the cheapest and
+  fails on its own terms: A-B-A would move the design under the user
+  twice, where a design you SELECT never moves on its own. (C-247.)
+  AND THE PRINCIPLE THAT DECIDED IT is the one above, in "How we
+  decide things": persistence is a duty at the QGIS boundary and a
+  design question at the dialog's own controls. Every argument of the
+  form "but we would be destroying their work" was struck out of the
+  user-plugin half of this decision, because nothing of theirs is
+  destroyed there.
+
+
+### C-297 — The file-shows-its-limit and switch-door-speaks rulings of 2026-08-26, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1487–1514 of the 2026-09-05 revision.</sub>
+
+- **TWO RULINGS OF 2026-08-26, SETTLED BY GRILLING, on the leads two
+  hunt rounds corroborated.**
+  THE FILE SHOWS THE LIMIT OF WHAT IT CONTAINS. People redistribute
+  their work, and what they see in the GeoPackage must be the limit of
+  what is in it -- so work for fields the map does not display never
+  reaches the file. The PROJECT is the user's own and carries the
+  whole working memory home: each group-record element gains a `kept`
+  map (the other fields' pins and hand-picks, per field, this
+  dataset's fields only, so ruling 8 stands), which rides the .qgz
+  through the layer-tree node and never the GeoPackage. The seam that
+  makes the split possible: layer custom properties EMBED into the
+  file's saved styles, so the stamps stay one-field; the group record
+  does not embed, so it may widen; and the file's own record is
+  stripped through `_file_safe_state` at every write, guarded at the
+  helper so a new call site cannot forget. Consequence accepted and
+  documented: resuming from the GeoPackage without the project
+  restores the displayed design and never the unworn-field memory --
+  under the principle, correct rather than a loss. Saving alone wipes
+  no session memory, which was already true and is now stated.
+  AND THE SWITCH DOOR SPEAKS. A change of region dataset that
+  re-points elements whose chosen column the new data lacks announces
+  it in the deleted-column door's own sentence family, naming the NEW
+  layer -- at a switch it is the layer that moved, not the column. An
+  ordinary switch where every column survives by name stays quiet;
+  recovery and group selection stay silent, since a recovery is not a
+  switch. Ends the asymmetry where two doors into one loss differed
+  only in which of them said so.
+
+
+### C-298 — The return-leg and style-follows-the-field rulings of 2026-08-26, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1498–1522 of the 2026-09-05 revision.</sub>
+
+- **TWO MORE RULINGS OF 2026-08-26, from the bulletproofing round.**
+  Both settle a case where two settled rules gave one act two answers.
+  THE RETURN LEG RESTORES THE CHOSEN VARIABLE. A-B-A without a
+  Generate used to keep the re-pointed column wherever the datasets
+  shared a name -- keep-by-name, the composition of rulings 6 and 7 --
+  while the same journey WITH a landed group gave the person's choice
+  back through the group record. Two rules, two answers, decided by
+  whether a run happened to land. The shelf's remembered field wins
+  the return now: the shelf entry IS the earlier choice, it is popped
+  on restore, and a row whose current column was itself chosen has no
+  shelf entry for another field to beat.
+  THE STYLE FOLLOWS THE FIELD, NOT THE ELEMENT. A touched mode rode
+  the element across a variable change, so a row returning from
+  Categorized landcover to v1 arrived wearing Categorized -- and the
+  re-click the user was then forced into is a genuine reclassify,
+  which retires the positional picks the kept-silently ruling of
+  2026-08-20 preserves. The mode banks per element AND field
+  (`_mode_by_field`), exactly as ruling 6 keys the scheme limbs, so a
+  field's return wears its own style and no forced re-click happens.
+  A person's own mode click still retires picks, as 2026-08-09 says.
+  MEASURED PARITY FIRST, which is why this is a ruling rather than a
+  defect report: the in-session return destroyed the picks exactly as
+  the reopened one did, so it was two rules colliding rather than a
+  persistence fault.
+
+
+### C-299 — The five rulings of 2026-08-27 with what they retire, the two building decisions and the four defects the conversion found, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1507–1593 of the 2026-09-05 revision.</sub>
+
+- **THE FIVE RULINGS OF 2026-08-27, SETTLED BY GRILLING. ALL FIVE ARE
+  BUILT, AND ON ONE LINE.** They are recorded here because the
+  reasoning is what a later session will not have.
+  ALL FIVE ARE GUARDED, with one exception measured to a close at the
+  entry itself: the restyle half of ruling 5 is held REDUNDANTLY rather
+  than unproved. Converting the suite to press Save found FOUR REAL
+  DEFECTS on ordinary journeys, ledger rows 27 to 30 -- among them a
+  run claiming a save it never made, and a map opened with Load being
+  DESTROYED by being saved. (C-248.)
+  TWO DECISIONS WERE TAKEN WHILE BUILDING IT, both small, both the
+  kind that should be visible rather than discovered later.
+  A SAVE PRESSED WHILE A RUN IS IN FLIGHT IS REFUSED IN WORDS. What
+  is on screen mid-run is the PREVIOUS map, so writing it answers a
+  different question from the one the press asked -- silently, over
+  the file the person has just named. The run lands in seconds and
+  the press costs nothing to repeat. It is the same door the group
+  chooser and the resume already guard with `self._task is not None`,
+  which is this file's own rule that a guard added to one door
+  belongs at every door into the same room.
+  AND `_may_overwrite` ASKS ABOUT THE DATASET, NOT THE GROUP, which
+  leaves one case silent: a SECOND map of the SAME dataset, saved onto
+  the first map's file, replaces it without a question. The record
+  carries `region` and `output_path` and no group identity at all, so
+  the question is not available to ask -- if the group should be the
+  unit, the record needs a group identity first. The method's own
+  docstring claimed the group until this was noticed, which is this
+  file's "a gate that checks half of what it names" met from the
+  documentation side. (C-249.)
+  1. SAVING IS A POSITIVE ACT. A path chooser records what you WOULD
+     save to or load from and does nothing on its own. A SAVE button
+     beside the output path writes the map as it stands -- tables,
+     styles, the resumable record, the stale-table drop and the
+     embedded source together -- and a LOAD button beside the other
+     chooser reads one back. Generate DRAWS. Auto-generate never
+     writes. SAVE ASKS BEFORE OVERWRITING a file the plugin did not
+     write: with Save a deliberate press, asking every time is noise,
+     and a file somebody else's map is in is not.
+     WHAT IT RETIRES. Live update's output-path gate is DELETED rather
+     than explained: its reason was that a live run must not rewrite
+     somebody's file on every keystroke, and under this ruling no run
+     writes at all, so a gate that cannot fire would sit in the source
+     reading as protection. It also overrules the Save & open tab
+     already written on the `../ws-save-load` worktree, which resumes
+     the instant a file is chosen.
+     THE QUESTION IT ANSWERED WAS A DIFFERENT ONE. The maintainer was
+     asked how live update should ANNOUNCE its silent pause, and
+     answered by moving the ground under the question. Recorded that
+     way round because it is what a grilling is for, and because the
+     three options offered were all worse than the answer.
+  2. UNTICKING "INCLUDE THE SOURCE DATA" MEANS IT IS NOT IN THIS FILE.
+     The `weavingspace_region` table is dropped at Save -- only that
+     table, the one the plugin wrote itself, never anything else a
+     user keeps in the file. It follows the ruling of 2026-08-26 that
+     the file shows the limit of what it contains: a private copy
+     somebody has switched off is exactly what they would be surprised
+     to find in a file they send on. Today the copy stays while the
+     record says it is gone, so the privacy AND the resume are both
+     lost; measured on the file's own bytes.
+  3. AN OUTPUT PATH NEVER DECIDES WHICH GROUP A RUN LANDS ON. The
+     chooser alone does, which is what the ruling of 2026-08-25 gave
+     it, and "create new" remains the way to ask for a second map.
+     Clearing the path currently forks a group silently -- and
+     unattended under live update, from an ordinary design tweak.
+     Under ruling 1 the fork's own justification disappears, since a
+     run no longer writes anything to overwrite.
+  4. A RAMP IS REMEMBERED UNDER THE MODE THE ROW IS IN, not under the
+     family the RAMP belongs to. A row remembers what it WORE in each
+     mode: pick `Accent` while Graduated, pick `Reds` back, and the
+     categorical slot is untouched. The comment at that site argues
+     for the present rule and is to be REWRITTEN rather than edited --
+     its worry, that a categorized row carrying `YlOrRd` would hand
+     that back on the next flip, is answered by the row having worn
+     it. Decided on the dialog-controls side of the two-relationships
+     framing: what makes the next thirty seconds clear, not what loses
+     nothing.
+  5. DONORS ARE SEEDED BEFORE THEIR FOLLOWERS, reading the donor's NEW
+     layer, so a change reaches its follower in the same run rather
+     than one later. THE OBVIOUS ANSWER IS RULED OUT BY DEFERRAL: the
+     template cannot be computed from the donor's ROW, because a donor
+     may be deferring and its renderer made by hand in the dock, which
+     is exactly when following it is most useful -- so the donor's new
+     layer must exist first. SEEDING ORDER IS SEPARATED FROM PANEL
+     ORDER, which reads `a..z` then `aa..`. Two elements taking from
+     each other have no valid order and keep the one-run lag, with the
+     reason at the code; driven 2026-08-27, a cycle SETTLES rather
+     than churning.
+
+
+### C-300 — Numbers stored as text: the measurement on QGIS 4.0.3 and the three spellings of 3
+
+<sub>Cut from `CLAUDE.md`, lines 1547–1569 of the 2026-09-05 revision.</sub>
+
+- **NUMBERS STORED AS TEXT ARE CLASSIFIABLE.** (Maintainer's ruling,
+  2026-08-29, narrowing a rule to its own evidence.) A quantitative
+  style never stands on a text field, and the stated reason was that a
+  graduated renderer over text comes back with no ranges, so every
+  tile falls outside every class and the layer paints nothing.
+  MEASURED ON QGIS 4.0.3, that is true of WORDS and false of NUMERIC
+  STRINGS: a String column running "10" to "120" classifies exactly as
+  its integer twin. The old rule was true of the example that prompted
+  it and wider than its evidence, and it cost a choropleth to anybody
+  whose numbers arrived through a CSV join.
+  `_field_is_numeric` IS THE ONE OWNER and answers the wider question,
+  so all eight readers move together. STRICT, AND THAT IS THE HALF
+  THAT KEEPS IT SAFE: "mostly numbers" is a column with something else
+  in it, and a graduated renderer drops those rows in silence -- the
+  very failure the old rule was written about, arriving through the
+  door opened to relax it.
+  AND NO TWO DISTINCT TEXTS MAY COLLAPSE ONTO ONE NUMBER. Python reads
+  `float(" 3")` as 3.0, so "3", " 3" and "3 " -- three values a legend
+  shows as three classes -- passed the parse test and were drawn as
+  ONE. The question is not "does every value parse" but "does every
+  value parse to a number of its OWN", which also refuses "3" beside
+  "3.0" without needing a rule of its own. (C-250.)
+
+
+### C-301 — The ramp-you-are-offered test against ruling 4, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1563–1575 of the 2026-09-05 revision.</sub>
+
+- **AND THE SECOND ONE FOUND A COLLISION BETWEEN TWO SETTLED RULES.**
+  (2026-08-27, the run over the three rulings.)
+  `test_a_ramp_you_are_offered_is_the_ramp_you_get` went red on its
+  second half: a row turned categorical kept `YlGn`, "a ramp chosen for
+  numbers". Neither the rule nor the code was wrong. The older rule is
+  that a row ARRIVING in Categorized swaps a sequential ramp away,
+  because a sequential ramp over categories is a cartographic error
+  nobody asked for; ruling 4 of the same day remembers a ramp under THE
+  MODE THE ROW IS IN. The test's own first half leaves row 1 wearing
+  YlGn as a CATEGORIZED row -- deliberately, that being its subject --
+  so under the ruling that row now remembers YlGn as its categorical
+  choice, and the flip hands it back. (C-46.)
+
+
+### C-302 — The first full suite on the branch, and the document it found
+
+<sub>Cut from `CLAUDE.md`, lines 1567–1575 of the 2026-09-05 revision.</sub>
+
+- **A FULL SUITE FINDS WHAT A TARGETED RUN CANNOT REACH, AND THE FIRST
+  ONE HERE FOUND A DOCUMENT.** (2026-08-27.) The first full suite ever
+  to complete on `for-0.24.4/copy-select-all` returned 636 passed and 1
+  failed, and the failure was `test_the_documents_numbers_match_the_
+  code`: the element ceiling had split in two the previous day while the
+  user guide went on naming one, so a tiling user was being told a limit
+  an order of magnitude under what the plugin would draw for them.
+  (C-47.)
+
+
+### C-303 — Two element ceilings: the two blockers and the doubled alphabet's sort order
+
+<sub>Cut from `CLAUDE.md`, lines 1570–1587 of the 2026-09-05 revision.</sub>
+
+- **TWO ELEMENT CEILINGS, NOT ONE.** (Maintainer's ruling, 2026-08-27,
+  and this one IS built.) Weaves keep `a`..`z`; tilings run `a`..`z`
+  then `aa`..`zz`, capped at sixteen by sixteen. The asymmetry follows
+  the two blockers `catalog.py` sets out at length, which stop in
+  different places: the doubled ids are open for tilings because
+  upstream supplies them and a GeoPackage keeps `tiles_aa` and
+  `tiles_ab` apart, and shut for weaves because a weave is SPECIFIED
+  as a string with one character per element, so "ab" already means
+  two strands. 256 rather than the doubled alphabet's 702 because
+  `tightest_grid` makes that exactly sixteen by sixteen.
+  AND `"aa" < "z"`, WHICH IS THE HALF A DOUBLED ALPHABET BREAKS
+  QUIETLY. Python compares strings character by character, so the
+  twenty-seventh element sorted SECOND -- in the assignment table, the
+  layers panel, the design view's labels and a resumed panel alike.
+  Nothing was lost; a user simply could not find their twenty-seventh
+  variable. `bridge.element_order` is the one owner of that question
+  and every site reads it. (C-251.)
+
+
+### C-304 — An output group named for its dataset: the panel that prompted it and the six suite sites it cost
+
+<sub>Cut from `CLAUDE.md`, lines 1576–1591 of the 2026-09-05 revision.</sub>
+
+- **A FOURTH RULING OF 2026-08-26: AN OUTPUT GROUP IS NAMED FOR THE
+  DATASET IT WAS MADE FROM.** `WeavingSpace tiles — nyc blocks`, the
+  plugin's own name first so its groups sort together, the dataset
+  after it, and a counter only where that name is taken. The
+  maintainer met a panel of `WeavingSpace tiles` and `WeavingSpace
+  tiles 2` after tiling two datasets in a row and asked why the
+  layers panel could not say what the dialog's own chooser had been
+  saying since the group became the unit of work.
+  THE NAME IS STILL A LABEL AND NEVER AN IDENTITY: the lookup asks the
+  layers, and renaming stays the user's business. The chooser appends
+  the dataset only where the name does not already carry it. ITS COST
+  WAS IN THE SUITE: six call sites recovered a group's name by
+  splitting a chooser label on the separator, which was right until the
+  separator moved inside the name. WHEN YOU CHANGE HOW A LABEL IS
+  COMPOSED, GREP FOR WHOEVER DECOMPOSES IT. (C-252.)
+
+
+### C-305 — A kept scheme is held, not owned: the mechanism and the two tests it reconciled
+
+<sub>Cut from `CLAUDE.md`, lines 1582–1601 of the 2026-09-05 revision.</sub>
+
+- **A THIRD RULING OF 2026-08-26: A KEPT SCHEME IS HELD, NOT OWNED.**
+  An element whose class-source file cannot be read keeps the colours
+  it is drawing, and it keeps them by having them RECORDED -- a
+  renderer alone lasts until the next run, restyle or reopen, and then
+  the element falls back to automatic colours with nothing said. They
+  are recorded as HELD rather than as picks: `_kept_for_unreadable`
+  shadows the hand-picked record entry for entry, banks with it under
+  ruling 8, and travels in the layer's own stamp so the plugin being
+  closed and opened again keeps the distinction. The moment the file
+  can be read again it takes its colours back, BEFORE anything is
+  seeded from them -- a held colour outranks a template, so a late
+  release repaints the map with the colours the file had before it
+  went away.
+  IT SETTLED A COLLISION BETWEEN TWO REGISTERED TESTS, which is why it
+  is a ruling and not a fix: one required the element to own those
+  colours, the other required the record to stay empty, and both harms
+  were real and measured. WHEN TWO SETTLED RULES GIVE ONE ACT TWO
+  ANSWERS, THE ANSWER IS USUALLY BOTH -- with the thing that tells
+  them apart written down. (C-253.)
+
+
+### C-306 — The field report against rc5 that made the table follow the renderer
+
+<sub>Cut from `CLAUDE.md`, lines 1640–1649 of the 2026-09-05 revision.</sub>
+
+- **THE PLUGIN'S TABLE FOLLOWS THE LAYER'S RENDERER, AND THE SCOPE OF
+  THAT IS THE WHOLE OF ITS SAFETY.** (Maintainer's ruling, 2026-08-17,
+  on a field report against rc5: breaks retyped in QGIS's Symbology
+  panel, then a style pasted across four element layers, reached the
+  plugin not at all -- the rows went on describing THE MAP THE PLUGIN
+  LAST DREW while QGIS drew something else, and the next Generate
+  destroyed the lot.) It was ONE fault rather than three, and the tester
+  established that themselves by setting the affected rows to a numeric
+  style and repeating the paste. (C-72.)
+
+
+### C-307 — The consent box that named three distributions and fetched seven
+
+<sub>Cut from `CLAUDE.md`, lines 1755–1763 of the 2026-09-05 revision.</sub>
+
+- **A CONSENT DIALOGUE THAT ENUMERATES MUST BE DIFFED AGAINST WHAT THE
+  CODE ASKS FOR.** (Same day, and it is a HARD RULE breached since the
+  initial commit.) The box named the missing scientific packages;
+  `provision_from_pypi` also fetches the pure-python support
+  distributions the main ones import at runtime -- its own docstring
+  says so -- so somebody who read "Missing or too old: geopandas" and
+  approved had SEVEN distributions fetched from pypi.org, against
+  metadata.txt's promise that the plugin "shows exactly what it would
+  fetch and asks first". (C-128.)
+
+
+### C-308 — The consent-order gate moved by a comment naming the download
+
+<sub>Cut from `CLAUDE.md`, lines 1748–1754 of the 2026-09-05 revision.</sub>
+
+- **A GATE THAT READS RAW SOURCE TEXT CAN BE MOVED BY A COMMENT.** (Same
+  day.) `test_pypi_provisioning_is_reached_only_through_consent` holds a
+  hard rule by indexing three markers in `plugin.py` and requiring their
+  ORDER. A note added above the consent call, mentioning
+  `provision_from_pypi` to explain what it fetches, put the download's
+  index before the dialogue's and failed the gate with the code
+  perfectly correct. (C-127.)
+
+
+### C-309 — Handles as positions, and shapes that say what they do: the two rulings as recorded
+
+<sub>Cut from `CLAUDE.md`, lines 1754–1768 of the 2026-09-05 revision.</sub>
+
+- **WHEN A CONTROL'S PARAMETER COMES FROM A GESTURE, THE HANDLE SHOULD
+  BE A POSITION AND NOT A DELTA.** (Same day, recorded before it is
+  built.) A drag that reports how far it has travelled has to pass that
+  through a LEVER to become a parameter, and the lever is a gain factor
+  nobody can see: half the edge's length was too twitchy, the full
+  length still turned a 35px drag into a scale factor of 0.28. Every
+  such number is tuned by somebody guessing. (C-161.)
+- **A CONTROL'S SHAPE SHOULD SAY WHAT IT DOES, AND A HOVER STATE IS NOT
+  A SUBSTITUTE.** (Maintainer's rulings, 2026-08-31, on finding the
+  Topology tab unusable: it "should be easy to use and easy to learn",
+  it "has to be perceivable", and "hover states aren't as good as shapes
+  that make sense ... like visually make sense for what they do".) The
+  tab's handles were a square, a circle and a diamond whose meanings
+  existed only in the source. (C-181.)
+
+
+### C-310 — The variable-switch rulings of 2026-09-05 with their reasoning, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1760–1793 of the 2026-09-05 revision.</sub>
+
+- **A VARIABLE SWITCH TAKES THE RESTYLE PATH: THREE RULINGS OF
+  2026-09-05, SETTLED BY GRILLING.** (On what the tile-to-zone cache
+  still does not skip -- `gdf_to_layer`, 0.239s at spacing 250 and
+  1.728s at 150. Not yet built; the rulings are recorded first because
+  the reasoning is what a later session will not have.)
+  1. WHERE A SWITCH MAKES OR UNMAKES A TWIN, IT DECLINES AND REBUILDS.
+     `_needs_a_no_data_split` is a GEOMETRY term precisely because
+     `_restyle_only` "repaints a paired layer that already exists and
+     cannot make or unmake one" -- and the day that was got wrong the
+     nulls stayed on the graduated layer and eight tiles came back as
+     holes. The fast path does not inherit that prohibition; it keeps
+     it.
+  2. SO IT IS AN EXTENSION OF THE RESTYLE PATH RATHER THAN A THIRD ONE.
+     The bare variable NAME leaves the geometry signature and
+     `_needs_a_no_data_split` stays in it, which expresses ruling 1 in
+     the signature that already exists: a switch changing no twin's
+     existence is a style change, and one that does forces a full run.
+     A third path would re-derive what the landing already knows --
+     the stamps, the styles, the group binding, the pins re-read at
+     the landing -- and be a third place for them to drift.
+  3. AND IT DOES NOT SHIP WITHOUT A DIFFERENTIAL OVER THAT PATH. This
+     is the fourth narrowing of the geometry signature and the
+     previous three were each a WRONG MAP that looked right, so the
+     gate is a comparison of the fast path against a full re-tile,
+     feature by feature and field names included, on the shapes that
+     have caught this before: nulls in different places, a constant
+     column, two distinct values against five classes, and A
+     PERMUTATION OF TWO ELEMENTS' VARIABLES -- the last being what
+     caught the trim on the day ruling 6 landed, by a test that had
+     passed since it was written.
+     THE EXISTING DIFFERENTIAL DOES NOT COVER IT: `a cached switch
+     draws what a retile draws` exercises the FULL-RUN path, so it
+     would go on passing while the fast path drew something else.
+
+
+### C-311 — The zigzag handle's four rulings with the 60px reading, the deadband measurement and the four cues, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1772–1841 of the 2026-09-05 revision.</sub>
+
+- **THE ZIGZAG HANDLE: FOUR RULINGS OF 2026-09-05, SETTLED BY
+  GRILLING.** (On field reports 3 and 4 against rc15, which turned out
+  to be one question about one glyph. Into 0.24.4, on the maintainer's
+  decision, with the other reports.)
+  WHAT THE READING FOUND FIRST, because it turns a matter of taste into
+  a defect: the offset in `_EDGE_HANDLES` is a STATIC 60, so the
+  diamond's distance from its edge is `60px + amplitude x length` --
+  while the comment beside it claims that distance IS the amplitude,
+  under the ruling that a handle is a position and not a delta. A
+  zero-amplitude zigzag therefore parks its readout 60px off the edge,
+  which on a 40px edge is further away than the edge is long. That is
+  the "too far from its edge" the maintainer reported, and it is a 60px
+  zero error rather than a preference about spacing.
+  1. THE DISTANCE FROM THE EDGE IS THE AMPLITUDE, SO THE ZERO SITS ON
+     THE EDGE. The handle MOVES as the parameter changes, which is
+     accepted: it is not in the same place between edits, and at a
+     large amplitude it is far out again for a reason a person can now
+     see. This forces `_handle_at` from FIRST-WINS to NEAREST-WINS,
+     since at zero amplitude the glyph is half an edge-length from
+     `scale_edge` -- 20.4px measured, inside the 26px at which two 13px
+     catch areas overlap -- which is the old bug with a new pair.
+  2. ALONG-EDGE TRAVEL OF THE SAME HANDLE SETS THE COUNT, with a
+     deadband and visible snapping. `n` is 1 to 8 and whole, so the
+     glyph SNAPS, and that is a feature: the stops are the counts.
+     THE DEADBAND IS NOT OPTIONAL -- `scale_edge` was measured on
+     2026-08-30 committing a scale of 1.003 from a drag meant as a
+     click, because a gesture mostly ACROSS an edge still resolves to a
+     little travel ALONG it, and here that would silently change the
+     count. IT DOES NOT DISTURB THE REFUSAL OF THE MERGED END HANDLE:
+     that refused one glyph naming two MANIPULATIONS, and
+     `nudge_vertex` already takes two parameters from one drag.
+  3. THE HANDLE SITS ON THE WAVEFORM'S FIRST PEAK -- along =
+     `length / (2n)` from the edge's start, across = the amplitude --
+     so the glyph is ON the thing it draws, the preview passes through
+     it, and the count is read off the wavelength rather than off a
+     dial. It also walks AWAY from `rotate_edge` and `scale_edge`,
+     which live at the far end, so report 4's crowding is relieved
+     rather than moved.
+  5. THE WAVE IS GHOSTED ON THE EDGE, AND FOUR CUES SAY WHAT THE TWO
+     AXES DO. (Maintainer's ideas, 2026-09-05, and the second answers
+     the first's limit.) The 12px seat cannot carry this: eight
+     oscillations inside it are a smudge and every amplitude past about
+     a third saturates, so a glyph could show CHANGE but never VALUE --
+     while its own comment claimed it drew "at the amplitude it is
+     about to make it in" and drew a fixed shape, which is the same
+     species of false claim as the 60px zero above, in the same glyph.
+     So the wave is ghosted along the EDGE, where ~94px of room shows
+     both honestly, only while the zigzag is the chosen manipulation,
+     and it CRESTS AT THE HANDLE -- a ghost peaking elsewhere would be
+     one fact drawn in two places.
+     THE FOUR CUES ARE PAINTED AND NEVER CLICKED, which is the only
+     reason four of them fit: a clickable glyph needs 26px from its
+     neighbour and the edge is ~40px on hex-slice 6. Each is a
+     MINIATURE OF WHAT IT PRODUCES -- deeper, shallower, tighter,
+     wider -- so it reads without a vocabulary to learn, and each sits
+     outside `_HANDLE_REACH`, since something drawn inside the catch
+     radius invites a click that does nothing.
+     AND IT IS COMPUTED AT PAINT TIME AND STORED NOWHERE, deliberately:
+     a derived picture has no actor that clears it, so it cannot be
+     left describing a state that has moved on. That is the snap-back
+     sweep's own rule applied while building rather than afterwards.
+  4. AND THE ALONG-POSITION IS CLAMPED clear of both vertices, about
+     15px, because at n=8 on a 40px edge the peak is 2.5px from the
+     start vertex and handles are tested before vertices -- a handle on
+     a vertex makes that vertex unclickable, which is why the far-side
+     offset was refused on 2026-08-31. ABOVE THE COUNT WHERE THE CLAMP
+     BITES THE READOUT IS NO LONGER EXACT, and that must be LEGIBLE
+     rather than silent, or somebody meets a handle that has stopped
+     responding. A readout that stops being one says so.
+
+
+### C-312 — The dual's five rulings with what was refused and the gaps distinction, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1787–1821 of the 2026-09-05 revision.</sub>
+
+- **THE DUAL: FIVE RULINGS OF 2026-09-05, SETTLED BY GRILLING.** (On
+  field report 5 against rc15, DRIVEN before it was put: the box asked
+  the tab for a topology OF the dual, the library raised, `_why_not`
+  said "gaps" and the landing's `report([])` erased even that -- and
+  the map had holes, because the library's own `generate_dual` says it
+  does not yet exhaust the plane: 77% cover on the default design.
+  Measurements in R-79.)
+  1. "MAP THE DUAL INSTEAD" IS A BUTTON, "Generate the dual and tile
+     it", and it lands in a NEW group named `<group> — dual`. The
+     checkbox goes.
+  2. THE DUAL IS COMPLETED HERE AND OFFERED UPSTREAM: one dual tile per
+     source vertex, from an interior member of each base set, with the
+     promotion mended so the promoted dual builds a Topology wherever
+     the catalogue's own copy of that tiling does. The button REFUSES
+     IN WORDS a design with no topology or a dual short of full cover;
+     a map with holes never ships.
+  3. IT GOES INTO 0.24.4 AND rc16 WAITS FOR IT.
+  4. THE DUAL GROUP'S RECORD IS THE SOURCE DESIGN PLUS THE EXISTING
+     "TILED WITH ITS DUAL" TERM, shown as a label where the box was;
+     Generate on that group re-tiles the dual; it is ONE-SHOT and does
+     not follow its source. The term already sits in the geometry
+     signature, the stamp and the shelf key, so every store that
+     exists is reused and nothing saved moves.
+  5. ITS ELEMENTS ARE ASSIGNED FRESH, as a new design's are; nothing is
+     inferred from the source's tiles, which are different shapes at
+     different places.
+  WHAT WAS REFUSED, so nobody re-litigates it silently: a frozen
+  snapshot (Generate would draw the plain design over it, the
+  dataset-switch harm through a new door) and a derived group that
+  follows its source (a new coupling with its own races). AND GAPS ARE
+  NOT THE SAME QUESTION: the dual's holes are missing TILES; a design's
+  gaps are real space, insets are already built before (ruling 1 of
+  2026-08-30), and a weave's strand width is baked into strand
+  construction, which is R-40's boundary and stands.
+
+
+### C-313 — The six decisions of 2026-09-01 with their measurements, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1815–1869 of the 2026-09-05 revision.</sub>
+
+- **THE SIX DECISIONS OF 2026-09-01, SETTLED BY GRILLING.** All four
+  approved features go into 0.24.4 on the maintainer's decision, and
+  each was put with a measurement rather than an opinion; the
+  measurements are recorded because they are what a later session will
+  not have.
+  MULTI-CLASS SELECTORS: CLICK TO SELECT, A LIST TO CONFIRM, each
+  following the other with the blocked-signal discipline the pin
+  controls already carry. Measured across a 48-design spread, the
+  feature only bites on the eight designs with three or more classes of
+  a kind; the record needs nothing, an edit's `classes` being already a
+  STRING selector.
+  CAIRO IS A RENAME, NOT A FAMILY. Measured through `catalog.make_unit`,
+  `tiling_type="cairo"` and `laves 3.3.4.3.4` draw the SAME GROUND --
+  symmetric difference 0.000 -- so one entry reads `laves 3.3.4.3.4
+  (cairo)` and the well-known names come with it. (C-262.)
+  **AND THE MECHANISM IS THE LABEL/KEY SEPARATION THIS FILE ALREADY
+  PREACHES.** `family_combo` is built with `addItems(names)`, so the
+  catalogue name does duty as label AND identity, and
+  `WORKING_STATE_DESIGN` stores `family` as the combo's TEXT -- which
+  is why renaming an entry looked as though it would orphan every
+  saved GeoPackage. Items carry the catalogue KEY as item data and
+  show a LABEL; the record goes on storing the key; every saved file
+  restores unchanged and the next rename costs nothing. This is "a
+  name you show is not a name you look up by" arriving at the
+  catalogue, where it had never been applied.
+  THE DUAL IS BUILT HERE AND OFFERED UPSTREAM. `Tileable.__init__`
+  delegates to `_setup_tiles()`, which dispatches on `tiling_type` and
+  has NO path for supplied geometry, so assembling a Tileable from
+  `Topology.get_dual_tiles()` means setting the fields upstream's own
+  setup would set -- the vendoring boundary. It goes in behind one
+  function with the measurement and the removal criteria at the site
+  and a canary that fails the day the library grows a real
+  constructor, AND goes up as a patch, which is the route the STRtree
+  optimisation took and came back merged.
+  THE SYMMETRIES: DRAWN, GATING, AND REPORTED. `Topology` already
+  holds `tile_matching_transforms` and `Symmetries(polygon)` gives a
+  tile's group code, but `plot_tiling_symmetries` draws through
+  matplotlib, which cannot run inside the signed QGIS process on
+  macOS -- so the drawing is OURS, in the view's painter, from
+  upstream's data. The gating is the symmetry note's own finding: a
+  vertex whose stabiliser contains a rotation has only the zero
+  displacement available, so a control that cannot move the selection
+  is greyed WITH ITS REASON rather than offering a rail of zero
+  length. Necessary and not sufficient -- laves class B has a
+  one-dimensional fixed space and still yields nothing -- so the gate
+  says what it measured.
+  THE ELEMENT SLIDER KEEPS ITS RANGE AND THE FLIP SPEAKS. Weave
+  families run n=2 to 12 and tilings to 256, so from 13 up only
+  tilings exist and `test_design_cascade` requires the toggle to flip.
+  Capping the track would have to cap the spin box with it, since the
+  count is one control in two widgets, and would retire that contract
+  along with the route by which somebody on weaves meets the tilings
+  above. Crossing 12 on a weave SAYS what it did, in the sentence
+  family the switch door was given on 2026-08-26.
+
+
+### C-314 — Nothing ends while a save is outstanding: the two questions answered and the cancel caveat, in full
+
+<sub>Cut from `CLAUDE.md`, lines 1828–1845 of the 2026-09-05 revision.</sub>
+
+- **NOTHING ENDS WHILE A SAVE IS OUTSTANDING.** (Maintainer's ruling,
+  2026-09-01.) A quit or a window close met a save that had been
+  promised and not yet written, and dropped it: `closeEvent` cleared
+  `_save_pending` with nothing said. So a waiting window now holds
+  both doors, says what it is waiting for, and offers Cancel; a quit
+  is DELAYED rather than vetoed, because refusing outright leaves
+  somebody unable to leave QGIS if a save ever wedges. TWO THINGS
+  WERE PUT AS QUESTIONS AND ANSWERED, and both would have cost a map
+  if guessed: Cancel abandons the save and lets the quit through, and
+  "save it" at a close means WAIT FOR THE REDRAW rather than write
+  what is on screen -- the press was deferred precisely because the
+  map on screen is the one they had changed away from. Account in
+  MAINTAINING.md under "Nothing ends while a save is outstanding".
+  AND CANCEL IS CERTAIN ONLY BEFORE THE WRITING STARTS, which is said
+  at the line rather than implied: a cancel mid-write needs
+  `write_gpkg_layers` to take a stop callback, and until it does, a
+  button offered there would be a button that lies.
+
+### C-315 — Inventing a question: the growth-ceiling ask written up as a re-opened rule
+
+<sub>Cut from `CLAUDE.md`, lines 676–691 of the 2026-09-05 revision.</sub>
+
+- **BEFORE PUTTING A DECISION TO THE MAINTAINER, CHECK IT IS A
+  DECISION THEY HAVE TO MAKE.** (2026-08-29, and it cost the maintainer
+  two exchanges: an ask that was a ceiling on GROWTH was written up as
+  re-opening a settled rule, and ended in a question put back to them
+  that they had never owed an answer to. C-12.)
+  THE FAULT IS NOT THE WRONG ANSWER, IT IS INVENTING A QUESTION. A
+  request elaborated into a ruling acquires open questions that belong
+  to the elaboration rather than to the request, and handing those
+  back reads as diligence while actually asking somebody to do work
+  the reading created. This file already says a decision is only as
+  good as the measurement under it; the other half is that a QUESTION
+  is only as good as the request under it.
+  THE CHEAP CHECK: state the ask back in the plainest form that could
+  be acted on, and see whether anything is still missing. Where the
+  plain form is buildable, build it. Reserve the grilling for
+  decisions that genuinely fork.
+
+
+### C-316 — Two relationships: the maintainer's framing of 2026-08-25 in full, with the open list and the icon-mode correction
+
+<sub>Cut from `CLAUDE.md`, lines 716–754 of the 2026-09-05 revision.</sub>
+
+- **TWO RELATIONSHIPS, AND ONLY ONE OF THEM MAKES PERSISTENCE A
+  DUTY.** (Maintainer's framing, 2026-08-25, offered while the
+  dataset-switch rules were being reopened, and it is the sharpest
+  thing said about them.) Much of this plugin's instinct to REMEMBER
+  comes from the one context where remembering is an obligation: the
+  boundary with QGIS. There the plugin is a guest in somebody else's
+  application, and what it holds is the user's own work -- hand
+  styling done in the dock, a group they renamed, the stamps in a
+  saved project, the tables in a GeoPackage a colleague will open.
+  Losing any of that DESTROYS something, and that is why "preserve, do
+  not repaint", the follow rules, adoption, and ruling 8's per-dataset
+  banks all lean the same way.
+  NONE OF THAT REASONING REACHES THE DIALOG'S OWN CONTROLS. What the
+  design chooser, the family list, the spacing box and the assignment
+  table carry from one act to the next is the plugin talking to its
+  user about the plugin, with no third party's work at stake:
+  forgetting there costs somebody a few clicks, never a map. So those
+  questions are settled on their own merits -- what makes the next
+  thirty seconds clear -- and a "we must never lose anything" argument
+  imported from the QGIS boundary is not evidence about them.
+  WHAT THIS DOES NOT SAY is that the dialog should forget. It says the
+  two questions are INDEPENDENT, and that an answer for one must be
+  argued rather than inherited from the other. On the settled side:
+  hand-picked colours, pinned bounds, everything stamped onto a layer
+  or written to a file, and the rule that a landing never writes over
+  a map made from another dataset. On the open side, as of this date:
+  whether the design travels a change of dataset, what a retained
+  scheme follows, and what the design-floor question offers. The
+  spacing was the first of the open ones to be decided, and decided on
+  its own merits rather than by analogy -- a number a person TYPED
+  survives, a number the plugin DERIVED does not.
+  ICON MODE WAS ON THAT LIST AND IS NOT OPEN, corrected 2026-08-27:
+  ruling 4 of 2026-08-25 puts it in the working state a group restores,
+  and a hunt drove six boundaries reading the node property, the file
+  and the .qgz independently. All agreed. A BINDING FILE THAT LISTS A
+  SETTLED QUESTION AS OPEN IS READ AS CURRENT and invites somebody to
+  implement forgetting, which is why the clause is struck rather than
+  left as harmless untidiness. (C-261.)
+
+
+### C-317 — How the suite's QGIS prefix is discovered, and the months it ran with no ramps at all
+
+<sub>Cut from `CLAUDE.md`, lines 1234–1253 of the 2026-09-05 revision.</sub>
+
+The environment that script needs is DISCOVERED, by
+`tools/macos_qgis_env.sh`, which the macOS CI job also calls -- so the
+runner and this machine cannot disagree about how to start QGIS's
+Python. It finds the bundle, finds an interpreter that actually
+STARTS (the cask's carries the paths of the machine it was built on
+and dies without a PYTHONHOME), and picks `QGIS_PREFIX_PATH` by asking
+QGIS, AGAINST A THROWAWAY PROFILE.
+That last part is the whole trick and it is worth understanding
+before touching the script. The prefix decides `pkgDataPath`, which is
+where QGIS finds the style database every stock ramp lives in. This
+project had it wrong for months -- `Contents/MacOS` yields a doubled
+path that does not exist -- and QGIS started, imported, tiled and
+rendered with NO RAMPS AT ALL. It never showed here because the
+profile on this machine has carried 63 ramps since the plugin seeded
+it. Asked with a seeded profile every candidate answers "ramps
+present", so the measurement has to be made somewhere nobody has
+been. The bundle itself is the prefix: 35 ramps on a fresh profile,
+`/Applications/QGIS-final-4_0_3.app`, Python 3.12, offscreen works
+headless.
+
+
+### C-318 — The reference column's claim, the thirty-version gap and the refused browser capture
+
+<sub>Cut from `CLAUDE.md`, lines 1922–1934 of the 2026-09-05 revision.</sub>
+
+THE REFERENCE COLUMN MEASURES THE VENDOR, AND SAYS SO. (Maintainer's
+ruling, 2026-09-05, closing the conflict recorded 2026-08-26.) The
+PDF's reference is `TiledMap.render` from the vendored library at the
+commit `VENDOR-VERSION.txt` records, and that is the whole of its
+claim: the web app pins a library thirty versions behind the vendor,
+six of twelve modules changed behaviourally in between, and a sentence
+saying the column "speaks for both" had become a claim nothing here
+measured. A live browser capture was refused rather than deferred --
+a network and a pyodide load per case, for a column that goes red
+whenever the app lags the library, which is the app's business. The
+gap as it was measured, and the earlier reading the old claim rested
+on: C-263.

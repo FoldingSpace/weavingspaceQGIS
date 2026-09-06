@@ -48,8 +48,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # What it must never become is a number nobody can meet, since a limit a
 # healthy document reaches is a limit people learn to route around.
 PAIRS = [
-  # 3,919 lines after the pass of 2026-09-05, from 7,048.
-  ("CLAUDE.md", "CLAUDE-archived.md", "C", 4700),
+  # 1,932 after the third pass of 2026-09-05 (from 3,919 after the
+  # first two, and 7,048 before any), made to the maintainer's measure
+  # that the file be as context-efficient as it can be while still
+  # transmitting each lesson's rule, its logic and some of its evidence.
+  # A fifth above where it stands, as the others.
+  ("CLAUDE.md", "CLAUDE-archived.md", "C", 2350),
   # 2,414 after a pass that found almost nothing to take: this file is
   # architecture rather than accretion, and the reasoning in it is the
   # thing a maintainer came for. Budgeted for growth, not for a cut.

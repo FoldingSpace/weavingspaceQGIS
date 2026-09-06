@@ -263,3 +263,36 @@ governs, and neither has it.
 WHAT WOULD CHANGE THAT is somebody being asked to read either at
 session start. If that happens they are binding documents and they get
 the same treatment as the other five.
+
+## The third pass, and the measure it was made to
+
+**CONTEXT-EFFICIENT, AND STILL EFFECTIVE.** (Maintainer's instruction,
+2026-09-05, later the same day: the documents are to be "as context
+efficient as possible while being effective -- we want their lessons
+and logics and some reasons/evidence to be transmitted".) That is the
+measure above stated from the reader's side, and it licenses one thing
+the first two passes did not do: CONSOLIDATION. Where a section held
+forty lessons each stated as its own dated episode, the lessons of one
+theme are now one entry each, a family of related rules with the ids
+of every original quoted beside the clause it became, and the forty
+originals archived verbatim under one id per theme (C-264 to C-268).
+Nothing was deleted and no id was renumbered; a rule that had lived
+only in its account was put back live in the consolidated form.
+
+What the pass took from CLAUDE.md, 3,919 to 1,932 lines: the five
+lesson themes; the Hard rules' and Required practices' accounts
+(C-269 to C-293); the narrative round the settled rulings, whose
+numbered statements stay whole (C-294 to C-314); the two-relationships
+framing and the decision-check (C-315, C-316); and the suite
+environment's and the reference column's accounts (C-317, C-318).
+
+TWO THINGS THE CONSOLIDATION TAUGHT. First, `--stranded` reports every
+rule whose exact wording now lives only in the archive, and after a
+consolidation that list is mostly paraphrase rather than loss -- so
+read each hit against the consolidated entry before restoring it, and
+restore only what is genuinely missing (two of twenty-seven were).
+Second, a pass over a document is written as a script of anchored
+moves (`dev/doc_pass.py`) rather than by hand, so every cut is a
+verbatim copy and the id placeholder is filled by the tool; the end
+anchor of the last entry in a file needs a sentinel line, since the
+tool anchors on the NEXT block.
