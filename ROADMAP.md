@@ -790,58 +790,20 @@ was blocking the version: three are measurements rather than
 defect-finding, and the fourth is a study whose answer is written
 at its own entry.
 
+**AND ALL THREE ARE EXPERIMENTAL UNTIL DESIGNATED OTHERWISE, BEHIND A
+BOX THAT IS UNTICKED BY DEFAULT.** (Maintainer's ruling, 2026-08-30.)
+The **Experimental features** checkbox goes under the THIRD tab, which
+is *Map options*. (R-32.)
+
 **THE LIVE-UPDATE SWITCH IS ON THE TOPOLOGY TAB AS WELL, AS A SECOND
 VIEW OF ONE FACT. BUILT AND GUARDED 2026-09-05.** `live_check` remains
 the single owner and the only thing any reader asks; the tab's box is
 bound to it symmetrically with signals blocked, in the dialog rather
-than in the panel, because a panel that reached back for the dialog's
-controls would be the second store this is written to avoid. Guarded by
-`one live update switch seen from two tabs`, which holds BOTH halves --
-that each box moves the other, and that no code anywhere asks the view
-what it holds -- with a catalogue entry proved `caught`. The reasoning
-follows. (Maintainer's idea, 2026-09-05.) The tab
-already live-updates its OWN drawing; what it cannot do is stop the
-whole-layer re-tile in QGIS without going back to the first tab. So a
-box at the foot of the Topology tab toggles the same live update the
-Design tab's box does, and the two hold the same state.
-
-WHY IT IS WANTED IS MEASURABLE RATHER THAN A MATTER OF TASTE: a
-topology edit IS a geometry change by `_geometry_signature`, so every
-Apply re-tiles the map -- 1.36s at spacing 250 and 3.8s at 150 --
-while somebody making a few edits in a row wants none of them until
-they are done. The switch is currently two tabs away from the work.
-
-AND IT IS NOT THE TWO-CONTROLS-ONE-FACT FAULT, though it looks like it,
-and the difference is the whole of whether this is safe to build. What
-failed on 2026-08-29 (C-43) was two controls with DIFFERENT SEMANTICS
-armed at one outcome -- a ONE-SHOT "Create new" beside a STANDING
-"Create as new group" preference -- so the readers disagreed and five
-sites asked only one of them. This is two VIEWS of a single fact, which
-this project already does correctly: dataset and group are bound
-symmetrically, each selecting the other, with signals blocked as
-`_sync_pin_controls` does, or setting a control right fires the handler
-that set it right.
-
-SO THE CONDITIONS TO BUILD IT UNDER, and they are the ones that make
-the difference above real: ONE OWNER of the fact -- the existing
-`live_check` -- with the new box a view that reads and writes it and
-never a second store; the sync blocked in both directions; and no
-reader anywhere allowed to ask the new box instead of the owner. A test
-that ticks each and reads the other, and asserts that nothing else
-holds a copy, is what stops it drifting into C-43's shape.
-
-**THREE TABS ASKED FOR ON 2026-08-29, and they are wants with no code
-yet rather than work deferred from 0.24.4.** Each changes the shape of
-the interface, so each gets `/grill-me` before anything is written --
-this project's own rule, and the sessions that took it produced
-designs that stuck.
-
-**AND ALL THREE ARE EXPERIMENTAL UNTIL DESIGNATED OTHERWISE, BEHIND A
-BOX THAT IS UNTICKED BY DEFAULT.** (Maintainer's ruling, 2026-08-30.) An
-**Experimental features** checkbox goes under the THIRD tab, which is
-*Map options* -- the tab order is Design, Data & colours, Map options,
-Save & open, Help. (R-32.)
-
+than the panel. It is NOT the two-controls-one-fact fault of C-43,
+which was two controls with different SEMANTICS aimed at one outcome.
+Guarded by `one live update switch seen from two tabs`, which holds
+both halves -- each box moves the other, and nothing asks the view what
+it holds. (R-78.)
 **A MESSAGES TAB -- SHIPPED EXPERIMENTAL IN 0.24.4, and what is left
 here is the part that did not ship.** The tab exists: everything the
 plugin has said this session, newest first, with the answer beside any
@@ -1210,8 +1172,21 @@ come from, which is this software's characteristic failure:
 - AND A HELD LAYER KEEPS ITS RENDERER, which is what the restyle path
   exists to exploit and what makes a stale one invisible here.
 
-SO IT WANTS A GRILLING OF ITS OWN, on the twin-moving specifically, and
-the gate it has to pass already exists: `a cached switch draws what a
+**GRILLED AND SETTLED 2026-09-05, three rulings, in CLAUDE.md.** A
+switch that makes or unmakes a twin DECLINES and rebuilds, keeping the
+prohibition `_restyle_only` has carried since the holes came back; so
+it is an EXTENSION of the restyle path rather than a third one, with
+the bare variable name leaving the geometry signature while
+`_needs_a_no_data_split` stays in it -- which expresses the first
+ruling in the signature that already exists; and it does not ship
+without a differential over THAT path, on the awkward shapes.
+
+WHAT IS OWED BEFORE ANY CODE: the differential. The one built today
+exercises the FULL-RUN path and would go on passing while the fast
+path drew something else, which is the exact shape of the three
+previous signature narrowings -- each a wrong map that looked right.
+
+THE OLDER NOTE, kept because it is the reasoning the rulings answer: `a cached switch draws what a
 retile draws` compares the two paths feature by feature including the
 field names, and it is what caught the last wrong map this ground
 produced. The saving is worth having -- 1.728s at spacing 150 against

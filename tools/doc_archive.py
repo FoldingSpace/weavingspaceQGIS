@@ -54,9 +54,23 @@ PAIRS = [
   # architecture rather than accretion, and the reasoning in it is the
   # thing a maintainer came for. Budgeted for growth, not for a cut.
   ("MAINTAINING.md", "MAINTAINING-archived.md", "M", 2900),
-  # 1,052 after the pass, from 3,095. A ledger grows between releases
-  # and is pruned by them, so this is the budget most likely to bind.
-  ("ROADMAP.md", "ROADMAP-archived.md", "R", 1500),
+  # 1,052 after the pass of 2026-09-05, from 3,095 -- and RAISED TO
+  # 2100 LATER THE SAME DAY, on the maintainer's decision that "the
+  # budget shouldn't be that small". The reason, written here because
+  # a number without one is a number nobody can argue with later: the
+  # 1500 fired THREE TIMES in a single session, and each time the
+  # growth was current content rather than accretion -- eight rulings
+  # settled by grilling, five field reports, two caching designs and
+  # the open work of a version mid-flight. Each firing was answered by
+  # moving DONE accounts out (R-73 to R-78), which is the practice
+  # working; but a limit that binds three times in a day is sized for
+  # a quieter period than a version carrying this much.
+  # A LEDGER IS PRUNED BY A RELEASE RATHER THAN BY A PASS, which is
+  # what makes this the budget most likely to bind: what a version
+  # owes leaves the file when the version ships, and until then it
+  # legitimately grows. 2100 is a fifth above where the ledger stands
+  # after the day's passes, which is the same rule the other four use.
+  ("ROADMAP.md", "ROADMAP-archived.md", "R", 2100),
   # 2,527 after the pass, from 5,238.
   (os.path.join("docs", "TESTING.md"),
    os.path.join("docs", "TESTING-archived.md"), "T", 3000),

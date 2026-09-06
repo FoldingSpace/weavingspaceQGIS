@@ -3492,6 +3492,40 @@ here, and the decision to add one is the maintainer's. Recorded
   1.676s, and a typed number replaced in silence -- both reached a
   user, and neither showed up as an error anywhere.
 
+- **A VARIABLE SWITCH TAKES THE RESTYLE PATH: THREE RULINGS OF
+  2026-09-05, SETTLED BY GRILLING.** (On what the tile-to-zone cache
+  still does not skip -- `gdf_to_layer`, 0.239s at spacing 250 and
+  1.728s at 150. Not yet built; the rulings are recorded first because
+  the reasoning is what a later session will not have.)
+  1. WHERE A SWITCH MAKES OR UNMAKES A TWIN, IT DECLINES AND REBUILDS.
+     `_needs_a_no_data_split` is a GEOMETRY term precisely because
+     `_restyle_only` "repaints a paired layer that already exists and
+     cannot make or unmake one" -- and the day that was got wrong the
+     nulls stayed on the graduated layer and eight tiles came back as
+     holes. The fast path does not inherit that prohibition; it keeps
+     it.
+  2. SO IT IS AN EXTENSION OF THE RESTYLE PATH RATHER THAN A THIRD ONE.
+     The bare variable NAME leaves the geometry signature and
+     `_needs_a_no_data_split` stays in it, which expresses ruling 1 in
+     the signature that already exists: a switch changing no twin's
+     existence is a style change, and one that does forces a full run.
+     A third path would re-derive what the landing already knows --
+     the stamps, the styles, the group binding, the pins re-read at
+     the landing -- and be a third place for them to drift.
+  3. AND IT DOES NOT SHIP WITHOUT A DIFFERENTIAL OVER THAT PATH. This
+     is the fourth narrowing of the geometry signature and the
+     previous three were each a WRONG MAP that looked right, so the
+     gate is a comparison of the fast path against a full re-tile,
+     feature by feature and field names included, on the shapes that
+     have caught this before: nulls in different places, a constant
+     column, two distinct values against five classes, and A
+     PERMUTATION OF TWO ELEMENTS' VARIABLES -- the last being what
+     caught the trim on the day ruling 6 landed, by a test that had
+     passed since it was written.
+     THE EXISTING DIFFERENTIAL DOES NOT COVER IT: `a cached switch
+     draws what a retile draws` exercises the FULL-RUN path, so it
+     would go on passing while the fast path drew something else.
+
 - **THE ZIGZAG HANDLE: FOUR RULINGS OF 2026-09-05, SETTLED BY
   GRILLING.** (On field reports 3 and 4 against rc15, which turned out
   to be one question about one glyph. Into 0.24.4, on the maintainer's
