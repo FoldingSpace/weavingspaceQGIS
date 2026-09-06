@@ -102,6 +102,7 @@ quote them, do not renumber them.
 - **R-77** — The deferred-deletion hypothesis, its measurement, and the probe that measured its ow...  <sub>0.24.4: accounts of closed work</sub>
 
 - **R-78** — The live-update switch on two tabs: why it is not C-43, and the conditions it was bui...  <sub>0.24.5: accounts of closed work</sub>
+- **R-79** — The seven conflicts as they stood before the grilling of 2026-09-05, and field report 5's first reading  <sub>Conflicts to settle by grilling; 0.24.4 field reports</sub>
 
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
@@ -3278,3 +3279,139 @@ BOX THAT IS UNTICKED BY DEFAULT.** (Maintainer's ruling, 2026-08-30.) An
 *Map options* -- the tab order is Design, Data & colours, Map options,
 Save & open, Help. (R-32.)
 
+
+### R-79 — The seven conflicts as they stood before the grilling of 2026-09-05, and field report 5's first reading
+
+<sub>Cut from `ROADMAP.md`, lines 99–163 and 460–485 of the
+2026-09-05 revision, when all eight were settled by grilling. The
+measurements that decided field report 5 are at the end.</sub>
+
+**1. THE RECORD CAN LIST MORE ELEMENTS THAN ITS OWN DESIGN HAS.**
+(Under 0.24.4.) Only a landing may move the record's DESIGN half,
+which is the ruling of 2026-08-26; everything the colour editor writes
+must be re-read live at the landing, which this project learned three
+times at the cost of somebody's pinned bounds. Both hold, and together
+they let a Save write `n=4` beside `elements a..f` in three presses.
+Trimming is ruled out: the surplus entries are the per-element,
+per-field memory ruling 6 of 2026-08-21 requires to survive a switch.
+The likely answer is at the READER, but that is a decision about what
+the record MEANS.
+
+**2. THE MUTATION WORKFLOW GATES A CANDIDATE, THOUGH IT IS DOCUMENTED
+AS REPORTING.** (Under 0.24.4, added 2026-08-31.) The decision of
+2026-08-11 took the mutation instruments out of the gating path
+deliberately; `publish_candidate` refuses unless EVERY workflow on the
+candidate's commit is green. It stopped rc7 rightly, because that
+workflow's coverage leg runs the whole suite and had found a real test
+fault -- so the question is whether the split belongs per JOB rather
+than per workflow, the sampling jobs reporting and the whole-suite leg
+gating.
+
+**7. WHICH DESIGN TERMS PUT A TOPOLOGY EDIT AWAY.** (Under 0.24.4,
+added 2026-09-02.) `topology_edits.shelf_key` now carries the family,
+the element count and whether the DUAL is being mapped -- the last
+added as ledger row 24, because a dual is a design in its own right
+and an edit is replayed by label. Every OTHER design term is still
+outside it, and the specification hunt measured what that costs: a
+scale modifier turned two edge classes into four on `laves 3.3.4.3.4`,
+so the class an edit names came to describe a disjoint set of edges
+while the change list still read the same. Widening the key to the
+whole design is the obvious repair and it is a RULING rather than a
+fix: it would mean an ordinary spacing or modifier tweak putting
+somebody's edits away and bringing them back, and where that line
+falls is what a person feels. The alternative is to keep the key
+narrow and REPORT at replay time where a named class no longer means
+what it did.
+
+**3. THE ELEMENT SLIDER'S TRACK AGAINST `test_design_cascade`.**
+(Under 0.24.4, flagged rather than decided.) The track spans the whole
+catalogue, 2 to 256, where a weave-capped track would offer thirteen
+counts with no weave family behind them AND retire a contract that
+test states outright -- that a count offering only one kind flips the
+toggle silently. One line either way, and the line retires a contract.
+
+**4. THE COLOURSPACE LIMIT WAS CALIBRATED ON A PROFILE NO USER HAS.**
+(Under "Design decisions already settled", in CLAUDE.md.) A gate
+certifying colour fidelity must not pass because of one machine's
+seeded style library; and re-deriving a limit whose baseline was never
+representative is close enough to loosening a threshold for a green
+run that nobody should do it quietly. Reproduced in thirty seconds
+under `QGIS_CUSTOM_CONFIG_PATH=$(mktemp -d)`.
+
+**5. WHETHER THE REFERENCE COLUMN STILL SPEAKS FOR THE WEB APP.** The
+comparison PDF's reference column was both the library and the app,
+because the app pinned the same library version. The vendor is thirty
+versions ahead of the app's pin, six of twelve modules changed
+behaviourally, so the claim now rests on a gate that measures the
+VENDOR. A live browser capture is the honest third column, and whether
+to add one is a decision about what the PDF promises.
+
+**6. THE WINDOW CEILING AGAINST THE THREE LAYOUT PRIORITIES.** At the
+real macOS system font the assembled window measures 1334px against a
+1280 ceiling, and the three priorities settled on 2026-08-09 cannot
+all hold there. Which one gives is a decision, and no runner here can
+measure the assembled window -- offscreen reports 1279 at both fonts.
+
+**FIELD REPORT 5 AS FIRST READ.** "MAP THE DUAL" ERRORS WHILE THE TAB
+DRAWS A DUAL PERFECTLY WELL. READ, NOT YET DRIVEN, 2026-09-05. The two
+paths are confirmed different and the difference is not one store
+against another but TWO SUBJECTS: the tab builds its topology from the
+UN-MODIFIED motif (ruling 1, and the tab says so on its face), while
+`_build_unit` runs rotate, scale, skew and both insets and only THEN
+calls `topology_edits.build(unit)` -- whose own docstring says "unit:
+the Tileable, before modifiers". An inset opens gaps, a gapped design
+has no topology, and the notice reads "This design has no dual to tile
+with" for a design whose dual is on screen. AND THE COLLISION IS A
+RULING RATHER THAN A BUG: the comment at that call argues the opposite
+case deliberately -- "the dual of a rotated, inset unit is what
+somebody ticking this asks for" -- so ruling 1 and that intent give
+one act two answers. WHAT THIS DOES NOT YET EXPLAIN is the report
+itself: every modifier default is zero or identity and `_build_unit`
+skips identities, so on the DEFAULT design `build` does receive the
+un-modified unit and this asymmetry cannot fire. Either the reporting
+session had a modifier set, or "errors" means a raise rather than that
+notice. It needs driving before anything is repaired -- a harm named
+by reading is a hypothesis.
+
+**WHAT DRIVING IT FOUND, 2026-09-05** (probes `dev/probes/fr5_*`, arms
+A to L, packaged Auckland data, default design, every modifier at its
+default, on HEAD and on the rc15 tree alike):
+
+- Arm B: Generate with the box ticked draws the dual -- squares and
+  triangles where the control drew pentagons -- raising nothing and
+  saying nothing. Arm C, live update ON: ticking the box redrew nothing
+  and said nothing.
+- Arm D and G: after the tick the tab says "Working out the design's
+  structure…", the build lands in about 1.2s, and the tab holds no
+  topology with an EMPTY note. The forty seconds first read as a hang
+  were the suite's own waiter returning at once on the OLD topology
+  (T-107's shape).
+- Arm E: `Topology(dual)` on the main thread raises `ValueError: not
+  enough values to unpack` inside the library's `merge_edges_at_vertex`
+  in 0.11s; `build` catches it and `_why_not` returns the "gaps"
+  sentence for every exception.
+- Arm H, instrumented: the worker built on `Dummy-1` and returned
+  `(None, gaps sentence)`; `set_unit(unit, None, message=gaps
+  sentence)` was called; the panel's note was then EMPTY -- because the
+  landing's next call is `panel.report([])`, which writes
+  `" ".join([])` into the same QLabel.
+- Arm I: the promoted duals of six designs build a Topology; the
+  default design's and archimedean 4.8.8's raise, at two different
+  library lines.
+- Arm J: in unit space, one dual tile per source vertex is a complete
+  dual. The default design gives 4 tiles of 6 (77% of the unit's
+  area), archimedean 4.8.8 2 of 4 (50%), hex-colouring 3 3 of 6
+  (50%); five others are complete. The library's own docstring:
+  "TODO: also need to ensure that this finds a set of dual tiles that
+  exhaust the plane".
+- Arm K: choosing an INTERIOR member of each base set instead of the
+  lowest id completes all three at 100%; the completed archimedean
+  4.8.8 and hex-colouring 3 duals build a Topology; the default
+  design's still raises in the edge merge.
+- Arm L: the catalogue's own `archimedean 3.3.4.3.4` (the default
+  design's dual as a tiling) BUILDS, so that refusal is our
+  promotion's. And a fresh `generate_dual()` gave 6 tiles both times
+  where the init-time copy `dual_as_tileable` reuses gave 4.
+- The maintainer's answer to "what did the error look like": the
+  sentence "Topology can only be worked out for a design whose tiles
+  meet", in the Topology tab.

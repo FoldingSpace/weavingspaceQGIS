@@ -3596,6 +3596,56 @@ here, and the decision to add one is the maintainer's. Recorded
      rather than silent, or somebody meets a handle that has stopped
      responding. A readout that stops being one says so.
 
+- **THE DUAL: FIVE RULINGS OF 2026-09-05, SETTLED BY GRILLING.** (On
+  field report 5 against rc15, DRIVEN before it was put: the box asked
+  the tab for a topology OF the dual, the library raised, `_why_not`
+  said "gaps" and the landing's `report([])` erased even that -- and
+  the map had holes, because the library's own `generate_dual` says it
+  does not yet exhaust the plane: 77% cover on the default design.
+  Measurements in R-79.)
+  1. "MAP THE DUAL INSTEAD" IS A BUTTON, "Generate the dual and tile
+     it", and it lands in a NEW group named `<group> — dual`. The
+     checkbox goes.
+  2. THE DUAL IS COMPLETED HERE AND OFFERED UPSTREAM: one dual tile per
+     source vertex, from an interior member of each base set, with the
+     promotion mended so the promoted dual builds a Topology wherever
+     the catalogue's own copy of that tiling does. The button REFUSES
+     IN WORDS a design with no topology or a dual short of full cover;
+     a map with holes never ships.
+  3. IT GOES INTO 0.24.4 AND rc16 WAITS FOR IT.
+  4. THE DUAL GROUP'S RECORD IS THE SOURCE DESIGN PLUS THE EXISTING
+     "TILED WITH ITS DUAL" TERM, shown as a label where the box was;
+     Generate on that group re-tiles the dual; it is ONE-SHOT and does
+     not follow its source. The term already sits in the geometry
+     signature, the stamp and the shelf key, so every store that
+     exists is reused and nothing saved moves.
+  5. ITS ELEMENTS ARE ASSIGNED FRESH, as a new design's are; nothing is
+     inferred from the source's tiles, which are different shapes at
+     different places.
+  WHAT WAS REFUSED, so nobody re-litigates it silently: a frozen
+  snapshot (Generate would draw the plain design over it, the
+  dataset-switch harm through a new door) and a derived group that
+  follows its source (a new coupling with its own races). AND GAPS ARE
+  NOT THE SAME QUESTION: the dual's holes are missing TILES; a design's
+  gaps are real space, insets are already built before (ruling 1 of
+  2026-08-30), and a weave's strand width is baked into strand
+  construction, which is R-40's boundary and stands.
+
+- **THREE CONFLICTS SETTLED THE SAME DAY, AND FOUR STRUCK.** THE SHELF
+  KEY STAYS NARROW AND REPORTS AT REPLAY: each edit records the class
+  alphabet it was made against, and where a design's classes have
+  moved the replay applies what matches and says which edits now aim
+  at a changed design -- a spacing or modifier tweak never puts
+  somebody's edits away. THE RECORD'S READER ASSIGNS THE FIRST n
+  ELEMENTS and keeps the surplus as memory, so a record may be a
+  superset and is never a lie. THE COMPARISON PDF MEASURES THE VENDOR
+  at its recorded commit and says so; the web-app claim is dropped
+  rather than re-measured. STRUCK because their premise had dissolved:
+  the mutation workflow (R-31), the element slider (built 2026-09-01),
+  the colourspace limit (dE 0.3-0.4 here and green on three
+  fresh-profile runners), and the window ceiling (1480 since
+  2026-08-29). The eight as they stood: R-79.
+
 - **THE SIX DECISIONS OF 2026-09-01, SETTLED BY GRILLING.** All four
   approved features go into 0.24.4 on the maintainer's decision, and
   each was put with a measurement rather than an opinion; the

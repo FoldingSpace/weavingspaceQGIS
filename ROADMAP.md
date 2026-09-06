@@ -96,71 +96,21 @@ apart written down. That is how the kept-scheme ruling of 2026-08-26
 was settled, and it is why none of these should be closed by choosing
 a side quickly.
 
-**1. THE RECORD CAN LIST MORE ELEMENTS THAN ITS OWN DESIGN HAS.**
-(Under 0.24.4.) Only a landing may move the record's DESIGN half,
-which is the ruling of 2026-08-26; everything the colour editor writes
-must be re-read live at the landing, which this project learned three
-times at the cost of somebody's pinned bounds. Both hold, and together
-they let a Save write `n=4` beside `elements a..f` in three presses.
-Trimming is ruled out: the surplus entries are the per-element,
-per-field memory ruling 6 of 2026-08-21 requires to survive a switch.
-The likely answer is at the READER, but that is a decision about what
-the record MEANS.
-
-**2. THE MUTATION WORKFLOW GATES A CANDIDATE, THOUGH IT IS DOCUMENTED
-AS REPORTING.** (Under 0.24.4, added 2026-08-31.) The decision of
-2026-08-11 took the mutation instruments out of the gating path
-deliberately; `publish_candidate` refuses unless EVERY workflow on the
-candidate's commit is green. It stopped rc7 rightly, because that
-workflow's coverage leg runs the whole suite and had found a real test
-fault -- so the question is whether the split belongs per JOB rather
-than per workflow, the sampling jobs reporting and the whole-suite leg
-gating.
-
-**7. WHICH DESIGN TERMS PUT A TOPOLOGY EDIT AWAY.** (Under 0.24.4,
-added 2026-09-02.) `topology_edits.shelf_key` now carries the family,
-the element count and whether the DUAL is being mapped -- the last
-added as ledger row 24, because a dual is a design in its own right
-and an edit is replayed by label. Every OTHER design term is still
-outside it, and the specification hunt measured what that costs: a
-scale modifier turned two edge classes into four on `laves 3.3.4.3.4`,
-so the class an edit names came to describe a disjoint set of edges
-while the change list still read the same. Widening the key to the
-whole design is the obvious repair and it is a RULING rather than a
-fix: it would mean an ordinary spacing or modifier tweak putting
-somebody's edits away and bringing them back, and where that line
-falls is what a person feels. The alternative is to keep the key
-narrow and REPORT at replay time where a named class no longer means
-what it did.
-
-**3. THE ELEMENT SLIDER'S TRACK AGAINST `test_design_cascade`.**
-(Under 0.24.4, flagged rather than decided.) The track spans the whole
-catalogue, 2 to 256, where a weave-capped track would offer thirteen
-counts with no weave family behind them AND retire a contract that
-test states outright -- that a count offering only one kind flips the
-toggle silently. One line either way, and the line retires a contract.
-
-**4. THE COLOURSPACE LIMIT WAS CALIBRATED ON A PROFILE NO USER HAS.**
-(Under "Design decisions already settled", in CLAUDE.md.) A gate
-certifying colour fidelity must not pass because of one machine's
-seeded style library; and re-deriving a limit whose baseline was never
-representative is close enough to loosening a threshold for a green
-run that nobody should do it quietly. Reproduced in thirty seconds
-under `QGIS_CUSTOM_CONFIG_PATH=$(mktemp -d)`.
-
-**5. WHETHER THE REFERENCE COLUMN STILL SPEAKS FOR THE WEB APP.** The
-comparison PDF's reference column was both the library and the app,
-because the app pinned the same library version. The vendor is thirty
-versions ahead of the app's pin, six of twelve modules changed
-behaviourally, so the claim now rests on a gate that measures the
-VENDOR. A live browser capture is the honest third column, and whether
-to add one is a decision about what the PDF promises.
-
-**6. THE WINDOW CEILING AGAINST THE THREE LAYOUT PRIORITIES.** At the
-real macOS system font the assembled window measures 1334px against a
-1280 ceiling, and the three priorities settled on 2026-08-09 cannot
-all hold there. Which one gives is a decision, and no runner here can
-measure the assembled window -- offscreen reports 1279 at both fonts.
+**NOTHING AWAITS GRILLING AS OF 2026-09-05.** All seven, and field
+report 5 as an eighth, were put to the maintainer that day one at a
+time with the facts measured first. FOUR WERE STRUCK because their
+premise had dissolved: the mutation workflow (measured moot, R-31);
+the element slider (settled 2026-09-01 and built, the flip speaks);
+the colourspace limit (the comparison is handed the colours in force,
+measures dE means of 0.3-0.4 here, and the three fresh-profile Linux
+gallery jobs are green on the latest CI run); and the window ceiling
+(1480 since 2026-08-29, so the 1334 measured under the real macOS font
+fits). THREE BECAME RULINGS and are owed as work under 0.24.4 below:
+the shelf key stays narrow and reports at replay (was 7), the record's
+reader assigns the first n elements (was 1), and the comparison PDF
+says it measures the vendor (was 5). FIELD REPORT 5 BECAME FIVE
+RULINGS, in CLAUDE.md, with its work below. The eight as they stood,
+verbatim: R-79.
 
 ## Needs the maintainer, not the assistant
 
@@ -457,32 +407,60 @@ the drag-and-landing fixes, so none of these is a stale build.
    the amplitude. The zero sits on the edge now, the glyph rides the
    wave's first peak, and the wave is ghosted along the edge with four
    painted cues saying what the two axes do. (R-75.)
-5. **"MAP THE DUAL" ERRORS WHILE THE TAB DRAWS A DUAL PERFECTLY WELL.**
-   READ, NOT YET DRIVEN, 2026-09-05. The two paths are confirmed
-   different and the difference is not one store against another but
-   TWO SUBJECTS: the tab builds its topology from the UN-MODIFIED motif
-   (ruling 1, and the tab says so on its face), while `_build_unit`
-   runs rotate, scale, skew and both insets and only THEN calls
-   `topology_edits.build(unit)` -- whose own docstring says "unit: the
-   Tileable, before modifiers". An inset opens gaps, a gapped design
-   has no topology, and the notice reads "This design has no dual to
-   tile with" for a design whose dual is on screen.
-   AND THE COLLISION IS A RULING RATHER THAN A BUG: the comment at that
-   call argues the opposite case deliberately -- "the dual of a
-   rotated, inset unit is what somebody ticking this asks for" -- so
-   ruling 1 and that intent give one act two answers, which is the
-   shape "Conflicts to settle by grilling" exists for.
-   WHAT THIS DOES NOT YET EXPLAIN is the report itself, and that is
-   said plainly rather than glossed: every modifier default is zero or
-   identity and `_build_unit` skips identities, so on the DEFAULT
-   design `build` does receive the un-modified unit and this asymmetry
-   cannot fire. Either the reporting session had a modifier set, or
-   "errors" means a raise rather than that notice. It needs driving
-   before anything is repaired -- a harm named by reading is a
-   hypothesis. The extra gates the mapping path carries and the drawing
-   path does not are `_lattice_of`, the shallow copy and
-   `get_prototile_from_vectors`; `_lattice_of` reads sound for a
-   periodic tiling.
+5. **"MAP THE DUAL" ERRORS WHILE THE TAB DRAWS A DUAL PERFECTLY WELL.
+   DRIVEN AND RULED ON 2026-09-05, and the reading was wrong about the
+   mechanism.** On the packaged Auckland data, default design, no
+   modifiers, on HEAD and on rc15 alike: ticking the box asks the
+   Topology tab for a topology OF the dual, which the library's edge
+   merge raises on; `_why_not` turns every exception into the "gaps"
+   sentence, which is false of this design; and the landing's next
+   call, `report([])`, erases the reason `set_unit` had just written,
+   so the tab goes blank. No modifier is needed, which retires the
+   reading above. AND THE MAP ITSELF HAS HOLES: the library's
+   `generate_dual` carries its own TODO that the dual does not exhaust
+   the plane, and measured in unit space the default design's dual
+   covers 77% of the ground (4 tiles of 6), archimedean 4.8.8 50% and
+   hex-colouring 3 50%, while five other designs are complete.
+   Choosing an interior vertex per base set completes all three, and
+   the library builds the snub-square tiling from its own catalogue,
+   so the remaining refusal of the default design's dual is in our
+   promotion. Five rulings, in CLAUDE.md under "THE DUAL: FIVE RULINGS
+   OF 2026-09-05"; the work is owed just below. The probes are under
+   `dev/probes/fr5_*`, arms A to L. (R-79.)
+
+### Owed: the dual button, and three settled conflicts (2026-09-05)
+
+**rc16 WAITS FOR THESE**, on the maintainer's decision (ruling 3 of
+the dual). Cheapest and most durable first.
+
+- **THE DUAL BUTTON.** "Map the dual instead" leaves; "Generate the
+  dual and tile it" lands the dual in a NEW group named `<group> —
+  dual`, whose record is the source design plus the existing
+  `map_dual` term shown as a label; its elements are assigned fresh;
+  it refuses in words a design with no topology or a dual short of
+  full cover; it is one-shot and does not follow its source. Records
+  already saying `map_dual` restore through the same term.
+- **THE DUAL IS COMPLETED HERE AND OFFERED UPSTREAM**: one tile per
+  source vertex, from an interior member of each base set, with the
+  promotion mended so the default design's dual builds a Topology
+  (control: the catalogue's own `archimedean 3.3.4.3.4` builds). A
+  differential FIRST -- cover equal to the unit's, one tile per vertex
+  -- and a note in docs/process against the library's own TODO.
+- **TWO TAB DEFECTS**: `_why_not` says the true reason rather than
+  "gaps" for every exception, and a landing's `report([])` no longer
+  erases the reason `set_unit` wrote -- one QLabel, two writers, the
+  C-208 shape.
+- **THE SHELF REPORTS AT REPLAY** (was conflict 7): each edit records
+  the class alphabet it was made against; a replay onto a design whose
+  classes moved applies what matches and says which edits now aim at a
+  changed design. The key stays family, count, dual.
+- **THE READER ASSIGNS THE FIRST n** (was conflict 1): a Load or a
+  group selection restores the design's n elements from the record's
+  first n entries in element order and keeps the surplus as memory.
+- **THE PDF MEASURES THE VENDOR** (was conflict 5): its caption and
+  docs/PUBLISHING.md name `TiledMap.render` from the vendored library
+  at its recorded commit and drop the web-app claim. Wording through
+  text review, which is the maintainer's act.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.
