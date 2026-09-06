@@ -1990,6 +1990,7 @@ eight hunts reporting within half an hour of each launch.
 | stochastic over the doors (10th) | (row 9 completed) | when a repair clears a CONTROL at a landing, ask what the launch snapshot writes back over it; the sweep saw it only because one invariant compared two groups' records rather than one group against itself |
 | unreachable branches (7th) | (same as row 14) | the branch was reachable and the guard missing at a SIBLING door: enumerate the callers of the act, every `.cancel()`, not the branches of the guard |
 | one boundary but not another (the dual's frozen edits) | 1 claimed, left open | when a NAMING rule gains a term, re-aim every door that reuses the namer: the resume composed a name from a live control at the one moment the record had not been applied |
+| tests that cannot fail (9th, at today's nine guards) | 0, 2 dead axes | a mutant that stops the run landing passes tests that assert on layers without asserting the run landed; and a process-wide message store the harness never clears is a dead axis waiting for the full run |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

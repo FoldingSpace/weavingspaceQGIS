@@ -57482,9 +57482,9 @@ def test_a_dual_request_that_is_refused_does_not_latch():
     # group's name and the request itself are read too (trigger9).
     assert getattr(dlg, "_dual_request", None) is None, (
       f"the dual request {dlg._dual_request} outlived the refusal")
-    assert getattr(dlg, "_dual_source_group_name", None) is None, (
-      f"the source group's name {dlg._dual_source_group_name!r} "
-      f"outlived the refusal, and would name the next new group")
+    # THE SOURCE GROUP'S NAME IS ASSERTED IN THE CANCEL TESTS, whose
+    # journeys have a group to name; here there is none, so the store is
+    # None either way and an assertion on it was dead (trigger10).
     assert after == (False, False), (
       f"after the dual button's Generate was refused for want of a region "
       f"layer the stores read (map_dual, new_group) = {after}: the request "
@@ -57776,6 +57776,8 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
     combo.activated.emit(fresh)
     _tick(300)
     assert dlg._new_group_chosen, "PREMISE: Create new was not chosen"
+    from weavingspace_qgis import said as said_module
+    said_before = len(said_module.SAID)
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 2)
     _tick(300)
     _generate_and_wait(dlg)
@@ -57786,9 +57788,11 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
       f"{dlg.gpkg_widget.filePath()!r}, so the next Save would replace it")
     # THE BAR AS THE DATASET-DOOR TEST READS IT, the whole store, and the
     # plugin's own record of what it said beside it.
-    from weavingspace_qgis import said as said_module
+    # THE SLICE THIS ACT WROTE, since `said.SAID` is process-wide and
+    # `check()` never clears it: an earlier test's notice satisfied the
+    # whole list in one process (trigger10).
     said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
-            + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
+            + " ".join(str(r.get("text", "")) for r in said_module.SAID[said_before:])).lower()
     assert "path was cleared" in said, (
       f"the path was cleared with nothing said: {said!r}")
     # AND THE RECORD DOES NOT CARRY THE FILE EITHER: the launch snapshot
@@ -58167,9 +58171,14 @@ def test_a_dual_request_whose_run_is_cancelled_is_put_back():
     assert dlg._task is not None, "PREMISE: the dual's run never launched"
     assert dlg._dual_request is not None, \
       "PREMISE: the request was spent at launch rather than at the landing"
+    assert dlg._dual_source_group_name, \
+      "PREMISE: the press did not record the source group's name"
     dlg.close()
     _tick(1500)
     assert dlg._task is None, "PREMISE: the close did not cancel the run"
+    assert dlg._dual_source_group_name is None, (
+      f"the source group's name {dlg._dual_source_group_name!r} outlived "
+      f"the cancelled run and would name the next new group")
     names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
     assert not any(n.endswith("dual") for n in names), \
       f"PREMISE: the cancelled run landed a dual group anyway: {names}"
@@ -58267,9 +58276,14 @@ def test_a_dual_request_cancelled_by_a_new_project_is_put_back():
         break
     assert dlg._task is not None, "PREMISE: the dual's run never launched"
     assert dlg._dual_request is not None, "PREMISE: the request was spent at launch"
+    assert dlg._dual_source_group_name, \
+      "PREMISE: the press did not record the source group's name"
     QgsProject.instance().clear()
     _tick(1500)
     assert dlg._task is None, "PREMISE: the project door did not cancel the run"
+    assert dlg._dual_source_group_name is None, (
+      f"the source group's name {dlg._dual_source_group_name!r} outlived "
+      f"the cancelled run")
     assert (dlg.opt_map_dual.isChecked(), dlg._new_group_chosen) == (False, False), (
       f"after File > New cancelled the dual's run the stores read "
       f"{(dlg.opt_map_dual.isChecked(), dlg._new_group_chosen)}, so the "
@@ -58429,6 +58443,8 @@ def test_a_group_whose_layer_has_gone_is_refused_in_words():
     QgsProject.instance().removeMapLayer(layer_a.id())
     _tick(500)
     BAR_MESSAGES.clear()
+    from weavingspace_qgis import said as said_module
+    said_before = len(said_module.SAID)
     index = next(i for i in range(combo.count())
                  if combo.itemData(i) is not None and "regionB" not in combo.itemText(i))
     combo.setCurrentIndex(index)
@@ -58437,9 +58453,11 @@ def test_a_group_whose_layer_has_gone_is_refused_in_words():
     assert dlg.layer_combo.currentLayer() is layer_b, (
       f"the region combo moved to {dlg.layer_combo.currentLayer()} on a "
       f"group whose layer is gone")
-    from weavingspace_qgis import said as said_module
+    # THE SLICE THIS ACT WROTE, since `said.SAID` is process-wide and
+    # `check()` never clears it: an earlier test's notice satisfied the
+    # whole list in one process (trigger10).
     said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
-            + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
+            + " ".join(str(r.get("text", "")) for r in said_module.SAID[said_before:])).lower()
     assert "isn't in the project" in said, (
       f"a group whose layer has gone was chosen and nothing was said: {said!r}")
     assert "regionB" in combo.currentText(), (
