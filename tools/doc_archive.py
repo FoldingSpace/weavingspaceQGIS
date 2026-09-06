@@ -75,9 +75,11 @@ PAIRS = [
   # legitimately grows. 2100 is a fifth above where the ledger stands
   # after the day's passes, which is the same rule the other four use.
   ("ROADMAP.md", "ROADMAP-archived.md", "R", 2100),
-  # 2,527 after the pass, from 5,238.
+  # 836 after the third pass of 2026-09-05, which consolidated the
+  # dated lessons into one entry per theme (from 2,527 after the first
+  # two passes and 5,238 before any). A fifth above where it stands.
   (os.path.join("docs", "TESTING.md"),
-   os.path.join("docs", "TESTING-archived.md"), "T", 3000),
+   os.path.join("docs", "TESTING-archived.md"), "T", 1000),
   # 893 after the pass, from 1,193.
   (os.path.join("docs", "PUBLISHING.md"),
    os.path.join("docs", "PUBLISHING-archived.md"), "P", 1100),

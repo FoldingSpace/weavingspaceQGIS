@@ -286,6 +286,12 @@ numbered statements stay whole (C-294 to C-314); the two-relationships
 framing and the decision-check (C-315, C-316); and the suite
 environment's and the reference column's accounts (C-317, C-318).
 
+docs/TESTING.md took the same pass the same day, 2,527 to 836 lines:
+the procedures, the test shapes, the matrix method and the probe kit
+stay whole, and the hundred and fifty dated lessons became seven themed
+entries (T-134 to T-140) with the two long sections compressed in place
+(T-141, T-142). Its budget follows it to 1000.
+
 TWO THINGS THE CONSOLIDATION TAUGHT. First, `--stranded` reports every
 rule whose exact wording now lives only in the archive, and after a
 consolidation that list is mostly paraphrase rather than loss -- so
