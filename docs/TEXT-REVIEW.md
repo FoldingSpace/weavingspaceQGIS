@@ -16,13 +16,13 @@ Sentences you are happy with as they stand need no edit; `--apply` records every
 
 **`weavingspace_qgis/dialog.py:6792`** — in `_a_new_map_does_not_inherit_the_file`
 
-<!-- id:4546319539acbf8a -->
-> The GeoPackage path was cleared, so the map saved from your previous work isn't overwritten; choose a new path to save this one.
+<!-- id:7bb0c79e3986181a -->
+> The GeoPackage path was cleared, choose a new one for saving.
 
-**`weavingspace_qgis/dialog.py:18399`** — in `_on_group_chosen`
+**`weavingspace_qgis/dialog.py:18397`** — in `_on_group_chosen`
 
-<!-- id:d9046e46efbdb42b -->
-> The layer this map was made from isn't in the project, so the map was left as it is; add that layer back to work on it.
+<!-- id:d4b12782c5d1069e -->
+> The layer this map was made from isn't in the project. Add that layer back if you want to work on it.
 
 **`weavingspace_qgis/topology_tab.py:224`** — in `module level`
 

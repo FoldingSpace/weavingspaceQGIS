@@ -6789,9 +6789,7 @@ class WeavingSpaceDialog(QDialog):
     widget.blockSignals(False)
     _dump("LANDING", "path-cleared-for-a-new-group")
     self._report_quietly(
-      "The GeoPackage path was cleared, so the map saved from your "
-      "previous work isn't overwritten; choose a new path to save this "
-      "one.")
+      "The GeoPackage path was cleared, choose a new one for saving.")
 
   def _preview_wait(self) -> int:
     """How long to wait for quiet before rebuilding the preview.
@@ -18396,8 +18394,8 @@ class WeavingSpaceDialog(QDialog):
     region = (record or {}).get("region")
     if region and self._point_the_chooser_at(region) is False:
       self._report_quietly(
-        "The layer this map was made from isn't in the project, so the "
-        "map was left as it is; add that layer back to work on it.")
+        "The layer this map was made from isn't in the project. Add that "
+        "layer back if you want to work on it.")
       self._refresh_group_combo()
       return
     if record:
