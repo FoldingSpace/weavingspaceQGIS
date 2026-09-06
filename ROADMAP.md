@@ -175,7 +175,13 @@ handle's rulings 6 and 7; the clamp stands), and the two that changed
 code are built and guarded. The product stall of R-4 is parked under
 "Later, or never" on the maintainer's decision, and the text-review
 queue is empty, the three tooltip sentences those rulings wrote
-having been approved before rc16 was built.
+having been approved before rc16 was built. AFTER rc16, ROUND EIGHT
+CLOSED SIXTEEN DEFECTS on 2026-09-06 (docs/process/defects-2026-09-06.md,
+rows 1-16, most of them in the Topology tab's dual and zigzag work
+of the days before), so the next candidate carries them; three
+sentences those repairs wrote await review, two claims are left open
+in the ledger, and the count's drag deadband against its stops is a
+question for the maintainer.
 
 ### Closed: the two suite failures and the harness race
 
