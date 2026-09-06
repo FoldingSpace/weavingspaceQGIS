@@ -523,6 +523,13 @@ change one. The pass that keeps the two apart is docs/DOC-ARCHIVING.md.
   1.x floor, the support-package fetch and the pyproj data
   redirection only ever execute there. Full reasoning in
   docs/PUBLISHING.md. (2026-08-11, after the first Linux run.)
+- **THE FULL SUITE IS NOT RUN UNLESS IT IS ABSOLUTELY NECESSARY.**
+  (Maintainer's instruction, 2026-09-05, restating the rule below for
+  every context and not only the hour before a candidate.) Iterate
+  with `tools/run_some.py` on the tests a change touches and their
+  neighbours; the candidate's own gate is where the whole suite runs,
+  once. A run "owed" over a series of commits is discharged by that
+  gate, not by a second launch beforehand.
 - **Do not re-run a gate the release is about to run.** The gates
   are ordered cheapest-first for exactly this reason: standards and
   secrets take seconds, and the FUNCTIONAL SUITE IS THE FOURTH STAGE,
@@ -4027,6 +4034,29 @@ on: C-263.
   exactly: a task the dialog believes is in flight, reading Queued, with
   `active=0` on the pool. (C-243.)
 
+- **A NUMERICAL CENTRE FOUND TO AN ABSOLUTE TOLERANCE BREAKS A
+  SYMMETRY DIFFERENTLY AT EVERY SCALE.** (2026-09-05, the Topology tab
+  audit.) The dual's corners are the source tiles' centres, and the
+  library's centre is polylabel to one map unit -- so the default
+  design's dual had three edge classes at a spacing of 3000 and ten
+  with no symmetry at 2900, and an edit aimed at class `a` of the dual
+  named different edges after a spacing change. A tolerance relative to
+  the tile's own size gives the snub square's two classes at every
+  spacing. ASK OF ANY NUMERICAL ANSWER THAT FEEDS A SYMMETRY OR AN
+  EQUALITY what its tolerance is measured in, and whether the thing it
+  measures is the same size in every run. The measurements are in
+  docs/TOPOLOGY.md under the audit.
+- **AN AUDIT READS EVERY STORE AFTER EVERY ACT, and it found three
+  defects three matrices had passed over.** (Same day, the maintainer's
+  ask.) Driving every control and handle on the Auckland data with live
+  update at its default, and reading the selection owner, both
+  choosers, the tick list, the drawing, the boxes, the record, the
+  marks, the note, the shelf, the unit and the map after each act,
+  found the zigzag's amplitude read as a drag delta, unlabelled corners
+  selectable, and the dual above. None of those is a single store
+  being wrong; each is two stores disagreeing after an ordinary act,
+  which is what a per-behaviour test cannot see and a full reading can.
+  The probe is `dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`.
 - **CLEARING A PREVIEW AT THE DROP PUTS THE OLD PICTURE BACK FOR THE
   WHOLE OF AN ASYNCHRONOUS REBUILD.** (2026-09-04, a field report
   against 0.24.4rc15 confirmed and repaired.) `_commit_the_drag` opened

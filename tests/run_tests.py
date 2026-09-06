@@ -12324,6 +12324,46 @@ def test_a_promoted_dual_covers_its_cell_and_the_library_builds_it():
     checked += 1
   assert checked == len(designs), "nothing was checked, so nothing is proved"
 
+  # AND THE DUAL IS ONE DESIGN AT EVERY SPACING (2026-09-05, the tab
+  # audit). The dual's corners are the source tiles' centres, and the
+  # library's centre is polylabel at an ABSOLUTE tolerance of one map
+  # unit -- so each base tile carried its own noise, about half a per
+  # cent of the spacing, and the dual's symmetry was whatever the noise
+  # left: measured, the default design's dual had three edge classes at
+  # a spacing of 3000 and TEN with no symmetry at all at 2900, so a
+  # spacing change renamed every class an edit was aimed with. The
+  # centre is found to a fraction of the tile's own size now, and this
+  # asks the two spacings that disagreed to agree -- and to agree with
+  # the catalogue's own copy of the tiling the dual is, the snub square
+  # `archimedean 3.3.4.3.4`, which is the oracle the library cannot
+  # share with our completion.
+  structure = {}
+  for spacing in (2900, 3000):
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                             spacing=spacing, crs=3857)
+    topology, why = topology_edits.build(unit)
+    assert topology is not None, f"PREMISE: laves at {spacing}: {why}"
+    dual = topology_edits.dual_as_tileable(topology)
+    built, why = topology_edits.build(dual)
+    assert built is not None, \
+      f"PREMISE: the dual at {spacing} has no topology: {why}"
+    structure[spacing] = {kind: len(labels) for kind, labels
+                          in topology_edits.classes(built).items()}
+  assert structure[2900] == structure[3000], (
+    f"the promoted dual has a different class structure at two "
+    f"spacings, {structure}: its corners still carry a centre found to "
+    f"an absolute tolerance, so a spacing change renames the classes "
+    f"every edit on the dual is aimed with")
+  snub = catalog.make_unit(catalog.TILINGS_BY_N[6]["archimedean 3.3.4.3.4"],
+                           spacing=3000, crs=3857)
+  snub_topology, why = topology_edits.build(snub)
+  assert snub_topology is not None, f"PREMISE: the catalogue's snub square: {why}"
+  expected = {kind: len(labels) for kind, labels
+              in topology_edits.classes(snub_topology).items()}
+  assert structure[3000] == expected, (
+    f"the promoted dual of laves 3.3.4.3.4 has classes {structure[3000]} "
+    f"where the catalogue's own snub square has {expected}")
+
 
 def test_the_library_still_truncates_and_drifts_the_dual():
   """CANARY: the two dual defects `complete_dual` works around are still
@@ -12368,6 +12408,206 @@ def test_the_library_still_truncates_and_drifts_the_dual():
     "corner-consistency half of complete_dual is redundant; if the arm "
     "above also passes, delete complete_dual and use the library's frame. "
     "Do NOT relax this assertion to make the suite green.")
+
+
+def test_the_zigzag_handle_keeps_its_amplitude_when_moved_along():
+  """Grabbing the zigzag handle and moving it ALONG the edge keeps the
+  amplitude it already had, and moving it out from the edge adds to it.
+
+  THE SIGN IS WHAT THIS PINS. The pure arithmetic is guarded in
+  `test_a_drag_along_an_edge_sets_the_zigzag_count`, and it cannot
+  know which side of the edge the handle is drawn on: the view takes
+  its normal in screen space, where y grows downward, and the drag
+  arrives in unit terms, where y grows up. So this drives the widget:
+  it types an amplitude, grabs the handle where the view drew it, moves
+  it one pixel along the edge and reads the preview's amplitude, then
+  moves it a few pixels further out along the drawn normal and requires
+  the amplitude to have GROWN by that many pixels of the edge's length.
+  A flipped sign passes the first reading and fails the second.
+
+  Regression: the zigzag amplitude was read as the drag's travel rather than the handle's position, so moving the handle along the edge to step the count flattened the zigzag to nothing. Found by the Topology tab audit, 2026-09-05. [user]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.opt_experimental.setChecked(True)
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: no topology was built, so there is no handle to grab"
+    assert _the_topology_tab_is_quiet(dlg), (
+      "PREMISE: a topology build never stopped being outstanding -- "
+      + _why_the_topology_tab_is_busy(dlg))
+    panel = dlg.topology_panel
+    view = panel.view
+    view.resize(600, 600)
+    _tick(100)
+    view.grab()                 # `_fit` runs in paintEvent; no paint, no transform
+    _tick(50)
+
+    # SELECT AN EDGE by clicking on it, clear of every vertex and handle.
+    topology = view._drawn()
+    seats = [view._to_screen(v.point.x, v.point.y)
+             for v in topology.points.values()]
+    aimed = None
+    for edge in topology.edges.values():
+      coords = list(edge.get_geometry().coords)
+      (ax, ay), (bx, by) = coords[0], coords[-1]
+      point = view._to_screen(ax + (bx - ax) * 0.5, ay + (by - ay) * 0.5)
+      if not (0 <= point.x() <= view.width() and 0 <= point.y() <= view.height()):
+        continue
+      clear = min(((point.x() - s.x()) ** 2 + (point.y() - s.y()) ** 2) ** 0.5
+                  for s in seats)
+      if clear > 12.0:
+        aimed = QPoint(int(round(point.x())), int(round(point.y())))
+        break
+    assert aimed is not None, "PREMISE: no edge is drawn clear of its vertices"
+    QTest.mouseClick(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, aimed)
+    _tick(150)
+    assert panel._selection[0] == "edge", \
+      f"PREMISE: the click selected {panel._selection}, not an edge"
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+    _tick(100)
+    box = next(b for _l, b in panel._argument_rows if b.property("argument") == "h")
+    box.setFocus()
+    box.lineEdit().selectAll()
+    QTest.keyClicks(box, "0.3")
+    QTest.keyClick(box, QtNamespace.Key.Key_Return)
+    _tick(50)
+    assert abs(box.value() - 0.3) < 1e-9, f"PREMISE: typing 0.3 left the box at {box.value()}"
+
+    start, finish, reach = view._chosen_edge_on_screen()
+    run, rise = finish.x() - start.x(), finish.y() - start.y()
+    along = (run / reach, rise / reach)
+    normal = (-rise / reach, run / reach)
+    handle = next((where for key, where, _shape in view.handles()
+                   if key == "zigzag_edge"), None)
+    assert handle is not None, "PREMISE: the zigzag handle is not drawn"
+
+    def previewed(delta_along, delta_across):
+      """Grab the handle, move it by those pixels, read the preview, drop."""
+      at = QPoint(int(round(handle.x())), int(round(handle.y())))
+      far = QPoint(int(round(handle.x() + along[0] * delta_along + normal[0] * delta_across)),
+                   int(round(handle.y() + along[1] * delta_along + normal[1] * delta_across)))
+      QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, at)
+      _tick(30)
+      QTest.mouseMove(view, far)
+      _tick(60)
+      seen = dict(panel._drag_from or {})
+      QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                         QtNamespace.KeyboardModifier.NoModifier, far)
+      _tick(100)
+      # A drop that recorded an edit queues a rebuild; take it off
+      # again before the next arm so the handle is where it was.
+      if panel._edits:
+        panel._edits = []
+        panel._refresh_list()
+        panel.edits_changed.emit()
+        _settle_topology(dlg)
+        _the_topology_tab_is_quiet(dlg)
+        view.grab()
+        _tick(50)
+      return seen
+
+    kept = previewed(1, 0)
+    assert kept and abs(kept.get("h", -1.0) - 0.3) < 0.02, (
+      f"one pixel along the edge previewed h={kept.get('h')} where the "
+      f"handle sat at 0.3: the amplitude is the drag's travel, not the "
+      f"handle's position")
+    # Handles are re-read after the rebuild the discard above caused.
+    handle = next((where for key, where, _shape in view.handles()
+                   if key == "zigzag_edge"), None)
+    assert handle is not None, "PREMISE: the zigzag handle is gone after the discard"
+    out = 6.0
+    grown = previewed(0, out)
+    wanted = 0.3 + out / reach
+    assert grown and abs(grown.get("h", -1.0) - wanted) < 0.02, (
+      f"moving the handle {out:.0f}px further out along the drawn normal "
+      f"previewed h={grown.get('h')} where {wanted:.3f} was expected: the "
+      f"sign of the across term does not match the side the view draws "
+      f"the handle on")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
+def test_a_corner_with_no_class_cannot_be_selected():
+  """A point the topology holds without a label is not a thing a click
+  can select: the click falls through to the edge it lies on.
+
+  A ZIGZAG REPLACES AN EDGE'S ENDS WITH A CURVE OF CORNERS -- 207 of
+  them on the default design after one zigzag at n=2, beside its 72
+  vertices -- and a corner belongs to no class. Until 2026-09-05 the
+  hit test offered every point alike, so clicking a corner put the
+  selection at ("vertex", ""): the chooser read "0 of 2 vertex
+  classes", nothing was ticked, no handle appeared, and Apply did
+  nothing in silence. This asks the hit test at every unlabelled point
+  the chained topology holds, and requires it never to answer with an
+  empty label.
+
+  IT DRIVES THE VIEW'S OWN HIT TEST rather than a click, because the
+  claim is about what `_nearest` answers at a point, and a click merely
+  asks the same function once; every unlabelled corner is asked here.
+
+  Regression: after a zigzag, clicking one of the new corners selected an unlabelled vertex the tab could do nothing with. Found by the Topology tab audit, 2026-09-05. [user]
+  """
+  from qgis.PyQt.QtCore import QPointF
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.topology_tab import TopologyPanel
+
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                           spacing=500, crs=None)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: laves has no topology: {why}"
+  edits = [{"classes": "b", "how": "zigzag_edge",
+            "args": {"n": 2.0, "h": 0.25, "smoothness": 3.0}}]
+  edited, refusals, after = topology_edits.apply(topology, edits)
+  assert not refusals, f"PREMISE: the zigzag was refused: {refusals}"
+  chained = after.get("topology")
+  assert chained is not None, "PREMISE: the replay handed back no topology"
+  bare = [v for v in chained.points.values() if not (v.label or "")]
+  assert bare, "PREMISE: the zigzag added no unlabelled corners, so there is nothing to click"
+
+  panel = TopologyPanel()
+  try:
+    panel.resize(900, 600)
+    panel.show()
+    _tick(100)
+    panel.set_unit(edited, chained)
+    panel.view.grab()               # a transform exists only after a paint
+    _tick(50)
+    view = panel.view
+    asked = wrong = 0
+    for vertex in bare:
+      point = view._to_screen(vertex.point.x, vertex.point.y)
+      if not (0 <= point.x() <= view.width() and 0 <= point.y() <= view.height()):
+        continue
+      asked += 1
+      target, label, _thing = view._nearest(QPointF(point.x(), point.y()))
+      if target == "vertex" and not label:
+        wrong += 1
+    assert asked, "PREMISE: no unlabelled corner is drawn inside the widget"
+    assert not wrong, (
+      f"{wrong} of {asked} unlabelled corners answer the hit test as a "
+      f"vertex with no class, which is a selection the tab can do "
+      f"nothing with")
+  finally:
+    panel.close()
+    panel.deleteLater()
+    _tick(50)
 
 
 def _choose_the_group_named(dlg, name):
@@ -57117,6 +57357,38 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
     f"{topology_tab._COUNT_FLOOR} to {topology_tab._COUNT_CEILING} the "
     f"box will show")
 
+  # AND THE AMPLITUDE IS A POSITION AS WELL, which it was not until
+  # 2026-09-05: `h` was the drag's travel across the edge, while the
+  # count beside it was already computed from where the handle SAT.
+  # Driven on the tab, a handle grabbed at h=0.3 and moved one pixel
+  # along the edge previewed a wave of 0.01, and an eight-pixel drag
+  # along -- the gesture that steps the count -- recorded h 0.01 and
+  # n 1: the count moved as asked and the amplitude was flattened on
+  # the way. Ruling 1 of that day says the distance from the edge IS
+  # the amplitude, and a position keeps what it already has.
+  kept = panel._drag_argument(None, "zigzag_edge", frame,
+                              0.15, 0.0, span, current=at_two)
+  assert abs(kept.get("h", -1.0) - 0.25) < 1e-9, (
+    f"a drag purely ALONG the edge changed the amplitude from 0.25 to "
+    f"{kept.get('h')}: the amplitude is being read as the drag's travel "
+    f"rather than as where the handle now sits, so stepping the count "
+    f"flattens the zigzag")
+  # And a step across in either direction moves it by that step from
+  # where it was -- one way out to 0.35, the other way in to 0.15.
+  # Which way is which is the VIEW's business (its normal is taken in
+  # screen space, where y points down), so this asks for the pair
+  # rather than pinning a sign the pure function cannot know; the
+  # driven test beside this one pins the sign against the drawing.
+  one = panel._drag_argument(None, "zigzag_edge", frame,
+                             0.0, 0.10, span, current=at_two)
+  other = panel._drag_argument(None, "zigzag_edge", frame,
+                               0.0, -0.10, span, current=at_two)
+  assert sorted((round(one.get("h", -1.0), 6),
+                 round(other.get("h", -1.0), 6))) == [0.15, 0.35], (
+    f"a step of a tenth across the edge in each direction gave "
+    f"amplitudes {one.get('h')} and {other.get('h')} from 0.25, where a "
+    f"position would give 0.15 and 0.35")
+
   # A COUNT-ONLY DRAG IS STILL A DRAG. Before the count was draggable,
   # `_drag_moved` asked about the amplitude alone, so a gesture that
   # moved only the count would have been thrown away as a click.
@@ -88335,6 +88607,10 @@ def main():
         test_a_promoted_dual_covers_its_cell_and_the_library_builds_it)
   check("the library still truncates and drifts the dual",
         test_the_library_still_truncates_and_drifts_the_dual)
+  check("the zigzag handle keeps its amplitude when moved along",
+        test_the_zigzag_handle_keeps_its_amplitude_when_moved_along)
+  check("a corner with no class cannot be selected",
+        test_a_corner_with_no_class_cannot_be_selected)
   check("the dual button lands the dual in its own group",
         test_the_dual_button_lands_the_dual_in_its_own_group)
   check("the dual button refuses where there is no dual",

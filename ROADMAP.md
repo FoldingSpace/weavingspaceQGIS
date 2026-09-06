@@ -494,12 +494,38 @@ the dual). Cheapest and most durable first.
   commit and say the web app is not spoken for; the old three-way
   paragraph is C-263. Nothing here is text a plugin user meets, so the
   review queue is untouched by it.
-- **AND A GENERAL AUDIT OF THE TOPOLOGY TAB** (maintainer's ask,
+- **THE GENERAL AUDIT OF THE TOPOLOGY TAB IS DONE** (maintainer's ask,
   2026-09-05: "audit the topology tab more generally to make sure it
-  functions as expected"), after the items above: every control and
-  every handle driven on the packaged Auckland data as a person meets
-  them, with live update at its default, and every store read at each
-  step -- the shape field report 5 needed and reading did not supply.
+  functions as expected"; driven later the same day). Every control
+  and every handle on the packaged Auckland data with live update at
+  its default, twenty-odd stores read after every act. THREE DEFECTS,
+  each fixed, guarded by a test and proved by a catalogue entry: the
+  zigzag's amplitude was the drag's travel rather than the handle's
+  position, so stepping the count flattened the wave; a zigzag's two
+  hundred new corners were selectable as a vertex of no class, with
+  the chooser reading "0 of 2 vertex classes" and Apply doing nothing;
+  and the promoted dual's class structure changed with the SPACING,
+  three edge classes at 3000 and ten at 2900, because its corners
+  were polylabel's at an absolute tolerance. Everything else on the
+  tab -- selection by click, shift-click and list, the combo, the
+  verb chooser and its per-verb memory across landings, every handle,
+  Apply, Undo, Clear, the eight toggles, the two live-update boxes,
+  the dual button and its label across group changes, and a Save then
+  Load -- read as one design in every store. The measurements and the
+  probes are in docs/TOPOLOGY.md under the audit.
+  TWO THINGS ARE REPORTED RATHER THAN CHANGED, being decisions:
+  (1) AN ODD ZIGZAG COUNT OPENS A GAP on the default design's class
+  `b` -- 0.6% at n=1, 0.4% at 3, 0.35% at 5, sound at 2 and 4 and
+  sound at every count on class `a` -- and the library's own docstring
+  says `zigzag_edge` "will only work correctly if n is even". The tab
+  already marks the row "from here the tiles no longer meet"; whether
+  it should say so BEFORE an odd count is applied, or offer even
+  counts only, is the maintainer's call. (2) THE COUNT READOUT'S CLAMP
+  BITES AT THE WINDOW'S OWN SIZE: on the default design the zigzag
+  handle is an exact readout only up to n=3 on the 94px edge and n=2
+  on the 69px one, against n=7 and n=5 at 1500x950, and the box's
+  tooltip says so as ruling 4 asked. Whether the tab should open
+  larger, or the edge be drawn larger, is a question about ruling 6.
 - **THEN A RE-AUDIT OF THE BINDING DOCUMENTS** (maintainer's ask,
   2026-09-05): "make sure they say what they need (for LLMs) but no
   more", moving more into the `-archived.md` halves. The measure is

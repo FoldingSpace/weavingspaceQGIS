@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-526 defect(s) with a regression test.
+528 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1017,6 +1017,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_carries_the_range_and_refuses_what_it_would_empty`
 - **a copy carried the class breaks, colours, pins and count and NOT the floor and ceiling, so the one thing the range feature was asked for -- giving one pair of limits to several variables -- could not be done by the control built for it, and a copy destroyed whatever range its target already had.**  
   guarded by `test_a_copy_reproduces_a_classification_on_every_target`
+- **after a zigzag, clicking one of the new corners selected an unlabelled vertex the tab could do nothing with. Found by the Topology tab audit, 2026-09-05.**  
+  guarded by `test_a_corner_with_no_class_cannot_be_selected`
 - **a deferring element whose renderer set its fill from an expression got a swatch showing one colour, which the map did not have.**  
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
@@ -1101,6 +1103,8 @@ there is no separate list to remember.
   guarded by `test_the_unclassed_list_fades_without_a_graphics_effect`
 - **the zigzag handle stood 60px off its edge whatever the amplitude, so its position claimed an amplitude it did not have and read as belonging to nothing.**  
   guarded by `test_the_zigzag_handle_is_where_its_numbers_say`
+- **the zigzag amplitude was read as the drag's travel rather than the handle's position, so moving the handle along the edge to step the count flattened the zigzag to nothing. Found by the Topology tab audit, 2026-09-05.**  
+  guarded by `test_the_zigzag_handle_keeps_its_amplitude_when_moved_along`
 - **an edit made after one that opened gaps was refused outright, because the topology was rebuilt between edits and Topology refuses a design with gaps -- so a saved design carrying such a sequence did not come back as the design that was saved.**  
   guarded by `test_topology_edits_come_back_from_the_file`
 
@@ -1109,7 +1113,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 48
+- reported by a user: 50
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10

@@ -665,6 +665,16 @@ cannot lay out, or one short of its cell, each with its sentence, and
 the button is disabled with that sentence at every landing. Elements
 are assigned fresh by the ordinary landing.
 
+**AND THE CORNERS ARE FOUND TO A RELATIVE TOLERANCE.** `_exact_centre`
+is the library's own choice of centre -- the incentre, by polylabel --
+at one part in a thousand million of the tile's own size rather than
+at polylabel's default of one map unit, because at the default each
+base tile carried its own noise and the dual's symmetry changed with
+the spacing: three edge classes at 3000, ten at 2900 (the tab audit,
+2026-09-05; docs/TOPOLOGY.md has the table). The dual of the default
+design now has the snub square's two edge classes at every spacing,
+and the dual differential asks two spacings to agree.
+
 `covers_its_cell` is the coverage question -- the tiles' area against
 the prototile's -- and it is deliberately not `gaps()`: that measures
 holes in a patch's union, which is what an edit opens, and an inset's
@@ -1522,7 +1532,13 @@ wrong one -- a hover must be discovered before it can teach anything,
 and a first-time reader never hovers.
 
 A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED, which retires the
-lever that had been wrong twice. The end handle starts half a length
+lever that had been wrong twice -- AND THAT INCLUDES THE ZIGZAG'S
+AMPLITUDE since 2026-09-05, which had been the drag's travel while the
+count beside it was a position; the tab audit measured a handle at
+0.3 moved one pixel along the edge previewing 0.01. A POINT WITH NO
+LABEL IS NOT HIT-TESTED OR SEATED either: a zigzag adds two hundred
+corners to the default design, and until the same audit a click on
+one selected a vertex of no class. The end handle starts half a length
 from the edge's middle, so where the pointer has taken it IS a polar
 coordinate about that middle: the scale factor is how far out it now
 sits, the rotation is the angle it now makes.

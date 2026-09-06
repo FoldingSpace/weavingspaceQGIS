@@ -714,6 +714,12 @@ class TopologyView(QWidget):
           painter.drawText(where, str(edge.label))
 
     for vertex in topology.points.values():
+      # NO SEAT FOR AN UNLABELLED CORNER: the edge's own path already
+      # passes through it, `_nearest` cannot select it, and a dot on
+      # every corner of a smoothed zigzag is two hundred beads that
+      # read as vertices nothing can take hold of.
+      if not (getattr(vertex, "label", None) or ""):
+        continue
       held = (target == "vertex" and vertex is self._chosen_thing)
       kin = (not held and target == "vertex" and chosen
              and vertex.label in chosen)
@@ -1265,6 +1271,19 @@ class TopologyView(QWidget):
     # easier target of the two because it wins ties inside its radius.
     best, found = 8.0, ("", "", None)
     for vertex in topology.points.values():
+      # A POINT WITH NO LABEL IS NOT A VERTEX ANYBODY CAN EDIT. A
+      # zigzag replaces an edge's two ends with a curve of corners --
+      # 207 of them on the default design after one zigzag at n=2,
+      # against its 72 vertices -- and a corner belongs to no class:
+      # clicking one put the selection at ("vertex", ""), the chooser
+      # read "0 of 2 vertex classes", nothing was ticked, no handle
+      # appeared and Apply did nothing in silence, which is this
+      # plugin's own definition of a dead control (measured 2026-09-05,
+      # driving the tab). The click falls through to the edge the
+      # corner lies on, which is the thing a person aiming there can
+      # actually move.
+      if not (getattr(vertex, "label", None) or ""):
+        continue
       screen = self._to_screen(vertex.point.x, vertex.point.y)
       distance = ((screen.x() - point.x()) ** 2 +
                   (screen.y() - point.y()) ** 2) ** 0.5
@@ -2787,7 +2806,30 @@ class TopologyPanel(QWidget):
       # sits on the first peak of the wave, `length / (2n)` along and
       # `h` of the length out, so where the person has taken it IS the
       # pair of numbers.
-      changes = {"h": abs(across) / length}
+      # THE AMPLITUDE IS WHERE THE HANDLE NOW SITS, NOT HOW FAR IT
+      # TRAVELLED. The glyph is drawn `h` of the edge's length out
+      # along the normal, so the press lands there and `across` is the
+      # travel FROM there -- and until 2026-09-05 this line read
+      # `abs(across) / length`, the travel alone, so a handle grabbed
+      # at h=0.3 and moved one pixel along the edge previewed a wave of
+      # 0.01, and a drag meant to step the COUNT flattened the zigzag
+      # to nothing on its way (measured driving the tab: typed 0.3,
+      # eight pixels along, recorded h 0.01 and n 1). The count half of
+      # this same function was already a position (`here + along`
+      # below); this is its amplitude half brought level with it,
+      # which is ruling 1 of that day in as many words -- the distance
+      # from the edge IS the amplitude.
+      # THE SIGN IS THE VIEW'S. The normal the handle is drawn along is
+      # taken in screen space, where y grows downward, and `across`
+      # here is the dot with the unit-space normal, where y grows up
+      # -- so the handle side is NEGATIVE `across`, and the handle's
+      # own position is `-h * length`. Moving further out makes
+      # `across` more negative and `h` larger; moving back toward the
+      # edge brings it toward zero and past it, and the absolute value
+      # is what makes crossing the edge fold rather than go negative,
+      # since the box holds no negative amplitude.
+      was_h = float(current.get("h", 0.0)) if current else 0.0
+      changes = {"h": abs(-was_h * length + across) / length}
       # THE DEADBAND IS NOT OPTIONAL. `scale_edge` was measured on
       # 2026-08-30 committing a scale of 1.003 from a drag meant as a
       # click, because a gesture mostly ACROSS an edge still resolves

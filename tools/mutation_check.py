@@ -10969,7 +10969,7 @@ MUTATIONS = [
        file=TOPOLOGY_EDITS,
        old="""  dx = tile.shape.centroid.x - base.shape.centroid.x
   dy = tile.shape.centroid.y - base.shape.centroid.y
-  return geom.Point(base.centre.x + dx, base.centre.y + dy)""",
+  return geom.Point(centre.x + dx, centre.y + dy)""",
        new="""  return tile.centre  # mutation: each copy's own polylabel centre""",
        test="test_a_promoted_dual_covers_its_cell_and_the_library_builds_it",
        why="slivers along every dual edge and a dual the library cannot "
@@ -10994,6 +10994,35 @@ MUTATIONS = [
        why="a second 'WeavingSpace tiles — region 2' beside the first, "
            "with nothing in the panel saying which map is the dual of "
            "which. The maintainer's own naming, `<group> — dual`"),
+  dict(name="the-duals-centre-is-the-same-at-every-spacing",
+       file=TOPOLOGY_EDITS,
+       old="""  centre = _exact_centre(base.shape)""",
+       new="""  centre = base.centre  # mutation: the library's centre at its own tolerance""",
+       test="test_a_promoted_dual_covers_its_cell_and_the_library_builds_it",
+       why="a dual whose class structure changes with the SPACING: the "
+           "library's centre is polylabel to one map unit, so the default "
+           "design's dual had three edge classes at 3000 and ten with no "
+           "symmetry at 2900, and every edit on the dual was aimed with "
+           "labels a spacing change renamed. The tab audit, 2026-09-05"),
+  dict(name="the-zigzag-amplitude-is-a-position", file=TOPOLOGY_TAB,
+       old="""      changes = {"h": abs(-was_h * length + across) / length}""",
+       new="""      changes = {"h": abs(across) / length}  # mutation: the travel, not the position""",
+       test="test_a_drag_along_an_edge_sets_the_zigzag_count",
+       why="a zigzag flattened by the gesture that steps its count: with "
+           "the amplitude read as the drag's travel, a handle at h=0.3 "
+           "moved eight pixels along the edge recorded h 0.01 and n 1. "
+           "Ruling 1 of 2026-09-05 says the distance from the edge IS the "
+           "amplitude; the tab audit found the arithmetic disagreeing"),
+  dict(name="a-corner-with-no-class-is-not-selectable", file=TOPOLOGY_TAB,
+       old="""      if not (getattr(vertex, "label", None) or ""):
+        continue
+      screen = self._to_screen(vertex.point.x, vertex.point.y)""",
+       new="""      screen = self._to_screen(vertex.point.x, vertex.point.y)  # mutation: every point is a vertex""",
+       test="test_a_corner_with_no_class_cannot_be_selected",
+       why="a click on one of the two hundred corners a zigzag adds put "
+           "the selection at ('vertex', ''): the chooser read '0 of 2 "
+           "vertex classes', nothing was ticked, no handle appeared and "
+           "Apply did nothing in silence. The tab audit, 2026-09-05"),
   dict(name="the-dual-is-offered-only-where-it-covers",
        file=TOPOLOGY_EDITS,
        old="""  if covers_its_cell(dual) is not True:

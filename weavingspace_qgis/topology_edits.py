@@ -1448,11 +1448,59 @@ def _consistent_centre(topology, tile):
   """
   from shapely import geometry as geom
   base = topology.tiles[tile.base_ID]
+  centre = _exact_centre(base.shape)
   if base is tile:
-    return tile.centre
+    return centre
   dx = tile.shape.centroid.x - base.shape.centroid.x
   dy = tile.shape.centroid.y - base.shape.centroid.y
-  return geom.Point(base.centre.x + dx, base.centre.y + dy)
+  return geom.Point(centre.x + dx, centre.y + dy)
+
+
+def _exact_centre(shape):
+  """A tile's centre, the same shape at every spacing.
+
+  Args:
+    shape: the tile's polygon.
+
+  Returns:
+    A shapely Point: the library's own choice of centre -- the
+    centroid of a regular polygon, the pole of inaccessibility of any
+    other, which is the incentre of the tangential tiles the Laves
+    designs are made of -- found to one part in a thousand million of
+    the tile's own size rather than to the library's absolute
+    tolerance.
+
+  WHY THE TOLERANCE IS RELATIVE. The library's `Tile.centre` is
+  `polylabel` at its default tolerance of one map unit, so each base
+  tile's centre carries noise of about half a per cent of the spacing
+  -- 16 units at a spacing of 3000 -- and the noise differs between
+  the four tiles of the default design. The dual's corners are those
+  centres, so the dual's symmetry was whatever the noise left it, and
+  it changed with the SPACING: measured 2026-09-05 through
+  `dev/probes/audit_dual_centre_options.py`, the promoted dual of
+  `laves 3.3.4.3.4` had three edge classes and four rotation centres
+  at 3000, two rotations and four mirrors at 1000, and TEN edge
+  classes with no symmetry at all at 2900 -- so an edit on class `a`
+  of the dual named a different set of edges after a spacing change,
+  and the tab's symmetry line described noise. At a relative
+  tolerance the same probe reads two edge classes, one vertex class,
+  four rotations and eight mirrors at every spacing tried, which is
+  the class structure of the catalogue's own snub-square tiling, and
+  every triangle comes back `D3` where the noisy centre gave `C1`.
+  The centroid gives the same classes but isosceles triangles (`D1`),
+  because the Cairo pentagon's centroid is not its incentre; the
+  library's choice of the incentre is kept and only its precision is
+  changed.
+  """
+  from shapely.ops import polylabel
+  try:
+    from weavingspace.tiling_utils import is_regular_polygon
+    if is_regular_polygon(shape):
+      return shape.centroid
+  except Exception:                                   # noqa: BLE001
+    pass
+  scale = max(float(shape.area) ** 0.5, 1e-12)
+  return polylabel(shape, tolerance=scale * 1e-9)
 
 
 def dual_on_offer(topology, promoted=None):

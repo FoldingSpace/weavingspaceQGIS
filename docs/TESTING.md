@@ -743,6 +743,23 @@ CONDITION IS ALREADY TRUE AT THE MOMENT OF ASKING, it is not a wait:
 take a fingerprint of the thing before the act and wait for it to
 MOVE, as the drop probe of 2026-09-04 does. (T-133.)
 
+## AN AUDIT READS EVERY STORE AFTER EVERY ACT
+
+Same day, the maintainer's ask to audit the Topology tab "more
+generally". Three matrices drive that tab and every registered test
+was green, and the audit -- every control and handle on the Auckland
+data with live update at its default, twenty stores read after each
+act -- found three defects in an afternoon: an amplitude read as a
+delta where its neighbour was a position, corners with no class that
+a click could select, and a dual whose classes changed with the
+spacing. EACH WAS TWO STORES DISAGREEING AFTER AN ORDINARY ACT rather
+than one store being wrong, which is what a test aimed at a behaviour
+cannot see and a reading of everything can. The shape is reusable
+(`dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`): drive
+as a person does, print which stores moved and to what, and judge the
+list afterwards. Two of the three surfaced only in the printed
+readings, not in any assertion the probe was written with.
+
 ## AN INVARIANT CANNOT BE A FINGERPRINT
 
 Same day. A guard told an edited dual from a plain one by summing the

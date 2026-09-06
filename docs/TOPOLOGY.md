@@ -580,6 +580,124 @@ question from the dual's: insets are already built before, and a
 weave's strand width is baked into strand construction, which is the
 R-40 boundary.
 
+## The general audit of 2026-09-05, and what it found
+
+The maintainer asked, after field report 5, that the tab be audited
+"more generally to make sure it functions as expected". The shape of
+the audit is the thing worth keeping: every control and every handle
+driven on the packaged Auckland data in the order a person meets them,
+with LIVE UPDATE AT ITS DEFAULT, and about twenty stores read after
+every act -- the selection owner, the class combo, the tick list, the
+drawing's chosen thing, the verb chooser and its boxes, the edit list
+and its marks, the note and the working sentence, the symmetry line,
+the dual button and its label, both live-update boxes, the shelf, the
+panel's drawn unit, the dialog's unit and the map's own digest. The
+probes are `dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`
+and its second and third passes beside it, with `tab_audit_kit.py`
+carrying the aimer and the drag; the logs are under `dev/audit-logs/`.
+
+**Three defects, all invisible to reading and to the three matrices
+that drive this tab.**
+
+THE ZIGZAG'S AMPLITUDE WAS A DELTA WHERE ITS COUNT WAS A POSITION.
+`_drag_argument` computed `h` as the drag's travel across the edge
+divided by its length, while the count beside it was computed from
+where the handle sat. Driven: typed 0.3, one pixel along the edge
+previewed 0.010; eight pixels along -- the gesture that steps the
+count -- recorded n 1 and h 0.01; five pixels further out recorded
+0.07 rather than 0.37. The handle's own position is `-h * length` on
+the unit-space normal (the view takes its normal in screen space,
+where y points down), so `h` is now `|-h * length + across| / length`,
+and the same arms read 0.300, 0.300 with n 1, 0.373 and 0.184.
+
+A ZIGZAG'S CORNERS WERE SELECTABLE AS A VERTEX OF NO CLASS. One zigzag
+at n=2 with smoothness 3 takes the default design from 72 points to
+279, and the 207 new ones carry no label. `_nearest` offered them
+like any vertex and the painter drew a seat on each, so a click on one
+put the selection at `("vertex", "")`: the chooser grew a row reading
+"0 of 2 vertex classes", nothing was ticked, no handle appeared and
+Apply returned in silence. Both now skip a point with no label, and
+the click falls through to the edge the corner lies on.
+
+THE DUAL'S SYMMETRY CHANGED WITH THE SPACING. The first pass saw the
+dual group's topology carry ten edge classes, four vertex classes,
+`C1` on every tile and no symmetries at a spacing of 2900; the third
+pass, at 3000, saw three, one, `D4` on the squares and four rotation
+centres. Built directly across spacings
+(`dev/probes/audit_dual_symmetry_by_spacing.py`):
+
+    spacing    edge classes   vertex classes   rotations   mirrors
+    500        3              1                4           0
+    1000       3              1                2           4
+    2900       10             4                0           0
+    3000       3              1                4           0
+    5000       3              1                4           0
+
+The dual's corners are the source tiles' centres, and the library's
+`Tile.centre` is `polylabel` at its default tolerance of one map unit,
+so each of the four base tiles carried noise of about half a per cent
+of the spacing and the noise differed between them.
+`dev/probes/audit_dual_centre_options.py` tried three centres across
+the same spacings: the library's, the centroid, and polylabel at one
+part in a thousand million of the tile's own size. Both alternatives
+give ONE answer at every spacing -- two edge classes, one vertex
+class, four rotations, eight mirrors, which is the class structure of
+the catalogue's own `archimedean 3.3.4.3.4` -- and only the relative
+polylabel gives equilateral triangles (`D3`), the centroid giving
+isosceles ones (`D1`), because the Cairo pentagon's centroid is not its
+incentre. `_exact_centre` keeps the library's choice of the incentre
+and changes only its precision. Guarded by the dual differential,
+which now asks the two spacings that disagreed to agree with each
+other and with the catalogue's snub square.
+
+**Two things measured and reported rather than changed.**
+
+AN ODD ZIGZAG COUNT OPENS A GAP, on one class and not the other:
+
+    class a   n=1..5   gap 1e-11 throughout, sound
+    class b   n=1      0.63%   not sound
+              n=2      1e-11   sound
+              n=3      0.40%   not sound
+              n=4      1e-11   sound
+              n=5      0.35%   not sound
+
+The library's `zigzag_edge` says in its own docstring that it "will
+only work correctly if n is even", the `start` parameter being "a
+temporary hack" toward odd counts. The tab reports it honestly -- the
+row reads "from here the tiles no longer meet" and the mark agrees
+before and after a Save and Load -- so this is ruling 5 working
+(validity shown rather than enforced). Whether the tab should say so
+before an odd count is applied is in ROADMAP.md.
+
+THE COUNT READOUT'S CLAMP BITES AT THE WINDOW'S OWN SIZE. The zigzag
+handle sits on the first peak, `length / (2n)` along, and is held 15px
+clear of the vertices, so above some count it stops moving with the
+count and the box's tooltip says so (ruling 4). On the default design
+at the window's floor of about 1034x458 the two edge classes draw at
+94px and 69px, and the readout is exact only to n=3 and n=2; at
+1500x950 they draw at 236px and 173px, exact to n=7 and n=5. Ruling 6
+asked that everything be reachable at realistic sizes; this is the
+measurement of where the tab stands.
+
+**What the audit found sound**, kept so the next one need not redo
+it: a click on a vertex or an edge moves the owner, the combo, the
+list and the drawing together and changes no verb of the wrong kind;
+shift-click and the tick list add and remove classes and refuse to
+empty the selection; every combo row moves the other three stores;
+each verb shows its own boxes, remembers its numbers across a verb
+change and across a landing; every handle previews while the pointer
+is down, records at the drop, keeps its picture until the landing,
+and moves the drawn unit, the dialog's unit and the map together with
+one mark per edit and the shelf in step; Apply records what was typed
+with its alphabet; Undo and Clear return the unit and the map to the
+pre-edit digest exactly; the eight toggles move the view's own flags;
+the two live-update boxes move each other; with live update off an
+Apply moves the drawing and not the map and Generate then draws it;
+the dual button lands `<group> — dual` with its label, its own shelf
+key and its own edits, and the source comes back untouched; and a
+Save carries the unit, the dual and the edit list into the file, from
+which a fresh dialog loads the edited design with the same mark.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the
