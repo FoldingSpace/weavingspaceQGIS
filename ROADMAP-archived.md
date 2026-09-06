@@ -3765,7 +3765,7 @@ the drag-and-landing fixes, so none of these is a stale build.
   through `_apply_working_state`, and the table came back with four
   rows carrying the record's own first four variables, the surplus two
   ids keeping their ramp, reverse and opacity records as memory
-  (`dev/probes/conflict1_a_record_with_more_elements_than_its_design.py`).
+  (`tools/probes/conflict1_a_record_with_more_elements_than_its_design.py`).
   The one caveat, said plainly: on widening back to six the surplus
   rows re-derive their VARIABLE by the cycling default rather than
   reading it off the record, which is the ordinary count-change

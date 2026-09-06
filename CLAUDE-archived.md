@@ -8418,7 +8418,7 @@ here, and the decision to add one is the maintainer's. Recorded
   selectable, and the dual above. None of those is a single store
   being wrong; each is two stores disagreeing after an ordinary act,
   which is what a per-behaviour test cannot see and a full reading can.
-  The probe is `dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`.
+  The probe is `tools/probes/audit_the_topology_tab_as_a_person_meets_it.py`.
 
 ### C-268 — The method lessons -- reading, measuring, repairing and releasing -- one entry each, as they stood before consolidation
 

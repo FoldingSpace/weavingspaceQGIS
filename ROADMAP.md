@@ -279,7 +279,9 @@ documented trade (R-7, R-8, R-9, R-10, R-12, R-13, R-14; a third
 hypothesis about the teardown abort refuted, R-77) -- and rc16's first
 build went red the same way on 2026-09-06, on a test premise the
 even-count ruling had made false (T-143), though no artefact bore the
-number and the rebuild kept it. **THE 24-BUG CAMPAIGN REACHED ITS TWENTY-FOUR**
+number and the rebuild kept it, and rc16 itself was then red on every
+runner for a documents gate that read this machine's disk (T-144),
+published on the maintainer's one-off say-so past it. **THE 24-BUG CAMPAIGN REACHED ITS TWENTY-FOUR**
 (R-11, R-15, R-16). **ONE LINE CARRIES 0.24.4**, `pre-0.24.4` (R-17).
 **THE DRIFTED CATALOGUE IS DONE** (R-18, R-19). **THE CHANGELOG LINE
 IS APPROVED**, on its second pass (R-20). **THE ROUND OF 2026-08-28

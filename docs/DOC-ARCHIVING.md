@@ -301,7 +301,7 @@ consolidation that list is mostly paraphrase rather than loss -- so
 read each hit against the consolidated entry before restoring it, and
 restore only what is genuinely missing (two of twenty-seven were).
 Second, a pass over a document is written as a script of anchored
-moves (`dev/doc_pass.py`) rather than by hand, so every cut is a
+moves (`tools/doc_pass.py`) rather than by hand, so every cut is a
 verbatim copy and the id placeholder is filled by the tool; the end
 anchor of the last entry in a file needs a sentinel line, since the
 tool anchors on the NEXT block.

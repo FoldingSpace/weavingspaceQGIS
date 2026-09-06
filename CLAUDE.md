@@ -350,7 +350,9 @@ self-fixing at low cost for whoever edits them next.)
   what has no reader but the next session -- one-shot scripts, scratch,
   and `dev/state-of-play.md`, whose durable content is promoted into
   these documents. The test is "who reads this, other than us
-  tomorrow". (User instruction, 2026-08-11; C-279.)
+  tomorrow". A document may not NAME a `dev/` file: the command gate
+  passed here on three of them and reddened six runner legs (T-144).
+  (User instruction, 2026-08-11; C-279.)
 - **EVERY push to a branch CI watches is a push that gets watched.**
   The branch once stayed red for eighteen pushes across six hours
   because approving prose is the user's act and no local gate could
@@ -1105,7 +1107,7 @@ The accounts are C-267 and the ids beside each rule.
 - **AN AUDIT READS EVERY STORE AFTER EVERY ACT**, and the Topology tab
   audit of 2026-09-05 found three defects three matrices had passed
   over, each two stores disagreeing after an ordinary act
-  (`dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`).
+  (`tools/probes/audit_the_topology_tab_as_a_person_meets_it.py`).
 
 ### Watchers, long jobs, gates and the shell
 

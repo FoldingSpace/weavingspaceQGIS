@@ -712,7 +712,7 @@ The accounts are T-137.
   a person does and printing which of twenty stores moved found three
   defects three green matrices had passed over, two of them only in
   the printed readings
-  (`dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`).
+  (`tools/probes/audit_the_topology_tab_as_a_person_meets_it.py`).
 - A RULING THAT IS AN ORDER IS TWO CLAIMS, each with its own entry:
   "the save first, then the load" is satisfied by a deferred Load that
   never happens. Assert both answers when a rule has two, since the
@@ -820,6 +820,12 @@ requiring the original, character for character. A watcher is armed as
 well as hand-run, and a pipe defeats either, since `tail` buffers to
 EOF. One fix, two loops: when a fix is a filter, grep every place the
 same comparison is made before believing one edit finished it. (T-140.)
+And a gate that reads THIS machine's disk reports this machine: six
+document lines naming three gitignored `dev/` files passed here and
+reddened all six runner legs on rc16's commit, so the command gate
+asks git whether a runner would have the file, with a control proving
+the helper can answer, and a probe worth citing is committed under
+`tools/probes/` rather than named from `dev/` (T-144.)
 
 ## Lessons, each paid for once
 

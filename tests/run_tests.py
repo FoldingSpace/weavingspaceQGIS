@@ -58172,6 +58172,33 @@ def test_every_archived_document_is_watched_by_the_check():
       f"doc_archive.py lists {live}, which does not exist"
 
 
+def _ignored_by_git(relative):
+  """Whether git ignores a path, asked of git itself.
+
+  Args:
+    relative: a path relative to the repository root; it need not exist,
+      since `git check-ignore` matches patterns rather than files.
+
+  Returns:
+    True when git ignores it, False when git tracks or would track it,
+    and None where git cannot answer -- no git on the PATH, or a
+    checkout without a repository -- so a caller can tell "not ignored"
+    from "nobody knows".
+  """
+  import subprocess
+  try:
+    done = subprocess.run(["git", "check-ignore", "-q", "--", relative],
+                          cwd=ROOT, capture_output=True, text=True,
+                          timeout=30)
+  except (OSError, subprocess.TimeoutExpired):
+    return None
+  if done.returncode == 0:
+    return True
+  if done.returncode == 1:
+    return False
+  return None
+
+
 def test_every_documented_command_still_exists():
   """The maintenance documents' commands are real commands.
 
@@ -58209,8 +58236,24 @@ def test_every_documented_command_still_exists():
   instance CI named. Fifteen references were hidden across the gated
   documents. The per-document check could not catch it either: a
   document that contributes SOMETHING passes. [docs-reading]
+
+  Regression: the existence check read THIS machine's disk, where
+  `dev/` is full, so six lines naming three gitignored files under it
+  passed here and failed every runner -- five suite legs and the
+  mutation coverage leg red on 2026-09-06 for one cause, and rc16
+  published past them on the maintainer's one-off say-so. A named
+  file must be one git would give a runner, and the helper that asks
+  git is proved able to answer before its verdicts are believed.
   """
   commands = _documented_commands()
+  # THE CONTROL: a path this repository ignores must read as ignored, or
+  # every "not ignored" verdict below is the helper failing to answer.
+  # None (no git here) is allowed through: a checkout without git holds
+  # no ignored files at all, so the existence check covers that runner.
+  control = _ignored_by_git(os.path.join("dev", "state-of-play.md"))
+  assert control is not False, \
+    "git does not ignore dev/state-of-play.md, so the gitignore arm of " \
+    "this gate cannot tell a runner's checkout from this machine's"
   # A parser that has lost its grip is the failure mode to fear here,
   # so the floors are set well below what the documents currently
   # carry (measured 2026-08-09: 57 quotations, 23 distinct scripts,
@@ -58234,6 +58277,11 @@ def test_every_documented_command_still_exists():
     where = f"{document}:{number}"
     if not os.path.exists(os.path.join(ROOT, script)):
       missing.append(f"{where} names {script}, which does not exist "
+                     f"(quoted as {text!r})")
+      continue
+    if _ignored_by_git(script):
+      missing.append(f"{where} names {script}, which git ignores, so it "
+                     f"exists on this machine and on no runner "
                      f"(quoted as {text!r})")
       continue
     if not flags:

@@ -174,6 +174,7 @@ quote them, do not renumber them.
 - **T-141** — What has actually found defects here, in full  <sub>The consolidation of 2026-09-05: one entry per theme</sub>
 - **T-142** — Lessons, each paid for once: the section in full  <sub>The consolidation of 2026-09-05: one entry per theme</sub>
 - **T-143** — A ruling that narrows a control's range falsifies the premises of tests staging the old...  <sub>minted</sub>
+- **T-144** — A gate that reads this machine's disk reports this machine: gitignored files named in t...  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -5614,7 +5615,7 @@ a click could select, and a dual whose classes changed with the
 spacing. EACH WAS TWO STORES DISAGREEING AFTER AN ORDINARY ACT rather
 than one store being wrong, which is what a test aimed at a behaviour
 cannot see and a reading of everything can. The shape is reusable
-(`dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`): drive
+(`tools/probes/audit_the_topology_tab_as_a_person_meets_it.py`): drive
 as a person does, print which stores moved and to what, and judge the
 list afterwards. Two of the three surfaced only in the printed
 readings, not in any assertion the probe was written with.
@@ -7017,3 +7018,45 @@ before the candidate would have found it in a second. The general form
 of `_drag_moved`'s pure-function tests was already right (they pass
 dicts and never touch a box); it is the DRIVEN tests, which type into
 the widget, that carry the old range.
+
+### T-144 — A gate that reads this machine's disk reports this machine: gitignored files named in the documents
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-144).</sub>
+
+rc16 was built from a passing tree at 00:44 on 2026-09-06 -- 805 of
+805 across four shards, the gallery and the reference comparison
+green -- and by 07:48 every CI leg on its commit, 890b30b, was red:
+the three Linux suites, macOS and Windows at 804 passed and 1 failed,
+and the mutation workflow's coverage leg at 267 and 1, all on
+`test_every_documented_command_still_exists`. Six lines in six
+documents named three files under `dev/`, which `.gitignore` lists
+whole: the Topology tab audit probe (CLAUDE.md, docs/TESTING.md,
+CLAUDE-archived.md and docs/TESTING-archived.md), the conflict-1
+measurement (ROADMAP-archived.md) and the pass tool at dev/doc_pass.py
+(docs/DOC-ARCHIVING.md). Every one exists on this machine, so the
+gate's `os.path.exists` passed here on the candidate's own suite run
+and failed on every runner, which is T-40's rule met again in an
+instrument rather than a test of the product.
+
+Three things were done. The three files moved into the repository --
+the two probes to `tools/probes/`, the pass tool to `tools/` -- with
+the docstrings the standard asks of `tools/`, since a probe the
+binding documents cite as evidence is a reproduction worth keeping
+and the process is public. The seven references were repointed,
+docs/TOPOLOGY.md's included though no gate reads it. And the gate
+gained a second arm: a named file that git ignores is reported as
+existing on this machine and on no runner, asked of
+`git check-ignore` by `_ignored_by_git`, which answers None where
+git cannot say so that a checkout without git -- which holds no
+ignored files at all -- falls back to the existence arm. The control
+asserts `dev/state-of-play.md` reads as ignored, since every
+"not ignored" verdict is otherwise the helper failing to answer;
+the arm was watched fail on a temporary ignored probe file
+named from DOC-ARCHIVING.md before the fix was counted.
+
+The candidate was published past that red on the maintainer's
+one-off instruction ("if these are not real reds, we can bypass the
+restrictions as a one-off"), with `--despite-ci` naming the fix
+commit in the release body, because the receipt digests only files
+that ship and none of them moved. The number was therefore not
+spent, which is the exception to P-4 and not its rule.

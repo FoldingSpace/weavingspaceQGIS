@@ -449,7 +449,12 @@ even-count ruling had made false hours earlier, the number surviving
 only because no zip, dossier or receipt had been written (T-143). WHY A TEST FIX COSTS
 A NUMBER. `publish_candidate` requires every CI workflow to be green ON
 THE CANDIDATE'S OWN COMMIT, and no later fix turns an earlier commit's
-history green. (P-4.)
+history green. (P-4.) THE ONE-OFF EXCEPTION, and what made it one:
+rc16 itself went red on every runner for a documents gate alone --
+six lines naming gitignored `dev/` files, no shipped byte involved --
+and was published with `--despite-ci` on the maintainer's explicit
+say-so, the body naming the fix commit; the gate now asks git what a
+runner would have (T-144).
 
 ## Publishing a candidate
 

@@ -592,7 +592,7 @@ drawing's chosen thing, the verb chooser and its boxes, the edit list
 and its marks, the note and the working sentence, the symmetry line,
 the dual button and its label, both live-update boxes, the shelf, the
 panel's drawn unit, the dialog's unit and the map's own digest. The
-probes are `dev/probes/audit_the_topology_tab_as_a_person_meets_it.py`
+probes are `tools/probes/audit_the_topology_tab_as_a_person_meets_it.py`
 and its second and third passes beside it, with `tab_audit_kit.py`
 carrying the aimer and the drag; the logs are under `dev/audit-logs/`.
 

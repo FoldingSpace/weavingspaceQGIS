@@ -132,3 +132,17 @@ the write's own pump lands in it. Three arms, and the answer is none of
 them -- the record's design half is carried from the group's own
 record, so a save standing at no landing cannot move it. Re-run it if
 that carry ever changes.
+
+**`audit_the_topology_tab_as_a_person_meets_it.py`** drives every
+control and handle on the Topology tab in the order a person meets
+them, live update at its default, and reads twenty stores after each
+act, printing which moved and ending with a list of anomalies. It found
+three defects on 2026-09-05 that three green matrices had passed over,
+two of them only in the printed readings; re-run it after any change
+to the tab, and read the readings rather than the verdict.
+
+**`conflict1_a_record_with_more_elements_than_its_design.py`** is the
+measurement that settled conflict 1 of 2026-09-05 without code: a
+six-element record read back with its n lowered to four assigns the
+first four and keeps the surplus as memory, so a record may be a
+superset of its design and is never a lie.
