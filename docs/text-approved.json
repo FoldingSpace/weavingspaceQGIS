@@ -399,6 +399,11 @@
   "excerpt": "Hand-picked colours, a class file, or a narrowed range. Choo",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "2493d7fc249278ee": {
+  "approved": "2026-09-05",
+  "excerpt": "Zigzags for this change: even counts only, since the library",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "25b0d47de8ba473e": {
   "approved": "2026-08-13",
   "excerpt": "'{}' has {} distinct value{}, so it draws as {} class{}, not",
@@ -2513,6 +2518,11 @@
   "approved": "2026-08-29",
   "excerpt": "Somebody else has changed this file since the map was opened",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "ecbb15523f1c1449": {
+  "approved": "2026-09-05",
+  "excerpt": "Zigzags for this change, even counts only. This edge is too ",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "ed4b581d5ef2dbfc": {
   "approved": "2026-08-19",
