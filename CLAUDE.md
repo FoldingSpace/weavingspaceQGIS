@@ -1031,7 +1031,8 @@ The accounts are C-267 and the ids beside each rule.
   An intermittent failure under load can be the suite intermittently
   reaching a real defect (C-136).
 - **A GUARD MEASURES THE GROUND, NOT THE BOX ROUND IT** (C-93); a guard
-  that tests sign does not test finiteness; a comparator sensitive to
+  that tests sign does not test finiteness, and an oracle in absolute
+  values is blind to the sign (C-324); a comparator sensitive to
   representation cannot answer a question about appearance (C-162),
   and an exact question is not asked with a tolerance (C-163). When two
   things should draw the same map, compare what they drew, not what
@@ -1820,7 +1821,11 @@ Confirmed with the user via an explicit design review:
   0.24.4 and rc16 waits for it. (4) THE DUAL GROUP'S RECORD IS THE
   SOURCE DESIGN PLUS THE EXISTING `map_dual` TERM, shown as a label;
   Generate on it re-tiles the dual; it is one-shot and does not follow
-  its source. (5) ITS ELEMENTS ARE ASSIGNED FRESH. Refused: a frozen
+  its source -- and it is the dual of the design AS EDITED, since the
+  record carries the source's edits and the tab shows them (C-325);
+  the button is not offered on a dual group, the store being a
+  boolean that cannot say "twice" (C-326). (5) ITS ELEMENTS ARE
+  ASSIGNED FRESH. Refused: a frozen
   snapshot, and a derived group that follows its source. A design's
   gaps are a different question from the dual's holes (R-40 stands).
 - **THREE CONFLICTS SETTLED THE SAME DAY, AND FOUR STRUCK.** THE SHELF

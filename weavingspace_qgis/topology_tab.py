@@ -219,6 +219,11 @@ _COUNT_STEP = 2
 # unaffected, since this is asked only of a drag.
 _AMPLITUDE_DEADBAND_PX = 6.0
 
+# The one sentence the tab and the dialog both say when the dual button
+# is pressed on a map that is already a dual's.
+_DUAL_OF_A_DUAL = ("This map is already tiled with the dual of its design, so th"
+                   "ere is no further dual to make from it.")
+
 # THE LIBRARY'S `h` IS PEAK TO PEAK. `zigzag_between_points` scales its
 # sine by `h * r / 2`, so the wave crests half of `h` times the edge's
 # length out from the edge on either side -- and the handle, the
@@ -928,7 +933,9 @@ class TopologyView(QWidget):
       return None               # nothing a person could see
     along = ((finish.x() - start.x()) / reach,
              (finish.y() - start.y()) / reach)
-    normal = (-along[1], along[0])
+    # THE SAME SIDE AS THE HANDLE, which is the side the wave goes
+    # (see `handles`): the screen's right of the edge.
+    normal = (along[1], -along[0])
 
     # THE PEAKS, at `length / (2n)` and every `length / n` after it,
     # which is what puts the first one under the handle.
@@ -1516,13 +1523,18 @@ class TopologyView(QWidget):
       return []
     anchors = {"end": self._to_screen(*coords[-1]),
                "middle": self._to_screen(mid_x, mid_y)}
-    # The perpendicular, in SCREEN terms. The view flips y, so the
-    # screen normal is taken from screen points rather than from the
-    # unit vector, or the handles sit on the wrong side.
+    # The perpendicular, in SCREEN terms, ON THE SIDE THE WAVE GOES.
+    # The library's zigzag puts its first lobe on the LEFT of the edge
+    # in unit space (y up), which the view's y-flip puts on the RIGHT
+    # of the edge on screen: `(rise, -run)`. The other sign stood here
+    # until 2026-09-06, so the handle and the ghost bulged one way and
+    # every tile bulged the other, the two tiles sharing the edge
+    # swapping the ground they covered (round eight, repairs17;
+    # measured on the default design and hex-slice 6).
     start, finish = self._to_screen(*coords[0]), self._to_screen(*coords[-1])
     run, rise = finish.x() - start.x(), finish.y() - start.y()
     reach = (run * run + rise * rise) ** 0.5 or 1.0
-    normal = (-rise / reach, run / reach)
+    normal = (rise / reach, -run / reach)
     placed = []
     for key, at, out, shape in _EDGE_HANDLES:
       if at == "peak":
@@ -1998,6 +2010,11 @@ class TopologyPanel(QWidget):
     self.dual_button.clicked.connect(self.dual_requested.emit)
     side.addWidget(self.dual_button)
     self.dual_label = QLabel("")
+    # Whether the group on screen is already a dual's, as the store
+    # tells it; the button is not offered on top of it, since
+    # `opt_map_dual` is a boolean and a dual of a dual would land the
+    # same dual again under a longer name (round eight, 2026-09-06).
+    self._mapping_a_dual = False
     self.dual_label.setWordWrap(True)
     side.addWidget(self.dual_label)
 
@@ -2281,6 +2298,14 @@ class TopologyPanel(QWidget):
       map with holes never ships.)
     """
     dual, why = edits_module.dual_on_offer(topology)
+    # NOT ON TOP OF A DUAL. After the first press the tab holds the
+    # dual's topology and `dual_on_offer` happily offers ITS dual, but
+    # `_build_unit` reads a boolean and takes the dual once: the second
+    # press landed a byte-identical copy named `-- dual -- dual`
+    # (stores16 and stoch8, converged). The guard and the act must be
+    # about the same design.
+    if dual is not None and self._mapping_a_dual:
+      dual, why = None, _DUAL_OF_A_DUAL
     self.dual_button.setEnabled(dual is not None)
     self.dual_button.setToolTip(
       why if dual is None else
@@ -2299,8 +2324,11 @@ class TopologyPanel(QWidget):
       button, so a group restored from its record says so without the
       button having been pressed this session (ruling 4).
     """
+    self._mapping_a_dual = bool(on)
     self.dual_label.setText(
       "Tiled with the dual of this design." if on else "")
+    # AND THE OFFER FOLLOWS THE STORE, since it is one of its terms.
+    self._offer_the_dual(getattr(self, "_topology", None))
 
   # -------------------------------------------------------- controls
 
@@ -2922,7 +2950,11 @@ class TopologyPanel(QWidget):
       # AND THE HANDLE SITS AT HALF OF `h`, since the library's `h`
       # is peak to peak (`_CREST_OF_H`), so the position is read in
       # crest units and handed back in the box's.
-      changes = {"h": abs(-was_h * length * _CREST_OF_H + across)
+      # THE HANDLE SIDE IS POSITIVE `across` since 2026-09-06: the
+      # unit-space left normal, `(-ay, ax)`, is where the library puts
+      # the first lobe and where the handle now sits, so its position
+      # is `+h * length * _CREST_OF_H` and travel further out adds.
+      changes = {"h": abs(was_h * length * _CREST_OF_H + across)
                       / (length * _CREST_OF_H)}
       # THE DEADBAND IS NOT OPTIONAL. `scale_edge` was measured on
       # 2026-08-30 committing a scale of 1.003 from a drag meant as a

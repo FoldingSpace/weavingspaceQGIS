@@ -598,7 +598,13 @@ own crest as the oracle. The default smoothness (3) samples the sine
 about 5% short of its peak; the picture draws the true peak and that
 difference is left to the map. Found by round eight's specification
 hunt, which asked whether a settled rule was true of the dependency
-it cites rather than whether code obeyed the rule (C-320).
+it cites rather than whether code obeyed the rule (C-320). And the
+SIDE was wrong as well as the size: the screen normal the handle and
+the ghost stood on was the mirror of the library's first lobe once
+the view's y-flip is counted, found the same morning by the hunt
+aimed at the crest repair, whose differential compared absolute
+values and could not see it; the normal is `(rise, -run)` now and the
+differential asserts the signed first lobe through the flip (C-324).
 
 ## The general audit of 2026-09-05, and what it found
 

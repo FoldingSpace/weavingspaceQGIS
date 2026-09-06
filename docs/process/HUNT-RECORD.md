@@ -1959,6 +1959,10 @@ the ledger is `defects-2026-09-06.md`.
 | asymmetry (9th) | 1 | a settling connected to `editingFinished` is only as good as the focus policy of the widget a person moves to NEXT: the guard drove Return, and the drawing takes no focus (row 3) |
 | unreachable branches (5th) | 1 | the literal reading found dead code; the productive move was to ask what SETS a flag rather than what reads it -- a store written before the act it stands for is a precondition that arrives without its event (row 4) |
 | tests that cannot fail (7th) | 0, 2 dead axes | grep the new guards for asserts nested under `if` or `for` before mutating anything: one of eighteen was dead and it was the only conditional assertion in the set |
+| the round's own repairs, asymmetry (15th, replenished onto 6525adb) | 1 | when a repair fixes a MAGNITUDE, the guard written with it is usually in absolute values, and that is where the SIGN hides -- ask of any oracle test which symmetry its comparison is blind to (row 5) |
+| backwards from harm (11th) | 1 | vary the MANIPULATION as well as the design before believing a negative: a push leaves the two candidate duals congruent and an area metric read "no difference" on a live defect; a zigzag separated them (row 6) |
+| two stores of one fact (dual) | 1 | three of five pairs held redundantly; the pair that broke was a BOOLEAN standing for a COUNT, the guard judging on one design and the act on another (row 7) |
+| stochastic settled sessions (8th) | (same) | converged on row 7 from 71 seeded sessions; three of its four instrument faults were REST asserted too early or too narrowly, so a hunt whose discipline is "check at rest" first proves its own definition of rest |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

@@ -57168,7 +57168,9 @@ def test_the_zigzag_ghost_passes_through_its_handle():
 
   # An edge lying along x, 100px on screen, so the arithmetic is
   # legible: at n=2 the first peak is at 25 along and h*100/2 out,
-  # since the library's h is peak to peak (2026-09-06).
+  # since the library's h is peak to peak, on the screen's RIGHT of
+  # the edge (-y here), which is where the library's first lobe lands
+  # once the view's y-flip is taken into account (2026-09-06).
   start, finish = QPointF(0.0, 0.0), QPointF(100.0, 0.0)
   view._chosen_edge_on_screen = lambda: (start, finish, 100.0)
   view._zigzag_readout = (2.0, 0.25, True)
@@ -57188,7 +57190,7 @@ def test_the_zigzag_ghost_passes_through_its_handle():
     assert apart < 0.6, (
       f"the ghost's first peak sits {apart:.2f}px from the handle, so "
       f"one fact -- where the wave crests -- is drawn in two places")
-  assert abs(peak.x() - 25.0) < 0.6 and abs(peak.y() - 12.5) < 0.6, (
+  assert abs(peak.x() - 25.0) < 0.6 and abs(peak.y() + 12.5) < 0.6, (
     f"at n=2 and h=0.25 on a 100px edge the first peak belongs at "
     f"(25, 25), being length/(2n) along and h*length out; it is at "
     f"({peak.x():.1f}, {peak.y():.1f})")
@@ -57242,6 +57244,11 @@ def test_the_zigzag_ghost_crests_where_the_library_does():
   points = view._draw_the_zigzag_it_would_make(None)
   assert points and len(points) > 2, f"the ghost drew nothing: {points}"
   ghost_crest = max(abs(p.y()) for p in points)
+  # AND THE SIDE, not only the size: the first lobe's SIGNED offset.
+  # The view flips y, so a unit-space +y is a screen -y; an oracle
+  # test in absolute values is blind to exactly the symmetry the
+  # round's own repair-hunt found broken (repairs17, 2026-09-06).
+  ghost_first = next(p.y() for p in points if abs(p.y()) > 1.0)
 
   # THE ORACLE: the library's own line between the same two points,
   # unsmoothed so its samples include the sine's true peak. The method
@@ -57249,6 +57256,7 @@ def test_the_zigzag_ghost_crests_where_the_library_does():
   line = Topology.zigzag_between_points(
     None, geom.Point(0.0, 0.0), geom.Point(100.0, 0.0), n, h, 0)
   library_crest = max(abs(y) for _x, y in line.coords)
+  library_first = next(y for _x, y in line.coords if abs(y) > 1.0)
   assert library_crest > 1.0, \
     f"PREMISE: the library drew no wave to compare with: {library_crest}"
   assert abs(ghost_crest - library_crest) < 0.6, (
@@ -57256,6 +57264,11 @@ def test_the_zigzag_ghost_crests_where_the_library_does():
     f"where the library's own zigzag crests {library_crest:.2f}px out, "
     f"so the picture promises a wave {ghost_crest / library_crest:.2f} "
     f"times the one the map gets")
+  assert abs(ghost_first + library_first) < 0.6, (
+    f"the ghost's first lobe is at screen y {ghost_first:+.2f} where the "
+    f"library's is at unit y {library_first:+.2f}, which the view's y-flip "
+    f"puts at screen y {-library_first:+.2f}: the picture bulges to the "
+    f"other side of the edge from the wave the map gets")
 
 
 def test_a_drag_delivered_in_many_moves_records_one_position():
@@ -57468,6 +57481,158 @@ def test_a_dual_request_that_is_refused_does_not_latch():
     assert not dlg._mapping_the_dual() and not any("dual" in n for n in names), (
       f"the ordinary Generate after a refused dual request drew the dual: "
       f"mapping_the_dual={dlg._mapping_the_dual()}, groups {names}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_the_dual_button_refuses_on_a_dual_group():
+  """A second press of the dual button, on the dual's own group, makes
+  no third group.
+
+  `opt_map_dual` is a boolean and `_build_unit` takes the dual once,
+  while the panel judged the offer on ITS topology -- the dual's, after
+  the first press -- and offered the dual of the dual: the second press
+  landed a byte-identical copy of the first dual under `-- dual --
+  dual`, with nothing said. Two hunts converged on it. The button is
+  not offered on a dual group and the act refuses in the same words.
+
+  Regression: pressing "Generate the dual and tile it" a second time, standing on the dual's group, landed a third group holding a copy of the dual under a longer name, so a reader took the dual of the dual to be what it was not. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import topology_tab
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    _tick(500)
+    _settle_topology(dlg, seconds=60)
+    _tick(500)
+    root = QgsProject.instance().layerTreeRoot()
+    first = [g.name() for g in root.findGroups()]
+    assert any(n.endswith("dual") for n in first), \
+      f"PREMISE: the first press landed no dual group: {first}"
+    assert dlg._mapping_the_dual(), "PREMISE: the store does not say dual"
+    assert not panel.dual_button.isEnabled(), (
+      f"the dual button is still offered on the dual's own group, with "
+      f"{panel.dual_button.toolTip()!r}; a second press would land a copy "
+      f"of the dual under a longer name")
+    assert "already tiled with the dual" in panel.dual_button.toolTip(), (
+      f"the button is off but does not say why: {panel.dual_button.toolTip()!r}")
+    # THE ACT REFUSES TOO, for a press delivered any other way.
+    said_before = len(BAR_MESSAGES)
+    dlg._generate_the_dual()
+    _settle(dlg, seconds=120)
+    _tick(500)
+    after = [g.name() for g in root.findGroups()]
+    assert sorted(after) == sorted(first), (
+      f"a second dual request on the dual's group landed something: "
+      f"{after} from {first}")
+    said = " | ".join(str(m) for m in BAR_MESSAGES[said_before:])
+    assert "already tiled with the dual" in said, (
+      f"the refusal said nothing a person could act on: {said!r}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_the_dual_is_taken_of_the_design_as_edited():
+  """The dual the map gets is the dual of the design WITH its edits.
+
+  The tab shows the edited motif and its dual, and the dual group's
+  record carries the source design's edits; the dual was taken of the
+  catalogue unit, because the source's edits shelve under the key
+  without the dual term and the restore asks for the key with it. A
+  zigzag is applied through the tab, the dual button pressed, and the
+  landed layers' tile areas matched against the dual of the edited
+  unit and the dual of the plain one, built here from `topology_edits`.
+
+  Regression: with topology edits standing, "Generate the dual and tile it" drew and saved the dual of the design BEFORE the edits, while the tab went on showing the edited motif and its dual. [hunt]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    plain_unit = dlg._unit
+    edge = list(panel._topology.edges.values())[0]
+    panel._on_chose("edge", getattr(edge, "label", "") or "")
+    _tick(150)
+    panel.view._chosen_thing = edge
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+    _tick(150)
+    for name, value in (("n", 4), ("h", 0.3)):
+      box = next(w for _l, w in panel._argument_rows
+                 if w.property("argument") == name)
+      box.setValue(value)
+      _tick(120)
+    panel.apply_button.click()
+    _settle_topology(dlg, seconds=90)
+    _tick(500)
+    assert panel.edits(), "PREMISE: no edit recorded"
+    edited_unit = dlg._unit
+    assert edited_unit is not plain_unit, "PREMISE: the edit changed no unit"
+
+    def dual_areas(unit):
+      built, why = topology_edits.build(unit)
+      assert built is not None, f"PREMISE: no topology to dualise: {why}"
+      dual = topology_edits.dual_as_tileable(built)
+      assert dual is not None, "PREMISE: no dual"
+      return [g.area for g in dual.tiles.geometry]
+
+    plain, edited = dual_areas(plain_unit), dual_areas(edited_unit)
+    assert sorted(round(a, 3) for a in plain) != sorted(round(a, 3) for a in edited), \
+      "PREMISE: the edit leaves the two duals congruent, so nothing here can tell them apart"
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    _tick(800)
+    assert dlg._mapping_the_dual(), "PREMISE: the dual was not mapped"
+    landed = []
+    for lyr in QgsProject.instance().mapLayers().values():
+      if lyr.customProperty("weavingspace_tile_id"):
+        landed += [f.geometry().area() for f in lyr.getFeatures()]
+    assert landed, "PREMISE: no element layer landed"
+
+    def matching(areas):
+      return sum(1 for a in landed
+                 if any(abs(a - t) / max(t, 1e-9) < 0.01 for t in areas))
+
+    of_edited, of_plain = matching(edited), matching(plain)
+    assert of_edited == len(landed) and of_plain < len(landed), (
+      f"of {len(landed)} landed tiles, {of_edited} match the dual of the "
+      f"EDITED design and {of_plain} the dual of the plain one: the map got "
+      f"the dual of a design the tab is not showing")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -57905,7 +58070,7 @@ def _the_zigzag_handle_on_the_default_design(dlg):
   start, finish, reach = view._chosen_edge_on_screen()
   run, rise = finish.x() - start.x(), finish.y() - start.y()
   along = (run / reach, rise / reach)
-  normal = (-rise / reach, run / reach)
+  normal = (rise / reach, -run / reach)   # the handle's side, 2026-09-06
   handle = next((where for key, where, _shape in view.handles()
                  if key == "zigzag_edge"), None)
   assert handle is not None, "PREMISE: the zigzag handle is not drawn"
@@ -90350,6 +90515,10 @@ def main():
         test_a_typed_odd_count_is_settled_when_the_handle_is_taken)
   check("a dual request that is refused does not latch",
         test_a_dual_request_that_is_refused_does_not_latch)
+  check("the dual button refuses on a dual group",
+        test_the_dual_button_refuses_on_a_dual_group)
+  check("the dual is taken of the design as edited",
+        test_the_dual_is_taken_of_the_design_as_edited)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

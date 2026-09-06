@@ -6688,7 +6688,23 @@ class WeavingSpaceDialog(QDialog):
     if getattr(self, "opt_map_dual", None) is not None \
         and self.opt_map_dual.isChecked():
       from . import topology_edits
+      # OF THE DESIGN AS EDITED. The tab shows the edited motif and its
+      # dual, and the dual group's record carries the source design's
+      # edits, yet the dual was taken of the CATALOGUE unit: the source's
+      # edits shelve under the key without the dual term, and the restore
+      # that puts an edited unit back asks for the key WITH it, so a
+      # zigzag on the design left the map tiled with the dual of the
+      # un-edited one -- 452 landed tiles matching the plain dual and none
+      # the edited one (round eight, harm12, 2026-09-06). The source's
+      # own edits are replayed here first, and where the edited unit
+      # cannot carry a topology the dual falls through as before.
+      source_edits = self._edits_of_the_source_design()
       built, why = topology_edits.build(unit)
+      if built is not None and source_edits:
+        edited, _refused, _state = topology_edits.apply(built, source_edits)
+        rebuilt, why_edited = topology_edits.build(edited)
+        if rebuilt is not None:
+          built, why = rebuilt, why_edited
       dual = topology_edits.dual_as_tileable(built)
       if dual is not None:
         return dual
@@ -6697,6 +6713,26 @@ class WeavingSpaceDialog(QDialog):
         + (f": {why}" if why else "")
         + ", so the map is tiled with the design itself.")
     return unit
+
+  def _edits_of_the_source_design(self) -> list:
+    """The topology edits shelved for the SOURCE design, dual or not.
+
+    Returns:
+      The edit list under the shelf key of the design on screen with
+      the dual term FALSE -- the edits a person made to the design
+      itself -- or [] where there are none or the machinery is not set
+      up. This is what the dual is taken of: the dual's own edits shelve
+      under the key with the dual term and are replayed onto the dual
+      by the ordinary path.
+    """
+    try:
+      from . import topology_edits
+      key = topology_edits.shelf_key(self._family_key(),
+                                     self._element_count(), False)
+      edits = (getattr(self, "_topology_shelf", None) or {}).get(key) or []
+      return [dict(edit) for edit in edits]
+    except Exception:                                 # noqa: BLE001
+      return []
 
   def _preview_wait(self) -> int:
     """How long to wait for quiet before rebuilding the preview.
@@ -24303,6 +24339,12 @@ class WeavingSpaceDialog(QDialog):
       getattr(panel, "_topology", None))
     if dual is None:
       self._report_quietly(why)
+      return
+    if self._mapping_the_dual():
+      # The panel disables the button on a dual group; this is the
+      # same refusal at the act, for a press delivered any other way.
+      from .topology_tab import _DUAL_OF_A_DUAL
+      self._report_quietly(_DUAL_OF_A_DUAL)
       return
     combo = getattr(self, "group_combo", None)
     handle = combo.currentData() if combo is not None else None

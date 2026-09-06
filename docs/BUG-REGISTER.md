@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-534 defect(s) with a regression test.
+536 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -296,6 +296,10 @@ there is no separate list to remember.
   guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **the user guide named an element ceiling six short of the real one, and two documents named a vendored commit the tool had superseded eight days earlier, past a gate that had never compared that half of the stamp.**  
   guarded by `test_the_documents_numbers_match_the_code`
+- **pressing "Generate the dual and tile it" a second time, standing on the dual's group, landed a third group holding a copy of the dual under a longer name, so a reader took the dual of the dual to be what it was not.**  
+  guarded by `test_the_dual_button_refuses_on_a_dual_group`
+- **with topology edits standing, "Generate the dual and tile it" drew and saved the dual of the design BEFORE the edits, while the tab went on showing the edited motif and its dual.**  
+  guarded by `test_the_dual_is_taken_of_the_design_as_edited`
 - **two controls armed one flag and only one of them told the chooser; the checkbox is retired and the chooser is the only door.**  
   guarded by `test_the_group_chooser_is_the_only_door_to_a_new_group`
 - **in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route.**  
@@ -1123,7 +1127,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 141
+- a bug hunt pointed in a named direction: 143
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

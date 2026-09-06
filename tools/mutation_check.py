@@ -10903,6 +10903,47 @@ MUTATIONS = [
            "Generate was refused, so the next ordinary Generate drew the "
            "dual into a new group with no control on screen to untick "
            "(round eight, unreach9)"),
+  dict(name="the-dual-button-is-not-offered-on-a-dual",
+       file=TOPOLOGY_TAB,
+       old="""    if dual is not None and self._mapping_a_dual:
+      dual, why = None, _DUAL_OF_A_DUAL""",
+       new="""    pass  # mutation: offered on top of a dual""",
+       test="test_the_dual_button_refuses_on_a_dual_group",
+       why="the dual button offered on the dual's own group, where a "
+           "press lands a copy of the dual under a longer name (round "
+           "eight, stores16 and stoch8)"),
+  dict(name="the-dual-act-refuses-on-a-dual",
+       file=DIALOG,
+       old="""    if self._mapping_the_dual():
+      # The panel disables the button on a dual group; this is the
+      # same refusal at the act, for a press delivered any other way.""",
+       new="""    if False:  # mutation: the act takes a second dual
+      # The panel disables the button on a dual group; this is the
+      # same refusal at the act, for a press delivered any other way.""",
+       test="test_the_dual_button_refuses_on_a_dual_group",
+       why="a dual request delivered past the disabled button landing a "
+           "third group that is a copy of the dual (round eight, "
+           "stores16 and stoch8)"),
+  dict(name="the-dual-is-of-the-design-as-edited",
+       file=DIALOG,
+       old="""      if built is not None and source_edits:
+        edited, _refused, _state = topology_edits.apply(built, source_edits)""",
+       new="""      if False:  # mutation: the dual of the catalogue unit
+        edited, _refused, _state = topology_edits.apply(built, source_edits)""",
+       test="test_the_dual_is_taken_of_the_design_as_edited",
+       why="the dual button drawing and saving the dual of the design "
+           "BEFORE the person's edits while the tab showed the edited "
+           "motif and its dual (round eight, harm12)"),
+  dict(name="the-zigzag-handle-sits-on-the-side-the-wave-goes",
+       file=TOPOLOGY_TAB,
+       # AIMED AT THE SIGN, which a magnitude oracle cannot see.
+       old="""    normal = (along[1], -along[0])""",
+       new="""    normal = (-along[1], along[0])  # mutation: the other side""",
+       test="test_the_zigzag_ghost_crests_where_the_library_does",
+       why="the ghost, and the handle it is drawn through, bulging to the "
+           "opposite side of the edge from the lobe every tile receives, "
+           "so the two tiles sharing the edge swap the ground they cover "
+           "and the colours move with it (round eight, repairs17)"),
   dict(name="the-zigzag-ghost-crests-where-the-library-does",
        file=TOPOLOGY_TAB,
        # AIMED AT THE SCALE between the picture and the map: the
@@ -11101,7 +11142,7 @@ MUTATIONS = [
            "symmetry at 2900, and every edit on the dual was aimed with "
            "labels a spacing change renamed. The tab audit, 2026-09-05"),
   dict(name="the-zigzag-amplitude-is-a-position", file=TOPOLOGY_TAB,
-       old="""      changes = {"h": abs(-was_h * length * _CREST_OF_H + across)
+       old="""      changes = {"h": abs(was_h * length * _CREST_OF_H + across)
                       / (length * _CREST_OF_H)}""",
        new="""      changes = {"h": abs(across) / (length * _CREST_OF_H)}  # mutation: the travel, not the position""",
        test="test_a_drag_along_an_edge_sets_the_zigzag_count",

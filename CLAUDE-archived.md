@@ -358,6 +358,9 @@ quote them, do not renumber them.
 - **C-321** — A drag reads its position from where the handle was taken, never from the last frame's ...  <sub>minted</sub>
 - **C-322** — A typed count is settled at the grab, since the drawing takes no focus  <sub>minted</sub>
 - **C-323** — A store written before the act it stands for outlives a refused act: the dual button's ...  <sub>minted</sub>
+- **C-324** — A magnitude oracle is blind to the sign: the zigzag's side  <sub>minted</sub>
+- **C-325** — The dual is taken of the design as edited, since the tab shows that design and the reco...  <sub>minted</sub>
+- **C-326** — A boolean store standing for a count: the dual of a dual  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10449,3 +10452,58 @@ wrapper round `_generate` whose `finally` calls
 reverted on anything else. Guarded by
 `test_a_dual_request_that_is_refused_does_not_latch` and the entry
 `a-refused-dual-request-is-put-back`. Ledger row 4.
+
+### C-324 — A magnitude oracle is blind to the sign: the zigzag's side
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-324).</sub>
+
+Round eight's replenished repairs hunt (`repairs17`, 2026-09-06), aimed
+at the crest repair of the same morning, found the handle and the
+ghost on the OTHER side of the edge from the lobe every tile gets:
+`handles()` took its screen normal as `(-rise, run)`, which is the
+mirror of the library's first lobe once the view's y-flip is counted,
+and the ghost reused it. The crest differential written hours
+earlier compared `max(abs(y))` on both sides and could not see it.
+Verified here by mapping the handle's screen point back to unit space
+through the view's own transform and reading the edited unit's first
+lobe: -30.62 against +0.088 of the edge. Repaired by flipping the
+normal at both sites and the drag's inverse with it; the differential
+now asserts the first lobe's SIGNED offset against the library's
+through the flip, and the entry
+`the-zigzag-handle-sits-on-the-side-the-wave-goes` is caught. Ledger
+docs/process/defects-2026-09-06.md, row 5.
+
+### C-325 — The dual is taken of the design as edited, since the tab shows that design and the record carries its edits
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-325).</sub>
+
+Round eight's harm hunt (`harm12`, 2026-09-06) ranked what a person
+would be furious to lose before reading source, and found the dual
+button tiling the dual of the design BEFORE their edits while the tab
+showed the edited motif and its dual: `_build_unit` took the dual of
+the catalogue unit, the source's edits being shelved under the key
+without the dual term and the restore asking for the key with it.
+Verified here off the landed layers' feature areas: 452 tiles matched
+the plain dual and none the edited one; after the repair, the
+reverse. `_edits_of_the_source_design` reads the source's shelf and
+`_build_unit` replays it onto the built topology before taking the
+dual, falling through as before where the edited unit carries no
+topology. Guarded by `test_the_dual_is_taken_of_the_design_as_edited`
+and the entry `the-dual-is-of-the-design-as-edited`. Row 6.
+
+### C-326 — A boolean store standing for a count: the dual of a dual
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-326).</sub>
+
+Round eight's two-stores hunt (`stores16`) and its stochastic hunt
+(`stoch8`) converged on 2026-09-06: a second press of the dual
+button, standing on the dual's group, landed `-- dual -- dual`, a
+byte-identical copy of the first dual. The panel judged the offer on
+ITS topology -- the dual's, after the first press -- and offered the
+dual of the dual (4 tiles), while `_build_unit` read the boolean
+`opt_map_dual` and took the dual once (6). Verified here off both
+groups' feature geometry digests, identical at 452 features. The
+store is a boolean and cannot say "twice", so the button is not
+offered on a dual group and the act refuses in the same sentence;
+guarded by `test_the_dual_button_refuses_on_a_dual_group` with two
+entries, one at the offer and one at the act. Row 7.
