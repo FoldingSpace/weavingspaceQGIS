@@ -57024,6 +57024,15 @@ def test_a_cached_switch_draws_what_a_retile_draws():
     _generate_and_wait(dlg)
     dlg._tiled_frame_for = plain
     cached = drawn()
+    # A SECOND HIT ON THE SAME FRAME: the first consumer strips the
+    # tracing column and splits the no-data twins off what it was
+    # handed, so a frame served by REFERENCE is served damaged the
+    # second time -- a journey with one hit could not see `.copy()`
+    # go (trigger8, 2026-09-06).
+    chooser().setCurrentText(first)
+    _tick(300)
+    _generate_and_wait(dlg)
+    cached_back = drawn()
     assert any(hits), (
       "the switch was not served from the cache at all, so this test "
       "would pass against a cache that never hits: the tiling was "
@@ -57035,10 +57044,21 @@ def test_a_cached_switch_draws_what_a_retile_draws():
     chooser().setCurrentText(first)
     _tick(300)
     _generate_and_wait(dlg)
+    fresh_first = drawn()
     chooser().setCurrentText(second)
     _tick(300)
     _generate_and_wait(dlg)
     fresh = drawn()
+
+    assert set(cached_back) == set(fresh_first), (
+      f"the second cache hit drew elements {sorted(cached_back)} and the "
+      f"re-tiled run {sorted(fresh_first)}")
+    for tid in sorted(cached_back):
+      assert cached_back[tid] == fresh_first[tid], (
+        f"element {tid!r} differs between the SECOND cached switch and a "
+        f"re-tiled one: {len(cached_back[tid])} tiles against "
+        f"{len(fresh_first[tid])}; the cache is serving the frame its "
+        f"first consumer stripped, which is a frame held by reference")
 
     assert set(cached) == set(fresh), (
       f"the cached run drew elements {sorted(cached)} and the re-tiled "
@@ -57180,16 +57200,11 @@ def test_the_zigzag_ghost_passes_through_its_handle():
   assert points and len(points) > 1, \
     f"the ghost drew nothing at all: {points}"
   peak = points[1]
-  view._chosen = ("edge", "a")
-  seat = None
-  for key, where, _shape in view.handles() or []:
-    if key == "zigzag_edge":
-      seat = where
-  if seat is not None:
-    apart = ((peak.x() - seat.x()) ** 2 + (peak.y() - seat.y()) ** 2) ** 0.5
-    assert apart < 0.6, (
-      f"the ghost's first peak sits {apart:.2f}px from the handle, so "
-      f"one fact -- where the wave crests -- is drawn in two places")
+  # THE AGREEMENT WITH THE HANDLE IS ASSERTED ON THE DRAWING, in
+  # `test_the_ghost_meets_the_handle_on_the_drawing`: on this bare view
+  # `handles()` is empty, and an arm behind `if seat is not None` ran
+  # for nobody (trigger8, 2026-09-06). What this test holds is the
+  # ghost's own arithmetic.
   assert abs(peak.x() - 25.0) < 0.6 and abs(peak.y() + 12.5) < 0.6, (
     f"at n=2 and h=0.25 on a 100px edge the first peak belongs at "
     f"(25, 25), being length/(2n) along and h*length out; it is at "
@@ -58159,6 +58174,46 @@ def test_a_dual_request_whose_run_is_cancelled_is_put_back():
     names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
     assert not dlg._mapping_the_dual() and not any(n.endswith("dual") for n in names), (
       f"the Generate after a cancelled dual request drew the dual: {names}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_the_ghost_meets_the_handle_on_the_drawing():
+  """On the real drawing, the ghost's first peak is the zigzag handle.
+
+  The bare-view test asserted this under `if seat is not None`, and on
+  a bare view no handle is ever placed, so the agreement between the
+  two pictures -- one fact, where the wave crests, drawn twice -- was
+  certified by nothing. Here the default design is opened, an edge
+  chosen, zigzag picked, and both readings taken off the same view.
+
+  Regression: the ghost's peak and the handle could have been drawn apart on the tab with every guard green, since the only assertion that they meet ran on a view that draws no handle. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, handle, along, normal, reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    for name, value in (("n", 4.0), ("h", 0.3)):
+      box = next(b for _l, b in panel._argument_rows
+                 if b.property("argument") == name)
+      box.setValue(value)
+      _tick(120)
+    view._chosen_thing = view._chosen_thing
+    seat = next((w for k, w, _s in view.handles() if k == "zigzag_edge"), None)
+    assert seat is not None, "PREMISE: the drawing places no zigzag handle"
+    points = view._draw_the_zigzag_it_would_make(None)
+    assert points and len(points) > 2, f"PREMISE: the ghost drew nothing: {points}"
+    peak = points[1]
+    apart = ((peak.x() - seat.x()) ** 2 + (peak.y() - seat.y()) ** 2) ** 0.5
+    assert apart < 0.6, (
+      f"the ghost's first peak sits {apart:.2f}px from the handle on the "
+      f"drawing, so one fact -- where the wave crests -- is drawn in two "
+      f"places")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -91059,6 +91114,8 @@ def main():
         test_the_zigzag_readout_keeps_the_banked_numbers_under_another_verb)
   check("a dual request whose run is cancelled is put back",
         test_a_dual_request_whose_run_is_cancelled_is_put_back)
+  check("the ghost meets the handle on the drawing",
+        test_the_ghost_meets_the_handle_on_the_drawing)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

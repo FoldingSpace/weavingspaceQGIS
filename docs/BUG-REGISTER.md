@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-543 defect(s) with a regression test.
+544 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -312,6 +312,8 @@ there is no separate list to remember.
   guarded by `test_the_dual_button_refuses_on_a_dual_group`
 - **with topology edits standing, "Generate the dual and tile it" drew and saved the dual of the design BEFORE the edits, while the tab went on showing the edited motif and its dual.**  
   guarded by `test_the_dual_is_taken_of_the_design_as_edited`
+- **the ghost's peak and the handle could have been drawn apart on the tab with every guard green, since the only assertion that they meet ran on a view that draws no handle.**  
+  guarded by `test_the_ghost_meets_the_handle_on_the_drawing`
 - **two controls armed one flag and only one of them told the chooser; the checkbox is retired and the chooser is the only door.**  
   guarded by `test_the_group_chooser_is_the_only_door_to_a_new_group`
 - **in icon mode the coverage sentence named the wrong elements -- one missing from three of a user's areas went unmentioned while one missing from none was named. Found by the icon-mode hunt of 2026-08-28, read off the saved GeoPackage with geopandas as its second route.**  
@@ -1141,7 +1143,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 150
+- a bug hunt pointed in a named direction: 151
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

@@ -11019,6 +11019,15 @@ MUTATIONS = [
            "they were shown, the handle and the ghost agreeing with each "
            "other and neither with the library (round eight, spec6, "
            "2026-09-06)"),
+  dict(name="the-cache-serves-a-copy",
+       file=DIALOG,
+       old="""    return held.copy()""",
+       new="""    return held  # mutation: the frame itself, by reference""",
+       test="test_a_cached_switch_draws_what_a_retile_draws",
+       why="a cached frame handed out by reference and served damaged on "
+           "its second hit, once its first consumer had stripped the "
+           "tracing column and split the twins off it (round eight, "
+           "trigger8: the one-hit journey could not see it)"),
   dict(name="the-zigzag-ghost-crests-where-its-handle-sits",
        file=TOPOLOGY_TAB,
        # AIMED AT THE AGREEMENT between the two pictures. A ghost that
@@ -11027,7 +11036,7 @@ MUTATIONS = [
        # arriving in paint rather than in a record.
        old="""    step = reach / (2.0 * count)""",
        new="""    step = reach / (2.0 * count + 1)  # mutation: crest elsewhere""",
-       test="test_the_zigzag_ghost_passes_through_its_handle",
+       test="test_the_ghost_meets_the_handle_on_the_drawing",
        why="the ghosted wave and the handle disagreeing about where "
            "the zigzag crests. Ruling 3 of 2026-09-05 puts the handle "
            "ON the first peak so its place along the edge IS the "
