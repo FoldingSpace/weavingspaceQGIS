@@ -221,8 +221,6 @@ _AMPLITUDE_DEADBAND_PX = 6.0
 
 # The one sentence the tab and the dialog both say when the dual button
 # is pressed on a map that is already a dual's.
-_DUAL_OF_A_DUAL = ("This map is already tiled with the dual of its design, so th"
-                   "ere is no further dual to make from it.")
 
 # THE LIBRARY'S `h` IS PEAK TO PEAK. `zigzag_between_points` scales its
 # sine by `h * r / 2`, so the wave crests half of `h` times the edge's
@@ -2010,11 +2008,10 @@ class TopologyPanel(QWidget):
     self.dual_button.clicked.connect(self.dual_requested.emit)
     side.addWidget(self.dual_button)
     self.dual_label = QLabel("")
-    # Whether the group on screen is already a dual's, as the store
-    # tells it; the button is not offered on top of it, since
-    # `opt_map_dual` is a boolean and a dual of a dual would land the
-    # same dual again under a longer name (round eight, 2026-09-06).
-    self._mapping_a_dual = False
+    # How many times over the group on screen is dualled, as the store
+    # tells it: the label says so. Duals chain (maintainer's ruling of
+    # 2026-09-06), so the button stays offered on a dual group.
+    self._depth_of_the_dual = 0
     self.dual_label.setWordWrap(True)
     side.addWidget(self.dual_label)
 
@@ -2298,25 +2295,24 @@ class TopologyPanel(QWidget):
       map with holes never ships.)
     """
     dual, why = edits_module.dual_on_offer(topology)
-    # NOT ON TOP OF A DUAL. After the first press the tab holds the
-    # dual's topology and `dual_on_offer` happily offers ITS dual, but
-    # `_build_unit` reads a boolean and takes the dual once: the second
-    # press landed a byte-identical copy named `-- dual -- dual`
-    # (stores16 and stoch8, converged). The guard and the act must be
-    # about the same design.
-    if dual is not None and self._mapping_a_dual:
-      dual, why = None, _DUAL_OF_A_DUAL
+    # ON TOP OF A DUAL TOO: the tab holds the dual's topology and offers
+    # ITS dual, and since 2026-09-06 the build takes it, one level per
+    # frozen list in the record's chain. Until then the store was a
+    # boolean that took the dual once and the second press landed a
+    # copy under a longer name, so the button was refused here.
     self.dual_button.setEnabled(dual is not None)
     self.dual_button.setToolTip(
       why if dual is None else
       "Tiles the map with this design's dual, in a new layer group of "
       "its own.")
 
-  def _say_whether_the_dual_is_mapped(self, on: bool) -> None:
+  def _say_whether_the_dual_is_mapped(self, on) -> None:
     """The label beside the button: is the group on screen a dual's?
 
     Args:
-      on: the store's new value.
+      on: the store's new value -- a bool from the box, or the DEPTH
+        from the dialog, since duals chain and the label says how
+        many times over.
 
     Returns:
       None. The sentence is shown while the map is tiled with the
@@ -2324,9 +2320,12 @@ class TopologyPanel(QWidget):
       button, so a group restored from its record says so without the
       button having been pressed this session (ruling 4).
     """
-    self._mapping_a_dual = bool(on)
+    depth = int(on)
+    self._depth_of_the_dual = depth
     self.dual_label.setText(
-      "Tiled with the dual of this design." if on else "")
+      "" if depth < 1 else
+      "Tiled with the dual of this design." if depth == 1 else
+      f"Tiled with the dual of this design, taken {depth} times over.")
     # AND THE OFFER FOLLOWS THE STORE, since it is one of its terms.
     self._offer_the_dual(getattr(self, "_topology", None))
 

@@ -642,6 +642,17 @@ cannot lay out, or one short of its cell, each with its sentence, and
 the button is disabled with that sentence at every landing. Elements
 are assigned fresh by the ordinary landing.
 
+**AND DUALS CHAIN.** (Maintainer's ruling, 2026-09-06.) The box stays
+the boolean those thirteen readers speak, and `_dual_depth` beside it
+says how many times over, read from the record's `dual_chain` -- one
+frozen edit list per dualisation, `dual_source_edits` still written
+as its first level for an older reader. `shelf_key`, `_topology_stamp`
+and both signatures carry the depth, `_build_unit` takes the dual
+once per level, and `_generate_the_dual` queues the unit's rebuild
+itself, since a second press does not toggle the box that used to.
+The way back to an earlier geometry is its own group in the chooser.
+Account and measurement: C-334.
+
 **AND THE CORNERS ARE FOUND TO A RELATIVE TOLERANCE.** `_exact_centre`
 is the library's own choice of centre -- the incentre, by polylabel --
 at one part in a thousand million of the tile's own size rather than
@@ -1445,8 +1456,8 @@ statistic, and `shapely.equals_exact`, which compares coordinate
 sequences the library restarts on the way past (M-31).
 
 **Edits are SHELVED by design**, under `topology_edits.shelf_key`,
-which is the family, the element count and whether the dual is
-mapped. Move the design away and the edits go quiet; bring it back
+which is the family, the element count and how many times over the
+dual is taken, 0 for the design itself. Move the design away and the edits go quiet; bring it back
 and they return. This is the same shape as the per-field scheme
 memory: what stays ACTIVE changes, what is REMEMBERED does not.
 

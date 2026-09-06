@@ -1839,8 +1839,12 @@ Confirmed with the user via an explicit design review:
   Generate on it re-tiles the dual; it is one-shot and does not follow
   its source -- and it is the dual of the design AS EDITED, since the
   record carries the source's edits and the tab shows them (C-325);
-  the button is not offered on a dual group, the store being a
-  boolean that cannot say "twice" (C-326). (5) ITS ELEMENTS ARE
+  DUALS CHAIN (maintainer's ruling of 2026-09-06, superseding the
+  refusal C-326 records): the button is offered on a dual group and
+  takes the dual of the dual, the record carrying one frozen edit
+  list per dualisation and the shelf key, the stamp and both
+  signatures a DEPTH; the way back to an earlier geometry is that
+  group in the chooser (C-334). (5) ITS ELEMENTS ARE
   ASSIGNED FRESH. Refused: a frozen
   snapshot, and a derived group that follows its source. A design's
   gaps are a different question from the dual's holes (R-40 stands).

@@ -104,6 +104,8 @@ there is no separate list to remember.
   guarded by `test_a_drag_delivered_in_many_moves_records_one_position`
 - **reopening the plugin on a dual map and re-tiling it redrew the dual of the un-edited design, so the topology edit it was built from was lost in silence.**  
   guarded by `test_a_dual_group_keeps_its_sources_edits_across_a_reopen`
+- **pressing "Generate the dual and tile it" on the dual's group landed a copy of the first dual under `-- dual -- dual` rather than the dual of the dual.**  
+  guarded by `test_a_dual_of_a_dual_is_a_different_map`
 - **a dual made from an unedited design followed its source's later edits on the next Generate, the record having stored no frozen copy for an empty edit list.**  
   guarded by `test_a_dual_of_an_unedited_design_does_not_follow_its_source`
 - **pressing the dual button and then File > New before the run landed left the plugin in dual mode, so the first Generate in the new project drew the dual of the design.**  
@@ -314,8 +316,6 @@ there is no separate list to remember.
   guarded by `test_the_display_range_keeps_every_digit_a_user_types`
 - **the user guide named an element ceiling six short of the real one, and two documents named a vendored commit the tool had superseded eight days earlier, past a gate that had never compared that half of the stamp.**  
   guarded by `test_the_documents_numbers_match_the_code`
-- **pressing "Generate the dual and tile it" a second time, standing on the dual's group, landed a third group holding a copy of the dual under a longer name, so a reader took the dual of the dual to be what it was not.**  
-  guarded by `test_the_dual_button_refuses_on_a_dual_group`
 - **with topology edits standing, "Generate the dual and tile it" drew and saved the dual of the design BEFORE the edits, while the tab went on showing the edited motif and its dual.**  
   guarded by `test_the_dual_is_taken_of_the_design_as_edited`
 - **the ghost's peak and the handle could have been drawn apart on the tab with every guard green, since the only assertion that they meet ran on a view that draws no handle.**  

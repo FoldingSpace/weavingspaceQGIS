@@ -368,6 +368,7 @@ quote them, do not renumber them.
 - **C-331** — Launched is not landed: a request spent at the launch cannot be put back when the run i...  <sub>minted</sub>
 - **C-332** — Empty and absent are two silences: an empty frozen copy written as an absent key fired ...  <sub>minted</sub>
 - **C-333** — A binding that returns nothing lets two stores name two maps: the chooser refuses a gro...  <sub>minted</sub>
+- **C-334** — Duals chain: the boolean became a depth, and the second press tiled the first dual again  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10656,3 +10657,56 @@ chooser refuses in words, taking nothing over, with a sentence
 awaiting review; guarded by
 `test_a_group_whose_layer_has_gone_is_refused_in_words` and the entry
 `a-group-whose-layer-has-gone-is-refused`. Ledger row 16.
+
+### C-334 — Duals chain: the boolean became a depth, and the second press tiled the first dual again
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-334).</sub>
+
+The maintainer's ruling of 2026-09-06 (afternoon), on being shown
+the three sentences awaiting review: the dual-of-a-dual refusal
+(row 7 of that day's ledger, C-326) raised the question whether a
+second press should return to the non-dual, and then "chaining
+duals is allowed"; the way back to an earlier geometry is choosing
+that group in the chooser on the first tab, since a dual press
+leaves its source group untouched.
+
+WHAT WAS MEASURED FIRST. The library builds each dual tile from the
+centres of the tiles round a vertex, so a dual of a dual is not
+the design by construction. On the default design it is: `laves
+3.3.4.3.4` gives the snub square (four triangles of 29006 and two
+squares of 66987, every edge 258.8) and the snub square's dual
+gives four pentagons of 62500 with edges 149.4 and 204.1 x 4, the
+Cairo tiling again, congruent tile for tile and displaced by 63
+units after centroid alignment. On an edited design the second
+dual differs, since a zigzag edge becomes a straight one in the
+dual and cannot come back. A first answer to the maintainer said
+the second dual was only a look-alike; that was reasoning, and the
+measurement corrected it.
+
+THE STORE. `opt_map_dual` stays the boolean thirteen readers speak;
+`_dual_chain` holds one frozen edit list per dualisation (None for
+a record older than the term, which falls back to the live shelf as
+before) and `_dual_depth` is its length. The record carries
+`dual_chain` and still writes `dual_source_edits` as its first
+level for an rc16 reader. `shelf_key` takes a depth (`"#dual" *
+int(dual)`, so True is one and nothing saved moves); the topology
+stamp, the geometry signature and the run signature carry the
+depth; `_build_unit` applies level k's edits and takes the dual,
+once per level; the press appends the design on screen's own edits
+as the new last level, and the request tuple carries the previous
+chain for the put-back.
+
+TWO FAULTS IN THE FIRST BUILD, both found by the new guard failing
+and both diagnosed by probe. The second press landed the FIRST
+dual's tiles under `-- dual -- dual`, 452 tiles with one digest in
+both groups, while `_build_unit` itself at depth 2 gave the Cairo
+tiling: the unit is rebuilt by the box's `toggled`, and a second
+press does not toggle the box, so the run tiled the unit still on
+hand. `_generate_the_dual` queues the rebuild itself now, and the
+put-back does the same. And the press was DEFERRED on an un-edited
+design, because a depth marker put into `_topology_edit_key` made
+the key non-empty and a non-empty key makes a run wait for a
+replay; the depth moved into the stamp and the signatures. Guarded
+by `test_a_dual_of_a_dual_is_a_different_map` and the entries
+`the-dual-is-taken-once-per-level` and `the-unit-follows-the-chain`;
+the refusal's test and two entries are retired.

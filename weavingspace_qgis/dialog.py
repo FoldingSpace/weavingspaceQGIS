@@ -141,6 +141,18 @@ GROUP_BASE_NAME = "WeavingSpace tiles"
 # the next run builds one of its own. Shown last rather than first so
 # the groups that exist read as the ordinary case.
 NEW_GROUP_LABEL = "Create new"
+# THREE SENTENCES THE SUITE ASSERTS ON, held once so the maintainer's
+# rewording moves the test with the product rather than breaking it
+# (C-179: a phrase copied out of the product is broken by the next
+# rewording, and two of these were reworded on 2026-09-06).
+PATH_CLEARED_FOR_A_NEW_DATASET = (
+  "The GeoPackage path was cleared, so the dataset saved from your "
+  "previous work isn't overwritten; choose a new path to save this one.")
+PATH_CLEARED_FOR_A_NEW_MAP = (
+  "The GeoPackage path was cleared, choose a new one for saving.")
+THE_LAYER_HAS_GONE = (
+  "The layer this map was made from isn't in the project. Add that "
+  "layer back if you want to work on it.")
 
 # THE TWO DEBOUNCES, AND THEY ARE WHAT A PERSON FEELS. Nudging a design
 # control schedules two pieces of work: the tile unit and the design
@@ -3448,17 +3460,18 @@ class WeavingSpaceDialog(QDialog):
     # new group and never an identity; set by the button, read once by
     # `_a_name_for_a_new_group`, and cleared there.
     self._dual_source_group_name = None
-    # The dual button's request, `(was_new, was_dual)`, alive from the
+    # The dual button's request, `(was_new, was_dual, was_chain)`, alive from the
     # press until a Generate launches or refuses; see `_settle_a_dual_request`.
     self._dual_request = None
-    # THE SOURCE DESIGN'S EDITS, FROZEN AT THE DUAL BUTTON'S PRESS, and
-    # carried in the dual group's record as `dual_source_edits`: ruling
+    # THE SOURCE DESIGNS' EDITS, FROZEN AT THE DUAL BUTTON'S PRESS, one
+    # list per dualisation since duals chain (2026-09-06), and
+    # carried in the dual group's record as `dual_chain`: ruling
     # 4 of 2026-09-05 makes the dual one-shot and says it does not
     # follow its source, and the live shelf is neither -- it is empty
     # after a reopen (so a re-tile drew the plain dual, round eight,
     # repairs19 and unreach10) and it moves with the source's later
     # edits. None where the map is not a dual's or the record is older.
-    self._dual_source_edits = None
+    self._dual_chain = None
     # Topology tab, so the dialog names it: `WORKING_STATE_DESIGN`
     # reads its widgets off `self`, and every other design term is
     # reachable that way. The same object, not a copy.
@@ -4886,10 +4899,7 @@ class WeavingSpaceDialog(QDialog):
       widget.setFilePath("")
       widget.blockSignals(False)
       _dump("SWITCH", "path-cleared")
-      self._report_quietly(
-        "The GeoPackage path was cleared, so the dataset saved from "
-        "your previous work isn't overwritten; choose a new path to "
-        "save this one.")
+      self._report_quietly(PATH_CLEARED_FOR_A_NEW_DATASET)
     # THE FLAG THAT USED TO BE ARMED HERE IS RETIRED (ruling 1 of
     # 2026-08-25). `_fresh_group_for_new_data` made the next Generate
     # build a group of its own so the previous dataset's map survived,
@@ -6716,43 +6726,102 @@ class WeavingSpaceDialog(QDialog):
       # reopen and follows the source's later edits, and the dual does
       # neither (ruling 4). The live shelf stands in only for a dual
       # whose record predates the term.
-      source_edits = (list(self._dual_source_edits)
-                      if self._dual_source_edits is not None
-                      else self._edits_of_the_source_design())
-      built, why = topology_edits.build(unit)
-      if built is not None and source_edits:
-        edited, _refused, _state = topology_edits.apply(built, source_edits)
-        rebuilt, why_edited = topology_edits.build(edited)
-        if rebuilt is not None:
-          built, why = rebuilt, why_edited
-      dual = topology_edits.dual_as_tileable(built)
-      if dual is not None:
-        return dual
-      self._report_quietly(
-        "This design has no dual to tile with"
-        + (f": {why}" if why else "")
-        + ", so the map is tiled with the design itself.")
+      # AND DUALS CHAIN (maintainer's ruling of 2026-09-06): the chain
+      # holds one frozen edit list per dualisation, level k's edits
+      # being applied to the unit as it stands before ITS dual is
+      # taken, so a dual of a dual is built through both. A press on
+      # a dual group used to be refused, the store being a boolean
+      # that took the dual once (row 7 of 2026-09-06's ledger).
+      chain = self._the_chain_of_this_map()
+      level = 0
+      for level, level_edits in enumerate(chain):
+        built, why = topology_edits.build(unit)
+        if built is not None and level_edits:
+          edited, _refused, _state = topology_edits.apply(built, level_edits)
+          rebuilt, why_edited = topology_edits.build(edited)
+          if rebuilt is not None:
+            built, why = rebuilt, why_edited
+        dual = topology_edits.dual_as_tileable(built)
+        if dual is None:
+          break
+        unit = dual
+      else:
+        return unit
+      if level == 0:
+        self._report_quietly(
+          "This design has no dual to tile with"
+          + (f": {why}" if why else "")
+          + ", so the map is tiled with the design itself.")
+      else:
+        self._report_quietly(
+          "The dual has no further dual to tile with"
+          + (f": {why}" if why else "")
+          + ", so the map is tiled with the dual as far as it goes.")
     return unit
 
   def _edits_of_the_source_design(self) -> list:
-    """The topology edits shelved for the SOURCE design, dual or not.
+    """The topology edits shelved for the design ON SCREEN, which is
+    the source of the next dual.
 
     Returns:
-      The edit list under the shelf key of the design on screen with
-      the dual term FALSE -- the edits a person made to the design
-      itself -- or [] where there are none or the machinery is not set
-      up. This is what the dual is taken of: the dual's own edits shelve
-      under the key with the dual term and are replayed onto the dual
-      by the ordinary path.
+      The edit list under the shelf key of the design on screen at its
+      own depth -- the design itself where the map is its own, the
+      dual's own edits where the map is a dual's -- or [] where there
+      are none or the machinery is not set up. This is what the next
+      dual is taken of: it becomes the last level of the new group's
+      chain, and that group's own edits shelve one level deeper.
+    """
+    return self._edits_shelved_at(self._dual_depth())
+
+  def _edits_shelved_at(self, depth) -> list:
+    """The edit list shelved for the design on screen at a given depth.
+
+    Args:
+      depth: how many times over the design is dualled, 0 for itself.
+
+    Returns:
+      Copies of the shelved edits, or [] where there are none or the
+      machinery is not set up.
     """
     try:
       from . import topology_edits
       key = topology_edits.shelf_key(self._family_key(),
-                                     self._element_count(), False)
+                                     self._element_count(), int(depth))
       edits = (getattr(self, "_topology_shelf", None) or {}).get(key) or []
       return [dict(edit) for edit in edits]
     except Exception:                                 # noqa: BLE001
       return []
+
+  def _dual_depth(self) -> int:
+    """How many times over the map's design is dualled.
+
+    Returns:
+      0 where the map is the design's own; the chain's length where
+      the map is a dual's and its record carries the chain; 1 for a
+      dual whose record predates the chain. Duals chain (maintainer's
+      ruling of 2026-09-06), so the shelf key, the label and the
+      build all ask this rather than the boolean.
+    """
+    if not self._mapping_the_dual():
+      return 0
+    chain = getattr(self, "_dual_chain", None)
+    return len(chain) if chain else 1
+
+  def _the_chain_of_this_map(self) -> list:
+    """The frozen edit lists the map's dual is built through.
+
+    Returns:
+      A list with one edit list per dualisation, copied; [] where the
+      map is the design's own. A dual whose record predates the chain
+      is one level, read from the live shelf under the plain key, as
+      before the term.
+    """
+    if not self._mapping_the_dual():
+      return []
+    chain = getattr(self, "_dual_chain", None)
+    if chain is not None:
+      return [[dict(e) for e in level] for level in chain]
+    return [self._edits_shelved_at(0)]
 
   def _a_new_map_does_not_inherit_the_file(self, launch_state=None) -> None:
     """Clear the output path when a run lands in a NEW group on purpose.
@@ -6788,8 +6857,7 @@ class WeavingSpaceDialog(QDialog):
     widget.setFilePath("")
     widget.blockSignals(False)
     _dump("LANDING", "path-cleared-for-a-new-group")
-    self._report_quietly(
-      "The GeoPackage path was cleared, choose a new one for saving.")
+    self._report_quietly(PATH_CLEARED_FOR_A_NEW_MAP)
 
   def _preview_wait(self) -> int:
     """How long to wait for quiet before rebuilding the preview.
@@ -6895,12 +6963,18 @@ class WeavingSpaceDialog(QDialog):
     edits = design.get("topology_edits")
     # THE SOURCE'S FROZEN EDITS travel beside the dual's own: a dual
     # group restored without them re-tiled as the plain dual.
+    chain = design.get("dual_chain")
     frozen = design.get("dual_source_edits")
     # A LIST, EMPTY OR NOT, IS A FROZEN COPY; only an absent key -- a
-    # record older than the term -- leaves None for the fallback.
-    self._dual_source_edits = ([dict(e) for e in frozen]
-                               if isinstance(frozen, list)
-                               else None)
+    # record older than the term -- leaves None for the fallback. THE
+    # CHAIN comes first, one list per dualisation (2026-09-06); a
+    # record carrying only the first dual's copy is a chain of one.
+    if isinstance(chain, list) and all(isinstance(level, list) for level in chain):
+      self._dual_chain = [[dict(e) for e in level] for level in chain]
+    elif isinstance(frozen, list):
+      self._dual_chain = [[dict(e) for e in frozen]]
+    else:
+      self._dual_chain = None
     from . import topology_edits
     family = design.get("family") or self._family_key()
     count = design.get("n") or self._element_count()
@@ -6909,8 +6983,9 @@ class WeavingSpaceDialog(QDialog):
       # and the count already do: this runs while the controls are
       # being written, so reading the box would file the edits under
       # whatever the dialog happened to hold at that instant.
-      key = topology_edits.shelf_key(str(family), int(count),
-                                     bool(design.get("map_dual")))
+      depth = ((len(self._dual_chain) if self._dual_chain else 1)
+               if design.get("map_dual") else 0)
+      key = topology_edits.shelf_key(str(family), int(count), depth)
     except (TypeError, ValueError):
       return
     # SILENCE CLEARS, which is the group chooser's whole contract and
@@ -6971,7 +7046,7 @@ class WeavingSpaceDialog(QDialog):
     from . import topology_edits
     key = topology_edits.shelf_key(self._family_key(),
                                    self._element_count(),
-                                   self._mapping_the_dual())
+                                   self._dual_depth())
     panel.set_edits(self._topology_shelf.get(key, []))
 
   # ------------------------------------------------------------- data table
@@ -15079,8 +15154,9 @@ class WeavingSpaceDialog(QDialog):
       # colours. Without this term, ticking the box would take the
       # restyle fast path and every element layer would come back
       # byte for byte as it was -- which is exactly what a topology
-      # edit did until 2026-08-30.
-      self.opt_map_dual.isChecked(),
+      # edit did until 2026-08-30. THE DEPTH rather than the box, since
+      # duals chain (2026-09-06) and a dual of a dual is a third map.
+      self._dual_depth(),
       self.gpkg_widget.filePath().strip() or None,
       None if without_variables else
       tuple(sorted(a["var"] for a in self._assignments() if a["var"])),
@@ -16650,6 +16726,9 @@ class WeavingSpaceDialog(QDialog):
       # instant somebody presses Apply, which is when the map became
       # out of date.
       self._topology_edit_key(),
+      # AND THE DEPTH: two dual groups of one design differ in nothing
+      # else this tuple can see (duals chain, 2026-09-06).
+      self._dual_depth(),
       self.mod_rotate.value(), self.mod_scale_x.value(),
       self.mod_scale_y.value(), self.mod_skew_x.value(),
       self.mod_skew_y.value(), self.mod_p_inset.value(),
@@ -18393,9 +18472,7 @@ class WeavingSpaceDialog(QDialog):
     # told what to add back.
     region = (record or {}).get("region")
     if region and self._point_the_chooser_at(region) is False:
-      self._report_quietly(
-        "The layer this map was made from isn't in the project. Add that "
-        "layer back if you want to work on it.")
+      self._report_quietly(THE_LAYER_HAS_GONE)
       self._refresh_group_combo()
       return
     if record:
@@ -18900,8 +18977,13 @@ class WeavingSpaceDialog(QDialog):
     # a truthiness gate wrote nothing, the restore read None, and the
     # live-shelf fallback then made the dual FOLLOW its source's later
     # edits, which ruling 4 refuses (round eight, stores17).
-    if self._mapping_the_dual() and self._dual_source_edits is not None:
-      design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]
+    if self._mapping_the_dual() and self._dual_chain is not None:
+      design["dual_chain"] = [[dict(e) for e in level]
+                              for level in self._dual_chain]
+      # AND THE FIRST LEVEL UNDER THE OLDER KEY, so a file passed on to
+      # a colleague still on rc16 tiles the first dual as it was made.
+      if self._dual_chain:
+        design["dual_source_edits"] = [dict(e) for e in self._dual_chain[0]]
     return design
 
   def _capture_working_state(self) -> dict:
@@ -19419,9 +19501,7 @@ class WeavingSpaceDialog(QDialog):
     # first probe of the button (2026-09-05), which chose the source
     # group back and read "Tiled with the dual of this design." over a
     # map of pentagons for as long as the rebuild took.
-    panel = getattr(self, "topology_panel", None)
-    if panel is not None and hasattr(panel, "_say_whether_the_dual_is_mapped"):
-      panel._say_whether_the_dual_is_mapped(self._mapping_the_dual())
+    self._tell_the_panel_the_depth()
 
     # THE TOPOLOGY EDITS COME BACK BEFORE THE REBUILD, because
     # `_rebuild_unit` is what asks for them: it restores this design's
@@ -23946,7 +24026,7 @@ class WeavingSpaceDialog(QDialog):
     wanted_edits = self._topology_shelf.get(
       topology_edits.shelf_key(self._family_key(),
                                self._element_count(),
-                               self._mapping_the_dual()), [])
+                               self._dual_depth()), [])
     result_crs = getattr(self._unit, "crs", None)
 
     def work(task):
@@ -24055,7 +24135,7 @@ class WeavingSpaceDialog(QDialog):
       elif wanted_edits != self._topology_shelf.get(
           topology_edits.shelf_key(self._family_key(),
                                    self._element_count(),
-                                   self._mapping_the_dual()), []):
+                                   self._dual_depth()), []):
         # THE EDIT LIST MOVED WHILE THIS WAS BEING WORKED OUT, and the
         # stamp cannot see that: it is about the topology BUILD, whose
         # input is the un-edited unit, so it deliberately carries no
@@ -24366,16 +24446,21 @@ class WeavingSpaceDialog(QDialog):
       from . import topology_edits
       key = topology_edits.shelf_key(self._family_key(),
                                      self._element_count(),
-                                     self._mapping_the_dual())
+                                     self._dual_depth())
       edits = list((getattr(self, "_topology_shelf", None) or {}).get(key) or [])
       # THE DUAL'S KEY CARRIES THE SOURCE'S FROZEN EDITS TOO, so the
       # geometry signature and the tiled-frame cache move when a dual
       # is made of a differently edited source: with the cache on, the
       # dual of the design after a second edit was served from the
       # frame of the dual before it (round eight, stoch9).
-      if self._mapping_the_dual() and self._dual_source_edits:
-        edits = edits + [dict(e, how="source:" + str(e.get("how", "")))
-                         for e in self._dual_source_edits]
+      # THE DEPTH IS NOT A MARKER HERE: this key non-empty makes a run
+      # wait for a replay, and a marker deferred a press on an
+      # un-edited design (2026-09-06). The depth travels in the
+      # topology stamp and the two signatures instead.
+      if self._mapping_the_dual() and self._dual_chain:
+        edits = edits + [dict(e, how=f"source{level}:" + str(e.get("how", "")))
+                         for level, level_edits in enumerate(self._dual_chain)
+                         for e in level_edits]
       return tuple(
         (str(edit.get("classes", "")), str(edit.get("how", "")),
          tuple(sorted((str(name), float(value))
@@ -24415,7 +24500,7 @@ class WeavingSpaceDialog(QDialog):
     # describing the other. (2026-09-02, the second face of the shelf
     # key's own defect.)
     return (self._family_key(), self._element_count(),
-            self._mapping_the_dual(),
+            self._dual_depth(),
             tuple(sorted(kwargs.items())),
             (self.mod_rotate.value(),
              self.mod_scale_x.value(), self.mod_scale_y.value(),
@@ -24455,12 +24540,6 @@ class WeavingSpaceDialog(QDialog):
     if dual is None:
       self._report_quietly(why)
       return
-    if self._mapping_the_dual():
-      # The panel disables the button on a dual group; this is the
-      # same refusal at the act, for a press delivered any other way.
-      from .topology_tab import _DUAL_OF_A_DUAL
-      self._report_quietly(_DUAL_OF_A_DUAL)
-      return
     combo = getattr(self, "group_combo", None)
     handle = combo.currentData() if combo is not None else None
     group = self._group_for_handle(handle) if handle is not None else None
@@ -24479,12 +24558,25 @@ class WeavingSpaceDialog(QDialog):
     # settling lives where every Generate ends (`_settle_a_dual_request`
     # in the wrapper's `finally`) rather than after this one call.
     self._dual_request = (self._new_group_chosen,
-                          self.opt_map_dual.isChecked())
-    # FROZEN NOW, from the source's own shelf, before the dual term
-    # flips: what `_build_unit` and the record carry from here on.
-    self._dual_source_edits = self._edits_of_the_source_design()
+                          self.opt_map_dual.isChecked(),
+                          self._dual_chain)
+    # FROZEN NOW, from the shelf of the design on screen, before the
+    # dual term moves: the chain so far with this map's own edits as
+    # its last level, which is what `_build_unit` and the record carry
+    # from here on. DUALS CHAIN (maintainer's ruling of 2026-09-06),
+    # so a press on a dual group takes the dual of the dual; the way
+    # back to an earlier geometry is its own group, still in the
+    # chooser.
+    self._dual_chain = (self._the_chain_of_this_map()
+                        + [self._edits_of_the_source_design()])
     self._new_group_chosen = True
     self.opt_map_dual.setChecked(True)
+    # THE UNIT FOLLOWS THE CHAIN. The box's toggle rebuilt it for the
+    # first dual; a second press does not toggle the box, and the run
+    # then tiled the unit still on hand -- the first dual, byte for
+    # byte, under `-- dual -- dual` (measured 2026-09-06, 452 tiles
+    # with one digest in both groups). Generate flushes this rebuild.
+    self._queue_preview()
     self._generate()
 
   def _put_back_a_cancelled_dual_request(self) -> None:
@@ -24499,12 +24591,16 @@ class WeavingSpaceDialog(QDialog):
     asked = getattr(self, "_dual_request", None)
     if asked is None:
       return
-    was_new, was_dual = asked
+    was_new, was_dual, was_chain = asked
     self._dual_request = None
     self._new_group_chosen = was_new
     self.opt_map_dual.setChecked(was_dual)
     self._dual_source_group_name = None
-    self._dual_source_edits = None
+    self._dual_chain = was_chain
+    # and the unit and the label follow the chain back, the box not
+    # having moved where the press was on a dual group.
+    self._queue_preview()
+    self._tell_the_panel_the_depth()
 
   def _settle_a_dual_request(self) -> None:
     """Consume or revert the dual button's stores once a Generate ends.
@@ -24534,6 +24630,21 @@ class WeavingSpaceDialog(QDialog):
     # back through the one helper the cancel path uses too.
     self._put_back_a_cancelled_dual_request()
 
+  def _tell_the_panel_the_depth(self) -> None:
+    """Tell the Topology tab how many times over the map is dualled.
+
+    Returns:
+      None. The label beside the dual button follows the STORE, and
+      three moments move the store without the box toggling: a record
+      restore, which writes the box with its signal blocked; a
+      landing, after a press on a dual group left the box where it
+      was; and a cancelled request put back. One owner, so the three
+      cannot drift apart. Nothing to tell where the tab is not built.
+    """
+    panel = getattr(self, "topology_panel", None)
+    if panel is not None and hasattr(panel, "_say_whether_the_dual_is_mapped"):
+      panel._say_whether_the_dual_is_mapped(self._dual_depth())
+
   def _mapping_the_dual(self) -> bool:
     """Whether the map is being tiled with the design's DUAL.
 
@@ -24547,7 +24658,8 @@ class WeavingSpaceDialog(QDialog):
     reading, the guard that notices the list moving under a build, and
     the key written beside the motif in the file. A dual is a design
     in its own right (2026-09-01), and until 2026-09-02 none of those
-    five could see it.
+    five could see it; and since duals chain (2026-09-06) each of them
+    asks `_dual_depth` HOW MANY times over rather than whether.
     """
     box = getattr(self, "opt_map_dual", None)
     return bool(box is not None and box.isChecked())
@@ -24611,7 +24723,7 @@ class WeavingSpaceDialog(QDialog):
     return "|".join((
       topology_edits.shelf_key(self._family_key(),
                                self._element_count(),
-                               self._mapping_the_dual()),
+                               self._dual_depth()),
       hashlib.sha256(options.encode()).hexdigest()[:8],
       hashlib.sha256(made.encode()).hexdigest()[:8]))
 
@@ -24633,7 +24745,7 @@ class WeavingSpaceDialog(QDialog):
     # being touched.
     key = topology_edits.shelf_key(self._family_key(),
                                    self._element_count(),
-                                   self._mapping_the_dual())
+                                   self._dual_depth())
     self._topology_shelf[key] = self.topology_panel.edits()
     # AND THE EXPERIMENTAL GATE IS ASKED AGAIN, because the answer it
     # gives depends on THIS. `_gate_experimental_tabs` exempts the
@@ -24756,6 +24868,10 @@ class WeavingSpaceDialog(QDialog):
     # THE DUAL REQUEST IS SPENT BY A LANDING, however the run ended:
     # what landed is what the stores now describe.
     self._dual_request = None
+    # AND THE LABEL FOLLOWS THE DEPTH the landing leaves: the box's
+    # toggle told it "once", a second press does not toggle the box,
+    # and a dual of a dual read as the first dual (2026-09-06).
+    self._tell_the_panel_the_depth()
     # A dock edit made WHILE the run was in flight was ignored by the
     # styleChanged watcher (a run in progress must not be mistaken for
     # a user restyle) and then carried across by the preserved-

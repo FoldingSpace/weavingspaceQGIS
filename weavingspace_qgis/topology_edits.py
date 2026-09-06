@@ -213,7 +213,7 @@ def whole_where_needed(args: dict) -> dict:
           for name, value in args.items()}
 
 
-def shelf_key(family: str, elements: int, dual: bool = False) -> str:
+def shelf_key(family: str, elements: int, dual=False) -> str:
   """The key an edit list is shelved under.
 
   Args:
@@ -221,8 +221,10 @@ def shelf_key(family: str, elements: int, dual: bool = False) -> str:
     elements: how many elements the design has.
     dual: whether the map is being tiled with the design's DUAL, which
       is a different design with its own edges and its own class
-      labels. False where the caller has no opinion, which is what an
-      older record carries.
+      labels -- or HOW MANY TIMES OVER, since duals chain (2026-09-06)
+      and the dual of a dual is a third design. False or 0 where the
+      caller has no opinion, which is what an older record carries;
+      True is one.
 
   Returns:
     A string, because this travels through JSON in the working state
@@ -255,7 +257,7 @@ def shelf_key(family: str, elements: int, dual: bool = False) -> str:
   somebody's edits should go quiet, it is the maintainer's, and it is
   recorded in ROADMAP.md rather than settled here.
   """
-  return f"{family}#{int(elements)}" + ("#dual" if dual else "")
+  return f"{family}#{int(elements)}" + "#dual" * int(dual)
 
 
 def can_build(unit) -> tuple[bool, str]:

@@ -57508,21 +57508,22 @@ def test_a_dual_request_that_is_refused_does_not_latch():
     dlg.deleteLater()
 
 
-def test_the_dual_button_refuses_on_a_dual_group():
-  """A second press of the dual button, on the dual's own group, makes
-  no third group.
+def test_a_dual_of_a_dual_is_a_different_map():
+  """A second press of the dual button, standing on the dual's group,
+  lands the dual OF THE DUAL in `-- dual -- dual`, and the chooser
+  brings the earlier geometries back.
 
-  `opt_map_dual` is a boolean and `_build_unit` takes the dual once,
-  while the panel judged the offer on ITS topology -- the dual's, after
-  the first press -- and offered the dual of the dual: the second press
-  landed a byte-identical copy of the first dual under `-- dual --
-  dual`, with nothing said. Two hunts converged on it. The button is
-  not offered on a dual group and the act refuses in the same words.
+  The store was a boolean and `_build_unit` took the dual once, so the
+  second press landed a byte-identical copy of the first dual under the
+  longer name (row 7 of the 2026-09-06 ledger, refused at the button
+  that day). The maintainer ruled on 2026-09-06 that duals chain: the
+  record carries one frozen edit list per dualisation, the build takes
+  the dual that many times over, and the way back to an earlier
+  geometry is its own group in the chooser.
 
-  Regression: pressing "Generate the dual and tile it" a second time, standing on the dual's group, landed a third group holding a copy of the dual under a longer name, so a reader took the dual of the dual to be what it was not. [hunt]
+  Regression: pressing "Generate the dual and tile it" on the dual's group landed a copy of the first dual under `-- dual -- dual` rather than the dual of the dual. [hunt]
   """
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  from weavingspace_qgis import topology_tab
 
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
@@ -57539,6 +57540,12 @@ def test_the_dual_button_refuses_on_a_dual_group():
       if getattr(panel, "_topology", None) is not None:
         break
     assert panel._topology is not None, "PREMISE: no topology"
+    # THE SOURCE MAP FIRST: a dual asked for before anything is tiled
+    # takes the dataset's own name, and there is then no source group
+    # to go back to (the fixture fault this test's premise found).
+    _generate_and_wait(dlg)
+    root = QgsProject.instance().layerTreeRoot()
+    assert len(root.findGroups()) == 1, "PREMISE: the source map did not land"
     assert panel.dual_button.isEnabled(), \
       f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
     panel.dual_button.click()
@@ -57546,29 +57553,62 @@ def test_the_dual_button_refuses_on_a_dual_group():
     _tick(500)
     _settle_topology(dlg, seconds=60)
     _tick(500)
-    root = QgsProject.instance().layerTreeRoot()
-    first = [g.name() for g in root.findGroups()]
-    assert any(n.endswith("dual") for n in first), \
-      f"PREMISE: the first press landed no dual group: {first}"
-    assert dlg._mapping_the_dual(), "PREMISE: the store does not say dual"
-    assert not panel.dual_button.isEnabled(), (
-      f"the dual button is still offered on the dual's own group, with "
-      f"{panel.dual_button.toolTip()!r}; a second press would land a copy "
-      f"of the dual under a longer name")
-    assert "already tiled with the dual" in panel.dual_button.toolTip(), (
-      f"the button is off but does not say why: {panel.dual_button.toolTip()!r}")
-    # THE ACT REFUSES TOO, for a press delivered any other way.
-    said_before = len(BAR_MESSAGES)
-    dlg._generate_the_dual()
+    groups = {g.name(): g for g in root.findGroups()}
+    dual_name = next((n for n in groups if n.endswith("dual")), None)
+    assert dual_name, f"PREMISE: the first press landed no dual group: {sorted(groups)}"
+    first = _landed_profile_of(groups[dual_name])
+    assert dlg._dual_depth() == 1, f"PREMISE: the depth reads {dlg._dual_depth()}"
+    assert panel.dual_button.isEnabled(), (
+      f"the dual button is not offered on the dual's group: "
+      f"{panel.dual_button.toolTip()!r}")
+    panel.dual_button.click()
     _settle(dlg, seconds=120)
     _tick(500)
-    after = [g.name() for g in root.findGroups()]
-    assert sorted(after) == sorted(first), (
-      f"a second dual request on the dual's group landed something: "
-      f"{after} from {first}")
-    said = " | ".join(str(m) for m in BAR_MESSAGES[said_before:])
-    assert "already tiled with the dual" in said, (
-      f"the refusal said nothing a person could act on: {said!r}")
+    _settle_topology(dlg, seconds=60)
+    _tick(500)
+    groups = {g.name(): g for g in root.findGroups()}
+    second_name = next((n for n in groups if n.endswith("dual — dual")), None)
+    assert second_name, (
+      f"the second press landed no `-- dual -- dual` group: {sorted(groups)}")
+    second = _landed_profile_of(groups[second_name])
+    assert second != first, (
+      f"the second press landed a copy of the first dual, {second}, "
+      f"rather than the dual of the dual")
+    assert dlg._dual_depth() == 2, f"the depth reads {dlg._dual_depth()}, not 2"
+    assert "2 times over" in panel.dual_label.text(), (
+      f"the label does not say twice: {panel.dual_label.text()!r}")
+    record = dlg._read_working_state(groups[second_name]) or {}
+    chain = (record.get("design") or {}).get("dual_chain")
+    assert isinstance(chain, list) and len(chain) == 2, (
+      f"the second dual's record carries {chain!r} for its chain")
+    # THE WAY BACK IS THE CHOOSER: the source group, then the first dual.
+    combo = dlg.group_combo
+    def choose(wanted):
+      index = next(i for i in range(combo.count())
+                   if combo.itemData(i) is not None and combo.itemText(i).strip() == wanted)
+      combo.setCurrentIndex(index)
+      combo.activated.emit(index)
+      _tick(600)
+      _settle_topology(dlg, seconds=60)
+    source_name = next((n for n in groups if "dual" not in n), None)
+    assert source_name, f"PREMISE: no source group among {sorted(groups)}"
+    choose(source_name)
+    assert dlg._dual_depth() == 0 and not dlg._mapping_the_dual(), (
+      f"back on the source group the depth reads {dlg._dual_depth()}")
+    choose(dual_name)
+    assert dlg._dual_depth() == 1, (
+      f"back on the first dual the depth reads {dlg._dual_depth()}")
+    choose(second_name)
+    assert dlg._dual_depth() == 2, (
+      f"back on the second dual the depth reads {dlg._dual_depth()}")
+    # AND GENERATE THERE RE-TILES THE DUAL OF THE DUAL, not the first.
+    dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 100)
+    _tick(300)
+    _generate_and_wait(dlg)
+    again = _landed_profile_of(groups[second_name])
+    assert again == second, (
+      f"Generate on the second dual's group drew {again} where the dual of "
+      f"the dual is {second}")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -57793,7 +57833,8 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
     # whole list in one process (trigger10).
     said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
             + " ".join(str(r.get("text", "")) for r in said_module.SAID[said_before:])).lower()
-    assert "path was cleared" in said, (
+    from weavingspace_qgis.dialog import PATH_CLEARED_FOR_A_NEW_MAP
+    assert PATH_CLEARED_FOR_A_NEW_MAP.lower() in said.lower(), (
       f"the path was cleared with nothing said: {said!r}")
     # AND THE RECORD DOES NOT CARRY THE FILE EITHER: the launch snapshot
     # is what the landing stamps, and a record naming the first map's
@@ -57937,7 +57978,7 @@ def test_a_dual_group_keeps_its_sources_edits_across_a_reopen():
     _tick(600)
     _settle_topology(dlg, seconds=60)
     assert dlg._mapping_the_dual(), "PREMISE: the restored group is not a dual's"
-    assert dlg._dual_source_edits, (
+    assert dlg._dual_chain and dlg._dual_chain[0], (
       "the restored dual group carries no frozen source edits, so a "
       "re-tile will draw the plain dual")
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 100)
@@ -58083,7 +58124,9 @@ def test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work():
       f"{dlg.gpkg_widget.filePath()!r}, so the next Save would write the "
       f"other dataset over it")
     said = " ".join(str(t) for _k, t in BAR_MESSAGES).lower()
-    assert "cleared" in said, f"the path was cleared with nothing said: {said!r}"
+    from weavingspace_qgis.dialog import PATH_CLEARED_FOR_A_NEW_DATASET
+    assert PATH_CLEARED_FOR_A_NEW_DATASET.lower() in said.lower(), (
+      f"the path was cleared with nothing said: {said!r}")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -58342,8 +58385,8 @@ def test_a_dual_of_an_unedited_design_does_not_follow_its_source():
     root = QgsProject.instance().layerTreeRoot()
     dual_group = next(g for g in root.findGroups() if g.name().endswith("dual"))
     first = _landed_profile_of(dual_group)
-    assert dlg._dual_source_edits == [], \
-      f"PREMISE: the frozen copy is {dlg._dual_source_edits!r}, not []"
+    assert dlg._dual_chain == [[]], \
+      f"PREMISE: the frozen chain is {dlg._dual_chain!r}, not [[]]"
     record = dlg._read_working_state(dual_group) or {}
     assert "dual_source_edits" in (record.get("design") or {}), (
       "the dual group's record carries no frozen copy for an empty edit "
@@ -58376,9 +58419,9 @@ def test_a_dual_of_an_unedited_design_does_not_follow_its_source():
     combo.activated.emit(index)
     _tick(600)
     _settle_topology(dlg, seconds=60)
-    assert dlg._dual_source_edits == [], (
-      f"back on the dual group the frozen copy reads "
-      f"{dlg._dual_source_edits!r}: the restore turned [] into None and the "
+    assert dlg._dual_chain == [[]], (
+      f"back on the dual group the frozen chain reads "
+      f"{dlg._dual_chain!r}: the restore turned [] into None and the "
       f"build will follow the source")
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() + 100)
     _tick(300)
@@ -58458,7 +58501,8 @@ def test_a_group_whose_layer_has_gone_is_refused_in_words():
     # whole list in one process (trigger10).
     said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
             + " ".join(str(r.get("text", "")) for r in said_module.SAID[said_before:])).lower()
-    assert "isn't in the project" in said, (
+    from weavingspace_qgis.dialog import THE_LAYER_HAS_GONE
+    assert THE_LAYER_HAS_GONE.lower() in said, (
       f"a group whose layer has gone was chosen and nothing was said: {said!r}")
     assert "regionB" in combo.currentText(), (
       f"the chooser goes on naming the map whose layer is gone: "
@@ -91347,8 +91391,8 @@ def main():
         test_a_typed_odd_count_is_settled_when_the_handle_is_taken)
   check("a dual request that is refused does not latch",
         test_a_dual_request_that_is_refused_does_not_latch)
-  check("the dual button refuses on a dual group",
-        test_the_dual_button_refuses_on_a_dual_group)
+  check("a dual of a dual is a different map",
+        test_a_dual_of_a_dual_is_a_different_map)
   check("the dual is taken of the design as edited",
         test_the_dual_is_taken_of_the_design_as_edited)
   check("a typed odd count is even at every door",

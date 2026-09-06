@@ -2788,12 +2788,12 @@ MUTATIONS = [
        # MUTATED to fall back in SILENCE: the map is then of the design
        # rather than of its dual, with nothing to say why, which is the
        # quiet refusal this project has paid for twice.
-       old="""      self._report_quietly(
-        "This design has no dual to tile with"
-        + (f": {why}" if why else "")""",
-       new="""      _ = (
-        "This design has no dual to tile with"
-        + (f": {why}" if why else "")""",
+       old="""        self._report_quietly(
+          "This design has no dual to tile with"
+          + (f": {why}" if why else "")""",
+       new="""        _ = (
+          "This design has no dual to tile with"
+          + (f": {why}" if why else "")""",
        test="test_the_dual_can_be_the_design_the_map_is_tiled_with",
        why="being told that the dual could not be built, rather than "
            "meeting a map of the design and wondering why"),
@@ -9609,7 +9609,7 @@ MUTATIONS = [
        # site would be answered by the writer or the reader beside it.
        # The mutation is the key as it stood before 2026-09-02, which
        # is the whole defect in one expression.
-       old="""  return f"{family}#{int(elements)}" + ("#dual" if dual else "")""",
+       old="""  return f"{family}#{int(elements)}" + "#dual" * int(dual)""",
        new="""  return f"{family}#{int(elements)}"  # mutation: one shelf for two""",
        test="test_an_edit_on_the_dual_is_not_an_edit_on_the_design",
        why="an edit made on a design's DUAL being filed under the "
@@ -9813,7 +9813,7 @@ MUTATIONS = [
            "BACK where they were found -- which a load that never "
            "took them down satisfies trivially"),
   dict(name="tiling-with-the-dual-is-a-different-map", file=DIALOG,
-       old="""      self.opt_map_dual.isChecked(),
+       old="""      self._dual_depth(),
       self.gpkg_widget.filePath().strip() or None,""",
        new="""      self.gpkg_widget.filePath().strip() or None,""",
        test="test_the_dual_can_be_the_design_the_map_is_tiled_with",
@@ -10957,10 +10957,10 @@ MUTATIONS = [
            "writeonly6)"),
   dict(name="an-empty-frozen-copy-is-written",
        file=DIALOG,
-       old="""    if self._mapping_the_dual() and self._dual_source_edits is not None:
-      design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]""",
-       new="""    if self._mapping_the_dual() and self._dual_source_edits:  # mutation: empty is absent
-      design["dual_source_edits"] = [dict(e) for e in self._dual_source_edits]""",
+       old="""    if self._mapping_the_dual() and self._dual_chain is not None:
+      design["dual_chain"] = [[dict(e) for e in level]""",
+       new="""    if self._mapping_the_dual() and any(self._dual_chain or []):  # mutation: empty is absent
+      design["dual_chain"] = [[dict(e) for e in level]""",
        test="test_a_dual_of_an_unedited_design_does_not_follow_its_source",
        why="a dual of an un-edited design following its source's later "
            "edits, the record having stored nothing for an empty frozen "
@@ -10968,19 +10968,22 @@ MUTATIONS = [
            "eight, stores17)"),
   dict(name="the-duals-source-edits-are-restored-from-the-record",
        file=DIALOG,
-       old="""    self._dual_source_edits = ([dict(e) for e in frozen]
-                               if isinstance(frozen, list)
-                               else None)""",
-       new="""    self._dual_source_edits = None  # mutation: the record's term unread""",
+       old="""    if isinstance(chain, list) and all(isinstance(level, list) for level in chain):
+      self._dual_chain = [[dict(e) for e in level] for level in chain]
+    elif isinstance(frozen, list):
+      self._dual_chain = [[dict(e) for e in frozen]]
+    else:
+      self._dual_chain = None""",
+       new="""    self._dual_chain = None  # mutation: the record's term unread""",
        test="test_a_dual_group_keeps_its_sources_edits_across_a_reopen",
        why="a dual group reopened and re-tiled drawing the plain dual, "
            "the person's edit gone in silence (round eight, repairs19 "
            "and unreach10)"),
   dict(name="the-duals-key-carries-the-sources-frozen-edits",
        file=DIALOG,
-       old="""      if self._mapping_the_dual() and self._dual_source_edits:
-        edits = edits + [dict(e, how="source:" + str(e.get("how", "")))
-                         for e in self._dual_source_edits]""",
+       old="""        edits = edits + [dict(e, how=f"source{level}:" + str(e.get("how", "")))
+                         for level, level_edits in enumerate(self._dual_chain)
+                         for e in level_edits]""",
        new="""      pass  # mutation: the key blind to the source's edits""",
        test="test_a_second_edit_of_the_source_makes_a_different_dual",
        why="the tiled-frame cache serving the first dual for the dual of "
@@ -11013,33 +11016,41 @@ MUTATIONS = [
        why="an odd count typed without Return reaching the record through "
            "Apply, or through the chooser switched away and back, so the "
            "map was tiled with gaps (round eight, repairs18)"),
-  dict(name="the-dual-button-is-not-offered-on-a-dual",
-       file=TOPOLOGY_TAB,
-       old="""    if dual is not None and self._mapping_a_dual:
-      dual, why = None, _DUAL_OF_A_DUAL""",
-       new="""    pass  # mutation: offered on top of a dual""",
-       test="test_the_dual_button_refuses_on_a_dual_group",
-       why="the dual button offered on the dual's own group, where a "
-           "press lands a copy of the dual under a longer name (round "
-           "eight, stores16 and stoch8)"),
-  dict(name="the-dual-act-refuses-on-a-dual",
+  dict(name="the-label-follows-the-depth-at-the-landing",
        file=DIALOG,
-       old="""    if self._mapping_the_dual():
-      # The panel disables the button on a dual group; this is the
-      # same refusal at the act, for a press delivered any other way.""",
-       new="""    if False:  # mutation: the act takes a second dual
-      # The panel disables the button on a dual group; this is the
-      # same refusal at the act, for a press delivered any other way.""",
-       test="test_the_dual_button_refuses_on_a_dual_group",
-       why="a dual request delivered past the disabled button landing a "
-           "third group that is a copy of the dual (round eight, "
-           "stores16 and stoch8)"),
+       old="""    # and a dual of a dual read as the first dual (2026-09-06).
+    self._tell_the_panel_the_depth()""",
+       new="""    # and a dual of a dual read as the first dual (2026-09-06).
+    pass  # mutation: the label keeps what the toggle told it""",
+       test="test_a_dual_of_a_dual_is_a_different_map",
+       why="the label beside the dual button reading \"the dual\" over a "
+           "map tiled with the dual of the dual, since only the box's toggle "
+           "told it and a second press does not toggle the box (2026-09-06)"),
+  dict(name="the-unit-follows-the-chain",
+       file=DIALOG,
+       old="""    # with one digest in both groups). Generate flushes this rebuild.
+    self._queue_preview()""",
+       new="""    # with one digest in both groups). Generate flushes this rebuild.
+    pass  # mutation: the unit on hand is tiled""",
+       test="test_a_dual_of_a_dual_is_a_different_map",
+       why="a second press of the dual button tiling the first dual again "
+           "under `-- dual -- dual`, the unit never rebuilt since the box "
+           "did not move (2026-09-06, at the chain's own repair)"),
+  dict(name="the-dual-is-taken-once-per-level",
+       file=DIALOG,
+       old="""      for level, level_edits in enumerate(chain):""",
+       new="""      for level, level_edits in enumerate(chain[:1]):  # mutation: the dual taken once""",
+       test="test_a_dual_of_a_dual_is_a_different_map",
+       why="a press of the dual button on the dual's own group landing a "
+           "copy of the first dual under `-- dual -- dual` rather than the "
+           "dual of the dual (row 7 of 2026-09-06, reopened by the "
+           "maintainer's ruling that duals chain)"),
   dict(name="the-dual-is-of-the-design-as-edited",
        file=DIALOG,
-       old="""      if built is not None and source_edits:
-        edited, _refused, _state = topology_edits.apply(built, source_edits)""",
-       new="""      if False:  # mutation: the dual of the catalogue unit
-        edited, _refused, _state = topology_edits.apply(built, source_edits)""",
+       old="""        if built is not None and level_edits:
+          edited, _refused, _state = topology_edits.apply(built, level_edits)""",
+       new="""        if False:  # mutation: the dual of the catalogue unit
+          edited, _refused, _state = topology_edits.apply(built, level_edits)""",
        test="test_the_dual_is_taken_of_the_design_as_edited",
        why="the dual button drawing and saving the dual of the design "
            "BEFORE the person's edits while the tab showed the edited "
@@ -11236,9 +11247,9 @@ MUTATIONS = [
   dict(name="the-dual-button-asks-for-a-group-of-its-own", file=DIALOG,
        old="""    self._new_group_chosen = True
     self.opt_map_dual.setChecked(True)
-    self._generate()""",
+    # THE UNIT FOLLOWS THE CHAIN. The box's toggle rebuilt it for the""",
        new="""    self.opt_map_dual.setChecked(True)  # mutation: land in the group on screen
-    self._generate()""",
+    # THE UNIT FOLLOWS THE CHAIN. The box's toggle rebuilt it for the""",
        test="test_the_dual_button_lands_the_dual_in_its_own_group",
        why="the dual tiled OVER the source's own group, replacing the "
            "map somebody had just made -- the dataset-switch harm of "

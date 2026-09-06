@@ -580,6 +580,27 @@ question from the dual's: insets are already built before, and a
 weave's strand width is baked into strand construction, which is the
 R-40 boundary.
 
+## Duals chain, and the way back is the chooser
+
+A press on a dual's own group used to be refused, the store being a
+boolean that could not say "twice" and a second press having landed
+a byte-identical copy of the first dual under `-- dual -- dual`. The
+maintainer ruled on 2026-09-06 that duals chain. The record carries
+one frozen edit list per dualisation, the build applies each level's
+edits and takes the dual once per level, and the shelf key, the
+topology stamp and both signatures carry the DEPTH rather than the
+box. Measured on the default design: `laves 3.3.4.3.4` dualises to
+the snub square and back to the Cairo tiling, congruent tile for
+tile (four pentagons of 62500, edges 149.4 and 204.1) and displaced
+by 63 units, so a second press is a round trip there; on an edited
+design it is not, since the dual straightens a zigzag edge. The way
+back to any earlier geometry is that geometry's own group in the
+chooser, which a dual press leaves untouched; a dual group's own
+topology edits shelve one level deeper and are what the next dual is
+taken of. Two faults in the first build are in C-334: the unit
+is rebuilt by the box's toggle, which a second press never fires, and
+a depth marker in the edit key deferred the press.
+
 ## The crest is half of h, and the picture said otherwise until round eight
 
 The library's `zigzag_between_points` scales its sine by `h * r / 2`:
