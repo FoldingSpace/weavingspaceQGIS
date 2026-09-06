@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-547 defect(s) with a regression test.
+549 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -152,6 +152,8 @@ there is no separate list to remember.
   guarded by `test_a_limit_that_refuses_a_pin_retires_the_pin_and_says_so`
 - **pressing Load with live update at its default re-tiled the opened map into memory a second later, so the GeoPackage-backed layers were removed and the project reopened empty. Found by the races hunt of 2026-08-28, which ruled out all four debounce windows before finding the cause was a default the suite never drives.**  
   guarded by `test_a_load_under_live_update_keeps_the_map_it_opened`
+- **a saved dual map opened in a fresh project was named without its "dual", and a plain saved map opened while a dual was on screen was named "dual", the resume naming its group from the live control rather than the file's record.**  
+  guarded by `test_a_loaded_map_is_named_from_its_record_not_the_live_dual_term`
 - **the moved-data notice could never fire for a map opened with Load, because its reading is recorded at a landing and a resume is not one -- so editing the region and pressing Save wrote old tiles beside new data with nothing said. Found by the repairs hunt of 2026-08-28.**  
   guarded by `test_a_map_opened_and_then_edited_says_so_when_it_is_saved`
 - **a negative slice offset was clamped away by a visit to a family whose range is narrower, and did not come back. Found by the modifiers hunt of 2026-08-28.**  
@@ -214,6 +216,8 @@ there is no separate list to remember.
   guarded by `test_a_row_follows_a_style_pasted_onto_its_layer_in_qgis`
 - **a tiling still in flight when the project was replaced landed its layers into the incoming project, replacing that project's own output with memory layers tiled from the previous project's region -- and reported it as a successful run. `_forget_the_last_project` did not cancel the task and `_on_generated` never asked which project it was for.**  
   guarded by `test_a_run_in_flight_does_not_land_in_the_project_that_replaced_it`
+- **a Save As of a self-contained map wrote the new file without the region copy, its record pointing at the sender's file, so the passed-on map could not be redrawn by anyone who did not also have the original.**  
+  guarded by `test_a_save_as_of_a_self_contained_map_keeps_the_copy`
 - **a Save As told the file where the map had gone and never told the group, so returning to the map reverted the output box to the file it was saved away from and the next Save overwrote the older version. Found by the colourpicks hunt of 2026-08-28.**  
   guarded by `test_a_save_as_tells_the_group_where_the_map_went`
 - **with live update off, a Save pressed within the debounce of any design change was deferred behind a run that could never start; it promised to save after a redraw that never came and then wrote the design the person had changed away from, or nothing at all if they closed the window.**  
@@ -1149,7 +1153,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 154
+- a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15

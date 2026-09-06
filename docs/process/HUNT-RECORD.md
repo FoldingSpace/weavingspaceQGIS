@@ -1989,7 +1989,8 @@ eight hunts reporting within half an hour of each launch.
 | the specification itself (7th) | 1 | a rule stated as "THE ORDER IS FORCED" is a ten-line probe: find the helper that forces it and ask what it does when it cannot -- it returned silently having checked nothing the caller could read (row 16) |
 | stochastic over the doors (10th) | (row 9 completed) | when a repair clears a CONTROL at a landing, ask what the launch snapshot writes back over it; the sweep saw it only because one invariant compared two groups' records rather than one group against itself |
 | unreachable branches (7th) | (same as row 14) | the branch was reachable and the guard missing at a SIBLING door: enumerate the callers of the act, every `.cancel()`, not the branches of the guard |
-| one boundary but not another (the dual's frozen edits) | 1 claimed, left open | when a NAMING rule gains a term, re-aim every door that reuses the namer: the resume composed a name from a live control at the one moment the record had not been applied |
+| one boundary but not another (the dual's frozen edits) | 1 (row 17, repaired that evening) | when a NAMING rule gains a term, re-aim every door that reuses the namer: the resume composed a name from a live control at the one moment the record had not been applied |
+| backwards from harm (13th, harm14) | 1 (row 18, repaired that evening) | walk a claim to its END with the sender's file taken away: a per-file memory answers absent for a file being created, so a Save As is the act's absence deciding at a new name, and the fix asks the file the map came in from |
 | tests that cannot fail (9th, at today's nine guards) | 0, 2 dead axes | a mutant that stops the run landing passes tests that assert on layers without asserting the run landed; and a process-wide message store the harness never clears is a dead axis waiting for the full run |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the

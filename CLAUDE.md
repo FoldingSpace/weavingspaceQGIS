@@ -934,9 +934,11 @@ and the ids beside each rule.
   INPUT, widen the record and the key that decide whether the map is
   redrawn in the same commit (C-328); and when one store becomes the
   owner a record reads, find the reader still on a hard-coded default
-  (C-330); and an empty value written through a truthiness gate is an
+  (C-330); an empty value written through a truthiness gate is an
   ABSENT key on the way back, which fires the legacy fallback on the
-  commonest journey (C-332).
+  commonest journey (C-332); and a per-file memory answers absent
+  for a file being CREATED, so a Save As asks the file the map came
+  in from (C-335).
 - **A DISPLAY RULE IS DISPLAY-ONLY ONLY IF NOTHING RE-READS THE
   DISPLAY** (C-133); a count quoted to a person is asked of the
   geometry, not of two totals (C-131); a guard that rebuilds a layer

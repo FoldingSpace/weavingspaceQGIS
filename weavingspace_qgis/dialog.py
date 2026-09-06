@@ -20111,6 +20111,10 @@ class WeavingSpaceDialog(QDialog):
       self._file_was_ours_when_met = {}
     mine_from_the_start = self._file_was_ours_when_met.setdefault(
       self._gpkg_key(path), (not existed) or ours)
+    # THE FILE THIS MAP CAME IN FROM, taken before `_last_path` moves
+    # to the file being written: a Save As asks it whether the copy
+    # travels (row 18).
+    came_from = self._last_path
 
     # A TOPOLOGY THIS FILE IS OWED IS BUILT OFF THE MAIN THREAD, AND
     # THE PRESS WAITS FOR IT. (Maintainer's decision, 2026-09-01.)
@@ -20724,7 +20728,7 @@ class WeavingSpaceDialog(QDialog):
         rebuilt.append(merged)
       resumable["elements"] = rebuilt
     resumable["region_embedded"] = self._embed_or_drop_the_source(
-      path, mine_from_the_start)
+      path, mine_from_the_start, came_from=came_from)
     # BEFORE THE RECORD, like the source copy above it and for the same
     # reason: the record says whether these tables are there, so it is
     # written once the answer is a fact about the file rather than an
@@ -21715,7 +21719,10 @@ class WeavingSpaceDialog(QDialog):
       # under; renaming a group nobody has seen yet is not the same
       # act as renaming one somebody named, which is theirs and is
       # never undone.
-      named = self._a_name_for_a_new_group(root)
+      # ...FROM THE RECORD'S OWN DUAL TERM, which is not applied until
+      # `_apply_working_state` below (row 17).
+      named = self._a_name_for_a_new_group(
+        root, dual=bool(((record or {}).get("design") or {}).get("map_dual")))
       if named != group.name():
         group.setName(named)
         self._group_name = named
@@ -22237,7 +22244,23 @@ class WeavingSpaceDialog(QDialog):
     box = getattr(self, "opt_embed_source", None)
     if box is None or not box.isChecked() or not path:
       return False
-    if source_layer is None:
+    return self._write_the_source_copy(path, source_layer)
+
+  def _write_the_source_copy(self, path, source_layer) -> bool:
+    """Write the region's data into a file, the box already answered.
+
+    Args:
+      path: the GeoPackage to write into.
+      source_layer: the region layer to copy, or None for nothing.
+
+    Returns:
+      True when the copy is in the file, False when there was nothing
+      to copy or the write failed. The box is NOT asked here: the
+      opt-in is `_embed_source_into`'s question, and a Save As of a
+      map that came in self-contained carries the copy on the
+      strength of the file it came from, the box untouched.
+    """
+    if not path or source_layer is None:
       return False
     try:
       frame = bridge.layer_to_gdf(
@@ -22671,7 +22694,8 @@ class WeavingSpaceDialog(QDialog):
     """
     self._embed_touches += 1
 
-  def _embed_or_drop_the_source(self, path, ours=True) -> bool:
+  def _embed_or_drop_the_source(self, path, ours=True,
+                                came_from=None) -> bool:
     """Put the region data into the saved file, or take it back out.
 
     Args:
@@ -22682,6 +22706,9 @@ class WeavingSpaceDialog(QDialog):
         THEM, and taking it leaves their map unable to be redrawn by
         anyone. Taken before the write, because writing makes "we have
         saved here" true of any file at all.
+      came_from: the file this map was opened from, where the caller
+        knows it, asked only where `path` has no memory of its own --
+        which is a Save As. None asks nothing.
 
     Returns:
       True when the file now holds a copy of the region layer, False
@@ -22719,10 +22746,25 @@ class WeavingSpaceDialog(QDialog):
     # redraw. The question is asked of THIS file and only while the
     # box is untouched, so a deliberate untick still means what it
     # says.
-    held, touches = self._embedded_when_resumed.get(
-      self._gpkg_key(path), (False, None))
+    key = self._gpkg_key(path)
+    held, touches = self._embedded_when_resumed.get(key, (False, None))
     if held and touches == self._embed_touches:
       return True
+    # A SAVE AS HAS NO MEMORY OF ITS OWN, so the file the map came in
+    # from answers: a self-contained map passed on under a new name
+    # went out WITHOUT its copy, its record naming the sender's file,
+    # and a third person could look at it and not redraw it (round
+    # eight, harm14, row 18). The copy is written into the new file
+    # and the new file remembers it, so the next save there keeps it.
+    if came_from and key not in self._embedded_when_resumed:
+      held, touches = self._embedded_when_resumed.get(
+        self._gpkg_key(came_from), (False, None))
+      if held and touches == self._embed_touches:
+        carried = self._write_the_source_copy(
+          path, self.layer_combo.currentLayer())
+        if carried:
+          self._embedded_when_resumed[key] = (True, self._embed_touches)
+        return carried
     # AND NOTHING IS REMOVED FROM A FILE THAT IS NOT THIS MAP'S.
     # `weavingspace_region` is a table the plugin writes, which is what
     # ruling 2 of 2026-08-27 scopes the drop to -- but in a GeoPackage
@@ -23029,7 +23071,7 @@ class WeavingSpaceDialog(QDialog):
         return parent
     return None
 
-  def _a_name_for_a_new_group(self, root, tiled=None):
+  def _a_name_for_a_new_group(self, root, tiled=None, dual=None):
     """Compose the name a new output group takes.
 
     Args:
@@ -23037,6 +23079,13 @@ class WeavingSpaceDialog(QDialog):
         already taken.
       tiled: the layer this map was made from, when the caller knows
         it; None asks the region chooser instead.
+      dual: whether the map is a dual's, where the caller holds a
+        RECORD that says so; None asks the store. The fresh Load door
+        names its group before the record is applied, and asking the
+        store there named a dual file from whatever was on screen -- a
+        dual file opened in a fresh project lost its `-- dual` and a
+        plain one opened beside a dual gained it (round eight,
+        boundary11, row 17).
 
     Returns:
       The name, `WeavingSpace tiles — <dataset>`, with a counter
@@ -23071,7 +23120,7 @@ class WeavingSpaceDialog(QDialog):
     # chooser already knows. The source's name is a label taken at the
     # press; where there was none -- a dual asked for before anything
     # was generated -- the dataset's own base name takes the suffix.
-    if self._mapping_the_dual():
+    if self._mapping_the_dual() if dual is None else bool(dual):
       source = getattr(self, "_dual_source_group_name", None)
       self._dual_source_group_name = None
       base = f"{source} — dual" if source else f"{base} — dual"

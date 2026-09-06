@@ -369,6 +369,7 @@ quote them, do not renumber them.
 - **C-332** — Empty and absent are two silences: an empty frozen copy written as an absent key fired ...  <sub>minted</sub>
 - **C-333** — A binding that returns nothing lets two stores name two maps: the chooser refuses a gro...  <sub>minted</sub>
 - **C-334** — Duals chain: the boolean became a depth, and the second press tiled the first dual again  <sub>minted</sub>
+- **C-335** — A per-file memory answers absent for a file being created: a Save As asks the file the ...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10710,3 +10711,31 @@ replay; the depth moved into the stamp and the signatures. Guarded
 by `test_a_dual_of_a_dual_is_a_different_map` and the entries
 `the-dual-is-taken-once-per-level` and `the-unit-follows-the-chain`;
 the refusal's test and two entries are retired.
+
+### C-335 — A per-file memory answers absent for a file being created: a Save As asks the file the map came in from
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-335).</sub>
+
+Round eight's backwards-from-harm hunt (`harm14`, 2026-09-06) walked
+a self-contained map to a third person: the sender ticks "Include
+the source data" and saves; the recipient opens the file with
+nothing else and saves it on under a new name, the box untouched;
+the sender's file is taken away; a third person opens the copy and
+is told the data could not be found. `_embedded_when_resumed` is
+filled per FILE at the two doors into a saved map, and the drop in
+`_embed_or_drop_the_source` was written for the act of unticking;
+the same-path repair of 2026-08-28 stopped it firing for the act's
+absence there, and a NEW name has no memory, so at a Save As the
+absence decided again. Verified here by the same walk with the
+sender's file renamed away, the control being a second save at the
+new name. The repair: `_save_the_map` takes the file the map came in
+from before `_last_path` moves, `_embed_or_drop_the_source` asks that
+file's memory where the file being written has none, writes the copy
+through `_write_the_source_copy` (the box's question factored out of
+`_embed_source_into`, since the box is untouched here by
+construction) and remembers the new file, so the next save there
+keeps it. Row 18; guarded by
+`test_a_save_as_of_a_self_contained_map_keeps_the_copy` and the entry
+`a-save-as-keeps-the-senders-copy`. The general form: a memory keyed
+by a file has no entry for a file that does not exist yet, so an act
+that creates a file asks the memory of the file the work came from.

@@ -8522,7 +8522,8 @@ MUTATIONS = [
            "the catch-all, while the old column's value strings are "
            "then recorded under the new column's name"),
   dict(name="a-resumed-group-is-named-for-its-dataset", file=DIALOG,
-       old="""      named = self._a_name_for_a_new_group(root)
+       old="""      named = self._a_name_for_a_new_group(
+        root, dual=bool(((record or {}).get("design") or {}).get("map_dual")))
       if named != group.name():""",
        new="""      named = group.name()  # mutation: keep the provisional name
       if named != group.name():""",
@@ -11026,6 +11027,24 @@ MUTATIONS = [
        why="the label beside the dual button reading \"the dual\" over a "
            "map tiled with the dual of the dual, since only the box's toggle "
            "told it and a second press does not toggle the box (2026-09-06)"),
+  dict(name="a-loaded-map-is-named-from-its-record",
+       file=DIALOG,
+       old="""      named = self._a_name_for_a_new_group(
+        root, dual=bool(((record or {}).get("design") or {}).get("map_dual")))""",
+       new="""      named = self._a_name_for_a_new_group(root)  # mutation: the live term""",
+       test="test_a_loaded_map_is_named_from_its_record_not_the_live_dual_term",
+       why="a dual file opened in a fresh project losing its `-- dual` name and "
+           "a plain file opened beside a dual gaining one, the resume naming "
+           "from the live control before the record applied (round eight, "
+           "boundary11)"),
+  dict(name="a-save-as-keeps-the-senders-copy",
+       file=DIALOG,
+       old="""    if came_from and key not in self._embedded_when_resumed:""",
+       new="""    if False:  # mutation: a new name has no memory and asks nobody""",
+       test="test_a_save_as_of_a_self_contained_map_keeps_the_copy",
+       why="a Save As of a self-contained map going out without the copy, "
+           "its record naming the sender's file, so a third person could "
+           "look at it and not redraw it (round eight, harm14)"),
   dict(name="the-unit-follows-the-chain",
        file=DIALOG,
        old="""    # with one digest in both groups). Generate flushes this rebuild.

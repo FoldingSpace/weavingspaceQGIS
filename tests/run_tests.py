@@ -58514,6 +58514,187 @@ def test_a_group_whose_layer_has_gone_is_refused_in_words():
     dlg.deleteLater()
 
 
+def test_a_loaded_map_is_named_from_its_record_not_the_live_dual_term():
+  """A map opened through the fresh Load door takes its `-- dual` from
+  the file's record, not from whatever is on screen.
+
+  The fresh door named its group before the record was applied, so
+  the namer read the live dual term: a dual file opened in a fresh
+  project lost its `-- dual`, and a plain file opened beside a dual
+  gained one for good. Both directions driven, both files
+  self-contained so the recovery finds their data.
+
+  Regression: a saved dual map opened in a fresh project was named without its "dual", and a plain saved map opened while a dual was on screen was named "dual", the resume naming its group from the live control rather than the file's record. [hunt]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  folder = tempfile.mkdtemp(prefix="ws_named_from_record_")
+  plain, dual = (os.path.join(folder, n) for n in ("plain.gpkg", "dual.gpkg"))
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  sender = WeavingSpaceDialog(iface=_Iface())
+  reader = None
+  try:
+    sender.live_check.setChecked(False)
+    sender.opt_experimental.setChecked(True)
+    sender.opt_embed_source.setChecked(True)
+    sender.show()
+    _tick(200)
+    sender._tabs.setCurrentIndex(sender._topology_tab_index)
+    panel = sender.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    _generate_and_wait(sender)
+    sender.gpkg_widget.setFilePath(plain)
+    _tick(100)
+    assert press_save(sender, plain), "PREMISE: the plain map was not saved"
+    assert panel.dual_button.isEnabled(), "PREMISE: the dual is not offered"
+    panel.dual_button.click()
+    _settle(sender, seconds=120)
+    _tick(500)
+    assert sender._mapping_the_dual() and sender._group_name.endswith("dual"), \
+      f"PREMISE: the dual did not land: {sender._group_name!r}"
+    sender.gpkg_widget.setFilePath(dual)
+    _tick(100)
+    assert press_save(sender, dual), "PREMISE: the dual map was not saved"
+    sender.close()
+    _tick(200)
+    QgsProject.instance().removeAllMapLayers()
+    _tick(200)
+    # A FRESH PROJECT, THE DUAL FILE: the group must say it is a dual's.
+    reader = WeavingSpaceDialog(iface=_Iface())
+    reader.live_check.setChecked(False)
+    reader.show()
+    _tick(200)
+    assert reader._resume_from_gpkg(dual), "PREMISE: the dual file was refused"
+    _settle(reader, seconds=90)
+    _tick(400)
+    root = QgsProject.instance().layerTreeRoot()
+    opened = reader._group_of_our_layers(root)
+    assert opened is not None, "PREMISE: the resume left no group"
+    assert reader._mapping_the_dual(), "PREMISE: the record's dual term did not apply"
+    assert opened.name().endswith("dual"), (
+      f"a dual file opened in a fresh project is named {opened.name()!r}: "
+      f"the name came from the live control, not the record")
+    # AND THE PLAIN FILE, OPENED WHILE THE DUAL IS ON SCREEN.
+    assert reader._resume_from_gpkg(plain), "PREMISE: the plain file was refused"
+    _settle(reader, seconds=90)
+    _tick(400)
+    opened = reader._group_of_our_layers(root)
+    assert opened is not None, "PREMISE: the second resume left no group"
+    assert not reader._mapping_the_dual(), "PREMISE: the plain record's term did not apply"
+    assert "dual" not in opened.name(), (
+      f"a plain file opened beside a dual is named {opened.name()!r}")
+  finally:
+    for dlg in (reader, sender):
+      if dlg is not None:
+        dlg.close()
+        dlg.deleteLater()
+    _tick(100)
+    QgsProject.instance().removeAllMapLayers()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_save_as_of_a_self_contained_map_keeps_the_copy():
+  """A map that arrived with its data inside goes out the same way under
+  a new name, so a third person can redraw it.
+
+  `_embedded_when_resumed` is remembered per FILE and a new name has
+  no memory, so the untouched box read as unticked, the passed-on file
+  lost the copy, its record named the sender's file, and a third
+  person opening it alone could look at the map and not redraw it.
+  Walked to the end: sender, recipient's Save As, the sender's file
+  taken away, a third person's Load.
+
+  Regression: a Save As of a self-contained map wrote the new file without the region copy, its record pointing at the sender's file, so the passed-on map could not be redrawn by anyone who did not also have the original. [hunt]
+  """
+  import shutil
+  import tempfile
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  folder = tempfile.mkdtemp(prefix="ws_save_as_copy_")
+  sent, passed = (os.path.join(folder, n) for n in ("sent.gpkg", "passed.gpkg"))
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  sender = WeavingSpaceDialog(iface=_Iface())
+  recipient = third = None
+  try:
+    sender.live_check.setChecked(False)
+    sender.opt_embed_source.setChecked(True)
+    sender.show()
+    _tick(200)
+    _generate_and_wait(sender)
+    sender.gpkg_widget.setFilePath(sent)
+    _tick(100)
+    assert press_save(sender, sent), "PREMISE: the sender's map was not saved"
+    assert bridge.REGION_TABLE_NAME in bridge.gpkg_tables(sent), \
+      "PREMISE: the sender's file carries no copy"
+    sender.close()
+    _tick(200)
+    QgsProject.instance().removeAllMapLayers()
+    _tick(200)
+    # THE RECIPIENT opens it with nothing else, and saves it on under
+    # a new name without touching the box.
+    recipient = WeavingSpaceDialog(iface=_Iface())
+    recipient.live_check.setChecked(False)
+    recipient.show()
+    _tick(200)
+    assert recipient._resume_from_gpkg(sent), "PREMISE: the sent file was refused"
+    _settle(recipient, seconds=90)
+    _tick(400)
+    chosen = recipient.layer_combo.currentLayer()
+    assert chosen is not None and sent in str(chosen.source()), (
+      f"PREMISE: the recovery did not use the copy inside the file: "
+      f"{None if chosen is None else chosen.source()!r}")
+    assert not recipient.opt_embed_source.isChecked(), "PREMISE: the box is ticked"
+    recipient.gpkg_widget.setFilePath(passed)
+    _tick(100)
+    assert press_save(recipient, passed), "PREMISE: the Save As wrote nothing"
+    assert bridge.REGION_TABLE_NAME in bridge.gpkg_tables(passed), (
+      "the Save As dropped the copy the sender put in, so the passed-on "
+      "file cannot be redrawn without the sender's original")
+    record = bridge.read_working_state(passed) or {}
+    assert record.get("region_embedded") is True, (
+      f"the passed-on file's record says {record.get('region_embedded')!r}")
+    # AND A SECOND SAVE AT THE NEW NAME KEEPS IT, the new file
+    # remembering what it carries.
+    assert press_save(recipient, passed), "PREMISE: the second save wrote nothing"
+    assert bridge.REGION_TABLE_NAME in bridge.gpkg_tables(passed), \
+      "the second save at the new name dropped the copy"
+    recipient.close()
+    _tick(200)
+    QgsProject.instance().removeAllMapLayers()
+    _tick(200)
+    # THE THIRD PERSON has the passed-on file ALONE.
+    shutil.move(sent, sent + ".away")
+    third = WeavingSpaceDialog(iface=_Iface())
+    third.live_check.setChecked(False)
+    third.show()
+    _tick(200)
+    assert third._resume_from_gpkg(passed), "the passed-on file was refused"
+    _settle(third, seconds=90)
+    _tick(400)
+    chosen = third.layer_combo.currentLayer()
+    assert chosen is not None and passed in str(chosen.source()), (
+      f"a third person opening the passed-on file alone got "
+      f"{None if chosen is None else chosen.source()!r} for its data, so "
+      f"the map can be looked at and not redrawn")
+  finally:
+    for dlg in (third, recipient, sender):
+      if dlg is not None:
+        dlg.close()
+        dlg.deleteLater()
+    _tick(100)
+    QgsProject.instance().removeAllMapLayers()
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -91393,6 +91574,10 @@ def main():
         test_a_dual_request_that_is_refused_does_not_latch)
   check("a dual of a dual is a different map",
         test_a_dual_of_a_dual_is_a_different_map)
+  check("a loaded map is named from its record not the live dual term",
+        test_a_loaded_map_is_named_from_its_record_not_the_live_dual_term)
+  check("a save as of a self-contained map keeps the copy",
+        test_a_save_as_of_a_self_contained_map_keeps_the_copy)
   check("the dual is taken of the design as edited",
         test_the_dual_is_taken_of_the_design_as_edited)
   check("a typed odd count is even at every door",
