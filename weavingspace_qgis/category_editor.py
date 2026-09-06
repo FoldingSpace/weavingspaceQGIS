@@ -210,16 +210,7 @@ class PinButton(QAbstractButton):
   test_a_toggle_switch_shows_which_way_it_is_set already holds for
   the other hand-painted control here.
 
-  THE SILHOUETTE IS A TACK, and the first version was not. It drew a
-  round head on a straight shaft, which is a MAGNIFYING GLASS -- the
-  maintainer read it as one on sight, 2026-08-16, and once seen it
-  cannot be unseen. What separates the two shapes is the taper: a
-  lens has a handle of even width, a tack has a body that narrows to
-  a point. So the head is wide and flat like a tack's, and the body
-  is a triangle ending in a point rather than a line ending in
-  nothing. Drawing an icon whose meaning is its outline is worth a
-  minute with a pencil first; "it has the right parts" is not the
-  same as "it reads as the thing".
+  (D-15.)
   """
 
   SIZE = QSize(20, 20)
@@ -329,31 +320,13 @@ class NoPinHere(QWidget):
   words, 2026-08-16: people might think they are able to add a pin
   there.
 
-  Blank was tried first and is not available here for the reason the
-  cell is misleading in the first place: the grid draws the box
-  whether or not anything sits in it, so "nothing" and "an empty
-  control" look the same. Hatching says NOT AVAILABLE in the one
-  vocabulary a table has.
-
-  THIS IS NOW THE ONLY PLACE THE PLUGIN HATCHES ANYTHING, and the
-  history is worth a paragraph because it looks like a reversal and
-  is not. The ramp swatch used the same mark for "no tile wears this
-  class", and on 2026-08-16 the maintainer was asked whether two
-  hatchings saying different KINDS of thing, met by a reader on one
-  row, could be told apart; they ruled that 45 degrees in both is
-  fine, since "nothing available here" covers both honestly and a
-  second texture would ask somebody to distinguish two patterns at
-  twelve pixels. On 2026-08-17 they ruled on a DIFFERENT question --
-  whether the mark reads at all to somebody meeting it -- and took it
-  off the swatch. The first ruling stands where it applies: do not
-  differentiate this hatching from anything by angle or density on
-  confusability grounds, because that was weighed.
-
   When the swatch's hatching DID read as ambiguous, the cause was
   ordinary and elsewhere: the diagonals were unclipped and spilled
   across neighbouring stripes.
 
   It takes no clicks and no focus: it is a statement, not a control.
+
+  (D-14.)
   """
 
   def __init__(self, parent=None):
@@ -965,6 +938,7 @@ class CategoryColourDialog(QDialog):
     Args:
       value: the bound to show, as a float.
 
+
     Returns:
       A TrimmedSpinBox able to hold anything ``pin_problem`` will
       accept, showing the value without zeros it does not need. What
@@ -976,34 +950,6 @@ class CategoryColourDialog(QDialog):
 
     THE DECIMALS COME FROM THE DATA AND THE RANGE NO LONGER DOES, and
     each half of that was paid for by a defect.
-
-    THE DECIMALS, measured 2026-08-15 with real widgets: they were a
-    flat six, which rounded a rate of 4e-07 to zero and 8.5e-07 to
-    1e-06. On twenty provinces at k=4, pinning the number the control
-    produced rather than the number typed moved ELEVEN of twenty areas
-    into a different class, and ``pin_problem`` accepts both, because
-    both are inside the data. So the box takes nine significant places
-    below the column's own span -- but never FEWER than
-    ``_LEAST_DECIMALS``, which is the half that was missing: a column
-    of square metres has a span of 1e12, nine places below that is
-    less than none, and a box at zero decimals cannot hold a bound of
-    0.5. Under the wide-limits ruling that is an ordinary thing to
-    ask for, since the whole point is giving one pair of limits to
-    columns of different magnitudes.
-
-    THE RANGE was plus or minus 100 TIMES this element's own extremes
-    until 2026-08-17, and before that a flat 1e12 -- so a province
-    area of 1.875e12 square metres appeared in the box as 1e12 and
-    pinned there, and typing 3000000000000 left 300000000000, a factor
-    of ten, with nothing said. The 100x rule fixed that case and kept
-    the shape of the fault: on an element whose tiles reach 11, typing
-    1200 keeps 120, because the fourth keystroke is refused by the
-    validator. The map is then drawn from 120, ``_pinned_bounds``
-    records 120, the layer is stamped 120, and nothing is said --
-    ``pin_problem`` is asked about the number the CONTROL produced,
-    and 120 is perfectly legal. Two elements given the same typed 1200
-    pin 120 and 1200: one act, two ladders, which is precisely what
-    wide limits exist to prevent.
 
     WHEN A REFUSAL IS LIFTED, ASK WHICH WIDGET STILL ENFORCES IT. The
     maintainer lifted the outside-the-data refusal from
@@ -1019,8 +965,7 @@ class CategoryColourDialog(QDialog):
     range this wide costs nothing in layout, which is the objection
     that would otherwise have to be answered.
 
-    The docstring above this used to say the range was "wide open",
-    which is what the code intended and not what it did.
+    (D-13.)
     """
     # every endpoint the ladder holds, since the box must be able to
     # show any of them and a user may type between any two

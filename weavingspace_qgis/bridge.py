@@ -292,6 +292,7 @@ def get_ramp(name: str, reverse: bool = False):
       and a diverging one can be flipped to put the colour the reader
       associates with "high" on the right side.
 
+
   Returns:
     A ramp object owned by the caller (always a clone, so reversing
     it never disturbs the style library), or None when the name is
@@ -302,16 +303,7 @@ def get_ramp(name: str, reverse: bool = False):
   list is reversed. Everything else carries an invert() of its own and
   is asked to use it.
 
-  There used to be a third branch here, sampling an unknown ramp at 32
-  even steps and rebuilding it as a gradient, for "a ramp type we have
-  not met". It was unreachable and is gone (2026-08-13). `invert` is
-  defined on QgsColorRamp ITSELF, not on the subclasses, so
-  `hasattr(ramp, "invert")` is true for every ramp QGIS defines and
-  for any subclass a third-party plugin might register -- measured on
-  all six built-in classes and on a bare subclass. The fallback could
-  not run, and it was also the worst of the three: rebuilding a
-  discrete scheme as a two-stop gradient would have thrown away every
-  colour between the ends.
+  (D-12.)
   """
   from qgis.core import QgsPresetSchemeColorRamp, QgsStyle
   style = QgsStyle.defaultStyle()
@@ -454,6 +446,7 @@ def ramp_swatch_colour(name: str, reverse: bool = False,
       the whole ramp, because the window is what the map samples.
       (0, 100) is the whole ramp and is the default.
 
+
   Returns:
     A hex colour ("#rrggbb"), or "#c0c0c0" when the ramp cannot be
     resolved -- a grey the preview can draw, rather than an exception
@@ -466,19 +459,11 @@ def ramp_swatch_colour(name: str, reverse: bool = False,
   window, so narrowing a window moves the point WITH the ramp instead
   of re-centring it.
 
-  BOTH EXTRA ARGUMENTS WERE ADDED 2026-08-17, and each was a defect
-  rather than a nicety. Ignoring `reverse` drew a reversed element in
-  the forward ramp's colour, which on a diverging ramp is the opposite
-  end. Ignoring the window drew a narrowed element in a colour the map
-  no longer contains: measured on Reds narrowed to 0-20%, the preview
-  painted 15,460 pixels of #e7342a while the map painted none of it
-  and 8,692 of #fff5f0. The design view exists so somebody can judge
-  whether the elements read as distinct, which is exactly the
-  judgement a wrong colour makes for them.
-
   The two remaining callers pass neither, and are right not to: both
   seed the SINGLE-COLOUR button's starting colour, where there is no
   classification to window and no direction to run backwards.
+
+  (D-11.)
   """
   try:
     lo, hi = range_bounds
@@ -735,6 +720,7 @@ def estimate_icon_count(unit, areas: int) -> int:
       from a layer, or `len()` of a frame. A negative or missing count
       is treated as none.
 
+
   Returns:
     The tile count, exact for a TileUnit and generous for a WeaveUnit.
     Measured 2026-08-19 over 55 tiling cases -- every family, n of 2,
@@ -759,12 +745,7 @@ def estimate_icon_count(unit, areas: int) -> int:
   that computes two unrelated things and reads as though the second
   were a special case of the first.
 
-  MEASURED 2026-08-19, which is why it exists: on twenty-five areas
-  with a four-element unit the tiling estimator answered 208,521
-  where icon mode drew 100. The hard gate refused the run outright and
-  advised a larger spacing, which in icon mode draws bigger icons
-  rather than fewer of them, and live update had already paused itself
-  for a map of a hundred tiles.
+  (D-10.)
   """
   return int(max(int(areas or 0), 0) * max(len(unit.tiles), 1))
 
@@ -872,6 +853,7 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
       would hand min_reasonable_spacing a border sized for a spacing
       it is no longer considering.
 
+
   Returns:
     An estimated tile count, or one of two SENTINELS that are not
     counts at all: UNTILEABLE where the unit's vectors are degenerate,
@@ -906,14 +888,7 @@ def estimate_tile_count_bounds(unit, b, scale: float = 1.0,
       each polygon's perimeter   6.25x            2.38x
       DISSOLVED boundary         1.28x            1.68x
 
-  Only the last is generous on both, and a guard that UNDER-counts
-  waves through a run that then takes the machine. Each polygon's own
-  perimeter double-counts every shared internal edge and refuses maps
-  outright; the bounding box knows nothing of cells strung across it
-  and was measured 2% under, by a guard written the same hour. A
-  perimeter summed per row is a property of how the data was cut into
-  rows rather than of the ground it covers; the dissolved one is the
-  ground's own edge.
+  (D-9.)
   """
   tb = unit.tiles.total_bounds
   tile_diag = math.hypot(tb[2] - tb[0], tb[3] - tb[1]) * scale
@@ -1557,6 +1532,7 @@ def icon_misattribution_message(missing: int, unit_count: int,
     spacing: the spacing this run used, in the region's map units.
     unit_label: what to call those units in the sentence.
 
+
   Returns:
     A sentence, or None when nothing was missed.
 
@@ -1579,9 +1555,7 @@ def icon_misattribution_message(missing: int, unit_count: int,
   areas reached by no tile, every one of them covered and carrying a
   neighbour's value.
 
-  THE JOIN ITSELF IS THE VENDORED LIBRARY'S, and the maintainer's
-  ruling is that the plugin answers it by telling the user rather than
-  by computing a placement of its own; nothing is sent upstream yet.
+  (D-8.)
   """
   if missing <= 0:
     return None
@@ -1622,6 +1596,7 @@ def every_value_reads_as_a_number(values) -> bool:
       the column holds, and every classified map here already draws
       absences as their own kind.
 
+
   Returns:
     True where at least one value was seen and every one of them
     parses as a number. False for an empty column, and False the
@@ -1632,20 +1607,6 @@ def every_value_reads_as_a_number(values) -> bool:
   which is the failure this predicate exists to avoid rather than
   cause. Where it answers False the reason is real and a person can
   see it in their own data.
-
-  WHY IT EXISTS AT ALL. The settled rule that a quantitative style
-  never stands on a text field rests on a measured claim: a graduated
-  renderer over text comes back with no ranges, so every tile falls
-  outside every class and the layer paints nothing. Measured again on
-  QGIS 4.0.3 (2026-08-28, the `spec` hunt), that is true of WORDS and
-  false of NUMERIC STRINGS -- a String column running "10" to "120"
-  classifies exactly as its integer twin, five ranges, same bounds,
-  twelve of twelve features symbolised. So the rule was true of the
-  example that prompted it and wider than its own evidence, and
-  somebody whose numbers arrived through a CSV join or a GeoJSON
-  could not draw a choropleth from them at all: at three thousand
-  areas they were given three thousand and one categories.
-  (Maintainer's ruling, 2026-08-29.)
 
   `float` rather than a stricter parse, and non-finite values are
   ALLOWED through: an infinity in a column is one of the four kinds
@@ -1668,6 +1629,8 @@ def every_value_reads_as_a_number(values) -> bool:
   keeps a distinction only a categorical reading can carry, and this
   answers False. `"3"` beside `"3.0"` is refused for the same reason
   and by the same rule, without needing a rule of its own.
+
+  (D-7.)
   """
   seen = 0
   numbers = set()
@@ -1937,6 +1900,7 @@ def pin_problem(low, high, values, asked: int, breaks=None):
       force on this element, or None. A pin on top of a copy moves
       one of those boundaries, so it must not cross the next one.
 
+
   Returns:
     A sentence for the message bar naming what is wrong, or None when
     the pins are usable. The caller reverts the edit on a sentence
@@ -1952,13 +1916,7 @@ def pin_problem(low, high, values, asked: int, breaks=None):
   answer to "the data cannot support this count" rather than two.
   (Settled 2026-08-14.)
 
-  NOR IS A BOUND OUTSIDE THE DATA, since 2026-08-17. It was refused
-  until then, and the maintainer's ruling on meeting the refusal is
-  that setting limits wider than one column is the point rather than a
-  mistake: one pair of limits across several variables is how a colour
-  comes to mean the same number on every map. The class beyond the
-  data simply goes unworn. The reasoning is
-  at the line where the check used to be.
+  (D-6.)
   """
   numbers = sorted(
     float(v) for v in values
@@ -2169,6 +2127,7 @@ def few_values_message(field: str, distinct: int, asked: int,
       otherwise would send a user looking for data they have not
       lost. Defaults to False, the plain case.
 
+
   Returns:
     One sentence for the message bar, or None when every class the
     row asked for is occupied, so the caller can report
@@ -2183,18 +2142,12 @@ def few_values_message(field: str, distinct: int, asked: int,
   for, every class keeps the colour of its position, and the classes
   no tile can reach are simply left empty.
 
-  So the notice now reports EMPTINESS rather than shortening, and
-  since 2026-08-17 it is the ONLY thing that reports it. The swatch
-  used to hatch those classes as well; the maintainer ruled the mark
-  out as more confusing than helpful to somebody meeting it, which
-  puts the whole weight on this sentence. A user whose Classes
-  spinner reads five over a map drawing three deserves to be told
-  why, in words.
-
   A column with ONE distinct value says nothing here: it genuinely
   does collapse to a single class, which is the maintainer's
   instruction of 2026-08-09, and `constant_field_message` is the
   sentence for it.
+
+  (D-5.)
   """
   if distinct >= asked or distinct <= 1:
     return None
@@ -2217,6 +2170,7 @@ def empty_classes_message(field: str, empty: int, asked: int):
       force.
     asked: how many classes the ladder holds.
 
+
   Returns:
     One sentence for the message bar, or None when every class is
     worn, so the caller can report unconditionally.
@@ -2235,17 +2189,12 @@ def empty_classes_message(field: str, empty: int, asked: int):
   no pin at all -- and ``unworn_classes``, the function that asks the
   right question, had been left with no caller at all.
 
-  So the two say different things and both are wanted. This one
-  reports THAT classes are empty, measured on the ladder the map
-  draws; ``few_values_message`` reports WHY when the reason is a
-  column with too few distinct values to fill the ladder. The caller
-  picks whichever fits and never says both, since two sentences about
-  one column is one too many.
-
   THE LESSON, which outlives this function: when a removal is
   justified by "X now carries the whole job", run X against every case
   the removed thing covered. Here X covered two of six, and the
   function that asked the right question was the one being deleted.
+
+  (D-4.)
   """
   empty = int(empty)
   asked = int(asked)
@@ -2413,6 +2362,7 @@ def unworn_classes(bounds, values):
     values: the values actually drawn -- the element's own, since the
       question is what THIS element uses.
 
+
   Returns:
     A list of class indices nothing occupies, in order. Empty when
     every class is worn, which is the ordinary case.
@@ -2422,25 +2372,14 @@ def unworn_classes(bounds, values):
   and a range holds ``lower <= v <= upper`` -- INCLUSIVE AT BOTH
   ENDS, which is what a graduated renderer actually does.
 
-  THAT LAST WORD WAS WRONG UNTIL 2026-08-16, and it was found when a
-  short-lived experiment moved a class bound (see docs/TESTING.md,
-  "Three ways to move a class boundary, and why none of them worked").
-  The experiment is gone; the correction it exposed is real and
-  stays. This used to exclude the
-  lower bound for every range but the first, which agrees with the
-  renderer while the ranges touch -- a value on a shared boundary is
-  caught by the range BELOW it, earlier in the loop, so first-match
-  hides the difference. A boundary value moved off that shared bound
-  -- by anything, including the experiment that briefly did so on
-  purpose -- falls to the degenerate range that means exactly it, and
-  the renderer accepts it there while the old rule refused it.
-
   A class nothing occupies is a swatch in the legend no tile uses.
   Since the class count is no longer reduced to the value count, that
   is an ordinary situation rather than a rarity, and it is also
   reachable by COPYING a ladder from an element carrying another
   column. Either way they are kept rather than dropped and marked
   instead.
+
+  (D-3.)
   """
   numbers = [float(v) for v in values
              if v is not None and v != NULL and isinstance(v, (int, float))
@@ -2465,6 +2404,7 @@ def fitted_breaks(breaks, smallest, largest, floor=None, ceiling=None):
       take the column's own minimum. See below.
     ceiling: the outermost UPPER edge likewise, or None.
 
+
   Returns:
     ``[(lower, upper), ...]``, one pair per class, contiguous, with
     the outermost edges at the receiving column's min and max. None
@@ -2482,15 +2422,6 @@ def fitted_breaks(breaks, smallest, largest, floor=None, ceiling=None):
   on the SAME variable share a data range and none of this bites --
   these rules exist for copying ACROSS variables, which is the case
   the feature is really for.
-
-  A collapse moves the OUTER edge and never a copied boundary, and
-  the first draft did the opposite: pulling the top class's lower
-  bound down to a smaller column's max produced (30, 3) -- a class
-  running backwards -- whenever more than one copied break sat above
-  that max. Measured on breaks [4, 14.2, 30, 55] fitted to a column
-  running 0 to 3. The ladder must stay monotonic whatever it is
-  fitted to, so the collapse is expressed as an outer edge meeting
-  its neighbour rather than as a boundary being dragged.
 
   What is NOT done here is dropping interior boundaries the receiving
   data cannot reach. They are KEPT, deliberately: a copy is supposed
@@ -2523,6 +2454,8 @@ def fitted_breaks(breaks, smallest, largest, floor=None, ceiling=None):
   the maintainer's own specification of 2026-08-14, while a ladder
   adopted from QGIS keeps the ends a person typed. Same function,
   two callers, one difference.
+
+  (D-2.)
   """
   interior = [float(b) for b in (breaks or [])]
   if not interior:
@@ -4893,6 +4826,7 @@ def split_out_the_no_data(frame, field, column_has_values=None,
     ceiling: the highest, likewise. Both default to None, so every
       caller that has no limits behaves exactly as before.
 
+
   Returns:
     A pair ``(drawable, absent)`` of frames: the rows whose value the
     classifier can place, and the rows whose value is missing. When
@@ -4910,13 +4844,7 @@ def split_out_the_no_data(frame, field, column_has_values=None,
   where the CATEGORIZED renderer has `addCategory` and therefore its
   familiar "(no data)" catch-all.
 
-  Reported from the field on 2026-08-16 with an area that is null in
-  every variable, so it read as a hole under two different tilings and
-  whichever column was mapped. The fix chosen by the maintainer keeps
-  every renderer standard: the missing rows become their own layer,
-  categorically rendered, grouped beside the graduated one, and the
-  plugin's own table goes on showing ONE element with No data as one
-  more class in its colour editor.
+  (D-1.)
   """
   if field is None or frame is None or field not in getattr(
       frame, "columns", []):

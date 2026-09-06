@@ -401,6 +401,7 @@ def apply(topology, edits):
     topology: a freshly built Topology for the current unit.
     edits: the record, oldest first.
 
+
   Returns:
     (tileable, refusals, state) -- the unit to tile, a list of
     sentences about edits that could not be drawn, and a dict carrying
@@ -424,17 +425,6 @@ def apply(topology, edits):
   with an invalid topology?" -- and the answer measured that day is
   yes, with two other gains besides.)
 
-  WHAT REBUILDING COST, measured on the two designs a topology can be
-  had for. It made an edit after a topology-BREAKING one impossible:
-  `rotate_edge` routinely leaves a design with gaps, `Topology` refuses
-  a design with gaps, so `build` returned None and every later edit was
-  refused for want of anything to aim at. Chained, the same pair
-  applies -- laves 3.3.4.3.4 goes to area 246,110 where rebuilding
-  could not go at all. And it moved the LABELS under the person: a
-  fresh build re-derives the classes, so "A" afterwards is not
-  necessarily the A they clicked, which is why the two arms disagree by
-  a rounding on hex-slice 3 and agree exactly on laves.
-
   UPSTREAM'S CAUTION IS ABOUT SOMETHING ELSE. `transform_geometry`
   prints that a new Topology "will probably not be correctly labelled",
   which is a warning that its labels may not match A FRESH BUILD. We do
@@ -452,6 +442,8 @@ def apply(topology, edits):
   a topology would be building the thing this rebuild-free path exists
   to avoid. The repair is measured to leave every area unchanged to a
   part in 1e9, so the two do not drift in any way a map can show.
+
+  (D-35.)
   """
   current = topology
   tileable = topology.tileable
@@ -699,6 +691,7 @@ def _same_shape(before, after) -> bool:
     before: the unit as it stood.
     after: the unit a manipulation produced.
 
+
   Returns:
     True where nothing a person could see has moved. Compares the
     GROUND each tile covers -- the symmetric difference between every
@@ -708,36 +701,6 @@ def _same_shape(before, after) -> bool:
 
   IT TOOK THREE WRONG INSTRUMENTS TO GET HERE, and each looked
   obviously right.
-
-  ROUNDING AREAS TO NINE DECIMAL PLACES is an ABSOLUTE tolerance, and a
-  unit at spacing 500 has tiles of area 62,500. Measured 2026-08-30:
-  asking for a manipulation on a class that does not exist still moves
-  every area by about 4e-5 -- the library rebuilding and re-gridding
-  the geometry, not an edit -- so the test called that a change and the
-  report never fired. That is this project's rule about magnitude being
-  a fixture dimension, met from the other side.
-
-  COMPARING AREAS AT ALL IS THE SECOND MISTAKE, and it survived the
-  first repair. `push_vertex` on this suite's own fixture moves
-  vertices while leaving every tile's area inside any sane tolerance --
-  the four tiles of laves 3.3.4.3.4 are 62,500 apiece before and after
-  -- so a summary statistic said "nothing happened" about an edit whose
-  WKT plainly differs. A statistic is not a shape: two different
-  polygons can share an area, and this fixture is full of tiles that
-  do.
-
-  AND `shapely.equals_exact` IS THE THIRD, which is the one that made
-  this report unreachable rather than merely noisy. It compares
-  COORDINATE SEQUENCES and not shapes: two rings covering identical
-  ground read as different the moment one of them begins at another
-  vertex. `transform_geometry` re-grids the unit it hands back and
-  restarts those rings, so on archimedean 4.8.8 -- the first design in
-  the catalogue that carries a topology, and therefore the one the
-  registered test lands on -- a manipulation aimed at a class that does
-  not exist moved a coordinate by FIVE HUNDRED map units while the
-  symmetric difference stayed at 2.4e-4. The comparison duly answered
-  "something changed", the report stayed silent, and the test written
-  to catch exactly that silence failed. (Measured 2026-08-31.)
 
   THE MEASUREMENT THE THRESHOLD RESTS ON, taken the same day over three
   designs, as a fraction of the unit's own area:
@@ -754,6 +717,8 @@ def _same_shape(before, after) -> bool:
   IT ANSWERS FALSE WHEN IT CANNOT TELL, deliberately: a unit whose
   geometry will not be read is not evidence that nothing happened, and
   saying "this changed nothing" wrongly is worse than staying quiet.
+
+  (D-34.)
   """
   try:
     one = getattr(before, "tiles", None)

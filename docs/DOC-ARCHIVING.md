@@ -303,6 +303,20 @@ verbatim copy and the id placeholder is filled by the tool; the end
 anchor of the last entry in a file needs a sentinel line, since the
 tool anchors on the NEXT block.
 
+## The docstrings have an archive too
+
+Since 2026-09-05 the package's docstrings keep what a maintainer needs
+-- what a function does, its Args and Returns, the reasoning behind a
+non-obvious choice at the line -- and quote a `D-` id for the account,
+which lives in `docs/DOCSTRINGS-archived.md`. `tools/doc_archive.py`
+reads `weavingspace_qgis` as that archive's live half, so the pointer
+and orphan checks hold there as they do for the five documents; it has
+no budget and no shape, since the documentation check in
+`tools/check_standards.py` governs docstrings. Mint an id the same way,
+`--mint D "file: name"`. The pass that made it read every docstring of
+thirty lines or more paragraph by paragraph, kept 81 whole as reasoning
+end to end, and cut 35.
+
 ## Writing for the next reader: how the documents fix themselves
 
 (Maintainer's ask, 2026-09-05: the documents will be edited by a

@@ -55,6 +55,10 @@ this file leans on; everything else is ordinary Python.
   cells are made by *removing* the widget, not hiding it, because some
   render paths paint hidden cell widgets anyway.
 
+The accounts behind these docstrings -- the day, the first attempt, the
+measurement -- are in docs/DOCSTRINGS-archived.md by the D-ids the
+docstrings quote; ``tools/doc_archive.py`` keeps the two in step.
+
 Targets QGIS 4+ (PyQt6, Python 3.12+); imports go through the
 ``qgis.PyQt`` layer and the few version-sensitive APIs through
 compat.py, so a future QGIS transition lands in one file.
@@ -622,6 +626,7 @@ def same_source(one, other):
       the plugin stamped it into `weavingspace_region`.
     other: the same, to compare against.
 
+
   Returns:
     True when both are empty, or when both name one file and the same
     layer inside it. False otherwise.
@@ -634,22 +639,13 @@ def same_source(one, other):
   back `C:/workspace/.../region.gpkg|layername=region`. One
   dataset, two spellings, compared as two datasets.
 
-  WHAT THAT COST, measured on a Windows runner six CI rounds running:
-  a reopened project's output group appeared to have been made from
-  ANOTHER dataset, so the guard that protects a kept result refused
-  the ordinary recovery run -- through a QMessageBox, which never
-  reaches the message bar, so the user meets a Generate that produces
-  nothing and says nothing. The same comparison decides which group a
-  dataset owns, whether the landing may write over a group, and
-  whether the resume finds a layer already open, so the fault reaches
-  every one of the group-unit rulings on the platform most of this
-  plugin's users are on.
-
   The file half is delegated to `same_destination`, which asks the
   filesystem first (device and inode, so the volume decides about
   case, and Windows short names resolve) and falls back to a
   normalised string for a file not yet written. The tail is compared
   case-folded, because a GeoPackage folds table names too.
+
+  (D-33.)
   """
   if not one and not other:
     return True
@@ -968,35 +964,12 @@ class SpacingSpinBox(TrimmedSpinBox):
   that is what produced "500.000000" in the field report of
   2026-08-17.
 
-  THE FIRST FIX FOR THAT WAS WRONG AND IS WORTH RECORDING, because the
-  mistake is easy to repeat. It sized `decimals` from the spacing
-  auto-fitting had just computed -- 500 gives three significant
-  figures at zero decimals -- and a QDoubleSpinBox with zero decimals
-  cannot REPRESENT 500.5. So typing 500.5 gave 501, typing 215.509124
-  gave 216, and the map was tiled from the rounded number with nothing
-  said. `decimals` governs display AND input AND storage, so any rule
-  that lowers it to tidy the display destroys data.
-
   Trimming the TEXT costs none of that, and it was always the whole of
   the complaint: nobody objected to the precision, they objected to
   six zeros after a round number. So the box keeps its six decimals
   and simply does not print zeros it does not need.
 
-  THE TRIMMING ITSELF MOVED TO `widgets.TrimmedSpinBox` on 2026-08-17,
-  when the class-bound boxes were widened and needed exactly the same
-  thing. It lived here in full for a day, and a second copy was
-  written in `category_editor.py` before anybody noticed the two would
-  have to learn about locales separately. This class keeps only what
-  is about SPACING; the shared behaviour is documented where it lives.
-
-  AND IT ASKS FOR LESS ROOM THAN ITS RANGE, added 2026-08-30. A spin
-  box's size hint is computed from its MAXIMUM's text, and this one's
-  maximum is 1e12 at six decimals -- twenty characters, which is a
-  large part of why the maintainer met a Design tab whose every
-  control ran the width of the window. The range is right and must not
-  shrink: spanning twelve orders of magnitude is exactly what lets one
-  control serve a floor plan and a country. What is wrong is reserving
-  room to show a number nobody types.
+  (D-32.)
   """
 
   # Seven significant figures and three decimals: wide enough for a
@@ -2554,15 +2527,10 @@ class WeavingSpaceDialog(QDialog):
     offset angle read "0.000" degrees with a step of one. The step is
     what makes zero legible.
 
-    Where the two genuinely disagree -- a step of 0.01 on a control
-    whose values run in the thousands, where three figures are used
-    up before the point -- the CAP wins and the arrows move a digit
-    that is not shown. That is the maintainer's rule applied
-    literally, and the honest repair is to widen the step, so one
-    number per control still governs both.
-
     Costs one pass over the dialog's widgets at construction,
     microseconds once, and nothing whatever per repaint.
+
+    (D-31.)
     """
     from qgis.PyQt.QtWidgets import QDoubleSpinBox
     # MATCHED BY IDENTITY, NOT BY `objectName`, which the first
@@ -3673,6 +3641,7 @@ class WeavingSpaceDialog(QDialog):
       width: the width the layout would like.
       height: the height it would like.
 
+
     Returns:
       (width, height), each no more than `SCREEN_SHARE` of the area
       the window manager leaves free. Unchanged where the size already
@@ -3693,11 +3662,7 @@ class WeavingSpaceDialog(QDialog):
     where a horizontal one is what the layout rule of 2026-08-09
     exists to avoid.
 
-    NO GUARD HERE OR ON CI CAN SEE THE ASSEMBLED WINDOW -- offscreen
-    reports 1279px where cocoa gives 1334 -- so what this promises is
-    measured by `tools/platform_probe.py` on a real desktop, and the
-    unit test can only ask that a size larger than the screen comes
-    back smaller.
+    (D-30.)
     """
     screen = self.screen() or QApplication.primaryScreen()
     if screen is None:
@@ -3796,6 +3761,7 @@ class WeavingSpaceDialog(QDialog):
       event: the Qt event. Only `FontChange` is acted on; everything
         else is passed straight to Qt.
 
+
     Returns:
       None.
 
@@ -3807,16 +3773,6 @@ class WeavingSpaceDialog(QDialog):
     follow the font -- but a holder's FIXED width is what the control
     inside it actually gets, so the snapshot silently overrode them.
 
-    MEASURED 2026-08-31, and with a control arm, which is what makes
-    it a defect rather than a worry. A dialog BUILT at each size is
-    healthy: the Pattern chooser goes 250px at 9pt, 341 at 13, 522 at
-    20, and every family name stays legible. The same dialog built at
-    9pt and MET at 20pt keeps its 250px, and two pairs of designs
-    become one string -- `twill weave ab|cd 1,2` and `twill weave
-    ab|cd 1,2,2,1` both read `twill weave ab|cd 1...`, as do the two
-    basket weaves. A chooser that cannot tell two designs apart is a
-    chooser you cannot choose with.
-
     WHY THIS IS NOT THE FEEDBACK LOOP that four repairs to the
     assignment table's width ran into. That loop measured a quantity
     its own adjustment fed: widening a label grew the column the label
@@ -3826,6 +3782,8 @@ class WeavingSpaceDialog(QDialog):
     holder. Nothing the holder does reaches the hint, so a second pass
     computes the same number -- asserted in
     `test_a_font_change_moves_the_design_tab_s_fields`.
+
+    (D-29.)
     """
     super().changeEvent(event)
     if event.type() == QEvent.Type.FontChange:
@@ -5441,6 +5399,7 @@ class WeavingSpaceDialog(QDialog):
         notice comparing two different datasets and calling the
         difference a change (measured 2026-08-28).
 
+
     Returns:
       A comparable tuple — feature count, extent rounded to the metre,
       field names, CRS — or None when no layer is chosen. Combined
@@ -5462,18 +5421,11 @@ class WeavingSpaceDialog(QDialog):
     Generate is then a silent no-op against data that has moved
     underneath it. Measured 2026-08-13.
 
-    That is a LIMIT rather than a bug, and it is deliberate as of the
-    same day (maintainer's decision): the alternatives are polling
-    somebody's data or fingerprinting the values themselves, which
-    costs a full scan on every check for a case the plugin cannot
-    reliably detect anyway. The rule this file used to state — that
-    "neither mechanism covers the other's blind spot" — was simply
-    untrue, and a false promise in a docstring is worse than a known
-    gap, because it stops anybody looking.
-
     The extent is rounded because it is floating-point and asking
     twice about an unchanged layer must give the same answer; a metre
     is far below the size of anything these tiles are drawn at.
+
+    (D-28.)
     """
     from . import compat
     if layer is None:
@@ -6224,21 +6176,14 @@ class WeavingSpaceDialog(QDialog):
     is no longer any way to open. It lasted until QGIS was restarted.
     (Found by the two-dialogs hunt, 2026-08-27.)
 
-    IT DOES NOT CLEAR THE RECORD OF WHO IS IN CHARGE, and that was
-    the first attempt. The gate reads "if there IS a live dialog and
-    it is not me, drop" -- None means "nobody has said", so clearing
-    the record makes EVERY dialog believe it is in charge rather than
-    none. Measured 2026-08-27: the message the disabled plugin had
-    just been fixed for came straight back. So retirement is a fact
-    about this dialog, read by `_dialog_is_gone`, which every
-    long-lived handler already asks first.
-
     NOT CALLED WHEN THE WINDOW IS MERELY CLOSED, and that is the
     distinction the fix turns on: `plugin.open_dialog` REUSES this
     object, so a closed window is a hidden one that the user may bring
     back with its map, its records and its adopted edits intact.
     Retiring there would leave a dialog that can be reopened and can
     no longer do anything.
+
+    (D-27.)
     """
     self._closed = True
     self._retired = True
@@ -9121,6 +9066,7 @@ class WeavingSpaceDialog(QDialog):
       assignment: that element's row of `_assignments`, read for its
         tile id, its class count and its pin record.
 
+
     Returns:
       One sentence for the message bar when a pin was retired, or
       None when there was nothing to retire -- which is the ordinary
@@ -9136,19 +9082,12 @@ class WeavingSpaceDialog(QDialog):
     comment there said "the DIALOG reports the loss" while no such
     site existed anywhere.
 
-    Measured 2026-08-16: pin `v1`'s low at 7.0 on a column running
-    0-35, then retype that column to 5000-40000 or swap in a layer at
-    that scale. The map's first class ends at 12000, and
-    `_pinned_bounds` still holds 7.0, the ramp cell still draws its
-    pinned box, the layer is still stamped with it, and nothing is
-    said. Save, reopen, and the 7.0 is read back off the layer, so
-    the row shows a pin over a map that ignores it -- while
-    `pin_problem` refuses that very number if it is typed.
-
     A pin is a statement a PERSON made, so retiring one is worth a
     sentence rather than a silent correction; that is the same reason
     a refused pin reverts its control and reports instead of being
     quietly clamped.
+
+    (D-26.)
     """
     tile_id = str(assignment.get("id") or "")
     record = self._pinned_bounds.get(tile_id, {}).get(field) or {}
@@ -9404,6 +9343,7 @@ class WeavingSpaceDialog(QDialog):
         it is absent this falls back to the distinct-value count
         alone -- the behaviour of every caller before 2026-08-17.
 
+
     Returns:
       One sentence for the message bar, or None when the legend will
       hold exactly what the table asked for.
@@ -9416,18 +9356,7 @@ class WeavingSpaceDialog(QDialog):
     prevent, so the arithmetic lives in bridge beside the code that
     performs it.
 
-    TWO QUESTIONS, ONE SENTENCE, AND THE RENDERER WINS. The
-    distinct-value count says WHY a ladder cannot be filled;
-    `unworn_classes` says THAT it is not, measured on the classes the
-    map draws. They are not the same question and a hunt found them
-    disagreeing in four cases of six on 2026-08-17 -- a pin below the
-    data, a pin above it, a copied ladder, and a plain tied column.
-    So where the renderer can be asked, its answer decides whether
-    anything is said at all, and the distinct-value sentence is
-    preferred only when it is also true, because it carries the
-    reason. Where it cannot be asked -- before the first run, most
-    often -- the old count answers alone, since a notice that waits
-    for output would never fire on the path a user meets first.
+    (D-25.)
     """
     source = self._classification_values(field)
     if source is None:
@@ -11651,6 +11580,7 @@ class WeavingSpaceDialog(QDialog):
       renderer: the renderer the layer is carrying NOW, taken off the
         layer rather than from any record of ours.
 
+
     Returns:
       True when something in the row actually moved, False when the
       row already agreed with the layer or when the renderer is one no
@@ -11673,22 +11603,6 @@ class WeavingSpaceDialog(QDialog):
     was true and was the wrong conclusion: the renderer IS the record,
     and reading it is what this does.
 
-    THE MAINTAINER'S RULING, 2026-08-17, choosing between three
-    options put to them: the row FOLLOWS the layer wherever the plugin
-    can name what the layer holds, and defers only where it cannot.
-    Pins were the alternative and cannot carry this -- the tester's
-    element disagreed on the class COUNT and the RAMP as well as the
-    breaks, and a pin names a bound. Deferring on any outside edit was
-    the other, and hands away an element the user may still want to
-    drive from the table.
-
-    It also settles the reported oddity that three rows read
-    CATEGORIZED over graduated layers. That was never a categorical
-    fault: the rows were simply stale, and the greyed 32, 33 and 32
-    were distinct-value counts belonging to whatever those rows last
-    believed. Following the renderer makes the question disappear
-    rather than answering it.
-
     SIGNALS ARE BLOCKED THROUGHOUT, and that is not a detail. A
     handler on this path must never reach `_rebuild_unit` or
     `_refresh_table`: a rebuild replaces every cell widget, and one
@@ -11697,6 +11611,8 @@ class WeavingSpaceDialog(QDialog):
     the records they back are written directly, which is also why the
     signature is re-recorded here -- without it the next restyle would
     read a row that had changed with no signal and undo the follow.
+
+    (D-24.)
     """
     style = bridge.expressible_style(renderer)
     if style is None:
@@ -13619,6 +13535,7 @@ class WeavingSpaceDialog(QDialog):
       interior: its interior boundaries, already computed.
       target_id: the element receiving them.
 
+
     Returns:
       {"refusal": a sentence or None, "lost": [phrases], "left_behind":
       a sentence or ""}. It REPAINTS NOTHING and SAYS NOTHING: the
@@ -13663,17 +13580,6 @@ class WeavingSpaceDialog(QDialog):
     the same function `_retire_an_undrawable_pin` asks, so the copy
     cannot write limits the next reconciliation silently drops.
 
-    TWO THINGS DO NOT TRAVEL, both added 2026-08-15 after a hunt.
-    A pin flag is CHECKED against the receiving column first, because
-    a pin is a claim about this element's own data and this was the
-    one route by which an unchecked bound could arrive; a bound the
-    receiving column cannot reach is left behind and said, and the
-    ladder still travels whole. And an Unclassed source's class count
-    does not travel at all: its fifty is fixed by the style rather
-    than chosen by anybody, and `_class_counts` is the record that
-    means CHOSEN -- written there, it was clamped to twenty at the
-    next rebuild and replaced a count the user had picked.
-
     THE PIN IS JUDGED AGAINST THE POOL THE LIMITS LEAVE, which is the
     maintainer's ruling of 2026-08-19 arriving at a third door. Rows
     13 fixed it at the two sites that then existed; carrying limits
@@ -13690,6 +13596,8 @@ class WeavingSpaceDialog(QDialog):
 
     What was replaced is REPORTED rather than asked about, which is
     how every other loss in this plugin is handled.
+
+    (D-23.)
     """
     target = self._assignment_for(target_id)
     if target is None or not target.get("var"):
@@ -15181,6 +15089,7 @@ class WeavingSpaceDialog(QDialog):
     Args:
       assignment: one row from `_assignments()`.
 
+
     Returns:
       True when the element's renderer may be unable to place some of
       its rows AND the column has such rows. False for every
@@ -15195,15 +15104,6 @@ class WeavingSpaceDialog(QDialog):
     "Deferring to QGIS", so a test for `== "Graduated"` answered False
     and the twin was retired.
 
-    MEASURED 2026-08-17, two arms of one fixture differing only by a
-    dock edit: with the element left alone, 58 tiles and ZERO of
-    490,000 pixels unpainted; after refining it in QGIS's Symbology
-    panel, the paired layer gone, the rows folded back onto an element
-    whose renderer has no class for them, and 28,828 PIXELS UNPAINTED
-    with nothing said. That is precisely the harm the No Data layer
-    was built to remove: honest "not known" became holes reading
-    "nothing is here".
-
     So the question is asked of what the renderer can PLACE. A
     categorized renderer has `addCategory` and therefore a catch-all,
     so it never needs the split whoever styles it. Anything else --
@@ -15217,6 +15117,8 @@ class WeavingSpaceDialog(QDialog):
     caches per column and per data version. Widening a signature into
     something that rescans the layer is a trap this project has
     already written down.
+
+    (D-22.)
     """
     mode = assignment.get("mode")
     if mode in ("Categorized", "Single colour") or not mode:
@@ -18034,6 +17936,7 @@ class WeavingSpaceDialog(QDialog):
     Args:
       root: the project's layer tree root.
 
+
     Returns:
       A list of (group node, handle, region source). The HANDLE is the
       layer id of the first output layer in that group, and it is what
@@ -18058,18 +17961,7 @@ class WeavingSpaceDialog(QDialog):
     somebody has nested inside a folder of their own is left alone --
     the same choice, for the same reason, as `_newest_output_group`.
 
-    MAINTAINER'S RULING, 2026-08-26: NON-RECURSIVE IS FINE, and it is
-    recorded here with what it costs rather than only what it buys,
-    because a hunt raised it that day and the next one should not have
-    to. Nesting an output group inside a folder takes it out of every
-    reader that walks `root.children()`: the chooser stops listing it,
-    the one-file-is-one-map check in `_resume_from_gpkg` cannot see
-    it, so resuming that file builds a SECOND copy of the map beside
-    it, and a later run on the new copy drops tables the nested one is
-    still drawing from -- measured that day, `tiles_a_v1` removed from
-    the file while the tidied group went on pointing at it. "Left
-    alone" therefore means unmanaged rather than protected, which is
-    the honest reading and the one the ruling accepts.
+    (D-21.)
     """
     found = []
     for node in root.children():
@@ -19813,6 +19705,7 @@ class WeavingSpaceDialog(QDialog):
         holds, which is the ordinary case; a caller passes one only
         where it has a reason to.
 
+
     Returns:
       True when the file was written, False when there was nothing to
       write, nowhere to write it, or the user declined an overwrite.
@@ -19828,13 +19721,6 @@ class WeavingSpaceDialog(QDialog):
     record, through `_file_safe_state`, so the file shows the limit of
     what it contains.
 
-    WHY IT IS A BUTTON. Until 2026-08-27 every Generate wrote the file
-    whenever an output path was set, so the map was saved as a side
-    effect of drawing it: a path chosen for later was written to at
-    once, live update had to be gated to stop it rewriting somebody's
-    file on every keystroke, and clearing the box forked a second
-    group. The maintainer ruled that saving is a positive act.
-
     THE LAYERS ARE REPOINTED AT THE FILE, in place, and that is not
     tidiness. A map drawn to memory layers and saved to a GeoPackage
     would otherwise come back EMPTY when the project is reopened --
@@ -19843,6 +19729,8 @@ class WeavingSpaceDialog(QDialog):
     not. `compat.point_layer_at` keeps each layer's id, renderer, name
     and custom properties, which is what the rest of the dialog keys
     on.
+
+    (D-20.)
     """
     import os
     from qgis.core import QgsProject
@@ -21032,6 +20920,7 @@ class WeavingSpaceDialog(QDialog):
         path from the sender's machine onto the recipient's layers and
         change a fiction into a stamped fiction.
 
+
     Returns:
       How many layers were stamped, so a caller or a guard can tell
       "there was nothing to do" from "it did nothing".
@@ -21052,20 +20941,13 @@ class WeavingSpaceDialog(QDialog):
     had just opened -- after which the next Generate built a RIVAL
     beside it and the next Save wrote that rival into the same tables.
 
-    MEASURED AT BOTH DOORS, one process, each on its own file
-    (`tools/probes/what_a_resumed_map_stamps_on_its_layers.py`): the
-    layers saying `MultiPolygon?crs=EPSG:3857&uid={...}` against a
-    chooser holding `<file>|layername=weavingspace_region`, the
-    binding answering False, and TWO groups of four layers each after
-    one Generate. The fresh branch does it too, which is why this is a
-    stamp's defect rather than a flag's -- `_landed_this_session` only
-    decides whether the binding is reached at all.
-
     AND THE PREMISE IS THE FIXTURE: the sender's own layer has to be
     out of the project, or `_recover_the_source` takes its first route
     and lands on a layer already open, the stamps agree, and a probe
     reports health about a journey it never drove. Mine did exactly
     that on its first run.
+
+    (D-19.)
     """
     if not region:
       return 0
@@ -22778,6 +22660,7 @@ class WeavingSpaceDialog(QDialog):
     Args:
       root: the project's layer tree root.
 
+
     Returns:
       The layer-tree group holding the most recent output, or None
       when this project has none.
@@ -22793,19 +22676,6 @@ class WeavingSpaceDialog(QDialog):
     unpinned. Measured 2026-08-15: run 1 pinned at 10, kept; run 2
     unpinned and recomputed; reopened, the dialog held run 1's layers
     and `{"a": {"v3": {"low": 10.0}}}`.
-
-    AND WHY NOT THE NAME AT ALL, which is what replaced it. The newest
-    used to be read off the SUFFIX -- the bare name counting as zero
-    and "WeavingSpace tiles N" as N -- and the loop SKIPPED any group
-    whose name did not match, on the reasoning that somebody had
-    renamed it and it was not ours to guess. Renaming a group in the
-    layers panel is an ordinary thing to do, and the consequence was
-    that adoption found nothing: the next run built a rival, leaving
-    the user's own layers in the renamed group, stale, with the
-    GeoPackage link silently dropped. Measured 2026-08-17: rename,
-    save, reopen, change the spacing, and the project holds
-    'Deprivation, woven' with four file-backed layers beneath a fresh
-    'WeavingSpace tiles' holding four memory layers of the same map.
 
     A group is OURS when it holds a layer carrying our own custom
     property, which is evidence rather than a guess about a name, and
@@ -22823,6 +22693,8 @@ class WeavingSpaceDialog(QDialog):
     group nested inside somebody's own folder is left alone, which
     `test_the_dialog_opens_quickly_in_a_crowded_project` stages with a
     decoy "WeavingSpace tiles 2" two levels down.
+
+    (D-18.)
     """
     # THE DATASET IN THE CHOOSER OUTRANKS RECENCY, and that is the
     # 2026-08-25 half of this. Ruling 2 makes a second output group
@@ -24294,24 +24166,7 @@ class WeavingSpaceDialog(QDialog):
     the thing in the cache has rotation, scale, skew, insets and glyph
     mode baked into its geometry.
 
-    THIS PARAGRAPH USED TO SAY `_topology_stamp` IS DELIBERATELY BLIND
-    TO MODIFIERS, "which is right for judging a BUILD", and that was
-    wrong -- corrected 2026-08-31. Ruling 1 does say the topology is of
-    the un-modified unit, but `_queue_topology` builds from
-    `self._unit`, which is the unit AFTER the chain, and the suite's
-    own drop test turns on exactly that: set a tile inset and the
-    topology stops existing, because `Topology` needs a gap-free tiling
-    and an inset opens gaps. So the stamp carries the modifiers now,
-    and the tuple below is REDUNDANT rather than a second fact -- both
-    read the same widgets. It is kept because the guard written for the
-    2026-08-30 defect stands on it, and it can go the day somebody
-    re-aims that.
-    Keyed on the stamp alone, moving Rotate to 30 and pressing Generate
-    put the pre-rotation unit back and drew a map TILE FOR TILE
-    identical to rotate 0 -- and Generate is guaranteed to land inside
-    that window, because it flushes the rebuild itself. The design view
-    showed the same wrong design, healing only when the background
-    build landed seconds later.
+    (D-17.)
     """
     return (self._topology_stamp(), self._topology_edit_key(),
             (self.mod_rotate.value(), self.mod_scale_x.value(),

@@ -221,6 +221,7 @@ def layer_data_is_available(layer) -> bool:
   Args:
     layer: any map layer, or None.
 
+
   Returns:
     True when the layer exists and its provider still has data behind
     it. False for a layer whose file has been deleted, whose database
@@ -234,14 +235,6 @@ def layer_data_is_available(layer) -> bool:
   by segfaulting the whole application: no exception, no traceback,
   no message in the log, QGIS simply gone. The provider's own
   isValid() is the honest answer and the only one that helps.
-
-  ...UNTIL SOMETHING RELOADS THE LAYER, WHICH NOBODY DOES. That
-  paragraph describes a layer AFTER `reload()`, and until 2026-08-20
-  those two checks were the whole of this function -- so the case it
-  names in its own Returns block, a file that has gone while the
-  layer still claims to be valid, was exactly the case it waved
-  through. Measured on QGIS 4.0.3, moving a GeoPackage out from under
-  an open layer:
 
       before the move   isValid True   provider True    count 36   iterated 36
       file moved away   isValid True   provider True    count 36   iterated  0
@@ -266,6 +259,8 @@ def layer_data_is_available(layer) -> bool:
   It lives in compat because it reaches through to the data provider,
   and the relationship between a layer's validity and its provider's
   is exactly the sort of thing a QGIS release adjusts.
+
+  (D-16.)
   """
   if layer is None:
     return False

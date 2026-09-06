@@ -10978,7 +10978,7 @@ MUTATIONS = [
        # compares against is the state this practice was in before the
        # pass of 2026-09-05, when 19,000 lines accumulated across five
        # documents and nothing anywhere said so.
-       old="""    if lines > budget:""",
+       old="""    if budget is not None and lines > budget:""",
        new="""    if False:  # mutation: no document is ever too long""",
        test="test_the_archived_documents_agree_with_their_live_halves",
        why="the archiving pass happening at all. The budget is the only "

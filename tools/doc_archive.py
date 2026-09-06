@@ -93,6 +93,14 @@ PAIRS = [
   # 893 after the pass, from 1,193.
   (os.path.join("docs", "PUBLISHING.md"),
    os.path.join("docs", "PUBLISHING-archived.md"), "P", 1100),
+  # THE PACKAGE'S DOCSTRINGS, since the pass of 2026-09-05 that took
+  # the narrative out of them (the maintainer's ask: "not terribly
+  # useful for human maintainers"). The live half is the source tree,
+  # read as one text; a docstring keeps what a maintainer needs and
+  # quotes a D-id for the account. No budget -- the documentation check
+  # in tools/check_standards.py governs docstrings.
+  ("weavingspace_qgis", os.path.join("docs", "DOCSTRINGS-archived.md"),
+   "D", None),
 ]
 
 # HOW EACH LIVE DOCUMENT IS ALLOWED TO GROW, so that the cheap edit is
@@ -206,7 +214,19 @@ def read(relative):
     when the file is missing, because a check that silently reads
     nothing reports that everything agrees.
   """
-  with open(os.path.join(ROOT, relative), encoding="utf-8") as handle:
+  full = os.path.join(ROOT, relative)
+  if os.path.isdir(full):
+    # A live half that is a SOURCE TREE: the package's docstrings quote
+    # D-ids into docs/DOCSTRINGS-archived.md, so the whole tree is read
+    # as one text. It has no budget and no shape; the documentation
+    # check in tools/check_standards.py is what governs docstrings.
+    parts = []
+    for name in sorted(os.listdir(full)):
+      if name.endswith(".py"):
+        with open(os.path.join(full, name), encoding="utf-8") as handle:
+          parts.append(handle.read())
+    return "\n".join(parts)
+  with open(full, encoding="utf-8") as handle:
     return handle.read()
 
 
@@ -291,7 +311,7 @@ def check():
         f"pointer, or it was deleted and the account should go with it")
 
     lines = live_text.count("\n") + 1
-    if lines > budget:
+    if budget is not None and lines > budget:
       problems.append(
         f"{live} is {lines} lines against a budget of {budget}. Run "
         f"`python3 tools/doc_archive.py --suggest` and make an "
