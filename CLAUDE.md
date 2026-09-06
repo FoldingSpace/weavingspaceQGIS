@@ -952,7 +952,8 @@ and the ids beside each rule.
   outlives a refused act, so settle it where every exit of the act
   ends (C-323) -- and launched is not landed: spend it at the landing,
   and put it back BEFORE a cancel, since the task's own end reaches the
-  landing first (C-331).
+  landing first -- at EVERY site that cancels the task, the project
+  door included (C-331).
 - **A PREDICATE THAT MERGES TWO FACTS IS RIGHT FOR A WAIT AND WRONG
   FOR A QUESTION** (C-224), and a question built on it merges the same
   two states (C-233). A control one act moves as a side effect is read

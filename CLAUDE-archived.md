@@ -10606,4 +10606,11 @@ cancel and found nothing to put back, because the task's own end
 reaches `_finish_run`, which now spends the request as a landing; the
 put-back runs before the cancel. Guarded by
 `test_a_dual_request_whose_run_is_cancelled_is_put_back` with two
-entries, one at the put-back and one at the launch. Row 13.
+entries, one at the put-back and one at the launch. Row 13. The
+replenished repairs hunt (`repairs21`) then found the second cancel
+site the same hour: `_forget_the_last_project`, on the project's
+`cleared`, cancels the same task and left the stores latched, so the
+first Generate in a fresh project drew the dual; verified here by
+clearing the project mid-flight, repaired the same way, guarded by
+`test_a_dual_request_cancelled_by_a_new_project_is_put_back` and the
+entry `the-project-door-puts-a-dual-request-back`. Row 14.

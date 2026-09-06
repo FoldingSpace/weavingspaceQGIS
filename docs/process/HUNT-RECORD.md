@@ -1974,6 +1974,7 @@ the ledger is `defects-2026-09-06.md`.
 | the doors to a second map (one-boundary) | 1 | a flag's WRITERS are the door list: grepping the five writers of `_landed_this_session` found the unswept door faster than reading any door (row 11) |
 | the round's own repairs (19th, at rows 8-9) | 1 | when a repair makes one store the single owner a record reads, ask which OTHER reader of that store was left on a hard-coded default (row 12) |
 | write-only at today's records | 1 | when a repair puts a settle in a `finally`, ask what CANCELS the act after it launched -- the wrapper sees every exit of the call and none of the task's (row 13) |
+| the round's own repairs, asymmetry (20th, at rows 11-13) | 1 | read the repaired call's OTHER cancel sites before probing anything else: the close put the request back and the project door, the second cancel of the same task, did not (row 14) |
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

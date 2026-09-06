@@ -58219,6 +58219,67 @@ def test_the_ghost_meets_the_handle_on_the_drawing():
     dlg.deleteLater()
 
 
+def test_a_dual_request_cancelled_by_a_new_project_is_put_back():
+  """File > New while the dual's run is in flight puts the dual button's
+  stores back, so the next Generate in the fresh project draws the design.
+
+  Row 13 put the request back at the window's close; the project door
+  -- `cleared`, which fires on File > New and before File > Open --
+  cancels the same task and did not, so the plugin stayed in dual mode
+  across the project change and the first Generate in the new project
+  landed the dual, in a group named for the previous project's dataset.
+
+  Regression: pressing the dual button and then File > New before the run landed left the plugin in dual mode, so the first Generate in the new project drew the dual of the design. [hunt]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+    _generate_and_wait(dlg)
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    for _ in range(200):
+      _tick(20)
+      if dlg._task is not None:
+        break
+    assert dlg._task is not None, "PREMISE: the dual's run never launched"
+    assert dlg._dual_request is not None, "PREMISE: the request was spent at launch"
+    QgsProject.instance().clear()
+    _tick(1500)
+    assert dlg._task is None, "PREMISE: the project door did not cancel the run"
+    assert (dlg.opt_map_dual.isChecked(), dlg._new_group_chosen) == (False, False), (
+      f"after File > New cancelled the dual's run the stores read "
+      f"{(dlg.opt_map_dual.isChecked(), dlg._new_group_chosen)}, so the "
+      f"first Generate in the new project would draw the dual")
+    fresh = make_region_layer()
+    QgsProject.instance().addMapLayer(fresh)
+    _tick(400)
+    dlg.layer_combo.setLayer(fresh)
+    _tick(400)
+    _generate_and_wait(dlg)
+    names = [g.name() for g in QgsProject.instance().layerTreeRoot().findGroups()]
+    assert names and not dlg._mapping_the_dual() \
+      and not any(n.endswith("dual") for n in names), (
+      f"the first Generate in the new project drew the dual: {names}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -91116,6 +91177,8 @@ def main():
         test_a_dual_request_whose_run_is_cancelled_is_put_back)
   check("the ghost meets the handle on the drawing",
         test_the_ghost_meets_the_handle_on_the_drawing)
+  check("a dual request cancelled by a new project is put back",
+        test_a_dual_request_cancelled_by_a_new_project_is_put_back)
   check("an element keeps only its own data column",
         test_an_element_keeps_only_its_own_data_column)
   check("a topology wait that gives up says why",

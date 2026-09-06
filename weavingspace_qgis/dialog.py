@@ -9724,6 +9724,11 @@ class WeavingSpaceDialog(QDialog):
     # Open, so this is the last moment at which the run can still be
     # stopped while it is still about the project it was started for.
     if self._task is not None:
+      # THE SECOND CANCEL SITE, and it puts a dual request back as the
+      # close does, BEFORE the cancel: row 13's repair closed one door
+      # of two, and File > New mid-flight left the next Generate in the
+      # fresh project drawing the dual (round eight, repairs21).
+      self._put_back_a_cancelled_dual_request()
       try:
         self._task.cancel()
       except Exception:

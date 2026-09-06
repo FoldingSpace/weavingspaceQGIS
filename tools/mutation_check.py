@@ -10909,10 +10909,27 @@ MUTATIONS = [
        why="the zigzag handle jumping to the defaults' position when another "
            "verb is chosen while a drag from it starts at the banked numbers "
            "(round eight, repairs20)"),
+  dict(name="the-project-door-puts-a-dual-request-back",
+       file=DIALOG,
+       old="""      self._put_back_a_cancelled_dual_request()
+      try:
+        self._task.cancel()
+      except Exception:
+        # a task whose C++ object has gone cannot be cancelled and""",
+       new="""      try:
+        self._task.cancel()
+      except Exception:
+        # a task whose C++ object has gone cannot be cancelled and""",
+       test="test_a_dual_request_cancelled_by_a_new_project_is_put_back",
+       why="File > New mid-flight leaving the plugin in dual mode, the "
+           "first Generate in the fresh project drawing the dual (round "
+           "eight, repairs21: row 13 closed one cancel door of two)"),
   dict(name="a-cancelled-duals-request-is-put-back",
        file=DIALOG,
-       old="""      self._put_back_a_cancelled_dual_request()""",
-       new="""      pass  # mutation: the close leaves the stores latched""",
+       old="""      # otherwise meet the next ordinary Generate.
+      self._put_back_a_cancelled_dual_request()""",
+       new="""      # otherwise meet the next ordinary Generate.
+      pass  # mutation: the close leaves the stores latched""",
        test="test_a_dual_request_whose_run_is_cancelled_is_put_back",
        why="a close that cancels the dual's run leaving the plugin in dual "
            "mode, so the next Generate drew the dual unasked (round eight, "

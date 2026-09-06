@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-544 defect(s) with a regression test.
+545 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -104,6 +104,8 @@ there is no separate list to remember.
   guarded by `test_a_drag_delivered_in_many_moves_records_one_position`
 - **reopening the plugin on a dual map and re-tiling it redrew the dual of the un-edited design, so the topology edit it was built from was lost in silence.**  
   guarded by `test_a_dual_group_keeps_its_sources_edits_across_a_reopen`
+- **pressing the dual button and then File > New before the run landed left the plugin in dual mode, so the first Generate in the new project drew the dual of the design.**  
+  guarded by `test_a_dual_request_cancelled_by_a_new_project_is_put_back`
 - **pressing "Generate the dual and tile it" while Generate could not start latched the plugin into dual mode invisibly, so the next ordinary Generate drew the dual of the design into a new group with nothing on screen to untick.**  
   guarded by `test_a_dual_request_that_is_refused_does_not_latch`
 - **pressing the dual button, closing the window before the run landed, reopening the plugin and pressing Generate drew the DUAL of the design into a new group, with nothing said.**  
@@ -1143,7 +1145,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 188
-- a bug hunt pointed in a named direction: 151
+- a bug hunt pointed in a named direction: 152
 - not written down at the time: 88
 - reported by a user: 52
 - reading the code: 15
