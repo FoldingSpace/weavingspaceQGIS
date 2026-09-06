@@ -20,6 +20,37 @@ need to read it to work. Read it when an id is quoted at you, when a
 rule surprises you and you want to know what it cost, or before you
 change one. The pass that keeps the two apart is docs/DOC-ARCHIVING.md.
 
+## How to add to this file
+
+This file is read whole at the start of every session, so it is kept
+short by a line budget and a SHAPE that `tools/doc_archive.py` checks
+at every push and release. The shape is what makes the cheap edit the
+right one; to add to the file:
+
+1. DECIDE WHAT KIND OF THING YOU HAVE. A rule never to be broken goes
+   under Hard rules; a way of working under Required practices; a
+   decision the maintainer made under Design decisions, with its whole
+   statement; a fact paid for once under the Lessons THEME it belongs
+   to. Nothing goes at the end of the file, and nothing gets a section
+   of its own.
+2. WRITE IT AS ONE CLAUSE IN THE ENTRY IT EXTENDS, with about one
+   clause of evidence -- "a name a user can edit is never a key (C-16)".
+   Do not open with a date, and do not narrate: the day, the wrong
+   first hypothesis and the measurement are the ACCOUNT.
+3. MINT AN ID FOR THE ACCOUNT, `python3 tools/doc_archive.py --mint C
+   "title"`, write the account under it in CLAUDE-archived.md, and end
+   the clause with the id. The check refuses a stub nothing quotes.
+4. WHERE NO THEME FITS, put the clause under "Inbox: lessons not yet
+   themed", which holds six at most. Folding the inbox into the themes
+   is the whole of the pass, and it is cheap while the inbox is small.
+
+A new section, an entry past sixty lines, an inbox past six, or an
+entry that opens with a date fails `tools/check_standards.py` with the
+fix in the message. When a rule changes, change it where it stands and
+move its superseded form to the archive; ids are never renumbered or
+reused. (Maintainer's ask, 2026-09-05: the documents are to be
+self-fixing at low cost for whoever edits them next.)
+
 ## Hard rules
 
 - **pyproj is main-thread-only.** The QgsTask worker (`dialog._generate`'s
@@ -179,9 +210,14 @@ change one. The pass that keeps the two apart is docs/DOC-ARCHIVING.md.
   append a long account, split it as you write it. Nothing is deleted
   and ids are never renumbered. `python3 tools/doc_archive.py` checks
   the pairing and the line budgets and runs in `check_standards`;
-  `--stranded` reports rules a pass took by mistake. ROADMAP.md's
-  outstanding entries and MAINTAINING.md's architecture are exempt.
-  Procedure: docs/DOC-ARCHIVING.md. (C-275.)
+  `--stranded` reports rules a pass took by mistake, and `--mint`
+  takes the next id and writes the stub. ROADMAP.md's outstanding
+  entries and MAINTAINING.md's architecture are exempt from the
+  budget. Since 2026-09-05 the SHAPE of growth is checked as well --
+  the how-to-add block, fixed sections, a capped inbox, an entry cap
+  and no date-led entries -- so the standards gate teaches the split at
+  the moment somebody departs from it. Procedure:
+  docs/DOC-ARCHIVING.md. (C-275.)
 - **Text review is the USER'S act, never the assistant's.** The
   `tools/text_review.py` queue exists so a person reads every sentence
   a user will meet before it ships; an assistant approving its own
@@ -1228,6 +1264,12 @@ and the ids beside each rule.
   which is why they are in `STAGE_DEPENDS` (C-187, C-218). A GitHub
   release body preserves single newlines, so never hard-wrap one
   (C-96); a list item needs the space after its marker.
+
+## Inbox: lessons not yet themed
+
+A lesson that fits none of the five themes above goes here as one
+clause with its id, and this section holds six at most: past that the
+check asks for them to be folded into the themes. It is empty now.
 
 ## Testing (do this after every substantive change)
 

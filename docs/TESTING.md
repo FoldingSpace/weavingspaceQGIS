@@ -20,9 +20,36 @@ hypotheses, the measurements. Every lesson's rule is still here. Read the
 archive when you are about to do the thing a lesson warns against and
 want to know what it cost. See docs/DOC-ARCHIVING.md.
 
+## How to add to this file
+
+This file is binding and is read before a test is written or changed,
+so it is kept short by a budget and a SHAPE that `tools/doc_archive.py`
+checks at every push. Its first half is PROCEDURE -- the probe kit, the
+test shapes, the matrix method, where an expectation may come from --
+and is edited in place when the procedure changes. Its second half is
+LESSONS, one section per theme: the harness, waits and moments,
+fixtures, assertions and oracles, guards and the catalogue, the
+product, tools. To add a lesson:
+
+1. Find its theme and write it as ONE CLAUSE in the bullet it extends,
+   with about one clause of evidence and its id -- "a leg that runs
+   after the state it is about measures nothing (T-84)". Do not open
+   with a date; the run, the wrong hypotheses and the measurement are
+   the account.
+2. Mint the id with `python3 tools/doc_archive.py --mint T "title"`,
+   write the account under it in docs/TESTING-archived.md, and quote
+   the id. The check refuses a stub nothing quotes.
+3. Where no theme fits, use "Inbox: lessons not yet themed" at the end,
+   which holds six at most; folding it into the themes is the pass.
+
+A new `## ` section, a section past 120 lines, an inbox past six, or a
+paragraph that opens with a date fails `tools/check_standards.py` with
+the fix in the message. (Maintainer's ask, 2026-09-05: self-fixing at
+low cost for whoever edits these documents next.)
+
 ## A PROBE HAS A KIT NOW, AND ITS TRAPS ARE IN IT
 
-2026-08-28. `tools/probe_kit.py` is the forty lines every probe was
+`tools/probe_kit.py` (2026-08-28) is the forty lines every probe was
 re-typing -- QGIS up, an empty project, a dialog, a held temporary
 directory, the modal shim, both message stores, a sqlite reader that
 does not hold the file open.
@@ -46,8 +73,7 @@ itself:
 
     PYTHONPATH="$PWD" PYTHONUNBUFFERED=1 "$QGIS_PY" my_probe.py
 
-## Where a guard's expectation should come from, when the product is the
-## only thing that knows the answer
+## Where a guard's expectation should come from, when the product is the only thing that knows the answer
 
 Thirteen guards were written in one sitting on 2026-08-18, and the
 recurring difficulty was not what to assert but WHERE THE EXPECTED VALUE
@@ -400,7 +426,7 @@ with no known history.
 
 ## CONVERTING A SUITE WHEN ONE ACT SPLITS INTO TWO
 
-2026-08-27, when saving stopped being a side effect of drawing. Six
+When saving stopped being a side effect of drawing (2026-08-27), six
 hundred and forty tests had been written against a plugin where setting
 an output path made every Generate write the file; the ruling made
 writing a separate press. What follows is what the conversion cost, what
@@ -412,7 +438,7 @@ happened reproduces the state each test was written against. (T-42.)
 
 ## WHAT "THE FILE DID NOT CHANGE" MEANS, MEASURED
 
-Also 2026-08-27, and it cost three drafts of one test. **BYTES ARE NOT
+It cost three drafts of one test (2026-08-27). **BYTES ARE NOT
 A PROPERTY OF AN UNTOUCHED GEOPACKAGE.** A Generate after a Save leaves
 every table, every feature count, every embedded style and the record
 IDENTICAL while the file grows from 184,320 bytes to 356,352 -- sqlite
@@ -456,8 +482,8 @@ Signs you should be writing a matrix rather than a case:
 
 ## A matrix may balloon, because you are SAMPLING anyway
 
-2026-08-19, extending the symbology matrix from three axes to four at
-the maintainer's asking: interaction with QGIS -- class boundaries and
+Extending the symbology matrix from three axes to four (2026-08-19,
+at the maintainer's asking): interaction with QGIS -- class boundaries and
 copy-paste -- is where this plugin's defects come from, so cover it
 high-dimensionally. **THE SPACE IS FREE; ONLY THE SPINE AND THE SAMPLE
 COST.** Twelve routes, nine shapes, three aftermaths and three schemes
@@ -521,7 +547,7 @@ accounts are T-134.
 
 ## A TEST THAT RESIZES A CHILD WIDGET HAS MEASURED NOTHING
 
-(Same day, and three of four failed attempts at one guard turned on
+(Three of four failed attempts at one guard, the same day, turned on
 this alone.) A widget inside a layout does not keep a size handed to
 it: the layout gives it whatever is left over on the next pass, so a
 resize to its own floor is gone before anything can read it.
@@ -834,3 +860,9 @@ The section as it stood, with each lesson's account: T-142.
   exercised `en_US` twice, and `QLocale.setDefault` forces the thing
   itself. When an attribution is a guess, report rather than gate
   (T-41).
+
+## Inbox: lessons not yet themed
+
+A lesson that fits none of the themes above goes here as one clause
+with its id, and this section holds six at most: past that the check
+asks for them to be folded into the themes. It is empty now.

@@ -72,6 +72,21 @@ enforces it: a `for-<version>/*` branch whose version is not
 described here is work parked with nothing to say what it is, which
 is how a branch becomes archaeology.
 
+## How to add to this file
+
+An entry is a bold-led paragraph under the version it belongs to,
+saying what is owed and what must be true before it closes; while it
+is OUTSTANDING it stays in full, however long, because the release
+gate reads this file and a debt nobody can see is a debt nobody pays.
+WHEN IT LANDS, delete it, or where its reasoning is worth keeping cut
+it to its headline and quote an id minted with `python3
+tools/doc_archive.py --mint R "title"`, the account going to
+ROADMAP-archived.md. Do not write the account here: a DONE entry
+longer than thirty lines, or one that opens with a date, fails
+`tools/check_standards.py` with the fix in the message. Measurements,
+refutations and the reasoning behind a ruling belong in the archive
+from the day they are written, and the ruling itself in CLAUDE.md.
+
 ---
 
 ## Conflicts to settle by grilling
@@ -224,15 +239,17 @@ the dual). Cheapest and most durable first.
   more", and later the same day the measure in the reader's terms: "as
   context efficient as possible while being effective -- we want their
   lessons and logics and some reasons/evidence to be transmitted".
-  DONE for CLAUDE.md (3,919 to 1,932), docs/TESTING.md (2,527 to 836)
-  and this file's DONE entries; docs/PUBLISHING.md and MAINTAINING.md
-  take a light pass. STILL OWED, the maintainer's wrinkle of the same
-  day: the documents will be edited by a different model from now on,
-  so they must explain how to add to themselves and be SELF-FIXING at
-  low cost -- a how-to-add block at the top of each, themed sections
-  with a bounded inbox, per-entry limits and diary-shape detection in
-  `tools/doc_archive.py` so accretion fails the standards gate naming
-  the fix, and a one-command id minter that writes the archive stub.
+  DONE: CLAUDE.md 3,919 to 1,932, docs/TESTING.md 2,527 to 836, this
+  file's DONE entries 1,540 to 524, and light passes over
+  docs/PUBLISHING.md and MAINTAINING.md. AND THE MAINTAINER'S WRINKLE
+  OF THE SAME DAY IS BUILT: the documents will be edited by a different
+  model from now on, so each now opens with a how-to-add section, the
+  themed ones have a capped inbox, and `tools/doc_archive.py` checks the
+  SHAPE of growth -- fixed sections, an entry cap, no date-led entries
+  -- failing the standards gate with the fix in the message, with
+  `--mint` writing an archive stub under the next id. Two tests and
+  six catalogue entries proved `caught`; the practice is in
+  docs/DOC-ARCHIVING.md under "Writing for the next reader".
 - **AND THE SAME EDIT TO THE DOCSTRINGS** (same ask): "they're not
   terribly useful for human maintainers right now, though of course
   we want them to be effective for LLMs as well". The documentation

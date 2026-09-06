@@ -10,6 +10,18 @@ Sections cut back to their procedure carry an id (P-2) whose full
 account is in `PUBLISHING-archived.md` -- what the first CI rounds cost,
 what a release stopped doing and why. See docs/DOC-ARCHIVING.md.
 
+## How to add to this file
+
+This is a RUNBOOK: every section is a procedure, and a procedure keeps
+every step. When a step changes, change it where it stands, in the
+command block and the sentence that explains it. When a release or a
+CI round teaches something, the RULE it taught goes into the section
+it belongs to as one sentence, and the ACCOUNT -- what it cost, the
+timings, the rounds -- goes to docs/PUBLISHING-archived.md under an id
+minted with `python3 tools/doc_archive.py --mint P "title"`, quoted at
+the rule. An entry past thirty lines or a paragraph that opens with a
+date fails `tools/check_standards.py` with the fix in the message.
+
 ## Two machines at once: Linux CI beside the local gates
 
 **The platform questions are answered first.** Every leg that runs the
@@ -501,8 +513,8 @@ with had aged.
 
 ## A TEST REPAIR SPENDS A CANDIDATE NUMBER, AND THAT IS NOT A WASTE
 
-2026-08-31: three candidates were built and two thrown away to publish
-one, and not a byte of the plugin changed between them. Measured member
+Three candidates were built and two thrown away to publish one
+(2026-08-31), and not a byte of the plugin changed between them. Measured member
 by member, `weavingspace_qgis-0.24.4rc7.zip`, `...rc8.zip` and
 `...rc9.zip` differ in exactly ONE file, `metadata.txt`, which carries
 the candidate label. What changed twice was a TEST. WHY A TEST FIX COSTS

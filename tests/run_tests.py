@@ -56613,6 +56613,158 @@ def _doc_archive_module(root=None):
   return module
 
 
+def test_a_document_that_grows_the_wrong_way_is_told_how_to_grow():
+  """Each shape of accretion fails the archiving check, naming its fix.
+
+  The binding documents will be edited by whoever works here next, and
+  the maintainer's ask of 2026-09-05 was that they be SELF-FIXING at
+  low cost: structured so that the right edit is the cheap one, and
+  able to say so when somebody departs from it. `doc_archive.check()`
+  therefore reads the SHAPE of each live document -- a how-to-add
+  section near the top, fixed sections where the sections are themes,
+  an inbox with a cap, an entry cap, and no entry or paragraph that
+  opens with a date -- and every departure is a problem whose text
+  carries the fix (docs/DOC-ARCHIVING.md, "Writing for the next
+  reader").
+
+  EVERY ARM IS DRIVEN IN A THROWAWAY TREE, from a document that passes,
+  because each is one `if` in a loop and a check that has only ever
+  been watched agree is a check nobody has seen work. The healthy
+  document is asserted first so that a red arm is a red arm and not a
+  fixture that was never green.
+  """
+  import shutil
+  import tempfile
+
+  root = tempfile.mkdtemp(prefix="doc-shape-")
+  try:
+    def write(page, body):
+      with open(os.path.join(root, page), "w", encoding="utf-8") as handle:
+        handle.write(body)
+
+    module = _doc_archive_module(root)
+    module.PAIRS = [("X.md", "X-archived.md", "X", 500)]
+    module.SHAPES = {"X.md": dict(
+      sections=[module.HOW_TO_ADD, "## Theme", module.INBOX],
+      inbox=2, entry=5, unit="entry")}
+    how = module.HOW_TO_ADD + "\n\nOne clause per lesson.\n\n"
+    theme = "## Theme\n\n- **A rule.** One clause of evidence. (X-1.)\n\n"
+    inbox = module.INBOX + "\n\n- **An unthemed rule.** (X-1.)\n\n"
+    good = "# A document\n\nIts accounts are in X-archived.md.\n\n" + \
+           how + theme + inbox
+    write("X-archived.md", "# Archive: X.md\n\n## Section\n\n"
+                           "### X-1 — A rule\n\nThe account.\n")
+    write("X.md", good)
+    assert module.check() == [], \
+      f"PREMISE: the staged document is already unhappy: {module.check()}"
+
+    def problems_mentioning(word):
+      return [one for one in module.check() if word in one]
+
+    # NO HOW-TO-ADD SECTION.
+    write("X.md", good.replace(how, ""))
+    assert problems_mentioning("How to add"), \
+      "a document lost its how-to-add section and the check passed, " \
+      "so the next reader is not told how the file grows"
+
+    # A SECTION THE TOOL DOES NOT KNOW.
+    write("X.md", good + "## 2026-09-05: a new lesson\n\nProse.\n")
+    assert problems_mentioning("does not know"), \
+      "a new section appeared in a document whose sections are fixed " \
+      "and nothing said that lessons go into themes"
+
+    # AN INBOX PAST ITS CAP.
+    write("X.md", good + "- **Two.** (X-1.)\n- **Three.** (X-1.)\n")
+    assert problems_mentioning("inbox holds"), \
+      "the inbox grew past its cap and nothing asked for it to be folded"
+
+    # AN ENTRY PAST THE CAP.
+    write("X.md", good.replace("- **A rule.** One clause of evidence. (X-1.)",
+                               "- **A rule.** (X-1.)\n" + "  more\n" * 6))
+    assert problems_mentioning("against a cap"), \
+      "an entry grew past the cap, which is an account standing where " \
+      "a rule should, and the check passed"
+
+    # AN ENTRY THAT OPENS WITH A DATE, AND A PARAGRAPH THAT DOES.
+    write("X.md", good.replace("- **A rule.**", "- **2026-09-05, a rule.**"))
+    assert problems_mentioning("diary shape"), \
+      "an entry opening with a date -- the diary shape -- was not reported"
+    write("X.md", good.replace("One clause per lesson.",
+                               "Same day, a thing happened."))
+    assert problems_mentioning("diary shape"), \
+      "a paragraph opening with 'Same day' -- the diary shape in plain " \
+      "prose -- was not reported"
+
+    # AND THE HEALTHY DOCUMENT IS STILL HEALTHY, so no arm fires on the
+    # shape it is meant to allow.
+    write("X.md", good)
+    assert module.check() == [], module.check()
+  finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+
+def test_minting_an_id_writes_the_stub_and_never_reuses_one():
+  """`--mint` takes the id past the highest ever defined, and writes the stub.
+
+  Ids are quoted in live documents, in commits and in conversations, so
+  they are never renumbered and never reused; the next id is one past
+  the highest that has ever existed, whatever has since been removed.
+  Guessing it by hand is how two accounts end up with one id, so the
+  tool mints it: the stub goes into the archive with an index line, and
+  the check reports it as stranded until the live half quotes it, which
+  is the nudge to finish the edit rather than a fault.
+
+  THE GAP IN THE NUMBERING IS THE POINT OF THE FIXTURE: an archive that
+  defines X-1 and X-3 must mint X-4, not X-2, or a removed account's id
+  comes back with a different meaning.
+  """
+  import io
+  import contextlib
+  import shutil
+  import tempfile
+
+  root = tempfile.mkdtemp(prefix="doc-mint-")
+  try:
+    def write(page, body):
+      with open(os.path.join(root, page), "w", encoding="utf-8") as handle:
+        handle.write(body)
+
+    module = _doc_archive_module(root)
+    module.PAIRS = [("X.md", "X-archived.md", "X", 500)]
+    module.SHAPES = {}
+    write("X.md", "# A document\n\nIts accounts are in X-archived.md.\n\n"
+                  "- **A rule.** (X-1.) Another. (X-3.)\n")
+    write("X-archived.md",
+          "# Archive: X.md\n\n- **X-1** — A rule  <sub>s</sub>\n"
+          "- **X-3** — Another  <sub>s</sub>\n\n"
+          "### X-1 — A rule\n\nThe account.\n\n"
+          "### X-3 — Another\n\nThe account.\n")
+    assert module.check() == [], \
+      f"PREMISE: the staged pair is already unhappy: {module.check()}"
+
+    with contextlib.redirect_stdout(io.StringIO()):
+      minted = module.mint("X", "A third rule")
+    assert minted == "X-4", \
+      f"the minter reused or guessed an id: got {minted}, wanted X-4 " \
+      f"past the highest ever defined (X-3), never the gap at X-2"
+    archive = module.read("X-archived.md")
+    assert "### X-4 — A third rule" in archive, "the stub was not written"
+    assert "- **X-4** — A third rule" in archive, \
+      "the stub was written without an index line"
+    assert archive.index("- **X-4**") > archive.index("- **X-3**"), \
+      "the index line was not placed after the last one"
+    assert any("X-4" in one for one in module.check()), \
+      "a minted stub nothing quotes yet was not reported as stranded, " \
+      "so the nudge to finish the edit is missing"
+
+    # AND QUOTING IT SETTLES THE CHECK.
+    write("X.md", "# A document\n\nIts accounts are in X-archived.md.\n\n"
+                  "- **A rule.** (X-1.) Another. (X-3.) A third. (X-4.)\n")
+    assert module.check() == [], module.check()
+  finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+
 def test_the_archived_documents_agree_with_their_live_halves():
   """A pointer into an archive leads somewhere, and nothing is stranded.
 
@@ -89622,6 +89774,10 @@ def main():
         test_every_archived_document_is_watched_by_the_check)
   check("a rule archived by mistake is reported",
         test_a_rule_archived_by_mistake_is_reported)
+  check("a document that grows the wrong way is told how to grow",
+        test_a_document_that_grows_the_wrong_way_is_told_how_to_grow)
+  check("minting an id writes the stub and never reuses one",
+        test_minting_an_id_writes_the_stub_and_never_reuses_one)
   check("a cached switch draws what a retile draws",
         test_a_cached_switch_draws_what_a_retile_draws)
   check("the tiling key ignores variables and nothing else",

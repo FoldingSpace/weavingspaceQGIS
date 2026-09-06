@@ -10759,6 +10759,55 @@ MUTATIONS = [
            "nothing leading to it -- and the next archiving pass reads "
            "that ground as unarchived and takes it a second time, "
            "because the only record that it was done is the pointer"),
+  # THE SHAPE OF GROWTH, five arms, one entry each -- because the
+  # catalogue proves a test's primary axis and cannot see the rest, and
+  # each of these is one `if` a refactor can quietly drop while the
+  # healthy documents go on passing.
+  dict(name="a-document-with-no-how-to-add-section-is-reported",
+       file=DOC_ARCHIVE,
+       old="""  if HOW_TO_ADD not in lines[:80]:""",
+       new="""  if False:  # mutation: the how-to-add section is never required""",
+       test="test_a_document_that_grows_the_wrong_way_is_told_how_to_grow",
+       why="the next reader being told how the file grows before they add "
+           "to it; without the section they do what every reader here "
+           "has done, which is append"),
+  dict(name="a-new-section-in-a-themed-document-is-reported",
+       file=DOC_ARCHIVE,
+       old="""    unknown = [one for one in headings if one not in shape["sections"]]""",
+       new="""    unknown = []  # mutation: any section is allowed""",
+       test="test_a_document_that_grows_the_wrong_way_is_told_how_to_grow",
+       why="a lesson not escaping its theme as a section of its own, "
+           "which reads as organisation and is accretion"),
+  dict(name="an-inbox-past-its-cap-is-reported",
+       file=DOC_ARCHIVE,
+       old="""    if held > shape["inbox"]:""",
+       new="""    if False:  # mutation: the inbox has no cap""",
+       test="test_a_document_that_grows_the_wrong_way_is_told_how_to_grow",
+       why="the holding section for unthemed lessons staying a holding "
+           "section rather than quietly becoming a theme nobody folds"),
+  dict(name="an-entry-past-the-cap-is-reported",
+       file=DOC_ARCHIVE,
+       old="""    if len(body) > shape["entry"]:""",
+       new="""    if False:  # mutation: entries may be any length""",
+       test="test_a_document_that_grows_the_wrong_way_is_told_how_to_grow",
+       why="an account being kept out of the live half: an entry past the "
+           "cap is the narrative standing where the rule should"),
+  dict(name="a-date-led-entry-is-reported",
+       file=DOC_ARCHIVE,
+       old="""    if opens and EPISODE.match(line) and not ENTRY.match(line):""",
+       new="""    if False:  # mutation: the diary shape passes""",
+       test="test_a_document_that_grows_the_wrong_way_is_told_how_to_grow",
+       why="the diary shape -- a paragraph that opens with a date -- being "
+           "named at the gate, since it is the form every one of the "
+           "19,000 accreted lines took"),
+  dict(name="a-minted-id-is-never-reused",
+       file=DOC_ARCHIVE,
+       old="""  ident = f"{prefix}-{highest + 1}\"""",
+       new="""  ident = f"{prefix}-{highest}"  # mutation: reuses the last id""",
+       test="test_minting_an_id_writes_the_stub_and_never_reuses_one",
+       why="two accounts never sharing one id: ids are quoted in documents, "
+           "commits and conversations, and a reused one changes what an "
+           "old quotation means"),
   dict(name="a-drag-across-an-edge-does-not-restep-the-count",
        file="weavingspace_qgis/topology_tab.py",
        # AIMED AT THE DEADBAND, which is the half that costs a user

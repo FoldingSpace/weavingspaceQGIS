@@ -302,3 +302,55 @@ moves (`dev/doc_pass.py`) rather than by hand, so every cut is a
 verbatim copy and the id placeholder is filled by the tool; the end
 anchor of the last entry in a file needs a sentinel line, since the
 tool anchors on the NEXT block.
+
+## Writing for the next reader: how the documents fix themselves
+
+(Maintainer's ask, 2026-09-05: the documents will be edited by a
+different model from now on, and they should be structured and explain
+themselves so that the next editor adds to them well rather than
+endlessly appending material somebody has to come back and fix.)
+
+THE FAILURE TO DESIGN AGAINST IS NOT LENGTH, IT IS THE SHAPE OF
+GROWTH. Every one of the 19,000 lines these documents once held was
+added by somebody doing the right thing -- writing a lesson down the
+day it was paid for -- in the cheapest way available, which was a new
+dated section at the end. The remedy is to make the cheap way the
+right way, and to have the gate say so at the moment somebody departs
+from it. Five things do that, all in `tools/doc_archive.py`:
+
+- **A "How to add to this file" section near the top of every live
+  document**, which is the instruction a reader meets first. Each says
+  what kinds of thing the file holds, where each kind goes, that a
+  lesson is ONE CLAUSE in the entry it extends, and how to mint the id
+  for its account. The check requires it in the first eighty lines.
+- **Fixed sections where the sections are themes.** CLAUDE.md and
+  docs/TESTING.md list their headings in `SHAPES`; a heading not in the
+  list fails the check with the message that new sections are not how
+  the file grows. Adding a theme is a deliberate act made in the tool,
+  with the reason, like raising a budget. ROADMAP.md's sections are
+  versions and MAINTAINING.md's are mechanisms, so theirs are not fixed.
+- **An inbox with a cap.** A lesson that fits no theme goes under
+  "Inbox: lessons not yet themed" and the inbox holds six at most, so a
+  holding section cannot quietly become a section. FOLDING THE INBOX is
+  the pass in miniature: for each clause, read the themes' one-line
+  scopes, move the clause into the bullet it extends with its id kept,
+  and run the check. It costs minutes while the inbox is small.
+- **An entry cap and the diary shape.** No entry may run past a cap set
+  a fifth above the longest that stands after the pass (a ruling keeps
+  its whole statement, which sets CLAUDE.md's at sixty), and no entry or
+  paragraph may OPEN with a date or "same day" -- the shape that means
+  an account is standing where a rule should. Both fail with the fix in
+  the message: keep the rule, mint an id, move the account.
+- **A minter.** `python3 tools/doc_archive.py --mint C "title"` takes
+  the next id, writes the stub under it in the archive with an index
+  line, and says what remains: write the account there, quote the id
+  in the live half. Until both are done the check reports the account
+  as stranded, which is the nudge working rather than a fault. Ids are
+  never guessed and never reused.
+
+WHAT THIS DOES NOT DO is judge prose. A clause that is a platitude, or
+a rule that is wrong, passes every check here; the checks make the
+right shape the easy one and leave the judgement where it was. And a
+new theme, a raised cap or a raised budget are all legitimate -- each
+is a decision made in the tool, in the commit that needs it, with the
+reason written beside the number.

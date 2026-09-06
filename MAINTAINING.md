@@ -8,6 +8,21 @@ The full accounts of things this file states briefly are in
 `MAINTAINING-archived.md`, by the ids it quotes (M-1). This file is
 architecture, so most of it stays here; see docs/DOC-ARCHIVING.md.
 
+## How to add to this file
+
+This file explains MECHANISMS: what a thing is, the rule it keeps, the
+comparison table where there is one, and why it is shaped that way. A
+new mechanism gets a section stating those, in that order, at the
+place in the file where its neighbours live -- not at the end. An
+existing mechanism that changes is rewritten where it stands, and the
+superseded account goes to MAINTAINING-archived.md under an id minted
+with `python3 tools/doc_archive.py --mint M "title"`, quoted at the
+sentence it supports. What does NOT belong here is the narrative of
+finding out -- the day, the wrong first hypothesis, the measurement
+with its numbers -- which is the account and lives in the archive; an
+entry past 110 lines or a paragraph that opens with a date fails
+`tools/check_standards.py` with the fix in the message.
+
 ## Long jobs are sharded by default
 
 Anything that takes more than a few minutes and is made of
