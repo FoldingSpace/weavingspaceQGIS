@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-522 defect(s) with a regression test.
+524 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -808,6 +808,8 @@ there is no separate list to remember.
   guarded by `test_nothing_asks_whether_a_file_exists_before_removing_it`
 - **three callables outliving their dialog reached it through a bare lambda, so a destroyed dialog was touched and QGIS died with a segmentation fault. Found while running twelve tests in one process, 2026-08-29.**  
   guarded by `test_nothing_long_lived_is_connected_to_a_bare_lambda`
+- **not a defect in the plugin -- a canary, per .claude/skills/dependency-bug-workaround, so the day upstream fixes either half the suite says so and the workaround comes out.**  
+  guarded by `test_the_library_still_truncates_and_drifts_the_dual`
 - **2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files.**  
   guarded by `test_the_tenth_candidate_is_named_the_tenth`
 
@@ -1025,6 +1027,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_is_never_adopted_onto_the_ladders_own_edge`
 - **a class bound outside the column's own range was refused, so a user could not give two variables the same limits and have a colour mean the same number on both. Relaxing the guard alone was not enough: `_apply_pinned_bounds` built the outer class from the column's own extreme, so a pin below the data made a range running backwards and the ladder snapped back to 1.0. Reported against 0.24.3rc5.**  
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
+- **"Map the dual" drew the default design's dual with holes over 23% of the map, and the Topology tab could not build the dual's structure. Field report 5, 2026-09-05.**  
+  guarded by `test_a_promoted_dual_covers_its_cell_and_the_library_builds_it`
 - **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
   guarded by `test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape`
 - **ticking "Map the dual" on the default design left the Topology tab blank, its reason erased by the landing's own next call. Field report 5 against 0.24.4rc15, driven 2026-09-05.**  
@@ -1101,10 +1105,10 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 137
 - not written down at the time: 88
-- reported by a user: 45
+- reported by a user: 46
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
-- the functional suite, run whole: 9
+- the functional suite, run whole: 10
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5

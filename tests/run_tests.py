@@ -5773,15 +5773,22 @@ def test_the_saved_dual_belongs_to_the_saved_unit():
       f"{out}|layername={bridge.DUAL_TABLE_NAME}", "dual", "ogr")
     assert dual_layer.isValid(), \
       "PREMISE: the file carries no dual table to read"
+    # THE FINGERPRINT IS PERIMETER, NOT AREA (2026-09-05). A complete
+    # dual covers exactly the cell it repeats in whatever the edit did
+    # to its shapes, so once `complete_dual` landed the edited and
+    # un-edited duals summed to the same 250,000 and the premise below
+    # said the edit moved nothing. The area sums this test used to
+    # quote -- 191,476 against 154,550 -- were measurements of a
+    # TRUNCATED, slivered dual, and the perimeter is what still moves.
     got = round(
-      sum(f.geometry().area() for f in dual_layer.getFeatures()), 2)
+      sum(f.geometry().length() for f in dual_layer.getFeatures()), 2)
     del dual_layer
 
     plain = catalog.make_unit(spec, 500.0, None)
     topology, _why = topology_edits.build(plain)
     assert topology is not None, "PREMISE: the design lost its topology"
     unedited = round(
-      float(topology_edits.dual_frame(topology).geometry.area.sum()), 2)
+      float(topology_edits.dual_frame(topology).geometry.length.sum()), 2)
     edited_unit, refusals, _ = topology_edits.apply(
       topology, [{"classes": topology_edits.classes(topology)["vertex"][0],
                   "how": "nudge_vertex", "args": {"dx": 0.05, "dy": 0.05}}])
@@ -5790,12 +5797,12 @@ def test_the_saved_dual_belongs_to_the_saved_unit():
     assert edited_topology is not None, \
       "PREMISE: the edited design has no topology to take a dual of"
     edited = round(
-      float(topology_edits.dual_frame(edited_topology).geometry.area.sum()), 2)
+      float(topology_edits.dual_frame(edited_topology).geometry.length.sum()), 2)
     assert abs(edited - unedited) > 1.0, (
       "PREMISE: this edit does not move the dual, so the file cannot "
       f"be shown to carry the wrong one (both {edited})")
     assert abs(got - edited) < max(1.0, abs(edited) * 1e-6), (
-      f"the file's dual has area {got}; the dual of the motif it "
+      f"the file's dual has perimeter {got}; the dual of the motif it "
       f"carries is {edited} and the UN-EDITED motif's is {unedited}, so "
       f"a colleague opening the pair gets a motif beside somebody "
       f"else's dual")
@@ -12232,6 +12239,96 @@ def test_the_refusal_tells_gaps_from_a_library_refusal():
     f"a design whose tiles meet was told it has gaps: {why!r}"
   assert "tiles meet" in why, \
     f"the honest sentence did not arrive: {why!r}"
+
+
+def test_a_promoted_dual_covers_its_cell_and_the_library_builds_it():
+  """The dual the plugin promotes is complete, and is a design the
+  library can work with.
+
+  THE DIFFERENTIAL FOR THE DUAL, owed before the button that maps it
+  (ruling 2 of 2026-09-05). Three independent claims are checked on
+  eight designs, and every one is a count or an area rather than a
+  picture: the dual has one tile per vertex of the unit, which Euler
+  gives as edges minus faces; its tiles cover exactly the cell they
+  repeat in; and the library builds a Topology of it, which is what
+  the tab needs to edit it. The default design failed all three until
+  `complete_dual` existed -- four tiles of six, 77% cover, and a
+  ValueError inside the library's edge merge.
+
+  Regression: "Map the dual" drew the default design's dual with holes over 23% of the map, and the Topology tab could not build the dual's structure. Field report 5, 2026-09-05. [user]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  designs = ((4, "laves 3.3.4.3.4"), (2, "archimedean 4.8.8"),
+             (4, "hex-slice 4"), (3, "hex-slice 3"),
+             (5, "square-colouring 5"), (3, "hex-colouring 3"),
+             (6, "hex-slice 6"), (4, "square-slice 4"))
+  checked = 0
+  for n, key in designs:
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[n][key],
+                             spacing=500, crs=3857)
+    topology, why = topology_edits.build(unit)
+    assert topology is not None, f"PREMISE: {key} has no topology: {why}"
+    dual = topology_edits.dual_as_tileable(topology)
+    assert dual is not None, f"{key}: the dual could not be promoted"
+    corners = sum(len(g.exterior.coords) - 1 for g in unit.tiles.geometry)
+    faces = len(unit.tiles)
+    euler = corners / 2 - faces
+    assert len(dual.tiles) == euler, \
+      (f"{key}: the dual has {len(dual.tiles)} tiles where one per vertex "
+       f"is {euler:g} -- a dual short of tiles is a map with holes")
+    assert topology_edits.covers_its_cell(dual) is True, \
+      f"{key}: the dual's tiles do not cover the cell they repeat in"
+    built, why = topology_edits.build(dual)
+    assert built is not None, \
+      f"{key}: the library refused a topology of the completed dual: {why}"
+    checked += 1
+  assert checked == len(designs), "nothing was checked, so nothing is proved"
+
+
+def test_the_library_still_truncates_and_drifts_the_dual():
+  """CANARY: the two dual defects `complete_dual` works around are still
+  in the vendored library.
+
+  With the plugin's code out of the way, on the vendor's own Topology:
+  `get_dual_tiles()` hands back fewer rows than `dual_tiles` holds
+  whenever the dual has more tiles than its source, because it labels
+  them with the source's ids sliced to the dual's count; and two
+  copies of one tile get centres about a unit apart, because the
+  centre is a numerical search run per copy. Measured 2026-09-05 on
+  vendor 6190917.
+
+  Regression: not a defect in the plugin -- a canary, per .claude/skills/dependency-bug-workaround, so the day upstream fixes either half the suite says so and the workaround comes out. [suite]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"],
+                           spacing=500, crs=3857)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: the default design has no topology: {why}"
+  held = len(topology.dual_tiles)
+  frame = topology.get_dual_tiles()
+  assert len(frame) < held, (
+    "GOOD NEWS, PROBABLY: the library's get_dual_tiles now returns every "
+    f"dual tile ({len(frame)} of {held}). Half of complete_dual's reason "
+    "to exist is gone; keep the corner-consistency half unless the arm "
+    "below also passes, then delete complete_dual and use the library's "
+    "frame. Do NOT relax this assertion to make the suite green.")
+  drift = 0.0
+  for tile in topology.tiles:
+    base = topology.tiles[tile.base_ID]
+    if base is tile:
+      continue
+    dx = tile.shape.centroid.x - base.shape.centroid.x
+    dy = tile.shape.centroid.y - base.shape.centroid.y
+    drift = max(drift, abs(tile.centre.x - (base.centre.x + dx)),
+                abs(tile.centre.y - (base.centre.y + dy)))
+  assert drift > 1e-6, (
+    "GOOD NEWS, PROBABLY: the library's tile centres no longer drift "
+    f"between copies (largest difference {drift:.2e}). The "
+    "corner-consistency half of complete_dual is redundant; if the arm "
+    "above also passes, delete complete_dual and use the library's frame. "
+    "Do NOT relax this assertion to make the suite green.")
 
 
 def test_the_zigzag_needs_no_scipy():
@@ -88053,6 +88150,10 @@ def main():
         test_a_refusal_the_worker_returns_is_shown_not_erased)
   check("the refusal tells gaps from a library refusal",
         test_the_refusal_tells_gaps_from_a_library_refusal)
+  check("a promoted dual covers its cell and the library builds it",
+        test_a_promoted_dual_covers_its_cell_and_the_library_builds_it)
+  check("the library still truncates and drifts the dual",
+        test_the_library_still_truncates_and_drifts_the_dual)
   check("no artefact is named without its version",
         test_no_artefact_is_named_without_its_version)
   check("the element count is one control in two widgets",

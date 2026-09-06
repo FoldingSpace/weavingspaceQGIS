@@ -991,10 +991,11 @@ def dual_frame(topology):
     plugin at all -- the argument that put the element tables and their
     styles in there.
   """
-  try:
-    frame = topology.get_dual_tiles()
-  except Exception:                                   # noqa: BLE001
-    return None
+  # THE COMPLETE DUAL, for the same two reasons `dual_as_tileable` gives:
+  # the file's dual table was the truncated, slivered one until
+  # 2026-09-05, so a colleague opening it saw four of the default
+  # design's six dual tiles.
+  frame = complete_dual(topology)
   if frame is None or not len(frame):
     return None
   return _in_unit_space(frame)
@@ -1342,6 +1343,94 @@ def tile_symmetry_codes(unit):
 # fails, and that failure is GOOD NEWS: delete this function's body in
 # favour of the library's own, and delete the canary with it.
 
+def complete_dual(topology):
+  """The dual tiling, one tile per vertex of the unit, corners consistent.
+
+  Args:
+    topology: a built Topology. Its constructor has already run
+      `generate_dual`, which fills `dual_tiles` with one polygon per
+      vertex class of the unit; where it has not, it is run here.
+
+  Returns:
+    A GeoDataFrame with a `tile_id` column in this project's own
+    alphabet and one polygon per dual tile, carrying the source's CRS,
+    or None where the library gives no dual at all.
+
+  TWO LIBRARY DEFECTS ARE WORKED AROUND HERE, both measured 2026-09-05
+  on the vendor at 6190917 and both offered upstream in
+  docs/process/upstream-note-the-dual-is-truncated-and-drifts.md.
+  Delete this function and use `topology.get_dual_tiles()` when
+  `test_the_library_still_truncates_and_drifts_the_dual` fails.
+
+  THE LIBRARY TRUNCATES THE DUAL TO THE SOURCE'S TILE COUNT.
+  `get_dual_tiles` labels the dual's polygons with
+  `list(self.tileable.tiles.tile_id)[:n]`, and a GeoDataFrame built
+  from a data column of four beside six geometries has FOUR rows. A
+  dual has one tile per vertex, which is `edges - faces` per unit by
+  Euler, and that is more than the source's tiles on many designs:
+  the default design's dual came back 4 of 6 and covered 77% of the
+  ground, archimedean 4.8.8 2 of 4, hex-colouring 3 3 of 6. So the
+  frame is built here from `dual_tiles` itself, which already holds
+  the whole set.
+
+  AND ITS CORNERS DRIFT BETWEEN COPIES. A dual tile's corners are the
+  centres of the tiles around a vertex, and the library's centre is
+  `polylabel`, a numerical search that lands about a unit apart on
+  two copies of one tile. Adjacent dual tiles therefore disagreed
+  about their shared edge by about a unit, leaving four slivers of
+  577 units in a 250,000-unit cell -- and the library's own Topology
+  could not match those corners at its 1e-6 resolution, which is why
+  it refused the default design's dual while building the same
+  tiling from its own catalogue. Every copy's centre is taken here as
+  its BASE tile's centre translated by the copy's offset, which is
+  exact by construction: measured, the coverage is then 1.000000 on
+  every design tried and the library builds a Topology of all of them.
+  """
+  if topology is None:
+    return None
+  try:
+    if not getattr(topology, "dual_tiles", None):
+      topology.generate_dual()
+    if not topology.dual_tiles:
+      return None
+    from shapely import geometry as geom
+    polygons = []
+    for vertex_id in topology.dual_tiles:
+      vertex = topology.points[vertex_id]
+      polygons.append(geom.Polygon(
+        [_consistent_centre(topology, tile) for tile in vertex.get_tiles()]))
+    import geopandas as gpd
+    return gpd.GeoDataFrame(
+      {"tile_id": [_letters(index) for index in range(len(polygons))]},
+      geometry=gpd.GeoSeries(polygons),
+      crs=getattr(getattr(topology, "tileable", None), "crs", None))
+  except Exception:                                   # noqa: BLE001
+    return None
+
+
+def _consistent_centre(topology, tile):
+  """A tile's centre, identical under translation to its base tile's.
+
+  Args:
+    topology: the Topology the tile belongs to.
+    tile: any tile in its patch, a base tile or a copy.
+
+  Returns:
+    A shapely Point: the base tile's own centre moved by the copy's
+    offset, read off the two shapes' centroids, which are exact linear
+    functions of the coordinates and so agree to the last bit. For a
+    base tile that is its own centre unchanged. See `complete_dual`
+    for what this replaces and why.
+  """
+  from shapely import geometry as geom
+  base = topology.tiles[tile.base_ID]
+  if base is tile:
+    return tile.centre
+  dx = tile.shape.centroid.x - base.shape.centroid.x
+  dy = tile.shape.centroid.y - base.shape.centroid.y
+  return geom.Point(base.centre.x + dx, base.centre.y + dy)
+
+
 def dual_as_tileable(topology):
   """Turn a design's dual into a Tileable that can be mapped.
 
@@ -1373,20 +1462,17 @@ def dual_as_tileable(topology):
   unit = getattr(topology, "tileable", None)
   if unit is None:
     return None
-  try:
-    if not getattr(topology, "dual_tiles", None):
-      topology.generate_dual()
-    frame = topology.get_dual_tiles()
-  except Exception:                                   # noqa: BLE001
-    return None
+  # THE COMPLETE DUAL, NOT `get_dual_tiles()`: the library's frame is
+  # truncated to the source's tile count and its corners drift between
+  # copies, both worked around in `complete_dual` -- and both were how
+  # "Map the dual" drew a map with holes on the default design.
+  frame = complete_dual(topology)
   if frame is None or len(frame) == 0:
     return None
   if not _lattice_of(topology):
     return None
   try:
-    ids = [_letters(index) for index in range(len(frame))]
     tiles = frame.copy()
-    tiles["tile_id"] = ids
     dual = _shallow_copy_with_tiles(unit, tiles)
     # THE PROTOTILE HAS TO BE REBUILT FROM THE VECTORS, or the unit
     # carries the SOURCE design's outline around the dual's tiles and

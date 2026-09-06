@@ -24062,6 +24062,15 @@ class WeavingSpaceDialog(QDialog):
         # dual is the best available -- the write's both-or-neither
         # check and its stamp are what stop a mismatched pair going
         # out.
+        # AND THE QUARTER WAS THE LIBRARY'S DUAL, NOT THE CHAIN'S.
+        # (2026-09-05.) The 190,119-against-153,456 above was measured
+        # on a dual the library truncated to the source's tile count
+        # and whose corners drifted between copies; with
+        # `topology_edits.complete_dual` the chained and rebuilt duals
+        # coincide on a nudge to the last digit of their perimeter.
+        # The rebuilt limb is kept for the edit that changes incidence,
+        # which a nudge does not, and its catalogue entry now kills the
+        # edited limbs outright rather than the rebuilt one alone.
         for_dual = built.get("rebuilt_topology") \
             or built.get("edited_topology") or built.get("topology")
         # KEPT WITH THE DESIGN IT IS OF, which the first version of

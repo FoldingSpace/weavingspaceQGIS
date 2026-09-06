@@ -465,6 +465,28 @@ the dual). Cheapest and most durable first.
   docs/PUBLISHING.md name `TiledMap.render` from the vendored library
   at its recorded commit and drop the web-app claim. Wording through
   text review, which is the maintainer's act.
+- **AND A GENERAL AUDIT OF THE TOPOLOGY TAB** (maintainer's ask,
+  2026-09-05: "audit the topology tab more generally to make sure it
+  functions as expected"), after the items above: every control and
+  every handle driven on the packaged Auckland data as a person meets
+  them, with live update at its default, and every store read at each
+  step -- the shape field report 5 needed and reading did not supply.
+- **THEN A RE-AUDIT OF THE BINDING DOCUMENTS** (maintainer's ask,
+  2026-09-05): "make sure they say what they need (for LLMs) but no
+  more", moving more into the `-archived.md` halves. The measure is
+  the rule plus about one clause of evidence, applied a second time
+  now that the first pass and its audit have settled what the shape
+  is, and read entry by entry to the end rather than by length.
+- **AND THE SAME EDIT TO THE DOCSTRINGS** (same ask): "they're not
+  terribly useful for human maintainers right now, though of course
+  we want them to be effective for LLMs as well". The documentation
+  standard in CLAUDE.md still governs -- inputs, outputs, the
+  QGIS-shaped reasoning at the line -- and what goes is the narrative
+  that belongs in a commit or an archive: the day, the wrong first
+  hypothesis, the measurement that decided it. Where a docstring's
+  account is the only record of a measurement it moves to an archive
+  rather than being deleted, which is the same rule the documents
+  keep.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.

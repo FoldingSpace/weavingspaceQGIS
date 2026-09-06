@@ -3058,9 +3058,21 @@ MUTATIONS = [
        # that limb falls through to the chained one, which is the same
        # harm the entry was written for, a quarter out instead of a
        # fifth.
+       # RE-AIMED 2026-09-05, when `complete_dual` landed. Both of
+       # those measurements were of the library's TRUNCATED, drifting
+       # dual; with corners taken consistently the chained object's
+       # dual and the rebuild's coincide on this fixture to the last
+       # digit of their perimeter, so dropping the rebuilt limb changed
+       # nothing observable and the entry SURVIVED -- an inert mutation,
+       # not a weak test (the discriminator was run: killing every
+       # edited limb fails the test at once). The mutation now kills
+       # the edited limbs outright, which is the harm the entry has
+       # always been about: the file's dual being of a design nobody
+       # saved. The rebuilt limb stays in the code because it re-derives
+       # incidence where an edit changes it, which a nudge does not.
        old="""        for_dual = built.get("rebuilt_topology") \\
             or built.get("edited_topology") or built.get("topology")""",
-       new="""        for_dual = built.get("edited_topology") or built.get("topology")""",
+       new="""        for_dual = built.get("topology")  # mutation: the un-edited motif's dual""",
        test="test_the_saved_dual_belongs_to_the_saved_unit",
        why="a colleague opening the file getting the dual OF the motif "
            "beside it, rather than of a design nobody saved"),
@@ -10944,6 +10956,27 @@ MUTATIONS = [
            "to 1.0 or its inset to 0 -- a control it does not have, for "
            "a gap it does not have -- when the library refused it for "
            "a reason of its own. The default design's dual, 2026-09-05"),
+  dict(name="the-dual-is-not-truncated-to-the-source-s-tiles",
+       file=TOPOLOGY_EDITS,
+       old="""    for vertex_id in topology.dual_tiles:""",
+       new="""    for vertex_id in list(topology.dual_tiles)[:topology.n_tiles]:  # mutation: the library's truncation""",
+       test="test_a_promoted_dual_covers_its_cell_and_the_library_builds_it",
+       why="a map of the dual with holes: the library's own frame labels "
+           "the dual with the source's tile ids and so holds only as "
+           "many rows as the source has tiles -- four of the default "
+           "design's six, 77% of the ground. Field report 5, 2026-09-05"),
+  dict(name="the-duals-corners-do-not-drift",
+       file=TOPOLOGY_EDITS,
+       old="""  dx = tile.shape.centroid.x - base.shape.centroid.x
+  dy = tile.shape.centroid.y - base.shape.centroid.y
+  return geom.Point(base.centre.x + dx, base.centre.y + dy)""",
+       new="""  return tile.centre  # mutation: each copy's own polylabel centre""",
+       test="test_a_promoted_dual_covers_its_cell_and_the_library_builds_it",
+       why="slivers along every dual edge and a dual the library cannot "
+           "build a topology of: polylabel lands about a unit apart on "
+           "two copies of one tile, so adjacent dual tiles disagree about "
+           "their shared edge and the library's corner matching, at 1e-6, "
+           "refuses the result. The default design, 2026-09-05"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a
