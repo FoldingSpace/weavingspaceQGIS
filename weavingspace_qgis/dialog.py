@@ -6823,16 +6823,18 @@ class WeavingSpaceDialog(QDialog):
       return [[dict(e) for e in level] for level in chain]
     return [self._edits_shelved_at(0)]
 
-  def _a_new_map_does_not_inherit_the_file(self, launch_state=None) -> None:
-    """Clear the output path when a run lands in a NEW group on purpose.
+  def _a_new_map_does_not_inherit_the_file(self) -> None:
+    """Clear the output path at the door that asks for a NEW group.
 
-    Args:
-      launch_state: the run's launch snapshot, whose `output_path` the
-        landing is about to stamp on the group's record; blanked here
-        with the box, since a record naming the previous map's file
-        put it straight back in the box at the next reopen and one
-        Save then destroyed that map (round eight, stoch10, the twin
-        of the box's own repair). None where the caller has none.
+    AT THE DOOR, NOT AT THE LANDING. The first repair cleared the box
+    as the new group landed, which also wiped a path a person chose
+    AFTER the door -- the dataset switched, a file named, Generate --
+    and rc17's first build found three older tests doing exactly
+    that. Cleared where the person asks for a new map, as the dataset
+    door does, a path typed afterwards is theirs and lands; and the
+    launch snapshot then reads the empty box, so the created group's
+    record cannot carry the previous map's file either (the twin
+    stoch10 found).
 
     Returns:
       None. The dataset door has cleared the path since 2026-08-21, for
@@ -6849,14 +6851,12 @@ class WeavingSpaceDialog(QDialog):
       door and never reaches this, so a loaded file keeps its path.
     """
     widget = getattr(self, "gpkg_widget", None)
-    if isinstance(launch_state, dict) and launch_state.get("output_path"):
-      launch_state["output_path"] = None
     if widget is None or not widget.filePath():
       return
     widget.blockSignals(True)
     widget.setFilePath("")
     widget.blockSignals(False)
-    _dump("LANDING", "path-cleared-for-a-new-group")
+    _dump("DOOR", "path-cleared-for-a-new-group")
     self._report_quietly(PATH_CLEARED_FOR_A_NEW_MAP)
 
   def _preview_wait(self) -> int:
@@ -18445,9 +18445,12 @@ class WeavingSpaceDialog(QDialog):
       return
     handle = combo.currentData()
     if handle is None:
-      # CREATE NEW: nothing moves now. The next run builds its own
-      # group, and the chooser re-populates around it at the landing.
+      # CREATE NEW: the next run builds its own group, and the chooser
+      # re-populates around it at the landing. THE PATH CLEARS HERE,
+      # as it does at the dataset door: a saved file is one map, and
+      # a path chosen after this door is the person's own (row 9).
       self._new_group_chosen = True
+      self._a_new_map_does_not_inherit_the_file()
       return
     group = self._group_for_handle(handle)
     if group is None:
@@ -24608,7 +24611,8 @@ class WeavingSpaceDialog(QDialog):
     # in the wrapper's `finally`) rather than after this one call.
     self._dual_request = (self._new_group_chosen,
                           self.opt_map_dual.isChecked(),
-                          self._dual_chain)
+                          self._dual_chain,
+                          self.gpkg_widget.filePath())
     # FROZEN NOW, from the shelf of the design on screen, before the
     # dual term moves: the chain so far with this map's own edits as
     # its last level, which is what `_build_unit` and the record carry
@@ -24618,6 +24622,9 @@ class WeavingSpaceDialog(QDialog):
     # chooser.
     self._dual_chain = (self._the_chain_of_this_map()
                         + [self._edits_of_the_source_design()])
+    # THE DUAL WALKS THROUGH THE CREATE-NEW DOOR, so the path clears
+    # here as it does there (row 9); a refusal puts it back below.
+    self._a_new_map_does_not_inherit_the_file()
     self._new_group_chosen = True
     self.opt_map_dual.setChecked(True)
     # THE UNIT FOLLOWS THE CHAIN. The box's toggle rebuilt it for the
@@ -24640,12 +24647,20 @@ class WeavingSpaceDialog(QDialog):
     asked = getattr(self, "_dual_request", None)
     if asked is None:
       return
-    was_new, was_dual, was_chain = asked
+    was_new, was_dual, was_chain, was_path = asked
     self._dual_request = None
     self._new_group_chosen = was_new
     self.opt_map_dual.setChecked(was_dual)
     self._dual_source_group_name = None
     self._dual_chain = was_chain
+    # AND THE PATH THE PRESS CLEARED, where nothing has filled the box
+    # since: a store written before the act must not outlive a refused
+    # act (C-323).
+    widget = getattr(self, "gpkg_widget", None)
+    if was_path and widget is not None and not widget.filePath():
+      widget.blockSignals(True)
+      widget.setFilePath(was_path)
+      widget.blockSignals(False)
     # and the unit and the label follow the chain back, the box not
     # having moved where the press was on a dual group.
     self._queue_preview()
@@ -25206,8 +25221,6 @@ class WeavingSpaceDialog(QDialog):
     self._adopted_group_unwritten = False
     self._new_group_chosen = False
     group, created = self._get_or_make_group(force_new, tiled=source_layer)
-    if created and force_new:
-      self._a_new_map_does_not_inherit_the_file(launch_state)
     group.setName(self._group_name)
 
     old_ids = dict(self._element_layer_ids)

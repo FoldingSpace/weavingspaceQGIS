@@ -12490,7 +12490,10 @@ def test_the_zigzag_handle_keeps_its_amplitude_when_moved_along():
     start, finish, reach = view._chosen_edge_on_screen()
     run, rise = finish.x() - start.x(), finish.y() - start.y()
     along = (run / reach, rise / reach)
-    normal = (-rise / reach, run / reach)
+    # THE SIDE THE VIEW DRAWS THE HANDLE ON: the screen normal is
+    # (rise, -run) since row 5 of 2026-09-06, the mirror of what this
+    # test computed before rc17's first build found it.
+    normal = (rise / reach, -run / reach)
     handle = next((where for key, where, _shape in view.handles()
                    if key == "zigzag_edge"), None)
     assert handle is not None, "PREMISE: the zigzag handle is not drawn"
@@ -12532,7 +12535,10 @@ def test_the_zigzag_handle_keeps_its_amplitude_when_moved_along():
     assert handle is not None, "PREMISE: the zigzag handle is gone after the discard"
     out = 6.0
     grown = previewed(0, out)
-    wanted = 0.3 + out / reach
+    # IN CREST UNITS: the handle sits h/2 of the edge out (row 1), so
+    # six pixels further out is 6 / (reach * _CREST_OF_H) more h.
+    from weavingspace_qgis import topology_tab as _tab
+    wanted = 0.3 + out / (reach * _tab._CREST_OF_H)
     assert grown and abs(grown.get("h", -1.0) - wanted) < 0.02, (
       f"moving the handle {out:.0f}px further out along the drawn normal "
       f"previewed h={grown.get('h')} where {wanted:.3f} was expected: the "
@@ -17013,6 +17019,10 @@ def test_a_reopened_project_cannot_overwrite_yesterdays_geopackage():
     # the leg above a statement about the RUN rather than about a
     # dialog that could not write at all.
     assert second._element_layer_ids, "the second run drew nothing"
+    # THE PATH IS CHOSEN AGAIN: the create-new door clears it (row 9 of
+    # 2026-09-06), so the Save that follows is the person's own act.
+    second.gpkg_widget.setFilePath(path)
+    _tick(100)
     press_save(second)
     replaced = counts()
     assert replaced != before, \
@@ -44546,6 +44556,11 @@ def test_keeping_a_result_keeps_its_file_however_it_was_kept():
     # nothing could write does not change either. A deliberate press
     # must move it, from this same dialog, at this same path, with the
     # new spacing -- so the legs above are about the RUN.
+    # THE PATH IS CHOSEN AGAIN, since the create-new door clears it
+    # (row 9 of 2026-09-06): a deliberate Save into the kept file is
+    # then the person's own act, which is what this control asks.
+    dlg.gpkg_widget.setFilePath(path)
+    _tick(100)
     press_save(dlg)
     moved = tiles_in(element_a)
     assert moved != kept_count, \
@@ -57810,6 +57825,12 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
       return hashlib.sha1(repr(rows).encode()).hexdigest()
 
     before = digest()
+    # THE STORE IS CLEARED BEFORE THE ACT rather than sliced after it:
+    # `said.SAID` is bounded at its ceiling, where a slice taken by
+    # length is empty however much the act said (rc17's first build).
+    from weavingspace_qgis import said as said_module
+    said_module.clear()
+    BAR_MESSAGES.clear()
     combo = dlg.group_combo
     fresh = next(i for i in range(combo.count()) if combo.itemData(i) is None)
     combo.setCurrentIndex(fresh)
@@ -57817,7 +57838,6 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
     _tick(300)
     assert dlg._new_group_chosen, "PREMISE: Create new was not chosen"
     from weavingspace_qgis import said as said_module
-    said_before = len(said_module.SAID)
     dlg.spacing_spin.setValue(dlg.spacing_spin.value() * 2)
     _tick(300)
     _generate_and_wait(dlg)
@@ -57832,7 +57852,7 @@ def test_a_new_group_does_not_inherit_the_previous_maps_file():
     # `check()` never clears it: an earlier test's notice satisfied the
     # whole list in one process (trigger10).
     said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
-            + " ".join(str(r.get("text", "")) for r in said_module.SAID[said_before:])).lower()
+            + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
     from weavingspace_qgis.dialog import PATH_CLEARED_FOR_A_NEW_MAP
     assert PATH_CLEARED_FOR_A_NEW_MAP.lower() in said.lower(), (
       f"the path was cleared with nothing said: {said!r}")
@@ -58486,8 +58506,10 @@ def test_a_group_whose_layer_has_gone_is_refused_in_words():
     QgsProject.instance().removeMapLayer(layer_a.id())
     _tick(500)
     BAR_MESSAGES.clear()
+    # CLEARED, NOT SLICED: the store is bounded at its ceiling, where a
+    # slice by length is empty (rc17's first build).
     from weavingspace_qgis import said as said_module
-    said_before = len(said_module.SAID)
+    said_module.clear()
     index = next(i for i in range(combo.count())
                  if combo.itemData(i) is not None and "regionB" not in combo.itemText(i))
     combo.setCurrentIndex(index)
@@ -58500,7 +58522,7 @@ def test_a_group_whose_layer_has_gone_is_refused_in_words():
     # `check()` never clears it: an earlier test's notice satisfied the
     # whole list in one process (trigger10).
     said = (" ".join(str(t) for _k, t in BAR_MESSAGES) + " "
-            + " ".join(str(r.get("text", "")) for r in said_module.SAID[said_before:])).lower()
+            + " ".join(str(r.get("text", "")) for r in said_module.SAID)).lower()
     from weavingspace_qgis.dialog import THE_LAYER_HAS_GONE
     assert THE_LAYER_HAS_GONE.lower() in said, (
       f"a group whose layer has gone was chosen and nothing was said: {said!r}")
@@ -66862,9 +66884,15 @@ def _settle(dlg, seconds=30):
     # of seconds is this project's own rule; the event was simply
     # missing a third timer.
     repaint = getattr(dlg, "_repaint_timer", None)
+    # A DEFERRED PRESS OR TICK IS WORK STILL COMING: a Generate that
+    # waits for a topology replay leaves no task and no timer, and a
+    # settle that returned there let two dual tests read "nothing
+    # landed" under a loaded machine (rc17's first build).
     quiet = (dlg._task is None
              and not dlg._live_timer.isActive()
              and not dlg._preview_timer.isActive()
+             and not getattr(dlg, "_press_pending", False)
+             and not getattr(dlg, "_live_pending", False)
              and not (repaint is not None and repaint.isActive()))
     if quiet or n[0] > seconds * 5 * CONTENTION:
       state["settled"] = quiet

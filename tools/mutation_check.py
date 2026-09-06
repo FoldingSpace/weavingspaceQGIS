@@ -10441,8 +10441,10 @@ MUTATIONS = [
            "and an unbounded session-scoped list is a slow leak "
            "nobody would go looking for"),
   dict(name="the-chooser-arms-the-next-run", file=DIALOG,
-       old="""      # CREATE NEW: nothing moves now. The next run builds its own
-      # group, and the chooser re-populates around it at the landing.
+       old="""      # CREATE NEW: the next run builds its own group, and the chooser
+      # re-populates around it at the landing. THE PATH CLEARS HERE,
+      # as it does at the dataset door: a saved file is one map, and
+      # a path chosen after this door is the person's own (row 9).
       self._new_group_chosen = True""",
        new="""      pass  # mutation: 'Create new' asks for nothing""",
        test="test_the_group_chooser_is_the_only_door_to_a_new_group",
@@ -10990,21 +10992,13 @@ MUTATIONS = [
        why="the tiled-frame cache serving the first dual for the dual of "
            "a design edited a second time, since the key never moved "
            "(round eight, stoch9)"),
-  dict(name="a-new-groups-record-does-not-carry-the-old-file",
-       file=DIALOG,
-       old="""    if isinstance(launch_state, dict) and launch_state.get("output_path"):
-      launch_state["output_path"] = None""",
-       new="""    pass  # mutation: the record keeps the launch-time path""",
-       test="test_a_new_group_does_not_inherit_the_previous_maps_file",
-       why="a created group's record naming the previous map's file, so a "
-           "reopen put it back in the Save box and one press destroyed the "
-           "saved map (round eight, stoch10: the box was repaired and its "
-           "twin was not)"),
   dict(name="a-new-group-clears-the-inherited-path",
        file=DIALOG,
-       old="""    if created and force_new:
-      self._a_new_map_does_not_inherit_the_file(launch_state)""",
-       new="""    pass  # mutation: the new group keeps the old file""",
+       old="""      self._new_group_chosen = True
+      self._a_new_map_does_not_inherit_the_file()
+      return""",
+       new="""      self._new_group_chosen = True
+      return  # mutation: the new group keeps the old file""",
        test="test_a_new_group_does_not_inherit_the_previous_maps_file",
        why="a map saved to a file, then Create new or the dual button, "
            "then Save, replacing the saved file with the new map in "
