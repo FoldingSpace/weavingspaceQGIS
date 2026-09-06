@@ -116,6 +116,32 @@ def gate_numbers(report):
   return suite[0], suite[1], visual[0], visual[1]
 
 
+def shard_words(reports_dir):
+  """How many shards the suite ran in, read off the suite's own log.
+
+  Args:
+    reports_dir: the reports/v<version> directory; the stage log is at
+      its sibling reports/stage-logs/functional-suite.log.
+
+  Returns:
+    the count as a word ("four") where the log says `shard 0 of N`, or
+    the digits otherwise; "an unknown number of" where no log says.
+    Read rather than retyped: the body once said "three shards" from
+    a literal for a suite that had run in four.
+  """
+  log = os.path.join(os.path.dirname(reports_dir), "stage-logs",
+                     "functional-suite.log")
+  if not os.path.exists(log):
+    return "an unknown number of"
+  found = re.search(r"shard \d+ of (\d+)", open(log, encoding="utf-8").read())
+  if not found:
+    return "an unknown number of"
+  n = int(found.group(1))
+  words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+           7: "seven", 8: "eight"}
+  return words.get(n, str(n))
+
+
 def ci_verdict(sha):
   """Ask GitHub what every workflow on this commit concluded.
 
@@ -268,8 +294,8 @@ def main():
           f"printed in the release body.")
     return 1
   if not green:
-    ci_sentence = (f"{ci_sentence} Published anyway, deliberately: "
-                   f"{args.despite_ci}")
+    ci_sentence = (f"{ci_sentence.rstrip('.')}. Published anyway, "
+                   f"deliberately: {args.despite_ci}")
 
   # ---- a candidate nobody described is a candidate nobody can test.
   if not args.notes or not os.path.exists(args.notes):
@@ -281,6 +307,7 @@ def main():
   notes = open(args.notes, encoding="utf-8").read().strip()
 
   passed, failed, seen, unseen = gate_numbers(assets[1])
+  reports_dir = os.path.dirname(assets[1])
   body = (
     f"Release candidate for testing. **Not a release** — nothing is "
     f"promoted, `main` is untouched, and the plugin manager will show "
@@ -288,7 +315,8 @@ def main():
     f"Built from `{sha}`"
     + ("" if not dirty else " (with uncommitted files that do not ship)")
     + f". Every local gate passed on that tree: the functional suite "
-    f"in three shards, {passed} of {passed + failed} with no failures, "
+    f"in {shard_words(reports_dir)} shards, {passed} of {passed + failed} "
+    f"with no failures, "
     f"the visual gallery {seen} of {seen + unseen}, and the "
     f"colourspace comparison against the library's own renderer. "
     f"{ci_sentence}\n\n{notes}\n\n{CLOSING}\n")
