@@ -12482,10 +12482,12 @@ def test_the_zigzag_handle_keeps_its_amplitude_when_moved_along():
     box = next(b for _l, b in panel._argument_rows if b.property("argument") == "h")
     box.setFocus()
     box.lineEdit().selectAll()
-    QTest.keyClicks(box, "0.3")
+    # THE BOX TAKES THE CREST'S DISTANCE (2026-09-06), so the person
+    # types 0.15 for the h of 0.3 this test drives.
+    QTest.keyClicks(box, "0.15")
     QTest.keyClick(box, QtNamespace.Key.Key_Return)
     _tick(50)
-    assert abs(box.value() - 0.3) < 1e-9, f"PREMISE: typing 0.3 left the box at {box.value()}"
+    assert abs(box.value() - 0.3) < 1e-9, f"PREMISE: typing 0.15 left the box at h={box.value()}, not 0.3"
 
     start, finish, reach = view._chosen_edge_on_screen()
     run, rise = finish.x() - start.x(), finish.y() - start.y()
@@ -58261,13 +58263,17 @@ def test_a_dual_request_whose_run_is_cancelled_is_put_back():
 
 
 def test_the_ghost_meets_the_handle_on_the_drawing():
-  """On the real drawing, the ghost's first peak is the zigzag handle.
+  """On the real drawing, the ghost crests at the library's pitch and
+  the handle sits at its count's seat, both `h/2` of the edge out.
 
-  The bare-view test asserted this under `if seat is not None`, and on
-  a bare view no handle is ever placed, so the agreement between the
-  two pictures -- one fact, where the wave crests, drawn twice -- was
+  The bare-view test asserted the ghost under `if seat is not None`,
+  and on a bare view no handle is ever placed, so the picture was
   certified by nothing. Here the default design is opened, an edge
   chosen, zigzag picked, and both readings taken off the same view.
+  Since 2026-09-06 the handle no longer sits ON the first peak -- its
+  place along the edge is the count's seat -- so the two are asserted
+  apart: the ghost's first peak at `length / (2n)` along, the handle at
+  `_count_seat(n)` along, and both at the same distance out.
 
   Regression: the ghost's peak and the handle could have been drawn apart on the tab with every guard green, since the only assertion that they meet ran on a view that draws no handle. [hunt]
   """
@@ -58290,11 +58296,30 @@ def test_the_ghost_meets_the_handle_on_the_drawing():
     points = view._draw_the_zigzag_it_would_make(None)
     assert points and len(points) > 2, f"PREMISE: the ghost drew nothing: {points}"
     peak = points[1]
-    apart = ((peak.x() - seat.x()) ** 2 + (peak.y() - seat.y()) ** 2) ** 0.5
-    assert apart < 0.6, (
-      f"the ghost's first peak sits {apart:.2f}px from the handle on the "
-      f"drawing, so one fact -- where the wave crests -- is drawn in two "
-      f"places")
+    view._chosen_thing = view._chosen_thing
+    frame = view._chosen_edge_on_screen()
+    assert frame is not None, "PREMISE: the chosen edge has no screen geometry"
+    start, finish, reach = frame
+    ux, uy = (finish.x() - start.x()) / reach, (finish.y() - start.y()) / reach
+
+    def along_and_out(where):
+      dx, dy = where.x() - start.x(), where.y() - start.y()
+      return dx * ux + dy * uy, abs(-dx * uy + dy * ux)
+
+    peak_along, peak_out = along_and_out(peak)
+    seat_along, seat_out = along_and_out(seat)
+    from weavingspace_qgis import topology_tab
+    assert abs(peak_along - reach / 8.0) < 0.6, (
+      f"the ghost's first peak sits {peak_along:.2f}px along a {reach:.1f}px "
+      f"edge at n=4, not at length/(2n)={reach / 8.0:.2f}: the ghost has "
+      f"left the library's own pitch")
+    assert abs(seat_along - topology_tab._count_seat(4) * reach) < 0.6, (
+      f"the handle sits {seat_along:.2f}px along where four's seat is "
+      f"{topology_tab._count_seat(4) * reach:.2f}px")
+    assert abs(peak_out - seat_out) < 0.6, (
+      f"the ghost crests {peak_out:.2f}px out and the handle sits "
+      f"{seat_out:.2f}px out, so one fact -- the amplitude -- is drawn in "
+      f"two places")
   finally:
     dlg.close()
     dlg.deleteLater()
@@ -58717,6 +58742,63 @@ def test_a_save_as_of_a_self_contained_map_keeps_the_copy():
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def test_the_amplitude_box_shows_the_crests_distance():
+  """The Amplitude box shows and takes the crest's distance from the
+  edge while holding the library's peak-to-peak `h`.
+
+  A typed 0.4 drew a crest 0.2 of the edge out once the handle, the
+  ghost and the map agreed with the library (row 1), leaving the box
+  the one place a person met `h` itself. The maintainer's ruling of
+  2026-09-06: the box converts both ways and the record keeps `h`, so
+  nothing saved moves. Asserted on the box's own text, on what a typed
+  crest distance becomes, on the floor being typable, and on the
+  readout the handle is drawn from.
+
+  Regression: the Amplitude box read in the library's peak-to-peak units, so the number a person typed was twice the distance the drawing and the map showed. [user]
+  """
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, _handle, _along, _normal, _reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    box = next(b for _l, b in panel._argument_rows
+               if b.property("argument") == "h")
+    assert isinstance(box, topology_tab.CrestSpinBox), \
+      f"PREMISE: the amplitude box is a {type(box).__name__}"
+    box.setValue(0.25)
+    _tick(120)
+    assert abs(box.value() - 0.25) < 1e-9, "PREMISE: the box did not take 0.25"
+    shown = box.lineEdit().text().replace(box.locale().decimalPoint(), ".")
+    assert shown == "0.125", (
+      f"the box holds h=0.25 and shows {shown!r}, not the crest's 0.125")
+    # WHAT A PERSON TYPES IS THE DISTANCE THEY SEE.
+    box.lineEdit().setText("0.2")
+    box.interpretText()
+    _tick(120)
+    assert abs(box.value() - 0.4) < 1e-9, (
+      f"a typed crest distance of 0.2 became h={box.value()}, not 0.4")
+    assert abs(view._zigzag_readout[1] - 0.4) < 1e-9, (
+      f"the readout the handle is drawn from holds {view._zigzag_readout[1]}, "
+      f"not the h=0.4 a crest of 0.2 means")
+    # AND THE FLOOR IS TYPABLE IN CREST UNITS, though it lies below the
+    # h range Qt would otherwise judge the text against.
+    box.lineEdit().setText("0.005")
+    box.interpretText()
+    _tick(120)
+    assert abs(box.value() - 0.01) < 1e-9, (
+      f"a typed 0.005 -- the crest of the box's floor -- became "
+      f"h={box.value()}, so the floor cannot be typed")
+    assert "crest" in box.toolTip(), f"the box's tooltip says {box.toolTip()!r}"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_an_element_keeps_only_its_own_data_column():
   """The trim is an ALLOWLIST, so a column nobody mapped still goes.
 
@@ -58940,9 +59022,9 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
 
   (Ruling 2 of 2026-09-05, on field report 3: the count was reachable
   only through the numeric boxes, while `along` was computed on the
-  drag path and thrown away.) The glyph sits on the first peak, so
-  dragging it toward the edge's start shortens the wavelength and
-  raises the count -- and the count is whole, so it snaps.
+  drag path and thrown away.) The glyph sits at the count's seat, the
+  even counts spread evenly along the edge since 2026-09-06, eight
+  nearest the start -- and the count is whole, so it snaps.
 
   THE DEADBAND IS THE HALF WORTH GUARDING. A gesture aimed ACROSS an
   edge still resolves to a little travel ALONG it: `scale_edge` was
@@ -58992,18 +59074,26 @@ def test_a_drag_along_an_edge_sets_the_zigzag_count():
   # the count is even (maintainer's decision, 2026-09-05: the library
   # lays out only even counts, and class b of the default design
   # opened a gap at every odd one).
+  # THE SEATS ARE EVENLY SPACED (2026-09-06): from two at 0.85 of the
+  # edge, a quarter of the edge toward the start lands at 0.60, nearer
+  # four's seat at 0.617 than two's.
   raised = panel._drag_argument(None, "zigzag_edge", frame,
-                                -0.10, 0.0, span, current=at_two)
+                                -0.25, 0.0, span, current=at_two)
   assert raised.get("n") == 4, (
-    f"dragging the peak toward the edge's start gave n={raised.get('n')} "
-    f"where 3.3 should snap to the even count 4: either the count did "
-    f"not rise as the wavelength shortened, or odd counts are back")
-
-  # From n=4 the peak is at 12.5; dragging 12 along puts it near 24.5,
-  # and 100/(2*24.5) is 2.04, so the count comes down to 2.
+    f"dragging the handle a quarter of the edge toward its start gave "
+    f"n={raised.get('n')} where four's seat is nearest: either the count "
+    f"did not rise, or odd counts are back")
+  # AND EVERY COUNT IS ONE DRAG AWAY, which the first-peak placement
+  # could not give: from four the old stops lay 0.042 and 0.021 of the
+  # edge away, inside the deadband, so six was typed or nothing.
   at_four = dict(at_two, n=4.0)
+  stepped = panel._drag_argument(None, "zigzag_edge", frame,
+                                 -0.23, 0.0, span, current=at_four)
+  assert stepped.get("n") == 6, (
+    f"a drag of one seat's spacing from four gave n={stepped.get('n')}, "
+    f"not six: the count cannot be dragged one stop at a time")
   lowered = panel._drag_argument(None, "zigzag_edge", frame,
-                                 0.12, 0.0, span, current=at_four)
+                                 0.20, 0.0, span, current=at_four)
   assert lowered.get("n") == 2, (
     f"dragging the peak toward the edge's middle did not lower the "
     f"count as the wavelength grew: {lowered}")
@@ -59413,11 +59503,12 @@ def test_a_build_landing_does_not_eat_the_numbers_you_typed():
 def test_the_zigzag_handle_is_where_its_numbers_say():
   """The zigzag handle's POSITION is the readout, not a grab point.
 
-  (Rulings 1, 3 and 4 of 2026-09-05, on field reports 3 and 4.) The
-  handle sits on the first peak of the wave it describes: `length /
-  (2n)` along the edge from its start, and `h` of the edge's length out
-  along the normal. So its distance from the edge IS the amplitude and
-  its place along the edge IS the count.
+  (Rulings 1, 3 and 4 of 2026-09-05, on field reports 3 and 4; the
+  along-position re-ruled on 2026-09-06.) The handle sits at its
+  count's SEAT along the edge -- the even counts spread evenly between
+  two seats, eight nearest the start -- and `h` of the edge's length
+  out along the normal. So its distance from the edge IS the amplitude
+  and its place along the edge IS the count.
 
   WHAT THIS REPLACES, and why the old arrangement was a defect rather
   than a preference: the offset in `_EDGE_HANDLES` was a static 60,
@@ -59478,7 +59569,7 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
 
     frame = view._chosen_edge_on_screen()
     assert frame is not None, "PREMISE: the chosen edge has no screen geometry"
-    start, _finish, reach = frame
+    start, finish, reach = frame
 
     def seat():
       # THE SELECTION IS RE-ASSERTED BEFORE EVERY READING, and that is
@@ -59497,6 +59588,14 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
     def away_from_start(where):
       return (((where.x() - start.x()) ** 2 +
                (where.y() - start.y()) ** 2) ** 0.5)
+
+    def out_of(where):
+      # THE DISTANCE FROM THE EDGE ITSELF, since the seat along the edge
+      # (0.85 of it at n=2 since 2026-09-06) dwarfs the amplitude in a
+      # distance from the start: the out term is the amplitude's own.
+      ux, uy = (finish.x() - start.x()) / reach, (finish.y() - start.y()) / reach
+      dx, dy = where.x() - start.x(), where.y() - start.y()
+      return abs(-dx * uy + dy * ux)
 
     def box(name):
       # RE-READ EVERY TIME, NEVER CAPTURED. `_argument_rows` is rebuilt
@@ -59532,23 +59631,24 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
         f"same widget, with manipulation "
         f"{panel.how_combo.currentData()!r}")
 
-    # THE POSITION IS THE ARITHMETIC, not merely "somewhere sensible".
+    # THE POSITION IS THE ARITHMETIC, not merely "somewhere sensible":
+    # the count's seat along the edge (2026-09-06) and h/2 of it out.
     set_box("n", 2.0)
     set_box("h", 0.25)
-    along = reach / 4.0
+    along = topology_tab._count_seat(2) * reach
     out = 0.25 * reach * topology_tab._CREST_OF_H   # h is peak to peak
     wanted = (along ** 2 + out ** 2) ** 0.5
     assert abs(away_from_start(seat()) - wanted) < 1.5, (
-      f"the handle is not on the first peak: it sits "
+      f"the handle is not at its count's seat: it sits "
       f"{away_from_start(seat()):.1f}px from the edge's start where "
-      f"length/(2n)={along:.1f} along and h*length/2={out:.1f} out puts "
-      f"it at {wanted:.1f}px")
+      f"the seat for two, {along:.1f} along, and h*length/2={out:.1f} out "
+      f"put it at {wanted:.1f}px")
 
     # AND IT MOVES WITH EACH NUMBER SEPARATELY, which is what makes it
     # a readout rather than a decoration that happens to be near.
     before = seat()
     set_box("h", 0.05)
-    assert away_from_start(seat()) < away_from_start(before) - 2.0, (
+    assert out_of(seat()) < out_of(before) - 2.0, (
       "lowering the amplitude did not bring the handle in, so its "
       "distance from the edge is not the amplitude")
 
@@ -59575,13 +59675,13 @@ def test_the_zigzag_handle_is_where_its_numbers_say():
     view._chosen_thing = edge
     now = view._chosen_edge_on_screen()
     assert now is not None, "PREMISE: the edge stopped answering"
-    if now[2] / 16.0 < topology_tab._CLEAR_OF_VERTEX:
+    if topology_tab._count_seat(8) * now[2] < topology_tab._CLEAR_OF_VERTEX:
       assert not view.zigzag_readout_is_exact(), (
         f"the clamp has taken over and the view still reports the "
         f"readout as exact, so nothing would tell the person their "
         f"handle has stopped moving. edge={now[2]:.1f}px, "
         f"readout={view._zigzag_readout}, "
-        f"wanted along={now[2] / (2.0 * max(1, int(round(view._zigzag_readout[0])))):.1f}, "
+        f"wanted along={topology_tab._count_seat(view._zigzag_readout[0]) * now[2]:.1f}, "
         f"clearance={topology_tab._CLEAR_OF_VERTEX}")
       said = box("n").toolTip()
       assert "stopped moving" in said, (
@@ -91606,6 +91706,8 @@ def main():
         test_a_loaded_map_is_named_from_its_record_not_the_live_dual_term)
   check("a save as of a self-contained map keeps the copy",
         test_a_save_as_of_a_self_contained_map_keeps_the_copy)
+  check("the amplitude box shows the crests distance",
+        test_the_amplitude_box_shows_the_crests_distance)
   check("the dual is taken of the design as edited",
         test_the_dual_is_taken_of_the_design_as_edited)
   check("a typed odd count is even at every door",

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-549 defect(s) with a regression test.
+550 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1115,6 +1115,8 @@ there is no separate list to remember.
   guarded by `test_one_live_update_switch_seen_from_two_tabs`
 - **an edit could be aimed at one class or at every class of a kind and at nothing between, though the library's selector and the saved record have always taken several.**  
   guarded by `test_several_classes_can_be_moved_together`
+- **the Amplitude box read in the library's peak-to-peak units, so the number a person typed was twice the distance the drawing and the map showed.**  
+  guarded by `test_the_amplitude_box_shows_the_crests_distance`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
 - **"Map the dual instead" tiled the dual OVER the source's own group, with holes, and left the Topology tab blank. Field report 5, 2026-09-05.**  
@@ -1155,7 +1157,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
-- reported by a user: 52
+- reported by a user: 53
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10

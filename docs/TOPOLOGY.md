@@ -626,6 +626,10 @@ the view's y-flip is counted, found the same morning by the hunt
 aimed at the crest repair, whose differential compared absolute
 values and could not see it; the normal is `(rise, -run)` now and the
 differential asserts the signed first lobe through the flip (C-324).
+And since the evening of 2026-09-06 the Amplitude box SHOWS the
+crest's distance while holding `h`: the maintainer chose the box
+that converts on its face over one that changes what every saved
+record's `h` means (C-337).
 
 ## The general audit of 2026-09-05, and what it found
 
@@ -735,6 +739,17 @@ at the window's floor of about 1034x458 the two edge classes draw at
 1500x950 they draw at 236px and 173px, exact to n=7 and n=5. Ruling 6
 asked that everything be reachable at realistic sizes; this is the
 measurement of where the tab stands.
+
+SETTLED ON 2026-09-06 BY INTERPOLATING THE COUNT. The specification
+hunt measured the stops against the deadband -- from four the next
+lay 0.042 and 0.021 of the edge away against a deadband of 0.10, so
+four and six could be typed and never dragged to -- and the
+maintainer ruled that the handle's place along the edge interpolates
+the even counts between two seats, 0.15 and 0.85 of the edge, eight
+nearest the start. The stops are 0.233 of the edge apart, every count
+is one drag away, and the clamp above bites only on an edge too short
+for the seats. The handle no longer sits on the first crest; the
+ghost still does, at the library's pitch (C-336).
 
 **What the audit found sound**, kept so the next one need not redo
 it: a click on a vertex or an edge moves the owner, the combo, the

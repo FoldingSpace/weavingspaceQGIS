@@ -10829,13 +10829,44 @@ MUTATIONS = [
            "measured committing a scale of 1.003 from exactly that on "
            "2026-08-30, and a whole number is the more expensive place "
            "for it to happen"),
+  dict(name="the-amplitude-box-shows-the-crest",
+       file=TOPOLOGY_TAB,
+       old="""    return super().value() / _CREST_OF_H""",
+       new="""    return super().value()  # mutation: the crest read as h""",
+       test="test_the_amplitude_box_shows_the_crests_distance",
+       why="the Amplitude box showing the library's peak-to-peak h, twice "
+           "the distance the drawing and the map show (maintainer's ruling "
+           "of 2026-09-06)"),
+  dict(name="the-amplitude-box-takes-the-crest",
+       file=TOPOLOGY_TAB,
+       old="""    super().setValue(float(amplitude) * _CREST_OF_H)""",
+       new="""    super().setValue(float(amplitude))  # mutation: h on the face""",
+       test="test_the_amplitude_box_shows_the_crests_distance",
+       why="a typed crest distance recorded as h itself, so the wave drawn "
+           "is half the one typed (2026-09-06)"),
+  dict(name="the-count-seats-are-spread-evenly",
+       file=TOPOLOGY_TAB,
+       old="""        along = _count_seat(count) * reach""",
+       new="""        along = reach / (2.0 * count)  # mutation: the first peak again""",
+       test="test_the_zigzag_handle_is_where_its_numbers_say",
+       why="the zigzag handle back on the wave's first peak, where its stops "
+           "crowd toward the start and four and six cannot be dragged to "
+           "(maintainer's ruling of 2026-09-06: the count interpolates)"),
+  dict(name="the-drag-reads-the-count-off-its-seat",
+       file=TOPOLOGY_TAB,
+       old="""        here = _count_seat(was) * length""",
+       new="""        here = length / (2.0 * max(1.0, was))  # mutation: measured from the peak""",
+       test="test_a_drag_along_an_edge_sets_the_zigzag_count",
+       why="a drag measured from the wave's first peak while the handle is "
+           "drawn at the count's seat, so the count a drag records is not "
+           "the one the handle shows (2026-09-06)"),
   dict(name="along-edge-travel-sets-the-zigzag-count",
        file="weavingspace_qgis/topology_tab.py",
        # AIMED AT THE MAPPING ITSELF. Without it the drag carries the
        # amplitude alone, which is the state field report 3 described:
        # the count reachable only through the numeric boxes.
-       old="""        changes["n"] = _even_count(wanted)""",
-       new="""        changes["_n"] = _even_count(wanted)  # mutation: n never set""",
+       old="""        changes["n"] = _count_at(moved / length if length > 1e-9 else 0.0)""",
+       new="""        changes["_n"] = _count_at(moved / length if length > 1e-9 else 0.0)  # mutation: n never set""",
        test="test_a_drag_along_an_edge_sets_the_zigzag_count",
        why="the zigzag's count being unreachable from the drawing, "
            "which is field report 3 against rc15. `along` is computed "
@@ -11109,11 +11140,10 @@ MUTATIONS = [
        old="""    step = reach / (2.0 * count)""",
        new="""    step = reach / (2.0 * count + 1)  # mutation: crest elsewhere""",
        test="test_the_ghost_meets_the_handle_on_the_drawing",
-       why="the ghosted wave and the handle disagreeing about where "
-           "the zigzag crests. Ruling 3 of 2026-09-05 puts the handle "
-           "ON the first peak so its place along the edge IS the "
-           "count; a ghost drawn to a different pitch makes the "
-           "drawing argue with itself"),
+       why="the ghosted wave cresting at a pitch that is not the "
+           "library's own: the ghost is the picture of the wave the map "
+           "will get, and since 2026-09-06 it is the only thing on the "
+           "drawing that says where the crests fall"),
   dict(name="a-stall-report-names-what-the-task-manager-holds",
        file="tests/run_tests.py",
        # AIMED AT THE MANAGER'S HALF. Without it the message says a
@@ -11320,8 +11350,8 @@ MUTATIONS = [
            "of 2026-09-05 would hold in the pure function and not on the "
            "drawing where a person's slip happens"),
   dict(name="the-zigzag-count-snaps-to-even", file=TOPOLOGY_TAB,
-       old="""        changes["n"] = _even_count(wanted)""",
-       new="""        changes["n"] = max(_COUNT_FLOOR, min(_COUNT_CEILING, round(wanted)))  # mutation: odd counts by drag""",
+       old="""  return _even_count(float(_COUNT_CEILING) - t * (_COUNT_CEILING - _COUNT_FLOOR))""",
+       new="""  return int(round(float(_COUNT_CEILING) - t * (_COUNT_CEILING - _COUNT_FLOOR)))  # mutation: odd counts back""",
        test="test_a_drag_along_an_edge_sets_the_zigzag_count",
        why="a drag producing an odd zigzag count, which the library "
            "documents as unsupported and which opened a gap on class b of "

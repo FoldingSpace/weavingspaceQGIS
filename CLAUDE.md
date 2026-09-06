@@ -1812,12 +1812,15 @@ Confirmed with the user via an explicit design review:
   peak to peak, since a handle at the whole of it showed a wave 2.1
   times the one the map got (C-320). (2) ALONG-EDGE TRAVEL SETS THE COUNT,
   past a deadband of a tenth of the edge sized from the glyph, and
-  the count SNAPS because the stops are the counts. (3) THE HANDLE
-  SITS ON THE WAVEFORM'S FIRST PEAK, `length / (2n)` along, so the
-  preview passes through it. (4) THE ALONG-POSITION IS CLAMPED 15px
-  clear of both vertices, and above the count where the clamp bites
-  the readout says it is no longer exact. (5) THE WAVE IS GHOSTED ON
-  THE EDGE while zigzag is chosen, cresting at the handle, with four
+  the count SNAPS because the stops are the counts. (3) THE HANDLE'S
+  PLACE ALONG THE EDGE IS THE COUNT, the even counts spread evenly
+  between two seats at 0.15 and 0.85 of the edge, eight nearest the
+  start (maintainer's ruling of 2026-09-06, superseding the first-peak
+  placement, whose stops crowded inside the deadband so four and six
+  could only be typed; C-336). (4) THE ALONG-POSITION IS CLAMPED 15px
+  clear of both vertices, and on an edge too short for its seats the
+  readout says it is no longer exact. (5) THE WAVE IS GHOSTED ON THE
+  EDGE while zigzag is chosen, at the library's own pitch, with four
   painted, never-clicked cues -- deeper, shallower, tighter, wider --
   each a miniature of what it produces, computed at paint time and
   stored nowhere. Two more, grilled later the same day (C-319): (6) A
@@ -1828,7 +1831,10 @@ Confirmed with the user via an explicit design review:
   COUNT IS EVEN, 2 TO 8, a typed odd count settling up, on the
   library's own word that zigzag works only for even n; and the
   readout's clamp STANDS, the box carrying the count past where the
-  drag is exact.
+  drag is exact. (8) THE AMPLITUDE BOX SHOWS THE CREST'S DISTANCE
+  from the edge and holds the library's `h`, converting on its face
+  alone so nothing saved moves (maintainer's ruling, 2026-09-06, the
+  third of three options; C-337).
 - **THE DUAL: FIVE RULINGS OF 2026-09-05.** (Field report 5; the
   measurements are R-79, the refusals and the gaps distinction C-312.)
   (1) "Map the dual instead" is a BUTTON, "Generate the dual and tile

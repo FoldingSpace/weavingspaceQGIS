@@ -370,6 +370,8 @@ quote them, do not renumber them.
 - **C-333** — A binding that returns nothing lets two stores name two maps: the chooser refuses a gro...  <sub>minted</sub>
 - **C-334** — Duals chain: the boolean became a depth, and the second press tiled the first dual again  <sub>minted</sub>
 - **C-335** — A per-file memory answers absent for a file being created: a Save As asks the file the ...  <sub>minted</sub>
+- **C-336** — The zigzag count interpolates along the edge: the seats spread evenly, eight nearest th...  <sub>minted</sub>
+- **C-337** — The Amplitude box shows the crest's distance and holds the library's h  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10739,3 +10741,64 @@ keeps it. Row 18; guarded by
 `a-save-as-keeps-the-senders-copy`. The general form: a memory keyed
 by a file has no entry for a file that does not exist yet, so an act
 that creates a file asks the memory of the file the work came from.
+
+### C-336 — The zigzag count interpolates along the edge: the seats spread evenly, eight nearest the start
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-336).</sub>
+
+Round eight's specification hunt (`spec7`, 2026-09-06) measured
+ruling 2 of the zigzag handle against the spacing of its own stops:
+the handle sat on the wave's first peak, `L / (2n)` along, so from a
+count of four the next stops lay 0.042 and 0.021 of the edge away
+while the deadband was 0.10 of it, and a drag past the deadband from
+four or six recorded only two or eight. Four and six could be typed
+and never dragged to. Put to the maintainer that evening with three
+options (size the deadband from the stops; step one stop per
+gesture; leave it), and answered with a fourth: have the ends of the
+deadbands be the two ends of the count and interpolate between them,
+to the even counts. So the handle's place along the edge is a
+straight interpolation over 2, 4, 6, 8 between two seats at 0.15 and
+0.85 of the edge (`_COUNT_SEATS`, `_count_seat`, `_count_at`), eight
+nearest the start since a drag that way still crowds the peaks; the
+stops are 0.233 of the edge apart against the deadband's 0.10, every
+count is one drag away, and the readout is exact wherever the edge
+has room for the seats. What it gives up is ruling 3's picture: the
+handle no longer sits on the first crest, which for a count of two
+is a quarter of the edge along; the ghost goes on cresting at the
+library's pitch, so the drawing stays honest about the wave while
+the handle reads the count, and the guard that once asserted the two
+coincide asserts them apart now. The clamp of ruling 4 keeps its
+sentence for an edge too short to hold the seats. Guarded by the
+entries `the-count-seats-are-spread-evenly` and
+`the-drag-reads-the-count-off-its-seat` and the three zigzag guards
+moved to the seats.
+
+### C-337 — The Amplitude box shows the crest's distance and holds the library's h
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-337).</sub>
+
+Round eight's row 1 left a question recorded rather than decided:
+once the handle, the ghost and the map agreed that the library's `h`
+is peak to peak, the Amplitude box was the one place a person met
+`h` itself, so a typed 0.4 drew a crest 0.2 of the edge out. Put to
+the maintainer on 2026-09-06 with three options -- keep the box in
+`h`; read and record crest units, which changes the meaning of every
+saved record's `h`; read the box in crest units and go on recording
+`h` -- and the third was chosen. `CrestSpinBox` converts on its face
+alone: `value()` and `setValue()` stay in `h`, so the record, the
+drag, the argument memory, every test that drives the box and every
+saved file keep the library's units, and `textFromValue` and
+`valueFromText` convert by `_CREST_OF_H` in each direction -- that
+was the first form, and it failed its own guard: Qt judges typed
+text against ITS range before it asks `valueFromText`, so a typed
+0.005 (the crest of the floor) was fixed up against a floor of 0.01
+and came back as h 0.02, twice itself. The form that stands turns
+it round: Qt holds CREST units (range, step, text, validation all
+in the number a person sees) and the Python readers convert --
+`value`, `setValue`, `minimum`, `maximum`, `setRange`,
+`setSingleStep` -- so every caller goes on speaking `h`. Three
+decimals, since the floor is 0.005 on the face. The tooltip
+says what the number is. Guarded by
+`test_the_amplitude_box_shows_the_crests_distance` and the entries
+`the-amplitude-box-shows-the-crest` and
+`the-amplitude-box-takes-the-crest`.

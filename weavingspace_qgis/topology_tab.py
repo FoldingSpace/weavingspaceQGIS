@@ -168,17 +168,28 @@ _VERTEX_HANDLES = (
 # Matched to the drawn seat: a handle a person can see is a
 # handle they can hit.
 _HANDLE_REACH = 13.0
-# HOW CLOSE THE ZIGZAG'S HANDLE MAY COME TO A VERTEX. Its along-position
-# is `length / (2n)` from the edge's start -- the first peak of the wave
-# it describes -- so it walks toward that vertex as the count rises, and
-# at n=8 on a 40px edge it would sit 2.5px from it. Handles are tested
+# HOW CLOSE THE ZIGZAG'S HANDLE MAY COME TO A VERTEX. Handles are tested
 # before vertices, so a handle on a vertex makes that vertex unclickable
 # -- the measured reason the far-side offset was refused on 2026-08-31.
 # Sized as the reach plus a seat's half-width, so the two never overlap.
-# ABOVE THE COUNT WHERE THIS BITES THE POSITION IS NO LONGER AN EXACT
+# ON AN EDGE TOO SHORT FOR ITS SEATS THE POSITION IS NO LONGER AN EXACT
 # READOUT, and that is said out loud rather than left to be discovered:
 # `zigzag_readout_is_exact` answers it. (Ruling 4 of 2026-09-05.)
 _CLEAR_OF_VERTEX = 15.0
+# WHERE ALONG THE EDGE THE COUNT'S TWO ENDS SIT, as fractions of the
+# edge from its start: the ceiling nearest the start, the floor nearest
+# the far vertex, and the even counts between them spread evenly. THE
+# COUNT INTERPOLATES (maintainer's ruling, 2026-09-06): the handle used
+# to sit on the wave's first peak, `length / (2n)` along, so its stops
+# crowded toward the start as the count rose -- from four the next lay
+# 0.042 and 0.021 of the edge away against a deadband of 0.10, and four
+# and six could be typed but never dragged to. Spread evenly the stops
+# are 0.233 of the edge apart, every count is one drag away, and the
+# readout is exact wherever the edge has room for the seats. The ghost
+# still crests at the library's own pitch, so the drawing is honest
+# about the wave while the handle reads the count. Eight nearest the
+# start, since a drag that way still crowds the peaks.
+_COUNT_SEATS = (0.15, 0.85)
 # HOW FAR ALONG AN EDGE A DRAG MUST TRAVEL BEFORE IT MOVES THE COUNT,
 # as a fraction of that edge's own length. A gesture aimed ACROSS an
 # edge still resolves to a little travel ALONG it -- `scale_edge` was
@@ -205,6 +216,103 @@ _COUNT_FLOOR, _COUNT_CEILING = 2, 8
 # settled to the nearest even one when editing finishes. A request for
 # odd counts belongs upstream, beside the existing notes.
 _COUNT_STEP = 2
+
+
+class CrestSpinBox(TrimmedSpinBox):
+  """The Amplitude box: shows the crest's distance, holds the library's `h`.
+
+  The library's `h` is peak to peak, so a typed 0.4 draws a crest 0.2
+  of the edge out -- and since round eight the handle, the ghost and
+  the map agree about that, leaving the box the one reader of `h` a
+  person meets. (Maintainer's ruling, 2026-09-06, the third of three:
+  the box converts and the record keeps `h`.) QT HOLDS CREST UNITS
+  and every Python reader gets `h`: the face, the arrows, the typed
+  text and Qt's own validation all work in the number a person sees,
+  while `value`, `setValue`, `minimum`, `maximum`, `setRange` and
+  `setSingleStep` convert by `_CREST_OF_H`, so the record, the drag,
+  the memory, every test that drives the box and every saved file
+  keep the library's units. The first form converted the TEXT alone
+  and left Qt's range in `h`, and Qt then judged a typed floor of
+  0.005 as below 0.01 and fixed it up to twice itself (C-337).
+  `valueChanged` carries Qt's crest value; the tab's one connection
+  ignores the payload and reads `value()`.
+  """
+
+  def value(self):
+    """The held amplitude as the library's `h`, peak to peak."""
+    return super().value() / _CREST_OF_H
+
+  def setValue(self, amplitude):                        # noqa: N802 (Qt API)
+    """Hold an amplitude given as `h`.
+
+    Args:
+      amplitude: peak to peak, the library's own parameter.
+    """
+    super().setValue(float(amplitude) * _CREST_OF_H)
+
+  def minimum(self):
+    """The floor, as `h`."""
+    return super().minimum() / _CREST_OF_H
+
+  def maximum(self):
+    """The ceiling, as `h`."""
+    return super().maximum() / _CREST_OF_H
+
+  def setRange(self, low, high):                        # noqa: N802 (Qt API)
+    """Set the range given as `h`.
+
+    Args:
+      low: the floor, peak to peak.
+      high: the ceiling, peak to peak.
+    """
+    super().setRange(float(low) * _CREST_OF_H, float(high) * _CREST_OF_H)
+
+  def singleStep(self):                                 # noqa: N802 (Qt API)
+    """One arrow press, as `h`."""
+    return super().singleStep() / _CREST_OF_H
+
+  def setSingleStep(self, step):                        # noqa: N802 (Qt API)
+    """Set what one arrow press moves, given as `h`.
+
+    Args:
+      step: peak to peak, as the manipulation table spells it.
+    """
+    super().setSingleStep(float(step) * _CREST_OF_H)
+
+
+def _count_seat(count) -> float:
+  """Where along an edge the zigzag handle sits for a count.
+
+  Args:
+    count: the zigzag count, clamped to the declared range.
+
+  Returns:
+    The fraction of the edge, from its start, at which that count's
+    seat lies: the ceiling at `_COUNT_SEATS[0]`, the floor at
+    `_COUNT_SEATS[1]`, and the counts between spread evenly. ONE OWNER
+    with `_count_at` below, so the handle and the drag that moves it
+    cannot disagree about where a count is.
+  """
+  near, far = _COUNT_SEATS
+  held = min(float(_COUNT_CEILING), max(float(_COUNT_FLOOR), float(count)))
+  t = (float(_COUNT_CEILING) - held) / float(_COUNT_CEILING - _COUNT_FLOOR)
+  return near + t * (far - near)
+
+
+def _count_at(fraction) -> int:
+  """The even count whose seat is nearest a place along the edge.
+
+  Args:
+    fraction: a position along the edge as a fraction of its length
+      from its start; beyond either seat it reads as that seat.
+
+  Returns:
+    The nearest even count in the declared range, the inverse of
+    `_count_seat`.
+  """
+  near, far = _COUNT_SEATS
+  t = min(1.0, max(0.0, (float(fraction) - near) / (far - near)))
+  return _even_count(float(_COUNT_CEILING) - t * (_COUNT_CEILING - _COUNT_FLOOR))
 # A CLICK ON THE ZIGZAG HANDLE THAT SLIPS A PIXEL IS STILL A CLICK.
 # (Maintainer's decision, 2026-09-05, grilled.) The amplitude's click
 # threshold used to be 0.01 of the edge's length -- the box's floor --
@@ -1450,7 +1558,7 @@ class TopologyView(QWidget):
     """Whether the zigzag handle is where its count says it is.
 
     Returns:
-      True where the first peak sits clear of both vertices, so the
+      True where the count's seat sits clear of both vertices, so the
       along-position is a true readout of the count; False where the
       clamp has taken over and the handle has stopped moving as the
       count rises. The panel says so when this is False, because a
@@ -1462,7 +1570,7 @@ class TopologyView(QWidget):
       return True
     _start, _finish, reach = edge
     count = max(1, int(round(self._zigzag_readout[0])))
-    wanted = reach / (2.0 * count)
+    wanted = _count_seat(count) * reach
     return _CLEAR_OF_VERTEX <= wanted <= reach - _CLEAR_OF_VERTEX
 
   def handles(self):
@@ -1537,23 +1645,22 @@ class TopologyView(QWidget):
     for key, at, out, shape in _EDGE_HANDLES:
       if at == "peak":
         # THE ZIGZAG'S HANDLE IS A READOUT, NOT A GRAB POINT. It sits
-        # on the first peak of the wave it describes -- `length / (2n)`
-        # from the edge's start, `h` of the edge's length out along the
-        # normal -- so the glyph is ON the thing it draws and its
+        # at the count's SEAT along the edge -- `_count_seat`, the even
+        # counts spread evenly between two seats since 2026-09-06 -- and
+        # `h` of the edge's length out along the normal, so its
         # distance from the edge IS the amplitude. Until 2026-09-05
         # `out` was a static 60 while the code claimed that distance
         # was the amplitude, which put a zero-amplitude readout 60px
         # off its own edge: further away, on a 40px edge, than the edge
         # is long. That is the field report this answers.
-        # CLAMPED CLEAR OF BOTH VERTICES, because at n=8 the peak is
-        # 2.5px from one and a handle over a vertex makes that vertex
-        # unclickable. Where the edge is too short to hold the
-        # clearance at all the peak goes to the middle, which is the
-        # honest answer for an edge with no room.
+        # CLAMPED CLEAR OF BOTH VERTICES, because a handle over a
+        # vertex makes that vertex unclickable. Where the edge is too
+        # short to hold the clearance at all the seat goes to the
+        # middle, which is the honest answer for an edge with no room.
         if not self._zigzag_readout:
           continue
         count = max(1, int(round(self._zigzag_readout[0])))
-        along = reach / (2.0 * count)
+        along = _count_seat(count) * reach
         room = reach - _CLEAR_OF_VERTEX
         along = (reach / 2.0 if room <= _CLEAR_OF_VERTEX
                  else min(max(along, _CLEAR_OF_VERTEX), room))
@@ -2588,11 +2695,19 @@ class TopologyPanel(QWidget):
     for row, (name, label, low, high, default, step) in enumerate(
         edits_module.MANIPULATIONS[key]["args"], start=4):
       caption = QLabel(label)
-      box = TrimmedSpinBox()
+      # THE AMPLITUDE BOX SHOWS THE CREST'S DISTANCE and holds `h`
+      # (maintainer's ruling, 2026-09-06): three decimals, since the
+      # floor of 0.01 in `h` is 0.005 on the face of the box.
+      crest = key == "zigzag_edge" and name == "h"
+      box = CrestSpinBox() if crest else TrimmedSpinBox()
+      if crest:
+        box.setDecimals(3)
       box.setRange(low, high)
       box.setSingleStep(step)
       box.setValue(remembered.get(name, default))
-      box.setToolTip(f"{label} for this change.")
+      box.setToolTip(
+        "How far the crests reach out from the edge, as a fraction of the edge's length."
+        if crest else f"{label} for this change.")
       box.setProperty("argument", name)
       if key == "zigzag_edge" and name == "n":
         # EVEN COUNTS ONLY, and a typed odd one is settled rather than
@@ -2939,8 +3054,8 @@ class TopologyPanel(QWidget):
       # whole of ruling 2 of 2026-09-05. Both are relative to the
       # edge's own length, so the same gesture means the same shape on
       # a long edge and a short one, and both are POSITIONS: the glyph
-      # sits on the first peak of the wave, `length / (2n)` along and
-      # `h` of the length out, so where the person has taken it IS the
+      # sits at the count's seat along the edge (`_count_seat`) and `h`
+      # of the length out, so where the person has taken it IS the
       # pair of numbers.
       # THE AMPLITUDE IS WHERE THE HANDLE NOW SITS, NOT HOW FAR IT
       # TRAVELLED. The glyph is drawn `h` of the edge's length out
@@ -2986,14 +3101,13 @@ class TopologyPanel(QWidget):
       # a small amplitude is a small amplitude.)
       if abs(along) >= _COUNT_DEADBAND * length:
         was = float(current.get("n", 2.0)) if current else 2.0
-        here = length / (2.0 * max(1.0, was))
+        here = _count_seat(was) * length
         moved = here + along
-        # NEAREST WHOLE COUNT TO WHERE THE HANDLE NOW IS. Dragging
-        # toward the edge's start shortens the wavelength and so RAISES
-        # the count, which is what the drawing shows: the peaks crowd.
-        wanted = length / (2.0 * moved) if moved > 1e-9 else _COUNT_CEILING
-        # TO THE NEAREST EVEN COUNT, since odd ones are not offered.
-        changes["n"] = _even_count(wanted)
+        # THE NEAREST EVEN COUNT TO WHERE THE HANDLE NOW IS, the seats
+        # spread evenly along the edge (2026-09-06). Dragging toward
+        # the edge's start RAISES the count, which is what the drawing
+        # shows: the peaks crowd.
+        changes["n"] = _count_at(moved / length if length > 1e-9 else 0.0)
       return changes
     # A HANDLE IS A POSITION, NOT A DISTANCE TRAVELLED.
     # (Maintainer's instruction, 2026-08-31: the interaction has to be
