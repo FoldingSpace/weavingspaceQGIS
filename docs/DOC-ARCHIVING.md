@@ -173,7 +173,10 @@ check pass is a check that has been switched off.
 | docs/PUBLISHING.md | 1,193 | 902 | 5 |
 
 ("After" is after the audit below, which put the archived rules back
-and then made a second pass against the measure.)
+and then made a second pass against the measure. The third pass, later
+the same day and described at the end of this document, took the five
+to 1,974, 868, 559, 2,302 and 816 lines, with 318, 142, 92, 7 and 12
+accounts, and the package's docstrings to a sixth archive of 35.)
 
 The two documents with almost nothing taken are the finding, not the
 omission: MAINTAINING.md is architecture, and docs/PUBLISHING.md is a

@@ -188,7 +188,11 @@ self-fixing at low cost for whoever edits them next.)
   does, a Returns block saying what the caller gets and what was
   mutated, Raises where a caller could be surprised, and the reason for
   any non-obvious choice at the line it is made. The checker enforces
-  it. (User instruction, 2026-08-09; C-273.)
+  it. What a docstring does NOT carry is the account -- the day, the
+  first attempt, the measurement -- which goes to
+  docs/DOCSTRINGS-archived.md under a minted D-id the docstring
+  quotes; the archiving check reads the package as that archive's
+  live half. (User instruction, 2026-08-09; C-273.)
 - **Generated documents are regenerated, never remembered.**
   `docs/TEST-MAP.md` and `docs/BUG-REGISTER.md` come from the suite,
   are never hand-edited, and are regenerated whenever a test is added,
