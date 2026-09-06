@@ -3792,7 +3792,16 @@ def test_a_topology_edit_reaches_the_map():
 
 TOPOLOGY_MATRIX_AFTERMATHS = ("immediately", "after re-Generate",
                               "with a run in flight",
-                              "after save and reload")
+                              "after save and reload",
+                              "after a modifier splits the classes")
+# "after a modifier splits the classes" is conflict 7's guard
+# (settled 2026-09-05: the shelf key stays narrow and the replay
+# REPORTS). A scale in one axis turns the default design's two edge
+# classes into four, so a replayed `a` names a different set of edges;
+# the cell requires the tab to say so exactly when the alphabet moved
+# and to stay quiet when it did not. Added by NAME on one shape and
+# both kinds of route, like the race cells, so it is never left to the
+# sample.
 TOPOLOGY_MATRIX_SPINE_AFTERMATHS = ("immediately", "after re-Generate")
 # "with a run in flight" is added by NAME, on one shape and two
 # routes, rather than crossed with the spine. It is the fourth of the
@@ -4192,6 +4201,35 @@ def _topology_matrix_cell(dlg, route, aftermath, out_dir):
       return ("Generate after an edit left every element layer byte "
               "for byte as it was, so the edit reached the preview "
               "and never the map", "")
+  elif aftermath == "after a modifier splits the classes":
+    if not grew:
+      return ("SKIPPED", "no edit was recorded, so there is nothing to "
+                         "replay onto the scaled design")
+    against = (panel.edits()[-1].get("against") or "")
+    if not against:
+      return ("the edit was recorded without the alphabet it was aimed "
+              "against, so a replay can never say the classes moved", "")
+    # A SCALE IN ONE AXIS, which the specification hunt of 2026-09-02
+    # measured splitting the default design's two edge classes into
+    # four. On a design it does not split, the other half of the rule
+    # is what is checked: the tab must not claim a move that did not
+    # happen.
+    dlg.mod_scale_x.setValue(1.5)
+    _wait_for_the_topology(dlg)
+    if panel._topology is None:
+      return ("SKIPPED", "the scaled design carries no topology, so "
+                         "nothing is replayed onto it")
+    now = topology_edits.classes(panel._topology).get(target, "")
+    said = (panel.note.text() or "").strip()
+    claims = topology_edits.CLASSES_MOVED_MARK in said
+    if now != against and not claims:
+      return (f"the design's {target} classes moved under the edit "
+              f"({against!r} became {now!r}) and the tab said nothing, "
+              f"so the change list names a set of {target}s it no "
+              f"longer aims at", said)
+    if now == against and claims:
+      return (f"the tab claims the {target} classes moved when they are "
+              f"{now!r} as they were", said)
   elif in_flight:
     # SURVIVAL, WHICH IS A DIFFERENT PROMISE FROM ARRIVAL. The run
     # that was already going lands with a design it was launched
@@ -8046,6 +8084,7 @@ def test_the_topology_matrix():
     f"asking about both")
   for route in by_kind.values():
     cells.append((spine[0], "with a run in flight", route))
+    cells.append((spine[0], "after a modifier splits the classes", route))
   rest = [(sh, af, ro) for sh in shapes[2:]
           for af in TOPOLOGY_MATRIX_AFTERMATHS for ro in routes]
   if full:

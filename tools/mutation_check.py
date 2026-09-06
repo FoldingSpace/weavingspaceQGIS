@@ -11005,6 +11005,17 @@ MUTATIONS = [
            "dual covers its cell on every design measured, and this is "
            "what keeps that true for the next design nobody measured. "
            "Ruling 2 of 2026-09-05"),
+  dict(name="a-replay-says-when-the-classes-have-moved",
+       file=TOPOLOGY_EDITS,
+       old="""    if against and against != available:""",
+       new="""    if False:  # mutation: a moved alphabet is replayed in silence""",
+       test="test_the_topology_matrix",
+       why="an edit replayed onto a design whose classes a modifier has "
+           "split, so `a` names a quarter of the edges it did while the "
+           "change list reads the same and nothing on the tab says so. "
+           "Conflict 7, settled 2026-09-05: the key stays narrow and the "
+           "replay reports; the matrix's 'after a modifier splits the "
+           "classes' cells are what fail here"),
 ]
 
 # The CRS entry needs its own anchor, found at import time so a

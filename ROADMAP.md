@@ -461,10 +461,17 @@ the dual). Cheapest and most durable first.
   REVIEW AND THE HARD-RULE CHECK, having spoken to users since
   2026-08-30 with neither reading them: 27 sentences are in the queue,
   which is the maintainer's to read.
-- **THE SHELF REPORTS AT REPLAY** (was conflict 7): each edit records
-  the class alphabet it was made against; a replay onto a design whose
-  classes moved applies what matches and says which edits now aim at a
-  changed design. The key stays family, count, dual.
+- **THE SHELF REPORTS AT REPLAY -- DONE** (was conflict 7; built
+  2026-09-05, later): every edit records the class alphabet it was
+  made against at the panel's one recording door, so a drag and the
+  Apply button both carry it; `apply` compares it with the design it
+  replays onto and, where they differ, applies what its labels name
+  now and SAYS the classes moved, in one template whose mark a guard
+  looks for. The key stays family, count, dual. Guarded as a matrix
+  aftermath, "after a modifier splits the classes", on both kinds of
+  route by name: the tab must speak exactly when the alphabet moved
+  and stay quiet when it did not. Entry proved `caught` against the
+  matrix.
 - **THE READER ASSIGNS THE FIRST n** (was conflict 1): a Load or a
   group selection restores the design's n elements from the record's
   first n entries in element order and keeps the surplus as memory.
@@ -494,6 +501,17 @@ the dual). Cheapest and most durable first.
   account is the only record of a measurement it moves to an archive
   rather than being deleted, which is the same rule the documents
   keep.
+- **TWO STUDIES, ALSO THE MAINTAINER'S ASKS OF 2026-09-05**, recorded
+  as questions with no code: IS THERE A BETTER WAY OF STRUCTURING THE
+  TILING AND LAYER DATA BEHIND THE SCENES, for efficiency or for fewer
+  defects -- the tiled frame, the per-element layers and their twins,
+  the records keyed by tile id, the group's working state -- and IS
+  dialog.py OVER-COMPLEX in ways a simpler approach would match
+  exactly while being less bug-prone. Both want an audit that names
+  candidates with a measurement each, and neither is to be done in the
+  same breath as a candidate. The ledger of 2026-09-02 and the
+  catalogue triage of 2026-08-28 are where the defect shapes to weigh
+  them against are counted.
 
 Worked on `pre-0.24.4rc1`. What follows is what the version delivers,
 and what each piece of it cost to prove.

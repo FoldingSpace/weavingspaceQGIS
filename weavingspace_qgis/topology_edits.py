@@ -170,6 +170,18 @@ def in_map_units(args: dict, unit) -> dict:
 # `_same_shape`, which is the only reader.
 _NOTHING_MOVED = 1e-7
 
+# WHAT THE TAB SAYS WHEN A REPLAYED EDIT AIMS AT A DESIGN WHOSE CLASSES
+# HAVE MOVED (conflict 7, settled 2026-09-05: the shelf key stays
+# narrow and the replay reports). One template, and the mark is what a
+# guard looks for, so the sentence can be reworded in review without
+# retuning anything -- this suite has been broken by the maintainer's
+# own edit to a sentence before.
+CLASSES_MOVED = (
+  "{label} on {selector!r} was made when this design's {target} classes "
+  "were {against}; they are {now} now, so it may not move the same "
+  "{target}s.")
+CLASSES_MOVED_MARK = "was made when this design's"
+
 
 def whole_where_needed(args: dict) -> dict:
   """An argument mapping with the counts made whole.
@@ -487,6 +499,18 @@ def apply(topology, edits):
     # do for this case (measured 2026-08-31).
     target = MANIPULATIONS[how]["target"]
     available = classes(current).get(target, "")
+    # THE CLASSES MAY HAVE MOVED SINCE THE EDIT WAS MADE, and the edit
+    # is applied anyway to whatever its labels name now -- but it SAYS
+    # so. A scale in one axis turns the default design's two edge
+    # classes into four (measured by the specification hunt of
+    # 2026-09-02), so `a` then names a quarter of what it did while
+    # the change list reads the same. An older record with no
+    # alphabet says nothing, which is the honest answer for it.
+    against = edit.get("against") or ""
+    if against and against != available:
+      refusals.append(CLASSES_MOVED.format(
+        label=MANIPULATIONS[how]["label"], selector=selector,
+        target=target, against=against, now=available or "none"))
     wanted = list(dict.fromkeys(selector))
     missing = [label for label in wanted if label not in available]
     if missing:

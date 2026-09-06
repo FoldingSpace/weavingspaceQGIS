@@ -3176,7 +3176,21 @@ class TopologyPanel(QWidget):
       says what somebody asked for and the map says what could be
       done. Dropping it here would leave a person having pressed a
       button that did nothing and said nothing.
+
+    AND THE RECORD CARRIES THE ALPHABET IT WAS AIMED AGAINST (conflict
+    7, settled 2026-09-05): the edge or vertex classes the design had
+    when the edit was made. The shelf key stays narrow -- family,
+    count, dual -- so a spacing or modifier tweak never puts an edit
+    away; what a modifier CAN do is split a class, so `a` names a
+    different set of edges than it did, and `apply` compares this
+    against the design it replays onto and says so. Recorded here
+    rather than at each caller because a drag and the Apply button
+    both arrive at this one door.
     """
+    how = edit.get("how")
+    if self._topology is not None and "against" not in edit:
+      target = edits_module.MANIPULATIONS.get(how, {}).get("target", "")
+      edit["against"] = edits_module.classes(self._topology).get(target, "")
     self._edits.append(edit)
     self._refresh_list()
     self.edits_changed.emit()
