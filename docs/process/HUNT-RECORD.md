@@ -12,7 +12,9 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-02 (night), with ROUND SEVEN JUDGED: five
+Last updated 2026-09-06 (morning), with ROUND EIGHT LAUNCHED toward
+sixteen bugs -- see its section below, yields deliberately blank.
+Before it, 2026-09-02 (night), with ROUND SEVEN JUDGED: five
 defects, ledger rows 22 to 26, two of them reached by two hunts and
 one by three. The campaign passed its twenty-four. Its slate and its aim are in
 the section immediately below; its yields are deliberately blank,
@@ -1939,13 +1941,15 @@ transaction reaches the commit. Two locks, one word, different halves
 of the code: when a claim names a failure at a particular STEP, stage
 it at that step.
 
-## ROUND EIGHT, PLANNED 2026-09-06 (early): EIGHT HUNTS TO SIXTEEN BUGS
+## ROUND EIGHT, LAUNCHED 2026-09-06 (morning): EIGHT HUNTS TO SIXTEEN BUGS
 
 Maintainer's instruction of 2026-09-05 (late): eight hunts as Opus
 subagents on temporary worktrees, replacing hunters as bugs are fixed,
-until sixteen bugs are repaired and guarded. Launched once the
-candidate's own suite is off the machine, since a hunt beside a
-measurement spoils the measurement, while CI runs remotely.
+until sixteen bugs are repaired and guarded. Launched at about 08:10
+on 2026-09-06, every worktree at c6431ed, once rc16 was published and
+the candidate's suite was off the machine, since a hunt beside a
+measurement spoils the measurement, while CI runs remotely. Yields
+are blank until each claim is judged by a route its hunt did not use.
 
 THE SLATE, from `dev/hunts/briefs/ROUND-AIM.md`, which names the
 eleven things already closed since rc15 so none is re-found:

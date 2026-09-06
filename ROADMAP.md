@@ -174,7 +174,8 @@ and the two studies. The three decisions that were the maintainer's
 handle's rulings 6 and 7; the clamp stands), and the two that changed
 code are built and guarded. The product stall of R-4 is parked under
 "Later, or never" on the maintainer's decision, and the text-review
-queue holds only the three tooltip sentences those rulings wrote.
+queue is empty, the three tooltip sentences those rulings wrote
+having been approved before rc16 was built.
 
 ### Closed: the two suite failures and the harness race
 
@@ -281,7 +282,9 @@ build went red the same way on 2026-09-06, on a test premise the
 even-count ruling had made false (T-143), though no artefact bore the
 number and the rebuild kept it, and rc16 itself was then red on every
 runner for a documents gate that read this machine's disk (T-144),
-published on the maintainer's one-off say-so past it. **THE 24-BUG CAMPAIGN REACHED ITS TWENTY-FOUR**
+published on the maintainer's one-off say-so past it as the
+pre-release `v0.24.4rc16` of 2026-09-06, the fix's own CI run being
+the verdict to read. **THE 24-BUG CAMPAIGN REACHED ITS TWENTY-FOUR**
 (R-11, R-15, R-16). **ONE LINE CARRIES 0.24.4**, `pre-0.24.4` (R-17).
 **THE DRIFTED CATALOGUE IS DONE** (R-18, R-19). **THE CHANGELOG LINE
 IS APPROVED**, on its second pass (R-20). **THE ROUND OF 2026-08-28
