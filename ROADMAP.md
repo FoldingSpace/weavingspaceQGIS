@@ -161,16 +161,21 @@ shipped version owes nothing.)
 
 ## 0.24.4 — next
 
-**WORK IS OUTSTANDING AGAIN, AND THE EARLIER DECLARATION IS RETIRED
-RATHER THAN CONTRADICTED.** The maintainer declared this section clear
-on 2026-09-01, and that was true of what was known then. Five field
-reports against `0.24.4rc15` and one suite failure arrived on
-2026-09-04, so the declaration is struck HERE rather than left standing
-beside a list of owed work -- the release gate reads this section for
-that phrase, and a section that both declares itself clear and lists
-defects would clear a candidate while the defects were live. (R-2.)
+**NOTHING OUTSTANDING IN CODE, AS OF 2026-09-05 (LATE).** The
+declaration of 2026-09-01 was struck when five field reports and a
+suite failure arrived on 2026-09-04 (R-2); every one of those is now
+closed below, and so is everything the maintainer asked for before the
+next candidate -- the dual button and the completed dual, the two tab
+defects, the three settled conflicts, the Topology tab audit, the
+documents re-audit and the self-fixing documents, the docstrings pass
+and the two studies. What is still open is NOT code and does not hold
+a candidate: the product stall of R-4, whose cause is undiagnosed and
+whose defence is built; and three decisions that are the maintainer's
+-- the zigzag threshold question, and the two the tab audit reported
+(odd zigzag counts open a gap; the count readout's clamp bites at the
+window's own size). The text-review queue is the maintainer's as ever.
 
-### Owed: one suite failure of two, the other closed
+### Closed: the two suite failures and the harness race
 
 **THE VENDORING TOOL FAILURE IS CLOSED** (R-3) **AND THE HARNESS
 RACE BEHIND THE INTERMITTENT TOPOLOGY FAILURES IS FIXED**: `_settle_topology`
@@ -179,10 +184,10 @@ being queued, so quiet must now persist for three checks, and a full
 three-shard run over `03d6ba7` was green at 264, 264 and 264. The
 waiter explains itself, naming what QGIS's own task manager holds.
 
-**WHAT IS STILL OPEN IS THE PRODUCT STALL OF R-4**: QGIS accepts a
-topology build, leaves it Queued with the pool idle and never starts
-it. The DEFENCE is built and does not claim to be the diagnosis --
-`TOPOLOGY_START_CEILING_MS` arms a watch and
+**OPEN, AND NOT CODE THE VERSION OWES: THE PRODUCT STALL OF R-4.** QGIS
+accepts a topology build, leaves it Queued with the pool idle and
+never starts it. The DEFENCE is built and does not claim to be the
+diagnosis -- `TOPOLOGY_START_CEILING_MS` arms a watch and
 `_say_if_the_build_never_started` writes the reason into the panel's
 note (R-6). The CAUSE is undiagnosed: 4 in 86 attempts inside one
 twenty-minute window, then none in 317 with the discriminator armed
@@ -215,10 +220,10 @@ zigzag under `abs(h) > 0.01` as a click, and whether that sits where a
 person's "I meant that" does is unmeasured; amplitude is the one
 parameter whose useful values start small.
 
-### Owed: the dual button, and three settled conflicts (2026-09-05)
+### Done: the dual button, the three settled conflicts, and the maintainer's four asks (2026-09-05)
 
-**rc16 WAITS FOR THESE**, on the maintainer's decision (ruling 3 of
-the dual). Cheapest and most durable first.
+**THE NEXT CANDIDATE WAITED FOR THESE**, on the maintainer's decision
+(ruling 3 of the dual), and all are done.
 
 - **THE DUAL BUTTON IS BUILT**, landing the dual in `<group> — dual`
   through the chooser's own door; **THE DUAL IS COMPLETED HERE AND
