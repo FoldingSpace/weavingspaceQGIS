@@ -2659,6 +2659,11 @@
   "excerpt": "Load a polygon layer in a projected CRS, rough in a design w",
   "where": "README.md"
  },
+ "f7e256a780ba3ac7": {
+  "approved": "2026-09-06",
+  "excerpt": "How far the crests reach out from the edge, as a fraction of",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "f7f089a2b5a45237": {
   "approved": "2026-08-08",
   "excerpt": "Columns of squares in the unit. Rows x columns beyond the el",
