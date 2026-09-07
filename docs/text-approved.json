@@ -9,6 +9,11 @@
   "excerpt": "Shrink each unit in place, into separate glyphs.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "033d0a82e9bd15e0": {
+  "approved": "2026-09-07",
+  "excerpt": "This much would make the tiles overlap; ease back to keep a ",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "035d00420b83c143": {
   "approved": "2026-08-08",
   "excerpt": "## Words we use",
@@ -338,6 +343,11 @@
   "approved": "2026-08-08",
   "excerpt": "({} other pair(s) are close too)",
   "where": "weavingspace_qgis/perception.py"
+ },
+ "1c7cf775ea2a6dd6": {
+  "approved": "2026-09-07",
+  "excerpt": "This much would leave gaps the tiles cannot close; ease back",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "1db79100037046e0": {
   "approved": "2026-08-09",
