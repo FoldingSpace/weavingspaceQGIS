@@ -1414,6 +1414,11 @@
   "excerpt": "Number of classes; categorized rows show how many categories",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "80ad2618b13cc17e": {
+  "approved": "2026-09-07",
+  "excerpt": "This much cannot be laid out as a tiling. Ease back to a dep",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "81222a477c7439b8": {
   "approved": "2026-09-05",
   "excerpt": "This design's dual would leave holes in the map, so it is no",

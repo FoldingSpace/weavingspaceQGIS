@@ -3377,13 +3377,15 @@ class TopologyPanel(QWidget):
       # than one that stops and reddens; the STATE is what changes.
       self.view.set_drag_status({
         "clamped": False, "failed": True, "key": key,
-        # THE SENTENCE MATCHES WHAT THE DROP DOES, which the first
-        # draft of it did not: it offered to record the move and draw
-        # it as deep as it could go, while `_drag_from` above is
-        # cleared and the drop therefore records nothing at all.
-        "reason": ("This much cannot be laid out as a tiling. Ease "
-                   "back to a depth that can be drawn; letting go "
-                   "here records nothing.")})
+        # THE SENTENCE PROMISES NOTHING ABOUT THE DROP, which is what
+        # keeps it true: `_drag_from` is cleared above, so letting go
+        # here records nothing, and a first draft that offered to
+        # record the move and draw it as deep as it could go said the
+        # opposite of the line it sat beside. It says what to do --
+        # ease back -- and leaves the drop to the change list, which
+        # is the store that answers what was recorded.
+        "reason": ("This much cannot be laid out as a tiling. Ease back to a "
+                   "depth that can be drawn.")})
       return
     self.view.show_preview(moved)
     # AND THE NUMBER BOXES FOLLOW, so a drag is a way of typing rather
