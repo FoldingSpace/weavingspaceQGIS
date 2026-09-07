@@ -90671,6 +90671,83 @@ def test_unticking_the_source_takes_it_out_of_the_file():
     project.clear()
 
 
+def test_a_task_says_how_far_its_worker_got():
+  """The stall instrument tells the four states of a worker apart.
+
+  A topology build that never lands has to be diagnosed from outside,
+  and the readings reached for first cannot do it: a task whose `run()`
+  has RETURNED still reports `Running`, so "QGIS never ran a worker"
+  and "the worker finished and was never handed back" look identical
+  from the status alone -- and they want opposite recoveries, since
+  cancelling the second throws a completed result away. `TilingTask`
+  stamps the moment it enters `run()` and the moment it leaves, and
+  `where_the_work_got_to` reads them back. This drives all four states
+  through the real class, including the one that can only be observed
+  from INSIDE the work function.
+
+  NO `Regression:` LINE DELIBERATELY. Nothing in the product ever
+  regressed here: what went wrong was a stall CHARACTERISED from
+  readings that could not tell the shapes apart, so this guards an
+  instrument rather than ground a user fell through, and claiming
+  otherwise would inflate the one column of docs/BUG-REGISTER.md that
+  is worth scanning.
+  """
+  from weavingspace_qgis.worker import TilingTask
+  seen = {}
+
+  def work(task):
+    # THE ONLY PLACE THE MIDDLE STATE IS OBSERVABLE, since `run` does
+    # not return until this does.
+    seen["during"] = task.where_the_work_got_to()
+    return "the map"
+
+  landed = []
+  task = TilingTask("probe", work, lambda r, e: landed.append((r, e)))
+  assert task.where_the_work_got_to() == "never entered run()", \
+    f"before anything runs the instrument must say so, not " \
+    f"{task.where_the_work_got_to()!r}"
+
+  assert task.run() is True, "the work returned a result and was not cancelled"
+  assert seen["during"].startswith("inside run() for "), \
+    f"while the work is running the instrument must say so, not " \
+    f"{seen['during']!r}"
+  assert task.entered_at is not None and task.returned_at is not None, \
+    "both stamps are written by the worker"
+  assert task.returned_at >= task.entered_at, \
+    f"a monotonic clock cannot run backwards: entered {task.entered_at}, " \
+    f"returned {task.returned_at}"
+
+  # THE STATE THE WHOLE INSTRUMENT EXISTS FOR: the work is done and
+  # nothing has been handed back, which is where QGIS still says
+  # `Running` and where the old reading could say nothing at all.
+  undelivered = task.where_the_work_got_to()
+  assert undelivered.startswith("returned from run() ") \
+      and "not yet delivered" in undelivered, \
+    f"a finished-but-undelivered task must name that state, not " \
+    f"{undelivered!r}"
+
+  task.finished(True)
+  assert landed == [("the map", None)], \
+    f"the result reaches the callback: {landed!r}"
+  assert task.where_the_work_got_to() == "delivered", \
+    f"once delivered the instrument must say so, not " \
+    f"{task.where_the_work_got_to()!r}"
+
+  # AND A RAISING WORKER STILL CAME BACK, which is why the second
+  # stamp is written in a `finally`: the question is whether `run`
+  # RETURNED, and an exception is a way of returning.
+  def angry(task):
+    raise ValueError("no")
+
+  raiser = TilingTask("probe", angry, lambda r, e: None)
+  assert raiser.run() is False, "a raised exception routes to finished(ok=False)"
+  assert raiser.returned_at is not None, \
+    "a worker that raised still left run(), and the instrument must know"
+  assert "not yet delivered" in raiser.where_the_work_got_to(), \
+    f"a raised worker has still returned, not " \
+    f"{raiser.where_the_work_got_to()!r}"
+
+
 def main():
   """Run every registered test and report what happened.
 
@@ -92389,6 +92466,8 @@ def main():
         test_a_ramp_is_remembered_under_the_mode_the_row_is_in)
   check("a donor reaches its follower in the same run",
         test_a_donor_reaches_its_follower_in_the_same_run)
+  check("a task says how far its worker got",
+        test_a_task_says_how_far_its_worker_got)
   check("saving holds on every route", test_saving_holds_on_every_route)
   check("a generate draws and only a save writes",
         test_a_generate_draws_and_only_a_save_writes)

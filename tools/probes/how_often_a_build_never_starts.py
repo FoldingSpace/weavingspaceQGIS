@@ -126,16 +126,24 @@ with rt._temp_dir() as td:
               f"{[getattr(d, '_topology_task', None) is not None for d in alive]}")
         print(f"    every dialog so far, TILING task set?: "
               f"{[getattr(d, '_task', None) is not None for d in alive]}")
-        # A TASK THAT STAYS Queued MEANS NOTHING RAN IT, so the
-        # question is what is holding the pool. QGIS's task manager
-        # runs its work on the global QThreadPool, and a worker that
-        # never returns is invisible in the manager's own count.
+        # THESE TWO READINGS MEAN NOTHING AND ARE PRINTED SAYING SO.
+        # This block used to assert that QGIS's task manager runs its
+        # work on the global QThreadPool. Measured on QGIS 4.0.3
+        # (2026-09-07), with a task deliberately held inside `run()`:
+        # `activeThreadCount()` reads 0 and `threading.enumerate()`
+        # reads ['MainThread'] while that worker is demonstrably live,
+        # so neither can tell a running worker from an absent one. They
+        # are kept because two records quote them and a reader meeting
+        # those records should meet the correction here; the DUMP below
+        # is the reading that answers the question they appear to.
         from qgis.PyQt.QtCore import QThreadPool
         pool = QThreadPool.globalInstance()
         print(f"    global thread pool: active={pool.activeThreadCount()} "
-              f"max={pool.maxThreadCount()}")
+              f"max={pool.maxThreadCount()}   (proves nothing: reads 0 "
+              f"with a worker live)")
         print(f"    python threads: "
-              f"{[th.name for th in threading.enumerate()]}")
+              f"{[th.name for th in threading.enumerate()]}"
+              f"   (proves nothing: a Qt worker is not a threading thread)")
         # THE DECISIVE READING: what every thread is actually doing.
         # A stack naming the vendored tiling says the worker never came
         # back, which is a different defect from a manager that will

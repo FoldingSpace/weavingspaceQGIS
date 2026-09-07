@@ -116,6 +116,7 @@ quote them, do not renumber them.
 - **R-90** — Save as a single OGR session: moved into 0.24.4 and built  <sub>DONE entries cut to their headline, 2026-09-05 (third pass)</sub>
 - **R-91** — The re-vendor's record, the differential built for it and the price on the next one, in...  <sub>DONE entries cut to their headline, 2026-09-05 (third pass)</sub>
 - **R-92** — Periodicity, the join lookup and zigzag's repeated vertices: measured, patched or fixed...  <sub>DONE entries cut to their headline, 2026-09-05 (third pass)</sub>
+- **R-93** — What a Running task, an idle pool and a thread list can tell apart  <sub>minted</sub>
 
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
@@ -4686,3 +4687,57 @@ happening" -- the same fault, reached independently from the two sides
 -- and pointed at `tiling_utils.get_clean_polygon`, which recovers valid
 polygons and which the plugin now uses as its first repair stage.
 (R-67.)
+
+### R-93 — What a Running task, an idle pool and a thread list can tell apart
+
+The R-4 recurrence of 2026-09-07 was diagnosed from three readings taken
+at the stall -- the manager holding its task `Running`, the global
+QThreadPool at `active=0`, and no worker in a thread dump -- and written
+up, in the roadmap entry this account replaces, as "QGIS marked a build
+Running and never ran a worker for it". That sentence rests on two
+claims about QGIS that nobody had put to QGIS: that a task whose `run()`
+has returned stops reading `Running`, and that a live task worker shows
+up in the pool count and in the thread list. Both decide the recovery,
+so both were measured rather than argued, with
+`tools/probes/what_a_running_task_reading_can_tell_apart.py` -- four
+arms on QGIS 4.0.3, macOS, each read from the main thread with the event
+loop deliberately unpumped so the completion cannot have been delivered
+behind the reading, and each arm's premise asserted off a flag the
+worker sets rather than off a sleep.
+
+    arm                          status    pool.active  threading      dump
+    A  just added                Running       0        [MainThread]    --
+    B  worker INSIDE run()       Running       0        [MainThread]   2 threads
+    C  run() has RETURNED        Running       0        [MainThread]   1 thread
+    D  pumped (the control)      Complete      0        [MainThread]    --
+
+THREE THINGS FALL OUT, and two of them are about the instruments rather
+than the fault. Arm C reads `Running`: the status moves to `Complete`
+only when the main thread delivers the callback, so a build that
+finished and was never handed back is indistinguishable, by status,
+from one that never started -- and those two want opposite recoveries,
+since cancelling the second throws a completed result away and
+`TilingTask.cancel()` then reports `(None, None)` and has the dialog
+rebuild into whatever failed to deliver. Arm B reads `active=0` and
+`['MainThread']` with a worker demonstrably inside `run()`, so neither
+reading can tell a running worker from an absent one anywhere: QGIS's
+task workers do not go through the pool Python can see, and a foreign Qt
+thread is not a `threading` thread. Only the faulthandler dump separates
+B from C, two thread blocks against one. Arm D is the control that says
+the instrument moves at all.
+
+WHAT WAS CORRECTED FOR IT. The roadmap entry under 0.24.5 now asks for
+the instrument before the recovery; the recurrence note under "Later, or
+never" carries the correction to the two dead readings; docs/TOPOLOGY.md
+marks the same two lines in its record of 2026-09-04, where they were
+quoted beside the `Queued` status that did carry the finding; and
+`tools/probes/how_often_a_build_never_starts.py` prints all three with
+the two marked as proving nothing, its own comment having asserted the
+pool claim that turns out to be false.
+
+THE GENERAL FORM, which is why this is kept at length. A quantity that
+is cheap to print and reads plausibly is not a measurement until
+something has been shown to MOVE it -- the same rule this project
+already holds about a uniform verdict being the instrument, arriving
+from the other side: three readings agreed, two of them were incapable
+of disagreeing, and the agreement was read as corroboration.

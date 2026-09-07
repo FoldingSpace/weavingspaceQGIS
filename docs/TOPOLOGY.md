@@ -895,10 +895,22 @@ tab neither built a topology nor said why not, so somebody is left in
 front of a panel that never answers".
 
     manager: count=1 active=1 'WeavingSpace topology' Queued
-    global thread pool: active=0 max=8
-    python threads: ['MainThread']
+    global thread pool: active=0 max=8      <- means nothing; see below
+    python threads: ['MainThread']          <- means nothing; see below
 
-The build is QUEUED AND NEVER STARTED WITH THE POOL IDLE. Against the
+**TWO OF THOSE THREE LINES ARE NOT EVIDENCE, MEASURED 2026-09-07.** Put
+to QGIS 4.0.3 with a task deliberately held inside `run()`,
+`QThreadPool.globalInstance().activeThreadCount()` reads 0 and
+`threading.enumerate()` reads `['MainThread']` while that worker is
+demonstrably live -- QGIS's task workers do not go through the pool
+Python can see, and a foreign Qt thread is not a `threading` thread. A
+faulthandler dump DOES see it, two thread blocks against one, so the
+dump is the only thread reading here that can tell a running worker from
+an absent one. The `Queued` status is what carries the finding below;
+the two lines above are kept as the record of what was read, marked so
+nobody leans on them again.
+
+The build is QUEUED AND NEVER STARTED. Against the
 figures at the top of this document that is not a slow design and not a
 worker holding a thread: later dialogs' builds answered in 1.4s on the
 same design while that one sat for 133 seconds, and the queued tasks

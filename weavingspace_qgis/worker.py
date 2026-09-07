@@ -14,6 +14,8 @@ everything the worker sees and reattaches it in the callback.
 
 from __future__ import annotations
 
+import time
+
 from qgis.core import QgsTask
 
 
@@ -46,16 +48,70 @@ class TilingTask(QgsTask):
     self._result = None
     self._error = None
     self._reported = False
+    # WHERE THE WORK GOT TO, for a stall that has to be diagnosed from
+    # outside. Both are monotonic, since only a monotonic clock may be
+    # subtracted, and both are written by the WORKER and read by the
+    # main thread -- a plain attribute assignment, which is atomic
+    # enough under the GIL and needs no lock for a reading nobody acts
+    # on. See `where_the_work_got_to` for what they are for.
+    self.entered_at = None
+    self.returned_at = None
 
   def run(self):  # worker thread
     """Do the work. Returning False routes to finished(ok=False),
-    which is how both a raised exception and a cancellation arrive."""
+    which is how both a raised exception and a cancellation arrive.
+
+    Returns:
+      True where the work returned and was not cancelled, False where
+      it raised or was cancelled. Records the moment it was entered and
+      the moment it left, the second in a `finally` so the raising path
+      is stamped too -- the question these answer is whether `run` came
+      BACK, and an exception is a way of coming back.
+    """
+    self.entered_at = time.monotonic()
     try:
       self._result = self._work_fn(self)
     except Exception as e:  # noqa: BLE001 - surfaced to the user
       self._error = e
       return False
+    finally:
+      self.returned_at = time.monotonic()
     return not self.isCanceled()
+
+  def where_the_work_got_to(self) -> str:
+    """Say how far this task's worker got, for a stall report.
+
+    Returns:
+      One short phrase -- "never entered run()", "inside run() for
+      12.3s", "returned from run() 4.1s ago, not yet delivered", or
+      "delivered" -- naming the state and, where a clock reading is
+      meaningful, how long it has been in it.
+
+    WHY THIS EXISTS, and it is the whole of its justification. A stall
+    in the topology build is diagnosed from outside, and the readings
+    reached for first cannot answer it: a task whose `run()` has
+    RETURNED still reports `Running`, because the status moves to
+    `Complete` only when the main thread delivers the callback, and
+    both `QThreadPool.globalInstance().activeThreadCount()` and
+    `threading.enumerate()` are blind to a live QGIS task worker
+    (measured on QGIS 4.0.3,
+    `tools/probes/what_a_running_task_reading_can_tell_apart.py`). So a
+    build QGIS never started and a build that finished and was never
+    handed back look identical from the outside -- and they want
+    OPPOSITE recoveries, since cancelling the second throws a completed
+    result away. These two stamps tell them apart by being read.
+    IT IS AN INSTRUMENT AND NOT A GUARD: nothing branches on it, and
+    the recovery it is meant to inform is 0.24.5's, in ROADMAP.md.
+    """
+    if self.entered_at is None:
+      return "never entered run()"
+    if self.returned_at is None:
+      return f"inside run() for {time.monotonic() - self.entered_at:.1f}s"
+    if not self._reported:
+      return ("returned from run() "
+              f"{time.monotonic() - self.returned_at:.1f}s ago, "
+              "not yet delivered")
+    return "delivered"
 
   def _report(self, result, error):
     """Hand the outcome to the dialog, at most once.

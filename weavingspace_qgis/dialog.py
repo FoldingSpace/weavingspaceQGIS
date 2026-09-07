@@ -24030,7 +24030,17 @@ class WeavingSpaceDialog(QDialog):
     # machines nobody here can log into, and a report naming no state
     # buys nothing -- the rule this project wrote after a premise about
     # an outstanding build spent a candidate without naming its cause.
-    _dump("TOPOLOGY", f"never-started status={status}")
+    # AND WHERE THE WORKER GOT TO, which the status cannot say: a task
+    # whose `run()` has returned still reports `Running`, so a report
+    # naming only the status cannot tell a build QGIS never started
+    # from one that finished and was never handed back (R-93). The
+    # phrase comes off the task itself and nothing branches on it.
+    got_to = "unknown"
+    try:
+      got_to = watched.where_the_work_got_to()
+    except Exception:                                   # noqa: BLE001
+      pass
+    _dump("TOPOLOGY", f"never-started status={status} worker={got_to}")
     panel.say_the_build_has_not_started()
 
   def _queue_topology(self, even_if_unasked: bool = False) -> None:

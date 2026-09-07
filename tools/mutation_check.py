@@ -2672,6 +2672,24 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="a-worker-that-returned-is-not-a-worker-that-never-ran",
+       file=WORKER,
+       # THE WHOLE DECISION IS THE `finally`, so that is what this
+       # breaks rather than the assignment inside it. Stamping the
+       # return on the success path alone leaves a raising worker
+       # looking exactly like one that never came back -- which is the
+       # confusion the instrument exists to end, wearing its other
+       # face. Anchoring the two lines together is what makes the
+       # mutation remove the behaviour rather than move it (R-93).
+       old="""    finally:
+      self.returned_at = time.monotonic()
+    return not self.isCanceled()""",
+       new="""    self.returned_at = time.monotonic()
+    return not self.isCanceled()""",
+       test="test_a_task_says_how_far_its_worker_got",
+       why="a worker that raised has still left run(), and a stall "
+           "report that cannot say so cannot tell a build QGIS never "
+           "started from one nobody delivered"),
   dict(name="rotate-stays-a-tiling", file=TOPOLOGY_EDITS,
        # Disabling the reroute sends rotate to the library's per-edge
        # move, which tears the tiling on every design the test drives, so
@@ -10763,9 +10781,9 @@ MUTATIONS = [
        # ANCHORED ON THE SENTENCE, not on the guard above it: the
        # dump line is left standing so what is measured is whether
        # anybody is TOLD, rather than whether the branch was reached.
-       old="""    _dump("TOPOLOGY", f"never-started status={status}")
+       old="""    _dump("TOPOLOGY", f"never-started status={status} worker={got_to}")
     panel.say_the_build_has_not_started()""",
-       new="""    _dump("TOPOLOGY", f"never-started status={status}")""",
+       new="""    _dump("TOPOLOGY", f"never-started status={status} worker={got_to}")""",
        test="test_a_build_qgis_never_starts_is_reported",
        why="the tab's whole promise, which is that an answer arrives or "
            "the reason there is none does. A build QGIS hands back to "
