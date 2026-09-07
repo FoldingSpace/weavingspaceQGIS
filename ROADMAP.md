@@ -161,14 +161,14 @@ shipped version owes nothing.)
 
 ## 0.24.4 — next
 
-**FOUR THINGS ARE OUTSTANDING IN CODE**, moved here from 0.24.5 on
-the maintainer's decision of 2026-09-07 so the next candidate carries
-them: the honest preview's remaining drawing, the Topology tab's
-palette, the stall recovery, and the selection rule below. THE
-RECOVERY IS THE ONE TO WATCH, since its own entry says a fix cannot
-be verified while the fault's shape is a guess and naming that shape
-needs a recurrence nobody can summon; if it does not come, the honest
-close is to move that entry back rather than to build to the guess.
+**ONE THING IS OUTSTANDING IN CODE**: the honest preview's remaining
+drawing, below. It came here from 0.24.5 on the maintainer's decision
+of 2026-09-07, along with the palette and the stall recovery -- and
+those two went back the same day, the palette because it waits on the
+maintainer's eye rather than on anybody's typing, the recovery because
+it cannot be verified until a stall recurs. Neither should hold a
+candidate behind it. The selection rule and the zigzag's clamp came in
+with them and are BUILT, so they are not listed here.
 The declaration this replaces, and what it covered, stands below.
 
 **THE HONEST PREVIEW: A MANIPULATION SHOWS ONLY WHAT WILL COMMIT.**
@@ -201,39 +201,6 @@ CLAMP IS STILL OWED, its search costing up to 1.40s and so freezing the
 painting thread until cached. STILL TO BUILD: that caching, the drawing
 (glyph capping, dashed arc, symmetry cue), the status clearing on the
 drop, the one-cell hatch widened; `dev/honest-preview-wip.patch`.
-
-**RECOVER A TOPOLOGY BUILD THAT NEVER LANDS -- AND SAY FIRST WHICH
-SHAPE IT IS, BECAUSE THE READINGS SO FAR CANNOT.** (Owed from
-2026-09-07; the recurrence is under "Later, or never".) The save path's
-deferred build hung with the manager holding its task `Running` and no
-worker in a faulthandler dump, which the existing guard cannot catch:
-`_say_if_the_build_never_started` asks only about `Queued` and makes no
-duration check, a slow design being legitimately Running for up to 19s.
-WHAT THAT STATE ESTABLISHES IS THE UNION OF TWO FAULTS, and the entry
-this replaces named one of them as though it had been measured: a task
-whose `run()` has RETURNED, its main-thread `finished()` provably not
-yet delivered, also reads `Running` (R-93).
-THE RECOVERIES ARE OPPOSITE, WHICH IS WHY THE NAMING MATTERS. A build
-QGIS never started wants cancel-and-rebuild; a build that finished wants
-DELIVERING, and cancelling it throws a completed result away --
-`TilingTask.cancel()` reports `(None, None)`, so the dialog is told the
-build was cancelled and rebuilds into whatever failed to deliver the
-first one. The second shape is the one the distribution favours, since
-this passes on CI and reaches no user on QGIS's top-level loop while
-surfacing under the suite's nested `_tick` pump -- and a nested pump
-missing a queued main-thread invocation fits that where a pool refusing
-to dispatch has no reason to care what pump sits above it. If that is
-what it is, the fault is the HARNESS'S and the product owes nothing.
-SO THE INSTRUMENT COMES FIRST AND DOES NOT WAIT FOR A RECURRENCE.
-`TilingTask.run()` records when it is entered and when it returns, so a
-stall is READ rather than staged. Only then choose a recovery, guard it
-with a test staging the shape the instrument NAMED, and hold it to a
-discriminator the readings can carry -- not to a thread count, for which
-see the correction under "Later, or never". Kept out of 0.24.4
-deliberately: it edits delicate save and topology code, and a fix cannot
-be verified against an intermittent fault while its shape is a guess.
-
-**THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
 
 **NOTHING ELSE IS OUTSTANDING IN CODE, AS OF 2026-09-05 (LATE).** The
 declaration of 2026-09-01 was struck when five field reports and a
@@ -386,6 +353,43 @@ anchors the whole decision rather than gaining a list of replacements
 and **THE `publish_candidate` QUESTION IS MOOT** (R-31). Accounts R-85.
 
 ## 0.24.5 — three tabs asked for, and what was deferred here from 0.24.4
+
+**RECOVER A TOPOLOGY BUILD THAT NEVER LANDS -- AND SAY FIRST WHICH
+SHAPE IT IS, BECAUSE THE READINGS SO FAR CANNOT.** (Owed from
+2026-09-07; the recurrence is under "Later, or never".) The save path's
+deferred build hung with the manager holding its task `Running` and no
+worker in a faulthandler dump, which the existing guard cannot catch:
+`_say_if_the_build_never_started` asks only about `Queued` and makes no
+duration check, a slow design being legitimately Running for up to 19s.
+WHAT THAT STATE ESTABLISHES IS THE UNION OF TWO FAULTS, and the entry
+this replaces named one of them as though it had been measured: a task
+whose `run()` has RETURNED, its main-thread `finished()` provably not
+yet delivered, also reads `Running` (R-93).
+THE RECOVERIES ARE OPPOSITE, WHICH IS WHY THE NAMING MATTERS. A build QGIS never
+started wants cancel-and-rebuild; a build that finished wants
+DELIVERING, and cancelling it throws the result away -- `cancel()`
+reports `(None, None)`, so the dialog rebuilds into whatever failed to
+deliver the first one. The second shape is the one the distribution favours, since this
+passes on CI and reaches no user on QGIS's top-level loop while
+surfacing under the suite's nested `_tick` pump -- and if that is what
+it is, the fault is the HARNESS'S and the product owes nothing (R-93).
+SO THE INSTRUMENT COMES FIRST AND DOES NOT WAIT FOR A RECURRENCE.
+`TilingTask.run()` records when it is entered and when it returns, so a
+stall is READ rather than staged. Only then choose a recovery, guard it
+with a test staging the shape the instrument NAMED, and hold it to a
+discriminator the readings can carry -- not to a thread count, for which
+see the correction under "Later, or never". Kept out of 0.24.4
+deliberately: it edits delicate save and topology code, and a fix cannot
+be verified against an intermittent fault while its shape is a guess.
+IT WAITS ON A RECURRENCE and is deferred until one comes: `TilingTask`
+records when its worker enters and leaves `run()`, so the next stall
+answers the shape by being read rather than guessed at.
+
+**THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
+DEFERRED BACK HERE on 2026-09-07: it wants a before/after put to the
+maintainer rather than built blind, so it waits on their eye rather
+than on anybody's typing, and a candidate should not queue behind
+that. The renders can be made at any time without touching the tab.
 
 Moved on the maintainer's decision of 2026-08-27, in the act of
 cutting 0.24.4's candidate. None of it is abandoned and none of it
