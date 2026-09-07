@@ -373,6 +373,8 @@ quote them, do not renumber them.
 - **C-336** — The zigzag count interpolates along the edge: the seats spread evenly, eight nearest th...  <sub>minted</sub>
 - **C-337** — The Amplitude box shows the crest's distance and holds the library's h  <sub>minted</sub>
 - **C-338** — The clearing belongs at the door, not at the landing  <sub>minted</sub>
+- **C-339** — The preview and the drop are judged by one rule: a real drag commits what was drawn  <sub>minted</sub>
+- **C-340** — A performance hint is passed only where the dependency takes it, since a reload can lea...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10828,3 +10830,57 @@ launch, which retired the entry that had guarded the launch
 snapshot's blanking as one mechanism with the door's. Two older
 tests choose their path again before a deliberate Save, which is
 the faithful conversion under the ruling (T-42).
+
+### C-339 — The preview and the drop are judged by one rule: a real drag commits what was drawn
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-339).</sub>
+
+Reported on rc17 (2026-09-06): a zigzag dragged on the Topology tab
+drew a wave and, on release, recorded nothing; the change list stayed
+as it was. Reproduced by dragging a zigzag on one edge to its ceiling,
+then dragging one on a SECOND edge -- the amplitude box carries the
+last edit's value, so the second edge began at h=1.0, an outward drag
+there could not raise it, and `_commit_the_drag` discarded the whole
+gesture because `_drag_moved` asks whether the VALUE moved and it had
+not, though the pointer plainly had. The maintainer put it exactly:
+'if you can draw it, why not run it.' The drop now commits when the
+pointer travelled past the click threshold (`view.drag_travel_px() >=
+_AMPLITUDE_DEADBAND_PX`) OR the value moved, so a real drag records
+what the preview drew and a true click still only chooses a class.
+The same drop serves zigzag, rotate and scale, so all three were
+covered at once -- the maintainer confirmed rotate and scale snapped
+back the same way. Guarded by
+`test_a_real_drag_commits_even_where_the_value_did_not_move` and the
+entry `a-real-drag-commits-what-the-preview-drew`. The wider rule is
+in TESTING and CLAUDE: when two paths judge one gesture, they must
+share the judgement, or the stricter one silently overrules what the
+looser one showed. STILL OWED, the maintainer's fuller principle: the
+preview must never draw a move that will not commit -- a clamped move
+shows the glyph stopping at the max, an impossible one turns red and
+is refused before release (the honest-preview work, in ROADMAP.md).
+
+### C-340 — A performance hint is passed only where the dependency takes it, since a reload can leave an older module
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-340).</sub>
+
+Reported on rc17 (2026-09-06): the dual button raised
+`TypeError: Tiling.__init__() got an unexpected keyword argument
+'rotations'` in a modal. The shipped zip is internally consistent --
+its vendored `Tiling` carries patch 5 (which added the `rotations`
+hint) and its dialog passes it -- so the crash is a module-cache
+skew: QGIS caches imported modules, and a plugin RELOADED after an
+upgrade (rather than QGIS restarted) can keep an older vendored
+`Tiling` in memory that predates the parameter, while the freshly
+reloaded dialog passes it. `rotations` is only a hint that the caller
+will ask for no rotation, so `_tiling_takes_rotations` reads the
+signature (cached per class) and the plugin passes the hint only
+where it is accepted; absent, it draws with the any-rotation grid,
+slower and never wrong. A restart also clears it. Verified by driving
+a generate against a Tiling subclass with no `rotations` parameter --
+no TypeError, layers drawn. Guarded by
+`test_a_stale_vendored_tiling_without_rotations_does_not_crash` and
+the entry `rotations-is-passed-only-where-it-is-taken`; the plugin's
+own passing of the hint is held by
+`test_a_declared_rotation_lets_the_grid_ask_the_regions_shape` via a
+recording Tiling. The general form: never let a performance hint be a
+hard dependency across a boundary a reload can age.

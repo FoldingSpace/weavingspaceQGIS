@@ -313,6 +313,27 @@ and **THE `publish_candidate` QUESTION IS MOOT** (R-31). Accounts R-85.
 
 ## 0.24.5 — three tabs asked for, and what was deferred here from 0.24.4
 
+**THE HONEST PREVIEW: A MANIPULATION SHOWS ONLY WHAT WILL COMMIT.**
+(Maintainer's principle, 2026-09-06, after rc17's drag reports.) The
+preview must never let a person imagine a move will be allowed when it
+will not. Three states, differentiated as the drag goes: VALID draws
+as now; CLAMPED shows the glyph stopping at the max -- the rotation
+arc will not sweep past the limit, the scale and displacement arrows
+will not extend past theirs, the zigzag will not deepen past its
+ceiling -- so what is drawn is what commits; FAILED (a move that
+leaves a design that cannot be tiled) turns the glyph and preview red
+and dotted while the pointer is down, and releasing there refuses with
+the reason rather than recording a broken edit. Each manipulation also
+shows MORE as it goes (a live sense of how big the change is) and,
+subject to that, a subtle cue of the entity or symmetry it bears on --
+the pivot a rotation turns about, the rail a push runs along, the edge
+a zigzag rides. The drop already commits what a real drag draws
+(C-339); this is the other half, at the drawing. It composes with the
+palette entry below, since a red dotted glyph needs the colours
+settled, so the two are done together. IN PROGRESS 2026-09-06.
+
+**THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
+
 Moved on the maintainer's decision of 2026-08-27, in the act of
 cutting 0.24.4's candidate. None of it is abandoned and none of it
 was blocking the version: three are measurements rather than

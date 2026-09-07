@@ -1052,7 +1052,11 @@ The accounts are C-267 and the ids beside each rule.
   reaching a real defect (C-136).
 - **A GUARD MEASURES THE GROUND, NOT THE BOX ROUND IT** (C-93); a guard
   that tests sign does not test finiteness, and an oracle in absolute
-  values is blind to the sign (C-324); a comparator sensitive to
+  values is blind to the sign (C-324); a PREVIEW AND THE DROP ARE ONE
+  RULE -- a gesture that travelled past the click threshold commits
+  what it drew, whatever the number, or a drag on a fresh edge whose
+  box holds a value at its ceiling previews a change and records
+  nothing (C-339); a comparator sensitive to
   representation cannot answer a question about appearance (C-162),
   and an exact question is not asked with a tolerance (C-163). When two
   things should draw the same map, compare what they drew, not what
@@ -1286,7 +1290,10 @@ and the ids beside each rule.
   bumping its version, so record the commit (C-180); a dependency's
   refusal can stop being true while the rule it justified stands
   (C-229); a patch that rewrites another patch's output takes its
-  marker with it (C-241). The label/key separation touched thirteen
+  marker with it (C-241); and a PERFORMANCE HINT is passed only where
+  the dependency in force takes it, since QGIS caches modules and a
+  reloaded plugin can inherit an older vendored one that raises on the
+  keyword (C-340). The label/key separation touched thirteen
   product sites and 121 suite sites (C-204).
 
 **Releasing and documents.**
