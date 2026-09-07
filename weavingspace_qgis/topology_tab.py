@@ -3366,6 +3366,24 @@ class TopologyPanel(QWidget):
       # drew nothing still add an edit -- the user would be shown one
       # thing and given another.
       self._drag_from = None
+      # BUT IT SAYS SO, WHICH IS THE HALF THAT WAS MISSING. Returning
+      # here left the PREVIOUS preview and the previous state on
+      # screen, so a drag pushed past what can be laid out went on
+      # drawing the last wave that worked, in the ordinary ink, with
+      # nothing to say the pointer had gone beyond it -- a person
+      # imagining a move will be allowed when it will not, which is
+      # exactly what the honest preview exists to prevent. The picture
+      # is kept, since a drawing that vanishes mid-gesture says less
+      # than one that stops and reddens; the STATE is what changes.
+      self.view.set_drag_status({
+        "clamped": False, "failed": True, "key": key,
+        # THE SENTENCE MATCHES WHAT THE DROP DOES, which the first
+        # draft of it did not: it offered to record the move and draw
+        # it as deep as it could go, while `_drag_from` above is
+        # cleared and the drop therefore records nothing at all.
+        "reason": ("This much cannot be laid out as a tiling. Ease "
+                   "back to a depth that can be drawn; letting go "
+                   "here records nothing.")})
       return
     self.view.show_preview(moved)
     # AND THE NUMBER BOXES FOLLOW, so a drag is a way of typing rather
