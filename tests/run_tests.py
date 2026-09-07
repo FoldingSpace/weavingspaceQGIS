@@ -3800,15 +3800,26 @@ def test_a_topology_edit_reaches_the_map():
     "could reach the refusal at all"
   hard_groups = topology_edits.classes(hard_topology)
   hard_before = hard.tiles.geometry.iloc[0].wkt
+  # RE-AIMED FROM ZIGZAG TO SCALE, 2026-09-07, which is what this leg's
+  # own comment asks for rather than a repair invented here. The
+  # zigzag it used to drive is CLAMPED now instead of refused -- an
+  # over-deep wave is drawn at the largest amplitude that lays out and
+  # the reduction is said -- so it stopped reaching `_refusal` and this
+  # leg went red on a Linux shard while every targeted run passed. The
+  # replacement was found by sweeping the manipulations for one still
+  # undrawable, not guessed: `scale_edge` at 25 refuses on both
+  # `archimedean 4.8.8` and `laves 3.3.4.3.4`, and `push_vertex` at 20
+  # on the first. The refusal path is therefore still reachable and its
+  # wording still guarded; the clamp has its own test.
   tileable, refusals, _ = topology_edits.apply(
-    hard_topology, [{"classes": hard_groups["edge"], "how": "zigzag_edge",
-                     "args": {"n": 8, "h": 1.0, "smoothness": 0}}])
+    hard_topology, [{"classes": hard_groups["edge"], "how": "scale_edge",
+                     "args": {"sf": 25.0}}])
   assert refusals, (
     "nothing in this suite now reaches a refusal, so `_refusal`'s "
     "wording is unguarded -- sweep the catalogue again "
     "(dev/instruments) and re-aim this leg, or record that the path "
     "has become unreachable")
-  assert "Zigzag" in refusals[0] and "cannot be laid out" in refusals[0], \
+  assert "Scale edge" in refusals[0] and "cannot be laid out" in refusals[0], \
     f"the refusal does not name the control and what happened: " \
     f"{refusals[0]!r}"
   assert tileable.tiles.geometry.iloc[0].wkt == hard_before, \
