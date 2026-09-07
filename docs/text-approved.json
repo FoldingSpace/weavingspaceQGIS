@@ -1114,6 +1114,11 @@
   "excerpt": "One unit per polygon, at its centre, instead of a continuous",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "65ad0776a1aebd35": {
+  "approved": "2026-09-07",
+  "excerpt": "A deeper wave than this runs beyond the edges next to it. Le",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "65f6d3aff636ff5c": {
   "approved": "2026-09-05",
   "excerpt": "Tiled with the dual of this design.",

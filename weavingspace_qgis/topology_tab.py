@@ -110,6 +110,23 @@ _GAP_INK = "#e57373"
 # sees it stop rather than imagining more will happen (2026-09-06).
 _CLAMPED_INK = "#f9a825"
 
+# WHAT A DRAG HELD AT ITS LIMIT SAYS, per manipulation. The value stops
+# following the pointer where the next step could not be laid out, and
+# the sentence has to name the move somebody is making: one sentence
+# for all of them told a person dragging a rotate that "a deeper wave"
+# ran beyond its neighbours. Keyed by the manipulation, with None as
+# the fallback for one that gains a handle later and no sentence yet.
+_HELD_SENTENCE = {
+  "zigzag_edge": ("A deeper wave than this runs beyond the edges next "
+                  "to it. Let go of the click to draw it as shown."),
+  "rotate_edge": ("Turning it further than this runs beyond the edges "
+                  "next to it. Let go of the click to draw it as shown."),
+  "scale_edge": ("Stretching it further than this runs beyond the edges "
+                 "next to it. Let go of the click to draw it as shown."),
+  None: ("Moving it further than this runs beyond the edges next to it. "
+         "Let go of the click to draw it as shown."),
+}
+
 # WHAT EACH HANDLE MEANS, AND WHERE IT SITS. A handle IS the choice of
 # manipulation -- grabbing one selects it -- so the vocabulary is in
 # the drawing rather than in a chooser somebody has to set first.
@@ -990,11 +1007,99 @@ class TopologyView(QWidget):
     held = self._press_edge if self._preview is not None else None
     frame = held or (self._edge_frame(self._chosen_thing)
                      if self._chosen[0] == "edge" else None)
+    self._draw_what_the_move_bears_on(painter, held)
     self._draw_the_zigzag_it_would_make(painter)
     for key, where, shape in self.handles():
       lit = (key in (self._hover_handle, self._held_handle))
       self._draw_handle(painter, key, where, frame, lit)
     painter.end()
+
+  def _draw_what_the_move_bears_on(self, painter, frame):
+    """Draw the thing a drag turns, stretches or rides on.
+
+    Args:
+      painter: the active QPainter.
+      frame: the frozen `(mid_x, mid_y, along_x, along_y, length)` of
+        the edge the gesture took hold of, or None when no drag is in
+        progress -- in which case nothing is drawn, since a cue with no
+        gesture to explain is one more mark on a crowded drawing.
+
+    Returns:
+      None.
+
+    WHAT THIS IS FOR. (Maintainer's principle, 2026-09-06: a
+    manipulation shows a subtle cue of the entity or symmetry it bears
+    on -- the pivot, the push rail, the edge.) A rotate turns about the
+    edge's own midpoint and a scale holds that midpoint fixed, so the
+    pivot is the one point neither of them moves and is exactly what a
+    person needs to see to predict either; a zigzag rides on the edge,
+    so the baseline is the cue. The push rail already existed and is
+    drawn with its own handle.
+
+    ANCHORED TO THE FROZEN FRAME, like everything else about a drag
+    (maintainer's ruling, 2026-09-07). The pivot is meaningless if it
+    moves with the geometry the gesture is changing -- it would stop
+    being the point that stays still, which is the whole of what it
+    says.
+
+    DRAWN FAINT AND DASHED, because it explains the gesture rather than
+    being part of it: this drawing already carries class labels, the
+    handles, the ghost and now the hatch, and the tab has been reported
+    unusable once for having too much on it.
+    """
+    if not frame:
+      return
+    mid_x, mid_y, along_x, along_y, length = frame
+    key = self._held_handle
+    if key not in ("rotate_edge", "scale_edge", "zigzag_edge"):
+      return
+    pivot = self._to_screen(mid_x, mid_y)
+    ends = (self._to_screen(mid_x - along_x * length / 2.0,
+                            mid_y - along_y * length / 2.0),
+            self._to_screen(mid_x + along_x * length / 2.0,
+                            mid_y + along_y * length / 2.0))
+    ink = QColor(_HANDLE_INK)
+    ink.setAlpha(120)
+    pen = QPen(ink, 1.0)
+    pen.setStyle(Qt.PenStyle.DashLine)
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+
+    # THE EDGE AS IT WAS: the axis a scale stretches along and the
+    # baseline a zigzag rides on, both of which are the same line.
+    painter.drawLine(ends[0], ends[1])
+
+    if key == "rotate_edge":
+      # AND THE ANGLE, AS AN ARC ABOUT THE PIVOT, swept from where the
+      # edge's end WAS to where the pointer has taken it. Read off the
+      # two positions rather than off the value, so the arc cannot
+      # disagree with the handle: both are polar coordinates about
+      # this same frozen midpoint.
+      if self._release_px is not None:
+        import math
+        radius = max(12.0, ((ends[1].x() - pivot.x()) ** 2
+                            + (ends[1].y() - pivot.y()) ** 2) ** 0.5)
+        was = math.atan2(ends[1].y() - pivot.y(), ends[1].x() - pivot.x())
+        now = math.atan2(self._release_px.y() - pivot.y(),
+                         self._release_px.x() - pivot.x())
+        sweep = math.degrees(now - was)
+        while sweep > 180.0:
+          sweep -= 360.0
+        while sweep < -180.0:
+          sweep += 360.0
+        box = QRectF(pivot.x() - radius, pivot.y() - radius,
+                     radius * 2, radius * 2)
+        # Qt measures in sixteenths of a degree, anticlockwise, from
+        # three o'clock -- and the widget's y runs DOWN, so both the
+        # start and the sweep are negated to read as they look.
+        painter.drawArc(box, int(-math.degrees(was) * 16),
+                        int(-sweep * 16))
+
+    # THE PIVOT ITSELF, last so it sits above its own lines.
+    painter.setPen(QPen(ink, 1.0))
+    painter.setBrush(QBrush(ink))
+    painter.drawEllipse(pivot, 2.5, 2.5)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
 
   def _draw_symmetries(self, painter, topology):
     """Draw the design's own symmetries: centres and mirror lines.
@@ -3444,14 +3549,23 @@ class TopologyPanel(QWidget):
         "failed": self._drag_last_good is None, "key": key,
         # TWO SENTENCES, BECAUSE THE TWO STATES ARE DIFFERENT THINGS
         # to be told. Where a value is being HELD the move is fine and
-        # the number has simply stopped following the pointer; where
-        # nothing in this gesture has laid out there is no held value
-        # and letting go records nothing. Each says what the drop will
-        # do, since the first draft of this said the opposite of the
-        # line it sat beside.
+        # the number has simply stopped following the pointer, so the
+        # sentence invites the drop: letting go records the held value,
+        # which is what is on screen. Where nothing in this gesture has
+        # laid out there is no held value at all, so that sentence
+        # promises nothing about the drop and says what to do instead.
+        # NEITHER MAY OUTRUN THE CODE BESIDE IT, which is the thing to
+        # check when either is reworded: a first draft offered to
+        # record a move and draw it as deep as it could go, on the
+        # branch that had just cleared what the drop reads.
+        # AND THE HELD SENTENCE NAMES THE MOVE IT IS ABOUT. One
+        # sentence for every manipulation told somebody dragging a
+        # ROTATE that "a deeper wave than this runs beyond the edges" --
+        # found by rendering the gesture rather than by reading, since
+        # the words are only wrong on the branch a drag past the limit
+        # reaches.
         "reason": (
-          "Held here: a deeper wave than this runs beyond the edges "
-          "next to it. Letting go records what is drawn."
+          (_HELD_SENTENCE.get(key) or _HELD_SENTENCE[None])
           if self._drag_last_good is not None else
           "This much cannot be laid out as a tiling. Ease back to a "
           "depth that can be drawn.")})
