@@ -190,10 +190,10 @@ CLASSES_MOVED = (
 CLASSES_MOVED_MARK = "was made when this design's"
 
 ZIGZAG_CLAMPED = (
-  "Zigzag edge on {selector} was drawn at an amplitude of {drawn} "
-  "rather than {asked}: a deeper wave than that runs into the edges "
-  "next to it. The number you set is kept, so it comes back in full "
-  "wherever the design leaves room for it.")
+  "Zigzag edge on {selector} was drawn at an amplitude of {drawn} rather than "
+  "{asked}: a deeper wave than that runs beyond the edges next to it. The "
+  "number you set is kept, so it comes back in full wherever the design "
+  "leaves room for it.")
 ZIGZAG_CLAMPED_MARK = "was drawn at an amplitude of"
 
 

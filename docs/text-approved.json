@@ -1929,6 +1929,11 @@
   "excerpt": "{} already exists and was not written by this map. Saving wi",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "b36d7b539bfa184f": {
+  "approved": "2026-09-07",
+  "excerpt": "The largest `h` the amplitude box can hold, peak to peak.",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "b4518dcfb8cc1738": {
   "approved": "2026-08-20",
   "excerpt": "kept {} colours for values '{}' does not have",
@@ -2164,6 +2169,11 @@
   "excerpt": "Clip by map units (no ragged edges)",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "cdf73f9f33a7caa4": {
+  "approved": "2026-09-07",
+  "excerpt": "was drawn at an amplitude of",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "ce05335606708960": {
   "approved": "2026-08-08",
   "excerpt": "Could not add the result layers:",
@@ -2298,6 +2308,11 @@
   "approved": "2026-08-27",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "d80fd84938c22d16": {
+  "approved": "2026-09-07",
+  "excerpt": "Zigzag edge on {selector} was drawn at an amplitude of {draw",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "d84cfc40a917feb6": {
   "approved": "2026-08-09",
