@@ -859,8 +859,18 @@ class TopologyView(QWidget):
     # the only one that can have gaps.
     if self._gaps is not None:
       painter.setPen(Qt.PenStyle.NoPen)
-      painter.setBrush(QBrush(QColor(_GAP_INK),
-                              Qt.BrushStyle.BDiagPattern))
+      # LIGHTER NOW THAT IT COVERS THE WHOLE TEAR. (Maintainer's
+      # ruling, 2026-09-07.) The hatch used to mark one cell's worth
+      # of missing ground and now marks every torn piece in the patch
+      # -- 21 pieces against 4 on the default design's per-edge rotate
+      # -- so at full strength it would dominate a drawing that is
+      # already carrying class labels, handles and a ghost. This
+      # project has withdrawn a hatching once for confusing people,
+      # and its own rule is that a heavy mark competes with the thing
+      # being judged: the mark has to be findable, not loud.
+      faint = QColor(_GAP_INK)
+      faint.setAlpha(110)
+      painter.setBrush(QBrush(faint, Qt.BrushStyle.BDiagPattern))
       for part in getattr(self._gaps, "geoms", [self._gaps]):
         if not part.is_empty:
           painter.drawPath(self._path(part))
@@ -958,17 +968,32 @@ class TopologyView(QWidget):
                          str(vertex.label))
 
     # THE HANDLES GO ON TOP, because they are the thing being aimed at
-    # and they sit on the geometry they belong to. A preview is drawn
-    # from the topology as it stood before the drag, so during a drag
-    # the handles would be describing a shape that is no longer under
-    # them -- they are left out until the gesture ends.
-    if self._preview is None:
-      frame = self._edge_frame(self._chosen_thing) \
-          if self._chosen[0] == "edge" else None
-      self._draw_the_zigzag_it_would_make(painter)
-      for key, where, shape in self.handles():
-        lit = (key in (self._hover_handle, self._held_handle))
-        self._draw_handle(painter, key, where, frame, lit)
+    # and they sit on the geometry they belong to.
+    # AND THEY ARE DRAWN DURING A DRAG TOO, ANCHORED TO THE FRAME THE
+    # GESTURE BEGAN IN. (Maintainer's ruling, 2026-09-07.) They used to
+    # be left out whenever a preview stood, on the reading that a
+    # preview moves the geometry so the handles would describe a shape
+    # no longer under them -- which is true, and left the drag with no
+    # cue at all beyond the tile outlines. The frame they take instead
+    # is `grabbed_edge()`, captured at the press and held for the whole
+    # gesture, which is ALREADY what the drag's own arithmetic is
+    # measured against: the value is read as a polar coordinate about
+    # that frozen midpoint, so anchoring the picture to anything else
+    # would draw one thing and record another.
+    # NOT THE PREVIEW'S OWN GEOMETRY, deliberately. Re-deriving a
+    # paint-time anchor from what the gesture is changing is the
+    # feedback loop this tab has already paid for: `_fit` did it, and a
+    # nudge held perfectly still climbed 0.104 to 0.356 over six
+    # repaints while the scale fell. The cost accepted here is that on
+    # a large move the cue sits where the edge WAS rather than where
+    # the preview has taken it.
+    held = self._press_edge if self._preview is not None else None
+    frame = held or (self._edge_frame(self._chosen_thing)
+                     if self._chosen[0] == "edge" else None)
+    self._draw_the_zigzag_it_would_make(painter)
+    for key, where, shape in self.handles():
+      lit = (key in (self._hover_handle, self._held_handle))
+      self._draw_handle(painter, key, where, frame, lit)
     painter.end()
 
   def _draw_symmetries(self, painter, topology):
@@ -2041,6 +2066,12 @@ class TopologyPanel(QWidget):
     # rather than guessing while it is.
     self._marks = []
     self._drag_from = None
+    # THE LAST VALUE IN THIS GESTURE THAT LAID OUT, so a drag pushed
+    # past the limit HOLDS there rather than being dropped. It belongs
+    # to one gesture: `_on_grabbed` empties it at the press and
+    # `_commit_the_drag` at the drop, so a later drag can never hold a
+    # number an earlier one left behind.
+    self._drag_last_good = None
     # The numbers as they stood when the handle was grabbed; see
     # `_on_grabbed`.
     self._drag_started_with = {}
@@ -2457,7 +2488,17 @@ class TopologyPanel(QWidget):
       # enclosed within one.
       ratio, _overlap, missing = edits_module.plane_coverage(unit)
       if ratio >= edits_module.GAP_TOLERANCE:
-        where = missing
+        # AND THE HATCH SHOWS THE WHOLE TEAR, not the one cell the
+        # coverage figure is measured over. (Maintainer's ruling,
+        # 2026-09-07.) One cell is enough to DECIDE that a tiling has
+        # torn, which is what `ratio` is for, and it is not enough to
+        # SHOW the tear: on a per-edge rotate of the default design it
+        # is 4 pieces of ground against 21, a fortieth of what is
+        # actually torn. `tears_in_the_patch` erodes the patch's own
+        # ragged border first, so what is hatched is damage rather
+        # than the edge of what was drawn, and it costs what the one
+        # cell costs because the patch is already laid.
+        where = edits_module.tears_in_the_patch(unit) or missing
     self.view.show_topology(topology, message, ghost=ghost, gaps=where)
     self._say_what_the_symmetry_is(unit, topology)
     self._refresh_classes()
@@ -3112,6 +3153,7 @@ class TopologyPanel(QWidget):
     # parameter started -- a count of 3 is not "no movement" merely
     # because 3 is what the box holds after the drag put it there.
     self._drag_started_with = dict(self._arguments())
+    self._drag_last_good = None
 
   # ------------------------------------------------------------ drag
 
@@ -3365,8 +3407,27 @@ class TopologyPanel(QWidget):
       # the drop records, so leaving it set would let a gesture that
       # drew nothing still add an edit -- the user would be shown one
       # thing and given another.
-      self._drag_from = None
-      # BUT IT SAYS SO, WHICH IS THE HALF THAT WAS MISSING. Returning
+      # THE VALUE STOPS AT THE LAST ONE THAT LAID OUT, rather than the
+      # gesture being dropped. (Maintainer's ruling, 2026-09-07.) The
+      # preview is already built every frame -- 158ms for the
+      # transform -- and a ceiling probe is 161ms because it IS that
+      # same transform, so the predicate this needs is one the drag has
+      # already evaluated: there is nothing to compute and nothing to
+      # cache. The pointer may keep going; the number does not.
+      # WHY NOT A CEILING HERE. Bisecting for the exact maximum costs
+      # 1.4s, which is a freeze at the moment somebody starts dragging.
+      # This is exact to one frame of pointer travel instead, and the
+      # COMMIT-time clamp then applies the true ceiling at the drop, so
+      # a fast drag that stops a little short is corrected on release.
+      if self._drag_last_good is not None:
+        self._drag_from = dict(self._drag_last_good)
+        self._show_arguments(self._drag_last_good)
+      else:
+        # NOTHING HAS LAID OUT YET IN THIS GESTURE, so there is no
+        # value to hold and nothing to record -- the first frame
+        # already failed.
+        self._drag_from = None
+      # AND IT SAYS SO, WHICH IS THE HALF THAT WAS MISSING. Returning
       # here left the PREVIOUS preview and the previous state on
       # screen, so a drag pushed past what can be laid out went on
       # drawing the last wave that worked, in the ordinary ink, with
@@ -3374,19 +3435,30 @@ class TopologyPanel(QWidget):
       # imagining a move will be allowed when it will not, which is
       # exactly what the honest preview exists to prevent. The picture
       # is kept, since a drawing that vanishes mid-gesture says less
-      # than one that stops and reddens; the STATE is what changes.
+      # than one that stops; the STATE is what changes.
+      # CLAMPED RATHER THAN FAILED where a value is being held: FAILED
+      # now means a move that lays out and still tears, which is what
+      # `plane_coverage` measures. Held at a limit is amber, not red.
       self.view.set_drag_status({
-        "clamped": False, "failed": True, "key": key,
-        # THE SENTENCE PROMISES NOTHING ABOUT THE DROP, which is what
-        # keeps it true: `_drag_from` is cleared above, so letting go
-        # here records nothing, and a first draft that offered to
-        # record the move and draw it as deep as it could go said the
-        # opposite of the line it sat beside. It says what to do --
-        # ease back -- and leaves the drop to the change list, which
-        # is the store that answers what was recorded.
-        "reason": ("This much cannot be laid out as a tiling. Ease back to a "
-                   "depth that can be drawn.")})
+        "clamped": self._drag_last_good is not None,
+        "failed": self._drag_last_good is None, "key": key,
+        # TWO SENTENCES, BECAUSE THE TWO STATES ARE DIFFERENT THINGS
+        # to be told. Where a value is being HELD the move is fine and
+        # the number has simply stopped following the pointer; where
+        # nothing in this gesture has laid out there is no held value
+        # and letting go records nothing. Each says what the drop will
+        # do, since the first draft of this said the opposite of the
+        # line it sat beside.
+        "reason": (
+          "Held here: a deeper wave than this runs beyond the edges "
+          "next to it. Letting go records what is drawn."
+          if self._drag_last_good is not None else
+          "This much cannot be laid out as a tiling. Ease back to a "
+          "depth that can be drawn.")})
       return
+    # THIS FRAME LAID OUT, so it becomes the value a later frame
+    # holds at if the pointer goes further than the design allows.
+    self._drag_last_good = dict(args)
     self.view.show_preview(moved)
     # AND THE NUMBER BOXES FOLLOW, so a drag is a way of typing rather
     # than a second, separate control: drag roughly, then read what it
@@ -3545,6 +3617,7 @@ class TopologyPanel(QWidget):
       self._commit_the_drag_body()
     finally:
       self.view.set_drag_status(None)
+      self._drag_last_good = None
 
   def _commit_the_drag_body(self):
     """Turn the gesture just ended into an edit, or discard it.

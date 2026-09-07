@@ -984,6 +984,76 @@ def plane_coverage(unit):
     return 0.0, 0.0, None
 
 
+def tears_in_the_patch(unit, across=3):
+  """Every torn piece of ground in a block of interior cells.
+
+  Args:
+    unit: a Tileable, usually one an edit has just produced.
+    across: how many fundamental cells wide the block is. Three gives
+      nine cells, which sits comfortably inside the patch `r=2` lays.
+
+  Returns:
+    A geometry of the ground the tiles fail to cover across that
+    block, or None where the question cannot be asked. Empty where the
+    tiling is sound.
+
+  WHY CELLS RATHER THAN A HULL. The first version of this took the
+  covered union's convex hull, eroded it by one cell and subtracted --
+  and reported 1,000,000 units of "tear" on an UNTOUCHED `laves
+  3.3.4.3.4`, exactly one cell's worth, because a patch's outer edge
+  is ragged and a hull does not follow it. Hatching that paints a
+  sound design as broken at its border. A block of whole fundamental
+  cells is interior BY CONSTRUCTION, so there is no boundary to erode
+  and nothing to tune: a tiling covers every translate of a cell, so
+  any cell inside the patch answers, and the block simply asks more of
+  them. The test that caught it asserts both halves -- a sound design
+  hatches nothing, a torn one hatches more than a single cell shows.
+
+  IT COSTS WHAT ONE CELL COSTS, near enough, because `plane_coverage`
+  already lays this patch to measure its single cell.
+  """
+  import shapely
+  from shapely.geometry import Polygon
+  try:
+    vectors = getattr(unit, "vectors", None) or {}
+    candidates = sorted(
+      (tuple(float(c) for c in v) for v in vectors.values()),
+      key=lambda v: v[0] * v[0] + v[1] * v[1])
+    first = second = None
+    for candidate in candidates:
+      if candidate[0] * candidate[0] + candidate[1] * candidate[1] < 1e-18:
+        continue
+      if first is None:
+        first = candidate
+        continue
+      if abs(first[0] * candidate[1] - first[1] * candidate[0]) > 1e-9:
+        second = candidate
+        break
+    if second is None:
+      return None
+    patch = unit.get_local_patch(r=2, include_0=True)
+    covered = shapely.union_all(list(patch.geometry))
+    centre = covered.centroid
+    half = across // 2
+    cells = []
+    for i in range(-half, half + 1):
+      for j in range(-half, half + 1):
+        ox = centre.x - (first[0] + second[0]) / 2 + i * first[0] + j * second[0]
+        oy = centre.y - (first[1] + second[1]) / 2 + i * first[1] + j * second[1]
+        cells.append(Polygon([
+          (ox, oy),
+          (ox + first[0], oy + first[1]),
+          (ox + first[0] + second[0], oy + first[1] + second[1]),
+          (ox + second[0], oy + second[1])]))
+    block = shapely.union_all(cells)
+    return block.difference(covered)
+  except Exception:                                   # noqa: BLE001
+    # A DESIGN THIS CANNOT BE ASKED OF DRAWS NO HATCH, which is the
+    # honest answer: the mark says "there is a tear here" and has
+    # nothing to say when the question will not answer.
+    return None
+
+
 def still_has_a_topology(unit) -> bool:
   """Whether this design's tiles still meet, and so can carry one.
 

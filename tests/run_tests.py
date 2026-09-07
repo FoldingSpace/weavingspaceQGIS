@@ -11803,6 +11803,57 @@ def _ground_moved(before, after):
   return first.symmetric_difference(second).area / first.area
 
 
+def test_the_hatch_shows_the_tear_and_not_the_edge_of_the_drawing():
+  """The validity hatch covers the whole tear, minus the patch's border.
+
+  The coverage figure is measured over ONE fundamental cell, which is
+  enough to DECIDE that a tiling has torn and not enough to SHOW the
+  tear. `tears_in_the_patch` answers the wider question.
+
+  THE BORDER IS THE TRAP, and it is why this cannot simply be "the
+  uncovered ground". A patch is a finite piece of an infinite tiling,
+  so the space between its outermost tiles and any hull round them is
+  not damage; hatching it paints a sound design as broken at its edge.
+  This asserts BOTH halves: an untouched design has nothing to hatch
+  even though its patch has a very ragged outside, and a torn one
+  hatches more than the single cell does.
+
+  Regression: the hatch marked one cell's worth of missing ground, a fortieth of what a per-edge rotate actually tears. [review]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+  unit = catalog.make_unit(spec, spacing=1000, crs=3857)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: no topology -- {why}"
+
+  # A SOUND DESIGN HATCHES NOTHING, which is the half that catches a
+  # measure fooled by the patch's own ragged edge.
+  sound = topology_edits.tears_in_the_patch(unit)
+  sound_area = 0.0 if sound is None or sound.is_empty else sound.area
+  cell = float(unit.prototile.geometry.iloc[0].area)
+  assert sound_area <= cell * topology_edits.GAP_TOLERANCE * 10, \
+    f"an untouched design must have no tear to hatch, got " \
+    f"{sound_area:,.0f} against a cell of {cell:,.0f} -- the border " \
+    f"is being counted as damage"
+
+  # A TORN ONE HATCHES MORE THAN ONE CELL'S WORTH.
+  label = topology_edits.classes(topology).get("edge", "")[:1]
+  torn = topology.transform_geometry(
+    True, True, label, "rotate_edge", angle=20.0).tileable
+  gap, _overlap, missing = topology_edits.plane_coverage(torn)
+  assert gap >= topology_edits.GAP_TOLERANCE, \
+    "PREMISE: the per-edge rotate left a sound tiling, so there is " \
+    "no tear for either measure to show"
+  wider = topology_edits.tears_in_the_patch(torn)
+  assert wider is not None and not wider.is_empty, \
+    "a torn design must have ground to hatch"
+  one_cell = 0.0 if missing is None or missing.is_empty else missing.area
+  assert wider.area > one_cell * 2.0, \
+    f"the wider hatch must show more of the tear than one cell does: " \
+    f"{wider.area:,.0f} against {one_cell:,.0f}"
+
+
 def test_the_preview_says_which_of_three_states_a_drag_is_in():
   """A drag draws valid, clamped or failed, and says so while it lasts.
 
@@ -91240,6 +91291,8 @@ def main():
         test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture)
   check("a design is shown by name and stored by key",
         test_a_design_is_shown_by_name_and_stored_by_key)
+  check("the hatch shows the tear and not the edge of the drawing",
+        test_the_hatch_shows_the_tear_and_not_the_edge_of_the_drawing)
   check("the preview says which of three states a drag is in",
         test_the_preview_says_which_of_three_states_a_drag_is_in)
   check("a zigzag too deep is clamped rather than dropped",
