@@ -2672,6 +2672,31 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="a-too-deep-zigzag-is-clamped-not-dropped", file=TOPOLOGY_EDITS,
+       # THE CLAMP ITSELF. Disabling the branch restores the old
+       # behaviour exactly -- the edit falls through to `_refusal` and
+       # the design does not move -- which is the state the maintainer
+       # reported as the zigzag not working.
+       old="""      if ceiling > 0.0 and ceiling < asked:""",
+       new="""      if False:""",
+       test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
+       why="an over-deep zigzag drawing at the depth that fits, rather "
+           "than the gesture being lost and the person left to find "
+           "the limit by bisecting it themselves"),
+  dict(name="the-clamp-does-not-ratchet-the-record", file=TOPOLOGY_EDITS,
+       # THE OTHER AXIS, and it needs its own entry because the clamp
+       # can be perfectly correct on screen while quietly eroding what
+       # was typed. Writing the ceiling back into the record is the
+       # ratchet: the ceiling moves as neighbouring edits move, so each
+       # replay would shave the amplitude again and never give it back.
+       old="""        if drawable is not None:
+          refusals.append(ZIGZAG_CLAMPED.format(""",
+       new="""        if drawable is not None:
+          edit["args"]["h"] = ceiling
+          refusals.append(ZIGZAG_CLAMPED.format(""",
+       test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
+       why="the amplitude somebody typed surviving a replay, so a "
+           "design that regains room draws the full wave again"),
   dict(name="a-release-asset-carries-its-version", file=BUILD,
        # THE NAMING AXIS. Handing back the bare basename is exactly
        # the state every candidate shipped in: the reports went out as

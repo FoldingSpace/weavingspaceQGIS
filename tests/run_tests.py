@@ -11792,6 +11792,159 @@ def _ground_moved(before, after):
   return first.symmetric_difference(second).area / first.area
 
 
+def test_a_zigzag_too_deep_is_clamped_rather_than_dropped():
+  """An over-deep zigzag is drawn at the largest amplitude that fits.
+
+  A wave deeper than the edges beside it allow used to be refused whole
+  -- "a smaller value often works where a larger one does not" -- which
+  costs the person the gesture and leaves them to find the limit by
+  bisecting it by hand. `zigzag_ceiling` asks the layout itself for the
+  largest amplitude that lays out, and the edit is applied there.
+
+  THE RECORD IS NOT REWRITTEN, and that is the half this test exists
+  for. The ceiling moves as other edits move the neighbouring geometry,
+  so a clamp written back into the record would shave the number again
+  on every replay and never give it back. Holding what was asked and
+  clamping on the way to the screen is idempotent: replaying the same
+  list twice must draw exactly the same wave.
+
+  Regression: a zigzag past its neighbours was dropped entirely, so the edit vanished and the design did not move. [user]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+  unit = catalog.make_unit(spec, spacing=1000, crs=3857)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: no topology -- {why}"
+  label = topology_edits.classes(topology).get("edge", "")[:1]
+  assert label, "PREMISE: this design has no edge class to zigzag"
+
+  cap = topology_edits.ZIGZAG_CAP
+  ceiling = topology_edits.zigzag_ceiling(
+    topology, label, {"n": 2, "smoothness": 3})
+  # THE FIXTURE MUST BE ABLE TO EXHIBIT THE CASE: a class with no
+  # limit inside the box's range cannot show a clamp at all.
+  assert 0.0 < ceiling < cap, \
+    f"PREMISE: class {label!r} has no reachable ceiling (got {ceiling})"
+
+  def replay(h):
+    edits = [{"how": "zigzag_edge", "classes": label,
+              "args": {"n": 2, "h": h, "smoothness": 3}}]
+    got, refusals, _state = topology_edits.apply(topology, edits)
+    length = (round(float(got.tiles.geometry.length.sum()), 3)
+              if got is not None else None)
+    return got, refusals, length, edits
+
+  plain = round(float(unit.tiles.geometry.length.sum()), 3)
+
+  # PAST THE CEILING: applied, said, and the record left alone.
+  got, refusals, length, edits = replay(cap)
+  assert got is not None, "an over-deep zigzag must still be applied"
+  assert length != plain, \
+    f"the clamped zigzag moved nothing: perimeter {length} unchanged"
+  assert any(topology_edits.ZIGZAG_CLAMPED_MARK in r for r in refusals), \
+    f"the reduction must be said; got {refusals!r}"
+  assert edits[0]["args"]["h"] == cap, \
+    f"the record was rewritten to {edits[0]['args']['h']}, which " \
+    f"ratchets the amplitude down on every replay"
+
+  # AND REPLAYING IT AGAIN DRAWS THE SAME WAVE, which is what "no
+  # ratchet" MEANS as something a test can see.
+  again, refusals_again, length_again, _ = replay(cap)
+  assert length_again == length, \
+    f"replaying the same list drew a different wave: {length} then " \
+    f"{length_again} -- the clamp is not idempotent"
+  assert refusals_again == refusals, "and it must say the same thing"
+
+  # INSIDE THE CEILING: untouched and unremarked.
+  inside = ceiling / 2.0
+  _got, quiet, length_inside, _ = replay(inside)
+  assert not quiet, f"an amplitude that fits must say nothing: {quiet!r}"
+  assert length_inside != length, \
+    "PREMISE: the two amplitudes must draw different waves, or " \
+    "neither arm proves anything"
+
+
+def test_a_plain_click_inside_the_selection_keeps_it():
+  """Pointing at what is already selected does not narrow the selection.
+
+  The maintainer's rule of 2026-09-07, in their own terms: a plain
+  click on something OUTSIDE the ticked set clears the set and checks
+  only what was clicked, and a plain click on one member of a set of
+  several changes no checkbox at all. The first half already held; the
+  second did not, and its failure is quiet -- a person builds a
+  two-class selection deliberately, points at one of the two to see it,
+  and the edit they then apply moves half of what they meant.
+
+  BOTH HALVES ARE ASSERTED, because either alone passes while the rule
+  is broken: a version that never replaces keeps the selection for the
+  wrong reason, and the version this replaces always replaced.
+
+  Regression: with vertex classes A and B both ticked, a plain click on a vertex of A left A alone ticked, silently narrowing an edit aimed at both. [user]
+  """
+  from qgis.PyQt.QtCore import Qt
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+
+    def ticked():
+      return tuple(panel.class_list.item(i).text()
+                   for i in range(panel.class_list.count())
+                   if panel.class_list.item(i).checkState()
+                   == Qt.CheckState.Checked)
+
+    for target in ("vertex", "edge"):
+      labels = panel._labels_of(target)
+      # THE FIXTURE MUST BE ABLE TO EXHIBIT THE CASE: "some but not
+      # all" is not a state on a design with one class of a kind.
+      assert len(labels) >= 2, \
+        f"PREMISE: {target} classes {labels!r} cannot hold two at once"
+      first, second = labels[0], labels[1]
+
+      # OUTSIDE THE SET REPLACES IT, which is the half that already held.
+      panel._select_classes(target, first)
+      _tick(80)
+      panel._on_chose(target, second)
+      _tick(80)
+      assert panel._selection == (target, second), \
+        f"a plain click outside the set must replace it, not " \
+        f"{panel._selection!r}"
+      after_outside = ticked()
+
+      # INSIDE A SET OF SEVERAL CHANGES NOTHING.
+      panel._select_classes(target, first + second)
+      _tick(80)
+      held, boxes = panel._selection, ticked()
+      assert len(boxes) == 2, f"PREMISE: two {target} boxes ticked, got {boxes!r}"
+      panel._on_chose(target, first)
+      _tick(80)
+      assert panel._selection == held, \
+        f"a plain click on {first!r}, already in {held!r}, narrowed the " \
+        f"selection to {panel._selection!r}"
+      assert ticked() == boxes, \
+        f"the boxes moved from {boxes!r} to {ticked()!r} on a click " \
+        f"inside the selection"
+      assert boxes != after_outside, \
+        "PREMISE: the two arms must differ, or neither proves anything"
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
+
+
 def test_several_classes_can_be_moved_together():
   """A modified click adds a class, and the edit moves both.
 
@@ -90963,6 +91116,10 @@ def main():
         test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture)
   check("a design is shown by name and stored by key",
         test_a_design_is_shown_by_name_and_stored_by_key)
+  check("a zigzag too deep is clamped rather than dropped",
+        test_a_zigzag_too_deep_is_clamped_rather_than_dropped)
+  check("a plain click inside the selection keeps it",
+        test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
         test_several_classes_can_be_moved_together)
   check("the symmetries are drawn and gate what cannot move",

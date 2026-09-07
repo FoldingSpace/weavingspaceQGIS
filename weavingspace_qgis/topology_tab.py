@@ -2897,12 +2897,31 @@ class TopologyPanel(QWidget):
     takes edges or vertices and never both, so a selection holding
     some of each could not be applied and the chooser would have
     nothing honest to say.
+
+    AND A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.
+    (Maintainer's rule, 2026-09-07.) A plain click outside the ticked
+    set replaces it, which is what a plain click has always done and
+    is what somebody expects of a drawing; but where several classes
+    are ticked, clicking ONE of them used to collapse the selection
+    onto that one -- measured on `laves 3.3.4.3.4`, a click on `A` with
+    `AB` held left `A` alone ticked. So an edit aimed at both classes
+    was silently narrowed to one by the act of pointing at what was
+    already selected, which is how somebody loses a selection they
+    built deliberately. The click still moves `_chosen_thing` in the
+    view, so the handles follow the pointer to the instance under it;
+    only the CLASS selection stands still.
     """
     held_target, held = self._selection
     if adding and target == held_target:
       labels = [x for x in held if x != label] if label in held \
           else list(held) + [label]
       self._select_classes(target, "".join(sorted(labels)) or label)
+      return
+    if target == held_target and label in held:
+      # ALREADY IN HAND. Refreshing the manipulations is still right --
+      # the instance under the pointer decides which handles are drawn
+      # -- but the selection itself must not narrow.
+      self._refresh_manipulations()
       return
     self._select_classes(target, label)
 

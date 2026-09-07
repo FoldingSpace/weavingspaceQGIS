@@ -117,6 +117,7 @@ quote them, do not renumber them.
 - **R-91** — The re-vendor's record, the differential built for it and the price on the next one, in...  <sub>DONE entries cut to their headline, 2026-09-05 (third pass)</sub>
 - **R-92** — Periodicity, the join lookup and zigzag's repeated vertices: measured, patched or fixed...  <sub>DONE entries cut to their headline, 2026-09-05 (third pass)</sub>
 - **R-93** — What a Running task, an idle pool and a thread list can tell apart  <sub>minted</sub>
+- **R-94** — The zigzag's amplitude ceiling, and what the search costs  <sub>minted</sub>
 
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
@@ -4741,3 +4742,50 @@ something has been shown to MOVE it -- the same rule this project
 already holds about a uniform verdict being the instrument, arriving
 from the other side: three readings agreed, two of them were incapable
 of disagreeing, and the agreement was read as corroboration.
+
+### R-94 — The zigzag's amplitude ceiling, and what the search costs
+
+The maintainer asked what should happen when a zigzag runs into the
+edge next to it. The argument first put to them rested on a premise
+that did not survive being measured: that an over-deep wave leaves a
+self-intersecting tile which `make_valid` silently rewrites, which
+would have made the failure this software's characteristic one, a
+plausible wrong map. Driven through `topology_edits` in the reference
+venv, the raw tiles come back VALID at every amplitude on both classes
+of `laves 3.3.4.3.4`, and what actually happens past the limit is a
+clean refusal leaving the design untouched. The decision was re-put on
+that footing: not preventing a corruption, but replacing a refusal
+that costs the person their gesture.
+
+WHERE THE CEILING SITS, and it tightens with the count rather than
+being a property of the class alone:
+
+    n=2   class a   h 1.172 (crest 0.586)   class b   none in range
+    n=4   class a   h 0.594 (crest 0.297)   class b   none in range
+    n=6   class a   h 0.422 (crest 0.211)   class b   none in range
+
+WHAT THE SEARCH COSTS, which is what kept the live drag clamp out of
+this round: 0.07s where the cap lays out and one probe settles it, and
+up to 1.40s where it must bisect eight times. A second on the thread
+that paints is the freeze the ruling of 2026-08-29 exists to prevent,
+so the clamp runs at the COMMIT -- where it is paid only on edits that
+would otherwise produce nothing at all -- and the drag can only stop at
+the limit once the ceiling is cached per class, count and smoothness.
+
+TWO THINGS THE BUILD GOT WRONG FIRST, both caught by asserting the
+premise rather than by reading. The clamp was written against
+`_make_drawable` returning None, and a zigzag at h=2.0 on class `a`
+RAISES inside the library instead, so the first version fired on
+neither route and the check reported the old refusal verbatim. And the
+coverage figures for class `b` are byte-identical at every amplitude,
+which reads exactly like an inert control until the geometry digest
+shows the perimeter moving 7755 to 11424; a finding taken off that
+proxy would have been false.
+
+AND THE RATCHET IS THE HAZARD THE DESIGN IS SHAPED AROUND. The ceiling
+moves as neighbouring edits move, so writing the clamped value back
+into the record would shave the amplitude again on every replay and
+never give it back -- a one-way loss dressed as a safety feature. The
+record holds what was asked and the clamp is applied on the way to the
+screen, which makes it idempotent: replaying the same list twice draws
+the same wave, and a design that regains room draws the full one.

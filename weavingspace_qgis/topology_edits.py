@@ -189,6 +189,30 @@ CLASSES_MOVED = (
   "{target}s.")
 CLASSES_MOVED_MARK = "was made when this design's"
 
+ZIGZAG_CLAMPED = (
+  "Zigzag edge on {selector} was drawn at an amplitude of {drawn} "
+  "rather than {asked}: a deeper wave than that runs into the edges "
+  "next to it. The number you set is kept, so it comes back in full "
+  "wherever the design leaves room for it.")
+ZIGZAG_CLAMPED_MARK = "was drawn at an amplitude of"
+
+
+def _three_figures(value: float) -> str:
+  """A number as a person reads it, at three significant figures.
+
+  Args:
+    value: the number to show.
+
+  Returns:
+    It as a string, trailing zeros and a trailing point removed, since
+    this project's rule is at most three significant figures in any
+    number a user meets and "0.586" reads where "0.5859375" does not.
+  """
+  if not value:
+    return "0"
+  text = f"{value:.3g}"
+  return text.rstrip("0").rstrip(".") if "." in text else text
+
 
 def whole_where_needed(args: dict) -> dict:
   """An argument mapping with the counts made whole.
@@ -678,11 +702,53 @@ def apply(topology, edits):
       else:
         moved = current.transform_geometry(True, True, selector, how, **args)
     except Exception:                                 # noqa: BLE001
-      refusals.append(_refusal(how, selector))
-      marks.append({"applied": False, "gap": None,
-                    "sound": None})
-      continue
-    drawable, _repaired = _make_drawable(moved.tileable)
+      # A MANIPULATION CAN FAIL BY RAISING AS WELL AS BY PRODUCING
+      # SOMETHING UNTILEABLE, and the two arrive here separately. The
+      # clamp below has to be reachable from BOTH: measured on `laves
+      # 3.3.4.3.4`, a zigzag at h=2.0 on class `a` RAISES inside the
+      # library rather than coming back undrawable, so a clamp written
+      # only against the second route fires on neither.
+      moved = None
+    drawable = None
+    if moved is not None:
+      drawable, _repaired = _make_drawable(moved.tileable)
+    if drawable is None and how == "zigzag_edge":
+      # CLAMP RATHER THAN REFUSE. A zigzag too deep for its neighbours
+      # used to be dropped whole with "a smaller value often works",
+      # which costs the person the gesture and leaves them to find the
+      # limit by bisecting it themselves. The largest amplitude that
+      # lays out is a question we can ask, so the edit is applied AT
+      # that amplitude and the reduction is said.
+      # THE RECORD IS NOT REWRITTEN, and that is the whole of why this
+      # is safe to do at replay. The ceiling moves as other edits move
+      # the neighbouring geometry, so a clamp written back into the
+      # record would shave the number a little further on every replay
+      # and never give it back -- a ratchet, silently eroding what
+      # somebody typed. Holding the asked-for value and clamping on the
+      # way to the screen is idempotent instead: the same design always
+      # draws the same wave, and a design that regains room draws the
+      # full one again. It is the shape of a kept scheme being held
+      # rather than owned.
+      # PAID FOR ONLY WHERE THE EDIT WOULD OTHERWISE BE LOST: the
+      # search costs up to about 1.4s on `laves 3.3.4.3.4`, and it runs
+      # only on the branch that today produces nothing at all.
+      ceiling = zigzag_ceiling(current, selector, edit.get("args") or {})
+      asked = float((edit.get("args") or {}).get("h", 0.0) or 0.0)
+      if ceiling > 0.0 and ceiling < asked:
+        try:
+          clamped = in_map_units(
+            whole_where_needed({**(edit.get("args") or {}), "h": ceiling}),
+            current.tileable)
+          moved = current.transform_geometry(
+            True, True, selector, how, **clamped)
+          drawable, _repaired = _make_drawable(moved.tileable)
+        except Exception:                               # noqa: BLE001
+          drawable = None
+        if drawable is not None:
+          refusals.append(ZIGZAG_CLAMPED.format(
+            selector=selector or "this design",
+            asked=_three_figures(asked / 2.0),
+            drawn=_three_figures(ceiling / 2.0)))
     if drawable is None:
       refusals.append(_refusal(how, selector))
       marks.append({"applied": False, "gap": None,
@@ -1004,6 +1070,81 @@ def _refusal(how: str, selector: str) -> str:
   return (f"{label} on {selector or 'this design'} left tiles that "
           f"cannot be laid out, so it was not applied. A smaller value "
           f"often works where a larger one does not.")
+
+
+ZIGZAG_CAP = 2.0
+"""The largest `h` the amplitude box can hold, peak to peak."""
+
+
+def lays_out(unit_or_topology, selector, how, args):
+  """Would this manipulation produce something that can be tiled?
+
+  Args:
+    unit_or_topology: the Topology an edit would be aimed with.
+    selector: the class labels, as the library's own selector string.
+    how: the manipulation's key.
+    args: its arguments, in the RECORD's units -- this converts them
+      exactly as `apply` does, so the two cannot disagree about what a
+      number means.
+
+  Returns:
+    True where the result can be laid out. Asked through the same two
+    steps `apply` uses -- the transform, then `_make_drawable` -- so
+    this is the refusal's own question rather than a second opinion
+    about it, which is what stops a ceiling that says yes where the
+    edit is then refused.
+  """
+  current = unit_or_topology
+  try:
+    ready = in_map_units(whole_where_needed(dict(args or {})),
+                         current.tileable)
+    moved = current.transform_geometry(True, True, selector, how, **ready)
+    drawable, _repaired = _make_drawable(moved.tileable)
+    return drawable is not None
+  except Exception:                                     # noqa: BLE001
+    return False
+
+
+def zigzag_ceiling(topology, selector, args, cap=ZIGZAG_CAP, steps=8):
+  """The largest amplitude a zigzag on these classes can be given.
+
+  Args:
+    topology: the Topology the edit is aimed with.
+    selector: the edge classes it is aimed at.
+    args: the zigzag's arguments; only `n` and `smoothness` are read,
+      `h` being what this searches for.
+    cap: the largest amplitude worth offering, the box's own maximum.
+    steps: how many bisection halvings to take. Eight gives the cap
+      over 256, about 0.008 at the default cap, which is finer than
+      the box's own three significant figures.
+
+  Returns:
+    The largest `h` that lays out, or 0.0 where nothing does. Where the
+    cap itself lays out the cap is returned unprobed, which is the
+    common case and costs one probe rather than nine.
+
+  WHY BISECTION RATHER THAN GEOMETRY. Whether a wave clears its
+  neighbours is decided by the library's own layout, not by a
+  formula we could write here: the amplitude, the count and the
+  smoothness together decide where the crest falls, and a rule of our
+  own would be a second definition of the library's answer -- which is
+  this project's commonest defect. Monotone in `h`, so bisection is
+  exact to its tolerance and terminates: a bigger wave that lays out
+  never makes a smaller one fail.
+  """
+  probe = dict(args or {})
+  probe["h"] = cap
+  if lays_out(topology, selector, "zigzag_edge", probe):
+    return cap
+  low, high = 0.0, cap
+  for _ in range(steps):
+    middle = (low + high) / 2.0
+    probe["h"] = middle
+    if lays_out(topology, selector, "zigzag_edge", probe):
+      low = middle
+    else:
+      high = middle
+  return low
 
 
 def _make_drawable(unit):

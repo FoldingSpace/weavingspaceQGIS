@@ -161,7 +161,81 @@ shipped version owes nothing.)
 
 ## 0.24.4 — next
 
-**NOTHING OUTSTANDING IN CODE, AS OF 2026-09-05 (LATE).** The
+**FOUR THINGS ARE OUTSTANDING IN CODE**, moved here from 0.24.5 on
+the maintainer's decision of 2026-09-07 so the next candidate carries
+them: the honest preview's remaining drawing, the Topology tab's
+palette, the stall recovery, and the selection rule below. THE
+RECOVERY IS THE ONE TO WATCH, since its own entry says a fix cannot
+be verified while the fault's shape is a guess and naming that shape
+needs a recurrence nobody can summon; if it does not come, the honest
+close is to move that entry back rather than to build to the guess.
+The declaration this replaces, and what it covered, stands below.
+
+**THE HONEST PREVIEW: A MANIPULATION SHOWS ONLY WHAT WILL COMMIT.**
+(Maintainer's principle, 2026-09-06, after rc17's drag reports.) The
+preview must never let a person imagine a move will be allowed when it
+will not. Three states shown as the drag goes: VALID as now; CLAMPED,
+the glyph stopping at the max so the rotation arc, the scale and
+displacement arrows and the zigzag do not draw past their limits;
+FAILED, red and dotted for a move that cannot be tiled, with the
+reason. Each manipulation also shows a live sense of MAGNITUDE and a
+subtle cue of the entity or symmetry it bears on (the pivot, the push
+rail, the edge); a dashed rotation arc is part of it. The drop
+already commits what a real drag draws (C-339); this is the drawing.
+IN PROGRESS, and the FAILED-state conflict is largely dissolved as of
+2026-09-07. Rotate and scale were reformulated to move shared vertices
+consistently rather than tear the tiling, so they no longer leave gaps
+and 'any gaps' no longer paints every rotate red; and `gaps()`'s blind
+spot behind the FAILED question -- it saw only enclosed holes, so a tear
+where the units pull apart read as sound -- is fixed by `plane_coverage`,
+which the soundness mark and hatch now read. FAILED can therefore mean a
+move that genuinely cannot be laid out, a narrow well-defined set. Both
+ship experimentally in the next candidate for David and may be reshaped;
+the account, alternatives and images are in
+`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`
+(C-341). THE ZIGZAG'S CLAMP IS BUILT AT THE COMMIT, the first of the
+three states to exist: an over-deep wave is drawn at the largest
+amplitude that lays out rather than dropped, the record holding what
+was asked so it cannot ratchet down over replays (R-94). THE LIVE DRAG
+CLAMP IS STILL OWED, its search costing up to 1.40s and so freezing the
+painting thread until cached. STILL TO BUILD: that caching, the drawing
+(glyph capping, dashed arc, symmetry cue), the status clearing on the
+drop, the one-cell hatch widened; `dev/honest-preview-wip.patch`.
+
+**RECOVER A TOPOLOGY BUILD THAT NEVER LANDS -- AND SAY FIRST WHICH
+SHAPE IT IS, BECAUSE THE READINGS SO FAR CANNOT.** (Owed from
+2026-09-07; the recurrence is under "Later, or never".) The save path's
+deferred build hung with the manager holding its task `Running` and no
+worker in a faulthandler dump, which the existing guard cannot catch:
+`_say_if_the_build_never_started` asks only about `Queued` and makes no
+duration check, a slow design being legitimately Running for up to 19s.
+WHAT THAT STATE ESTABLISHES IS THE UNION OF TWO FAULTS, and the entry
+this replaces named one of them as though it had been measured: a task
+whose `run()` has RETURNED, its main-thread `finished()` provably not
+yet delivered, also reads `Running` (R-93).
+THE RECOVERIES ARE OPPOSITE, WHICH IS WHY THE NAMING MATTERS. A build
+QGIS never started wants cancel-and-rebuild; a build that finished wants
+DELIVERING, and cancelling it throws a completed result away --
+`TilingTask.cancel()` reports `(None, None)`, so the dialog is told the
+build was cancelled and rebuilds into whatever failed to deliver the
+first one. The second shape is the one the distribution favours, since
+this passes on CI and reaches no user on QGIS's top-level loop while
+surfacing under the suite's nested `_tick` pump -- and a nested pump
+missing a queued main-thread invocation fits that where a pool refusing
+to dispatch has no reason to care what pump sits above it. If that is
+what it is, the fault is the HARNESS'S and the product owes nothing.
+SO THE INSTRUMENT COMES FIRST AND DOES NOT WAIT FOR A RECURRENCE.
+`TilingTask.run()` records when it is entered and when it returns, so a
+stall is READ rather than staged. Only then choose a recovery, guard it
+with a test staging the shape the instrument NAMED, and hold it to a
+discriminator the readings can carry -- not to a thread count, for which
+see the correction under "Later, or never". Kept out of 0.24.4
+deliberately: it edits delicate save and topology code, and a fix cannot
+be verified against an intermittent fault while its shape is a guess.
+
+**THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
+
+**NOTHING ELSE IS OUTSTANDING IN CODE, AS OF 2026-09-05 (LATE).** The
 declaration of 2026-09-01 was struck when five field reports and a
 suite failure arrived on 2026-09-04 (R-2); every one of those is now
 closed below, and so is everything the maintainer asked for before the
@@ -312,66 +386,6 @@ anchors the whole decision rather than gaining a list of replacements
 and **THE `publish_candidate` QUESTION IS MOOT** (R-31). Accounts R-85.
 
 ## 0.24.5 — three tabs asked for, and what was deferred here from 0.24.4
-
-**THE HONEST PREVIEW: A MANIPULATION SHOWS ONLY WHAT WILL COMMIT.**
-(Maintainer's principle, 2026-09-06, after rc17's drag reports.) The
-preview must never let a person imagine a move will be allowed when it
-will not. Three states shown as the drag goes: VALID as now; CLAMPED,
-the glyph stopping at the max so the rotation arc, the scale and
-displacement arrows and the zigzag do not draw past their limits;
-FAILED, red and dotted for a move that cannot be tiled, with the
-reason. Each manipulation also shows a live sense of MAGNITUDE and a
-subtle cue of the entity or symmetry it bears on (the pivot, the push
-rail, the edge); a dashed rotation arc is part of it. The drop
-already commits what a real drag draws (C-339); this is the drawing.
-IN PROGRESS, and the FAILED-state conflict is largely dissolved as of
-2026-09-07. Rotate and scale were reformulated to move shared vertices
-consistently rather than tear the tiling, so they no longer leave gaps
-and 'any gaps' no longer paints every rotate red; and `gaps()`'s blind
-spot behind the FAILED question -- it saw only enclosed holes, so a tear
-where the units pull apart read as sound -- is fixed by `plane_coverage`,
-which the soundness mark and hatch now read. FAILED can therefore mean a
-move that genuinely cannot be laid out, a narrow well-defined set. Both
-ship experimentally in the next candidate for David and may be reshaped;
-the account, alternatives and images are in
-`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`
-(C-341). STILL TO BUILD: the drawing (glyph capping, dashed arc,
-symmetry cue), the status clearing on the drop, and the one-cell hatch
-widened; the scaffolding is `dev/honest-preview-wip.patch`. It composes
-with the palette below.
-
-**RECOVER A TOPOLOGY BUILD THAT NEVER LANDS -- AND SAY FIRST WHICH
-SHAPE IT IS, BECAUSE THE READINGS SO FAR CANNOT.** (Owed from
-2026-09-07; the recurrence is under "Later, or never".) The save path's
-deferred build hung with the manager holding its task `Running` and no
-worker in a faulthandler dump, which the existing guard cannot catch:
-`_say_if_the_build_never_started` asks only about `Queued` and makes no
-duration check, a slow design being legitimately Running for up to 19s.
-WHAT THAT STATE ESTABLISHES IS THE UNION OF TWO FAULTS, and the entry
-this replaces named one of them as though it had been measured: a task
-whose `run()` has RETURNED, its main-thread `finished()` provably not
-yet delivered, also reads `Running` (R-93).
-THE RECOVERIES ARE OPPOSITE, WHICH IS WHY THE NAMING MATTERS. A build
-QGIS never started wants cancel-and-rebuild; a build that finished wants
-DELIVERING, and cancelling it throws a completed result away --
-`TilingTask.cancel()` reports `(None, None)`, so the dialog is told the
-build was cancelled and rebuilds into whatever failed to deliver the
-first one. The second shape is the one the distribution favours, since
-this passes on CI and reaches no user on QGIS's top-level loop while
-surfacing under the suite's nested `_tick` pump -- and a nested pump
-missing a queued main-thread invocation fits that where a pool refusing
-to dispatch has no reason to care what pump sits above it. If that is
-what it is, the fault is the HARNESS'S and the product owes nothing.
-SO THE INSTRUMENT COMES FIRST AND DOES NOT WAIT FOR A RECURRENCE.
-`TilingTask.run()` records when it is entered and when it returns, so a
-stall is READ rather than staged. Only then choose a recovery, guard it
-with a test staging the shape the instrument NAMED, and hold it to a
-discriminator the readings can carry -- not to a thread count, for which
-see the correction under "Later, or never". Kept out of 0.24.4
-deliberately: it edits delicate save and topology code, and a fix cannot
-be verified against an intermittent fault while its shape is a guess.
-
-**THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
 
 Moved on the maintainer's decision of 2026-08-27, in the act of
 cutting 0.24.4's candidate. None of it is abandoned and none of it

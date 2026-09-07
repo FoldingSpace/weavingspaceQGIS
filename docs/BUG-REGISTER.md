@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-555 defect(s) with a regression test.
+557 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1075,6 +1075,8 @@ there is no separate list to remember.
   guarded by `test_a_pin_may_sit_outside_the_data_it_classifies`
 - **a click on the zigzag handle that slipped a pixel recorded an invisible zigzag and rebuilt the topology, because the amplitude's click threshold was under a pixel on the tab's own edges. Settled by grilling, 2026-09-05.**  
   guarded by `test_a_pixel_of_slip_on_the_zigzag_handle_is_a_click`
+- **with vertex classes A and B both ticked, a plain click on a vertex of A left A alone ticked, silently narrowing an edit aimed at both.**  
+  guarded by `test_a_plain_click_inside_the_selection_keeps_it`
 - **"Map the dual" drew the default design's dual with holes over 23% of the map, and the Topology tab could not build the dual's structure. Field report 5, 2026-09-05.**  
   guarded by `test_a_promoted_dual_covers_its_cell_and_the_library_builds_it`
 - **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
@@ -1103,6 +1105,8 @@ there is no separate list to remember.
   guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
   guarded by `test_a_user_subset_survives_regeneration`
+- **a zigzag past its neighbours was dropped entirely, so the edit vanished and the design did not move.**  
+  guarded by `test_a_zigzag_too_deep_is_clamped_rather_than_dropped`
 - **a class recoloured in place in QGIS's styling panel reached the map and neither the row's swatch nor the colour editor, because styleChanged only fires on setRenderer and nothing else was connected.**  
   guarded by `test_an_in_place_recolour_is_heard_through_its_repaint`
 - **an Unclassed row offered no Pin column, so the pins were reported as not working there at all. Reported against 0.24.3rc5.**  
@@ -1167,7 +1171,7 @@ there is no separate list to remember.
 - the mutation campaign: 190
 - a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
-- reported by a user: 55
+- reported by a user: 57
 - reading the code: 16
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10
