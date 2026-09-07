@@ -1134,7 +1134,12 @@ The accounts are C-267 and the ids beside each rule.
   probe's control can move the thing both arms are about (C-236); a
   guard over the whole tree cannot tell your own edit from what it is
   watching for (C-210); a name that carries a number sorts as text,
-  rc10 before rc2 (C-100).
+  rc10 before rc2 (C-100); an oracle shaped to one failure mode is
+  blind to another -- a hole-finder seeking enclosed rings misses a
+  tiling whose units have pulled apart, so measure the COVERAGE of a
+  known cell rather than the shape of the uncovered ground, and this is
+  what a gap-free reformulation of rotate and scale was measured
+  against (C-341).
 - **AN AUDIT READS EVERY STORE AFTER EVERY ACT**, and the Topology tab
   audit of 2026-09-05 found three defects three matrices had passed
   over, each two stores disagreeing after an ordinary act

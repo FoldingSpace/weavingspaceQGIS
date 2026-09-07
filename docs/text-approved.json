@@ -694,6 +694,11 @@
   "excerpt": "How many variables to map is a design question more than a t",
   "where": "docs/USER-GUIDE.md"
  },
+ "43852de414f4f8fd": {
+  "approved": "2026-09-07",
+  "excerpt": "{} on {} leaves it unchanged: the design's symmetry gives th",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "4386757262e57cf9": {
   "approved": "2026-08-08",
   "excerpt": "Pulls each repeating unit apart from its neighbours, showing",

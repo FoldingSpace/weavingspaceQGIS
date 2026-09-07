@@ -2409,7 +2409,11 @@ class TopologyPanel(QWidget):
     # and draws nothing at all.
     where = None
     if unit is not None:
-      ratio, missing = edits_module.gaps(unit)
+      # COVERAGE-BASED, so the hatch agrees with the change list's own
+      # `sound` mark: `plane_coverage` catches a tear where the units
+      # pull apart, which `gaps()` misses because it sees only a hole
+      # enclosed within one.
+      ratio, _overlap, missing = edits_module.plane_coverage(unit)
       if ratio >= edits_module.GAP_TOLERANCE:
         where = missing
     self.view.show_topology(topology, message, ghost=ghost, gaps=where)

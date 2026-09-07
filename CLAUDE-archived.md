@@ -375,6 +375,7 @@ quote them, do not renumber them.
 - **C-338** — The clearing belongs at the door, not at the landing  <sub>minted</sub>
 - **C-339** — The preview and the drop are judged by one rule: a real drag commits what was drawn  <sub>minted</sub>
 - **C-340** — A performance hint is passed only where the dependency takes it, since a reload can lea...  <sub>minted</sub>
+- **C-341** — a validity check that sees one failure mode is blind to the other; rotate and scale ref...  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10884,3 +10885,58 @@ own passing of the hint is held by
 `test_a_declared_rotation_lets_the_grid_ask_the_regions_shape` via a
 recording Tiling. The general form: never let a performance hint be a
 hard dependency across a boundary a reload can age.
+
+### C-341 — a validity check that sees one failure mode is blind to the other; rotate and scale reformulated to keep a tiling
+
+<sub>From CLAUDE.md's Guards/Instruments theme.</sub>
+
+The Topology tab lets somebody turn or stretch an edge class of the
+repeating unit. The vendored library's `rotate_edge` and `scale_edge`
+move an edge's two endpoint vertices about the edge's own midpoint and
+write the new positions back onto the shared vertices, last-write-wins.
+A tiling vertex is shared by two edges of a class, so two edges moving
+it about two different midpoints tear the fan around it: on `laves
+3.3.4.3.4` a twenty-degree rotate opened a 2.2% gap and a 0.19%
+overlap, and a `Topology` will not build on the result. The plugin now
+reroutes both manipulations through
+`topology_edits._move_edges_vertex_consistent`, which accumulates one
+displacement per lattice orbit from the unmoved positions, averages it,
+and applies it to every copy of the orbit exactly as the library
+applies `push_vertex`. One vector per orbit is a lattice-periodic
+displacement, so the edited unit still tiles with its own translates
+and stays edge-to-edge; the gap falls to about 7e-11 and a topology
+builds. Where a design's symmetry forces the orbit's displacement to
+zero (both `hex-slice` designs), the edit moves nothing, and that is
+correct rather than a loss: the per-edge move there builds no topology
+either, so no gap-free rotation of that class exists, and the tab names
+the symmetry as `push_vertex`'s gate already does. The account, the
+alternatives weighed and the images:
+`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`.
+
+THE INSTRUMENT LESSON, which is the transferable half. We nearly filed
+the reformulation as a regression on `hex-slice 3`, where it moves
+nothing while the per-edge rotate appeared to move it and to leave no
+gap. `gaps()` had called the per-edge result sound (ratio 0.0) because
+it finds gaps by unioning a patch of tiles and looking for interior
+rings, and the per-edge rotate on that design does not open an enclosed
+ring: it pulls whole units apart, leaving a gap that opens onto the
+surrounding space, which is no interior ring at all (the same blind
+spot `gaps()`'s own docstring names for an inset's open slots). The
+real oracle, whether a `Topology` builds, showed the per-edge result
+tearing on every design and the vertex-consistent one sound on every
+design. So an oracle shaped to one failure mode was blind to the other,
+and the fix is to measure a QUANTITY that both failure modes move:
+`plane_coverage` takes one fundamental cell well inside a patch and
+measures how much of that known area the tiles cover and how much they
+cover twice, catching an open gap as readily as an enclosed hole. The
+soundness mark and the validity hatch read it now. Guarded by
+`test_a_vertex_consistent_rotate_and_scale_keep_the_tiling` and
+`test_the_validity_check_sees_a_tear_that_opens_no_hole`, with catalogue
+entries `rotate-stays-a-tiling`, `scale-stays-a-tiling`,
+`the-symmetric-no-op-names-the-symmetry` and
+`the-validity-check-sees-an-open-gap`. Both reformulations live in
+`topology_edits` rather than the vendored library, so the library stays
+as upstream ships it and the change is easy to withdraw; whether it
+should become a vendored patch offered upstream is left open. Shipped
+experimentally in the candidate after rc17, for testing, and may be
+reshaped after use. (2026-09-07.)

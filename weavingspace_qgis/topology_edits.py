@@ -403,6 +403,131 @@ def classes(topology) -> dict:
   return {"edge": "".join(edges), "vertex": "".join(points)}
 
 
+def _move_edges_vertex_consistent(topology, selector: str, displacement_of):
+  """Apply an edge manipulation WITHOUT tearing the tiling.
+
+  Args:
+    topology: the Topology to edit; it is not mutated (a copy is
+      returned).
+    selector: the edge-class labels to move, e.g. "a".
+    displacement_of: a callable (rx, ry) -> (dx, dy) giving how far a
+      point at offset (rx, ry) from the edge midpoint moves under the
+      manipulation.
+
+  Returns:
+    A new Topology whose `.tileable` carries the edited unit, of the
+    same shape `transform_geometry` returns, so the caller chains the
+    next edit onto it unchanged.
+
+  IT IS A FUNCTION SO THAT ROTATE AND SCALE SHARE IT. Both library
+  manipulations move an edge's two endpoint vertices about the edge's
+  own centroid, and both therefore tear a tiling the same way: a tiling
+  vertex is shared by two edges of the same class (and by edges of
+  others), so two edges moving it about two different centroids each
+  demand it sit in a different place. The fan tears -- a lens gap where
+  the images pull apart, a lens overlap where they cross. On laves
+  3.3.4.3.4 that is 2.2% gap at 20 degrees of rotation and a comparable
+  tear under a scale, which is why a plain rotate or scale reports
+  itself as no longer carrying a topology.
+
+  A VERTEX ORBIT MOVES ONCE, AND PERIODICALLY. The displacement is
+  accumulated per `base_ID` -- the lattice orbit -- from the ORIGINAL
+  positions so the order edges are visited cannot change it, averaged,
+  and applied to every copy of that orbit, exactly as the library
+  applies `push_vertex`. One vector per orbit is a lattice-PERIODIC
+  displacement, so the edited unit still tiles with its own translates
+  and the tiling stays edge-to-edge across unit boundaries by
+  construction -- which is the property the library's per-edge version,
+  writing each shared vertex last-write-wins, does not keep.
+
+  WHERE IT MOVES NOTHING, NO GAP-FREE MOVE EXISTS. A periodic
+  displacement cannot move the two ends of an edge whose endpoints share
+  an orbit in opposite directions, so the design's own symmetry can
+  force the orbit's one displacement to zero. That is not the rule
+  failing: it is the honest answer that this edge class cannot be turned
+  or stretched while its tiles still meet -- the per-edge version's
+  apparent movement there is a torn non-tiling, measured to build no
+  Topology at all. The caller reports it in the design's own terms, as
+  push_vertex's gate reports a vertex with nowhere to go.
+
+  THE COST where it DOES move is that a shared edge is not moved by
+  exactly the requested amount: where two edges meet they pull the
+  vertex two ways and it takes their average, so the effective change is
+  the consistent one rather than the rigid one. That is the trade a
+  gap-free manipulation makes, and it is the point -- the result is a
+  tiling rather than a torn one.
+  """
+  import copy
+  import geopandas as gpd
+  import shapely.affinity as affine
+  topo = copy.deepcopy(topology)
+  totals = {}                                # base_ID -> [sum_dx, sum_dy, n]
+  for edge in topo.edges.values():
+    if edge.label not in selector:
+      continue
+    v0, v1 = edge.get_vertices()
+    mid_x = (v0.point.x + v1.point.x) / 2
+    mid_y = (v0.point.y + v1.point.y) / 2
+    for vertex in (v0, v1):
+      dx, dy = displacement_of(vertex.point.x - mid_x, vertex.point.y - mid_y)
+      total = totals.setdefault(vertex.base_ID, [0.0, 0.0, 0])
+      total[0] += dx
+      total[1] += dy
+      total[2] += 1
+  moves = {base: (t[0] / t[2], t[1] / t[2]) for base, t in totals.items()}
+  for point in topo.points.values():
+    move = moves.get(point.base_ID)
+    if move is not None:
+      point.point = affine.translate(point.point, move[0], move[1])
+  for tile in topo.tiles:
+    tile.set_corners_from_edges()
+  topo.tileable.tiles.geometry = gpd.GeoSeries(
+    [topo.tiles[i].shape for i in range(topo.n_tiles)])
+  topo.tileable._setup_regularised_prototile()
+  return topo
+
+
+def rotate_edges_vertex_consistent(topology, selector: str, angle: float):
+  """Rotate a class of edges gap-free; see `_move_edges_vertex_consistent`.
+
+  Args:
+    topology: the Topology to edit; not mutated.
+    selector: the edge-class labels to rotate.
+    angle: degrees counter-clockwise, as the library's `rotate_edge`
+      takes it. `centre` is not offered because the tab only ever
+      rotates about the edge midpoint.
+
+  Returns:
+    A new Topology carrying the rotated unit.
+  """
+  import math
+  theta = math.radians(angle)
+  cos_t, sin_t = math.cos(theta), math.sin(theta)
+
+  def displacement_of(rx, ry):
+    return (cos_t * rx - sin_t * ry) - rx, (sin_t * rx + cos_t * ry) - ry
+
+  return _move_edges_vertex_consistent(topology, selector, displacement_of)
+
+
+def scale_edges_vertex_consistent(topology, selector: str, sf: float):
+  """Scale a class of edges gap-free; see `_move_edges_vertex_consistent`.
+
+  Args:
+    topology: the Topology to edit; not mutated.
+    selector: the edge-class labels to scale.
+    sf: the factor, as the library's `scale_edge` takes it -- each
+      endpoint moves (sf - 1) of its distance from the edge midpoint.
+
+  Returns:
+    A new Topology carrying the scaled unit.
+  """
+  def displacement_of(rx, ry):
+    return (sf - 1.0) * rx, (sf - 1.0) * ry
+
+  return _move_edges_vertex_consistent(topology, selector, displacement_of)
+
+
 def apply(topology, edits):
   """Replay an edit list onto a topology, returning what to draw.
 
@@ -539,7 +664,19 @@ def apply(topology, edits):
     args = in_map_units(whole_where_needed(edit.get("args") or {}),
                         current.tileable)
     try:
-      moved = current.transform_geometry(True, True, selector, how, **args)
+      # ROTATE AND SCALE ARE REFORMULATED to move shared vertices once
+      # rather than each edge about its own midpoint, so the tiling
+      # stays edge-to-edge where the library's per-edge versions tear it
+      # (see _move_edges_vertex_consistent). Every other manipulation
+      # goes to the library unchanged.
+      if how == "rotate_edge":
+        moved = rotate_edges_vertex_consistent(
+          current, selector, args.get("angle", 0.0))
+      elif how == "scale_edge":
+        moved = scale_edges_vertex_consistent(
+          current, selector, args.get("sf", 1.0))
+      else:
+        moved = current.transform_geometry(True, True, selector, how, **args)
     except Exception:                                 # noqa: BLE001
       refusals.append(_refusal(how, selector))
       marks.append({"applied": False, "gap": None,
@@ -569,13 +706,34 @@ def apply(topology, edits):
     # why: a control that takes a click and does nothing at all, which
     # is this plugin's second characteristic failure.
     if _same_shape(tileable, drawable):
-      refusals.append(
-        f"{MANIPULATIONS[how]['label']} on {selector or 'this design'} "
-        f"changed nothing about it, so the design is as it was.")
+      if how in ("rotate_edge", "scale_edge"):
+        # A VERTEX-CONSISTENT ROTATE OR SCALE MOVES NOTHING EXACTLY WHERE
+        # NO GAP-FREE ONE EXISTS: to keep the tiling the shared vertices
+        # take a single lattice-periodic displacement, and the design's
+        # symmetry can force that to zero -- the same obstruction that
+        # makes push_vertex cancel at a symmetric vertex. Say which,
+        # rather than the generic sentence, so a person meeting a control
+        # that does nothing learns it is the design and not a fault.
+        verb = "turn" if how == "rotate_edge" else "stretch"
+        refusals.append(
+          f"{MANIPULATIONS[how]['label']} on {selector or 'this design'} "
+          f"leaves it unchanged: the design's symmetry gives these edges "
+          f"nowhere to {verb} while its tiles still meet.")
+      else:
+        refusals.append(
+          f"{MANIPULATIONS[how]['label']} on {selector or 'this design'} "
+          f"changed nothing about it, so the design is as it was.")
     tileable = drawable
-    ratio, _where = gaps(drawable)
-    marks.append({"applied": True, "gap": ratio,
-                  "sound": ratio < GAP_TOLERANCE})
+    # COVERAGE-BASED VALIDITY, not gaps(): a tear where the units pull
+    # apart, leaving a gap open onto the surrounding space rather than a
+    # hole enclosed within one, reads as sound to gaps(); the mark reads
+    # plane_coverage, which measures a whole fundamental cell and catches
+    # gaps and overlaps alike.
+    gap_ratio, overlap_ratio, _where = plane_coverage(drawable)
+    marks.append({"applied": True, "gap": gap_ratio,
+                  "overlap": overlap_ratio,
+                  "sound": gap_ratio < GAP_TOLERANCE
+                  and overlap_ratio < GAP_TOLERANCE})
     # CHAINED, NOT REBUILT. `moved` is the library's own object and
     # carries the labels this edit was aimed with; `drawable` is the
     # repaired copy that gets drawn and tiled. See the docstring for
@@ -677,6 +835,89 @@ def gaps(unit):
 GAP_TOLERANCE = 1e-6
 
 
+def plane_coverage(unit):
+  """Whether a unit tiles the plane cleanly -- no gaps AND no overlaps.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    (gap_ratio, overlap_ratio, missing) -- the fraction of one
+    fundamental cell left UNCOVERED, the fraction covered TWICE, and the
+    uncovered ground itself so it can be drawn. (0.0, 0.0, None) where
+    the question cannot be asked.
+
+  WHY THIS EXISTS BESIDE `gaps()`. `gaps()` finds HOLES enclosed within
+  the patch's union, and a tear does not always make a hole: the
+  library's per-edge `rotate_edge` pulls whole units APART, leaving a gap
+  that opens onto the surrounding space rather than an interior ring --
+  so `gaps()` reported a rotate of hex-slice 3 as sound while its units
+  had visibly separated (measured 2026-09-07; it is the same blind spot
+  the `gaps()` docstring already names for an inset's open slots). A
+  validity mark that misses that is a false green in the one place this
+  tab most needs the truth.
+
+  HOW IT CATCHES BOTH. It lays a patch two rings deep, takes ONE
+  fundamental cell -- the parallelogram of the two shortest independent
+  lattice vectors -- centred well inside the patch, and asks how much of
+  THAT KNOWN AREA the tiles actually cover. A gap-free tiling covers any
+  interior cell entirely, whatever shape the tear is; a gap that opens
+  onto the surrounding space leaves the cell short exactly as an enclosed
+  hole does. The overlap is the summed tile
+  area within the cell minus the union's, which a mere union can never
+  reveal. Placement need not align to the tiles: a tiling covers every
+  translate of a cell, so any cell fully inside the patch answers.
+  """
+  # IMPORTED AT THE POINT OF USE, as everything geometric here is.
+  import shapely
+  from shapely.geometry import Polygon
+  try:
+    vectors = getattr(unit, "vectors", None) or {}
+    candidates = sorted(
+      (tuple(float(c) for c in v) for v in vectors.values()),
+      key=lambda v: v[0] * v[0] + v[1] * v[1])
+    first = second = None
+    for candidate in candidates:
+      if candidate[0] * candidate[0] + candidate[1] * candidate[1] < 1e-18:
+        continue
+      if first is None:
+        first = candidate
+        continue
+      if abs(first[0] * candidate[1] - first[1] * candidate[0]) > 1e-9:
+        second = candidate
+        break
+    if second is None:
+      return 0.0, 0.0, None
+    patch = unit.get_local_patch(r=2, include_0=True)
+    tiles = list(patch.geometry)
+    covered = shapely.union_all(tiles)
+    centre = covered.centroid
+    ox = centre.x - (first[0] + second[0]) / 2
+    oy = centre.y - (first[1] + second[1]) / 2
+    cell = Polygon([
+      (ox, oy),
+      (ox + first[0], oy + first[1]),
+      (ox + first[0] + second[0], oy + first[1] + second[1]),
+      (ox + second[0], oy + second[1])])
+    cell_area = cell.area
+    if cell_area <= 0:
+      return 0.0, 0.0, None
+    inside = covered.intersection(cell)
+    gap_ratio = max(0.0, 1.0 - inside.area / cell_area)
+    summed = 0.0
+    for tile in tiles:
+      part = tile.intersection(cell)
+      if not part.is_empty:
+        summed += part.area
+    overlap_ratio = max(0.0, (summed - inside.area) / cell_area)
+    missing = cell.difference(covered)
+    if missing.is_empty or gap_ratio < GAP_TOLERANCE:
+      missing = None
+    return gap_ratio, overlap_ratio, missing
+  except Exception:                                   # noqa: BLE001
+    return 0.0, 0.0, None
+
+
 def still_has_a_topology(unit) -> bool:
   """Whether this design's tiles still meet, and so can carry one.
 
@@ -684,12 +925,15 @@ def still_has_a_topology(unit) -> bool:
     unit: a Tileable.
 
   Returns:
-    True where the gap ratio is under GAP_TOLERANCE. This is the cheap
-    twin of `can_build`, and it answers the same question: `Topology`
-    refuses a design with gaps.
+    True where the design covers a fundamental cell with no gap and no
+    overlap. This is the cheap twin of `can_build`, and it answers the
+    same question: `Topology` refuses a design whose tiles do not meet.
+    It reads `plane_coverage` rather than `gaps()` so a tear where the
+    units pull apart -- a gap open onto the surrounding space rather than
+    a hole enclosed within one -- cannot pass as sound.
   """
-  ratio, _where = gaps(unit)
-  return ratio < GAP_TOLERANCE
+  gap_ratio, overlap_ratio, _where = plane_coverage(unit)
+  return gap_ratio < GAP_TOLERANCE and overlap_ratio < GAP_TOLERANCE
 
 
 def _same_shape(before, after) -> bool:

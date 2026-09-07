@@ -3860,6 +3860,139 @@ def test_a_topology_edit_reaches_the_map():
     topology_edits.shelf_key("hex-slice 4", 3)
 
 
+def test_a_vertex_consistent_rotate_and_scale_keep_the_tiling():
+  """Rotating or scaling an edge class leaves a tiling, not a torn thing.
+
+  The library's own `rotate_edge` and `scale_edge` move each edge about
+  its own midpoint and write the shared endpoints back last-write-wins,
+  which pulls the units apart: on every design here the per-edge result
+  builds NO topology. The plugin reroutes both through
+  `_move_edges_vertex_consistent`, which moves each shared vertex once
+  and keeps the tiling edge-to-edge. This drives the shipped `apply`
+  path and requires, on designs where the per-edge move tears, that the
+  reformulated one does not, and that it still MOVES the design, since a
+  manipulation that keeps the tiling by doing nothing is no
+  manipulation.
+
+  AND WHERE SYMMETRY FORBIDS A GAP-FREE MOVE, IT SAYS SO. On a design
+  whose edge class cannot be turned while its tiles meet, the
+  reformulation moves nothing (correctly, since the per-edge move there
+  is a torn non-tiling) and the tab names the symmetry rather than
+  reporting a bare "changed nothing".
+
+  The reasoning, the alternatives and the images are in
+  docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md.
+
+  Regression: rotate and scale left the tiling full of gaps, every edit after one of them impossible to aim; the vertex-consistent reformulation is what makes them keep a tiling. [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  # DESIGNS WHERE THE PER-EDGE MOVE TEARS, chosen so a gap-free result is
+  # the reformulation working rather than the design being immune.
+  cases = (("laves 3.3.4.3.4", 4, "rotate_edge", {"angle": 20.0}),
+           ("laves 3.3.4.3.4", 4, "scale_edge", {"sf": 1.2}),
+           ("archimedean 4.8.8", 2, "rotate_edge", {"angle": 20.0}),
+           ("archimedean 4.8.8", 2, "scale_edge", {"sf": 1.2}))
+  proven = []
+  for name, n, how, args in cases:
+    unit = catalog.make_unit(catalog.TILINGS_BY_N[n][name],
+                             spacing=500, crs=3857)
+    topology, _ = topology_edits.build(unit)
+    assert topology is not None, f"PREMISE: {name} carries no topology"
+    cls = topology_edits.classes(topology)["edge"][:1]
+    # POSITIVE CONTROL: the library's own per-edge move tears this
+    # design, so a valid tiling from the reformulation cannot be the
+    # design being immune. If this stops tearing, the case proves
+    # nothing and must be re-chosen.
+    per_edge = topology.transform_geometry(True, True, cls, how, **args)
+    assert not topology_edits.still_has_a_topology(per_edge.tileable), (
+      f"PREMISE: the library's per-edge {how} no longer tears {name}, so "
+      f"this case cannot show the reformulation preventing a tear")
+    # THE SHIPPED PATH: apply() reroutes rotate and scale to the
+    # vertex-consistent move.
+    tileable, refusals, _ = topology_edits.apply(
+      topology, [{"classes": cls, "how": how, "args": args}])
+    assert not refusals, f"{how} on {name} was refused: {refusals}"
+    assert topology_edits.still_has_a_topology(tileable), (
+      f"the reformulated {how} left {name} without a topology, so it "
+      f"tore the tiling the way the per-edge one does")
+    moved = _ground_between(topology.tileable, tileable)
+    assert moved > 1e-3, (
+      f"the reformulated {how} kept {name} a tiling by moving nothing "
+      f"({moved:.2e}), which is no manipulation")
+    # AND IT IS A DIFFERENT OPERATION FROM THE PER-EDGE ONE, not the
+    # library's move relabelled: the two grounds differ.
+    apart = _ground_between(per_edge.tileable, tileable)
+    assert apart > 1e-3, (
+      f"the reformulated {how} on {name} produced the per-edge result "
+      f"itself ({apart:.2e} apart), so nothing was reformulated")
+    proven.append((name, how))
+  assert len(proven) == 4, f"only {proven} were exercised"
+
+  # THE SYMMETRIC NO-OP SAYS WHY. hex-slice 3's first edge class cannot
+  # be turned or stretched while its tiles still meet, so the
+  # reformulation moves nothing and names the symmetry, rather than
+  # leaving a person in front of a control that does nothing.
+  hs = catalog.make_unit(catalog.TILINGS_BY_N[3]["hex-slice 3"],
+                         spacing=500, crs=3857)
+  hs_topology, _ = topology_edits.build(hs)
+  assert hs_topology is not None, "PREMISE: hex-slice 3 carries no topology"
+  hs_cls = topology_edits.classes(hs_topology)["edge"][:1]
+  for how, word in (("rotate_edge", "turn"), ("scale_edge", "stretch")):
+    args = {"angle": 20.0} if how == "rotate_edge" else {"sf": 1.2}
+    tileable, refusals, _ = topology_edits.apply(
+      hs_topology, [{"classes": hs_cls, "how": how, "args": args}])
+    assert topology_edits.still_has_a_topology(tileable), (
+      f"the no-op {how} on hex-slice 3 left no topology, so it is not "
+      f"the valid no-op this leg is about")
+    assert _ground_between(hs_topology.tileable, tileable) < 1e-6, (
+      f"PREMISE: {how} moved hex-slice 3 after all, so this is not the "
+      f"symmetric no-op case")
+    assert refusals and "symmetry" in refusals[0] and word in refusals[0], (
+      f"the no-op {how} did not name the symmetry: {refusals}")
+
+
+def test_the_validity_check_sees_a_tear_that_opens_no_hole():
+  """`plane_coverage` catches a tear the old hole-finder was blind to.
+
+  A tiling can come apart two ways: an enclosed hole, which `gaps()`
+  finds as an interior ring of a patch's union, and the units pulling
+  apart, which leaves a gap open onto the surrounding space and so is no
+  interior ring at all. `gaps()` reported the library's per-edge rotate
+  of hex-slice 3 as sound (ratio 0.0) while its units had visibly
+  separated. `plane_coverage` measures how much of one fundamental cell
+  the tiles actually cover, so it sees the open gap as readily as an
+  enclosed one, and `still_has_a_topology` reads it now.
+
+  Regression: the soundness mark and the gap hatch read `gaps()`, which sees only enclosed holes, so a tear that pulled the units apart was marked sound. [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[3]["hex-slice 3"],
+                           spacing=500, crs=3857)
+  topology, _ = topology_edits.build(unit)
+  assert topology is not None, "PREMISE: hex-slice 3 carries no topology"
+  cls = topology_edits.classes(topology)["edge"][:1]
+  # THE PER-EDGE ROTATE PULLS THE UNITS APART -- an open gap, not an
+  # enclosed hole.
+  torn = topology.transform_geometry(
+    True, True, cls, "rotate_edge", angle=20.0).tileable
+  hole_ratio, _hole = topology_edits.gaps(torn)
+  cover_gap, _overlap, _missing = topology_edits.plane_coverage(torn)
+  # THE OLD MEASURE IS BLIND HERE, which is the premise: were gaps() to
+  # start seeing this, the contrast this test stands on would be gone
+  # and the case would need re-choosing.
+  assert hole_ratio < topology_edits.GAP_TOLERANCE, (
+    f"PREMISE: gaps() now sees this tear ({hole_ratio:.2e}), so it no "
+    f"longer demonstrates the blind spot plane_coverage was added for")
+  # THE NEW ONE SEES IT.
+  assert cover_gap >= topology_edits.GAP_TOLERANCE, (
+    f"plane_coverage missed a tear that left {cover_gap:.2e} of a cell "
+    f"uncovered, so a design whose units have pulled apart would be "
+    f"marked sound")
+  assert not topology_edits.still_has_a_topology(torn), (
+    "still_has_a_topology called a torn design sound, so the change "
+    "list would mark an impossible edit as one where the tiles still meet")
+
+
 TOPOLOGY_MATRIX_AFTERMATHS = ("immediately", "after re-Generate",
                               "with a run in flight",
                               "after save and reload",
@@ -7708,15 +7841,22 @@ def test_topology_edits_come_back_from_the_file():
       plain = ground(dlg._unit)
 
       # THE GAP-OPENER GOES FIRST, and the order is the whole of what
-      # this test is about. A rotation leaves a design whose topology
-      # cannot be REBUILT -- measured on this design at every angle
-      # from 10 to 30 degrees -- so an edit made after it is the one
-      # thing rebuilding between edits cannot do. Put the rotation
+      # this test is about. A zigzag on class `b` of this design opens a
+      # gap of about 1% that `Topology` cannot REBUILD (measured
+      # 2026-09-07: sound=False, still drawable), so an edit made after
+      # it is the one thing rebuilding between edits cannot do. Put it
       # second and the mutated path simply rebuilds after the nudge,
-      # reaches a different design that still builds, and agrees with
-      # the chained one: the catalogue entry survived twice that way.
-      panel._record({"classes": "a", "how": "rotate_edge",
-                     "args": {"angle": 15.0}})
+      # reaches a different design that still builds, and agrees with the
+      # chained one: the catalogue entry survived twice that way.
+      # IT IS A ZIGZAG RATHER THAN A ROTATE SINCE 2026-09-07. The
+      # vertex-consistent rotate is gap-free (see docs/process/
+      # rotating-and-scaling-an-edge-without-tearing-the-tiling.md), so a
+      # rotate no longer opens the gap this test needs; a zigzag is now
+      # the one manipulation that tears while still drawing, and an odd
+      # count is what opens the gap the tab reports (recorded directly,
+      # as a stored odd count still is).
+      panel._record({"classes": "b", "how": "zigzag_edge",
+                     "args": {"n": 1, "h": 0.25, "smoothness": 3}})
       _settle_topology(dlg, seconds=40)
       _settle(dlg)
       # THE EDIT HAS TO HAVE LANDED BEFORE ITS CONSEQUENCE IS ASKED
@@ -90654,6 +90794,10 @@ def main():
         test_the_window_never_grows_past_the_screen)
   check("a topology edit reaches the map",
         test_a_topology_edit_reaches_the_map)
+  check("a vertex-consistent rotate and scale keep the tiling",
+        test_a_vertex_consistent_rotate_and_scale_keep_the_tiling)
+  check("the validity check sees a tear that opens no hole",
+        test_the_validity_check_sees_a_tear_that_opens_no_hole)
   check("topology edits survive the working state",
         test_topology_edits_survive_the_working_state)
   check("the saved unit and dual carry no crs",

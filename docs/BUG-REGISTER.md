@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-552 defect(s) with a regression test.
+554 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -592,6 +592,8 @@ there is no separate list to remember.
   guarded by `test_a_topology_landing_does_not_strand_a_live_tick`
 - **a topology built for one design was shown against another, so the tab described a unit the map was not made of.**  
   guarded by `test_a_topology_that_lands_late_is_discarded`
+- **rotate and scale left the tiling full of gaps, every edit after one of them impossible to aim; the vertex-consistent reformulation is what makes them keep a tiling.**  
+  guarded by `test_a_vertex_consistent_rotate_and_scale_keep_the_tiling`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **an edit naming a class the design does not have was replayed silently, leaving a list describing a design the map did not have.**  
@@ -742,6 +744,8 @@ there is no separate list to remember.
   guarded by `test_the_topology_matrix`
 - **greying the tab was tried on 2026-09-01 and taken out the same hour -- it takes the tab from somebody mid-edit and two registered tests went red. The sentence then went into `note`, which already means "the answer, or the reason there is none", so `_settle_topology` read it as an answer having ARRIVED and returned before the build landed. One store, two meanings.**  
   guarded by `test_the_topology_tab_says_when_it_is_working`
+- **the soundness mark and the gap hatch read `gaps()`, which sees only enclosed holes, so a tear that pulled the units apart was marked sound.**  
+  guarded by `test_the_validity_check_sees_a_tear_that_opens_no_hole`
 - **nothing bounded the dialog's height, so a tall design on a small display put its own buttons off the screen.**  
   guarded by `test_the_window_never_grows_past_the_screen`
 - **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
@@ -1158,7 +1162,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 188
+- the mutation campaign: 190
 - a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
 - reported by a user: 55

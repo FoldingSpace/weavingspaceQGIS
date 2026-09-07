@@ -324,14 +324,42 @@ reason. Each manipulation also shows a live sense of MAGNITUDE and a
 subtle cue of the entity or symmetry it bears on (the pivot, the push
 rail, the edge); a dashed rotation arc is part of it. The drop
 already commits what a real drag draws (C-339); this is the drawing.
-IN PROGRESS 2026-09-06: the state scaffolding is built and saved as
-`dev/honest-preview-wip.patch` (reverted from the tree so nothing
-half-built regresses). TWO THINGS FOR THE MAINTAINER, in the handover
-in full: what FAILED means is not settled -- 'any gaps' conflicts
-with ruling 5 (2026-08-31, validity SHOWN not enforced), since a
-plain rotate leaves gaps and would paint every rotate red -- and it
-needs a grilling; and the status must clear on the drop. It composes
-with the palette below, so the two are done together.
+IN PROGRESS, and the FAILED-state conflict is largely dissolved as of
+2026-09-07. Rotate and scale were reformulated to move shared vertices
+consistently rather than tear the tiling, so they no longer leave gaps
+and 'any gaps' no longer paints every rotate red; and `gaps()`'s blind
+spot behind the FAILED question -- it saw only enclosed holes, so a tear
+where the units pull apart read as sound -- is fixed by `plane_coverage`,
+which the soundness mark and hatch now read. FAILED can therefore mean a
+move that genuinely cannot be laid out, a narrow well-defined set. Both
+ship experimentally in the next candidate for David and may be reshaped;
+the account, alternatives and images are in
+`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`
+(C-341). STILL TO BUILD: the drawing (glyph capping, dashed arc,
+symmetry cue), the status clearing on the drop, and the one-cell hatch
+widened; the scaffolding is `dev/honest-preview-wip.patch`. It composes
+with the palette below.
+
+**RECOVER A TOPOLOGY BUILD THAT QGIS LEAVES RUNNING WITH NO WORKER.**
+(Owed from 2026-09-07; the recurrence and readings are under "Later, or
+never".) The save path's deferred build hung with the manager holding
+the task `Running`, the global pool at active=0, and no worker thread in
+the process -- a variant of R-4 the existing guard does not catch, since
+`_say_if_the_build_never_started` asks only about `Queued` and makes no
+duration check (a slow design is legitimately Running for up to 19s).
+FIRST, RESEARCH IT rather than coding to a guess: instrument a recurrence
+to establish which shape it really is -- the worker never started, or it
+started and vanished, or it finished and its main-thread `done` was
+never delivered under the nested `_tick` pump -- since the recovery
+differs for each and the reading so far is a handful of runs on one
+loaded machine. THEN a focused, catalogue-guarded recovery: past a
+generous ceiling, and only where no worker is running (the discriminator
+that tells a stuck build from a merely slow one), cancel and rebuild.
+Guard it with a test that STAGES a task left Running with no worker and
+asserts the plugin rebuilds and lands, since the fault itself cannot be
+staged. Kept out of 0.24.4 deliberately: it edits delicate save and
+topology code, and a fix cannot be verified against an intermittent
+fault until the research pins the shape.
 
 **THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
 
@@ -557,6 +585,21 @@ note (R-6) -- and the probe that would catch a recurrence is
 task at the stall and reads whether the stuck one then starts. Nothing
 here is evidence it has gone; a recurrence reopens it (R-5, R-76; the
 whole account R-80).
+
+**IT RECURRED ON 2026-09-07, AND IN A NEW SHAPE: RUNNING WITH NO
+WORKER.** While driving the topology tests on a loaded machine, the save
+path's deferred build hung deterministically for a clustering window
+(`test_a_later_save_replaces_a_motif_...`), and it hung on a CLEAN tree
+too, so it is not the vertex-consistent rotate/scale work of that day.
+Instrumented, the manager held the task `Running` with the global thread
+pool at `active=0` and a faulthandler dump showing ONLY the main thread
+-- so QGIS marked a build Running and never ran a worker for it, and it
+never completed, where R-4 as first seen left it `Queued`. It passes on
+CI runners and does not reach a real user, who runs QGIS's top-level
+loop; it surfaces under the suite's nested `_tick` pump. The maintainer's
+call (2026-09-07) was to ship the candidate treating this as the
+environmental QGIS fault it is, and to track the fix; the owed recovery
+is under 0.24.5 below.
 
 **CANCEL A RUN THAT IS ABOUT TO BE SUPERSEDED.** The third of the three
 debounce questions, and the only one the decision of 2026-08-26 left

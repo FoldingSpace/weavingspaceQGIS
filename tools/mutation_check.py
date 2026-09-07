@@ -2672,6 +2672,49 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="rotate-stays-a-tiling", file=TOPOLOGY_EDITS,
+       # Disabling the reroute sends rotate to the library's per-edge
+       # move, which tears the tiling on every design the test drives, so
+       # the reformulation's whole promise -- that a rotate keeps a
+       # topology -- fails. See docs/process/rotating-and-scaling-an-
+       # edge-without-tearing-the-tiling.md.
+       old="""      if how == "rotate_edge":
+        moved = rotate_edges_vertex_consistent(""",
+       new="""      if False:
+        moved = rotate_edges_vertex_consistent(""",
+       test="test_a_vertex_consistent_rotate_and_scale_keep_the_tiling",
+       why="a rotate that leaves a tiling rather than a torn design"),
+  dict(name="scale-stays-a-tiling", file=TOPOLOGY_EDITS,
+       # The scale twin of the entry above: disabling its reroute sends
+       # scale to the library's per-edge move, which tears.
+       old="""      elif how == "scale_edge":
+        moved = scale_edges_vertex_consistent(""",
+       new="""      elif False:
+        moved = scale_edges_vertex_consistent(""",
+       test="test_a_vertex_consistent_rotate_and_scale_keep_the_tiling",
+       why="a scale that leaves a tiling rather than a torn design"),
+  dict(name="the-symmetric-no-op-names-the-symmetry", file=TOPOLOGY_EDITS,
+       # Where a rotate or scale can only be the identity (the design's
+       # symmetry forbids a gap-free move), the generic "changed nothing"
+       # leaves a person in front of a control that does nothing with no
+       # reason; the message must name the symmetry.
+       old="""      if how in ("rotate_edge", "scale_edge"):
+        # A VERTEX-CONSISTENT ROTATE OR SCALE MOVES NOTHING EXACTLY WHERE""",
+       new="""      if False:
+        # A VERTEX-CONSISTENT ROTATE OR SCALE MOVES NOTHING EXACTLY WHERE""",
+       test="test_a_vertex_consistent_rotate_and_scale_keep_the_tiling",
+       why="telling somebody that the symmetry, not a fault, is why the "
+           "edge would not move"),
+  dict(name="the-validity-check-sees-an-open-gap", file=TOPOLOGY_EDITS,
+       # Forcing the coverage gap to zero blinds plane_coverage exactly
+       # as gaps() is blind: a tear where the units pull apart -- a gap
+       # open onto the surrounding space, not an enclosed hole -- would
+       # then be marked sound.
+       old="""    gap_ratio = max(0.0, 1.0 - inside.area / cell_area)""",
+       new="""    gap_ratio = 0.0""",
+       test="test_the_validity_check_sees_a_tear_that_opens_no_hole",
+       why="a torn design being marked sound because the check saw only "
+           "enclosed holes"),
   dict(name="the-dual-is-repeated-by-the-lattice-it-has",
        file=TOPOLOGY_TAB,
        # Reading the two translations out of `vectors` BY KEY worked

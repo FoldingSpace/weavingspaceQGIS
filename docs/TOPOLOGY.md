@@ -772,6 +772,34 @@ key and its own edits, and the source comes back untouched; and a
 Save carries the unit, the dual and the edit list into the file, from
 which a fresh dialog loads the edited design with the same mark.
 
+## Rotating and scaling an edge without tearing the tiling
+
+The library's `rotate_edge` and `scale_edge` move an edge's endpoints
+about its own midpoint and write the shared vertices back
+last-write-wins, which pulls the units apart: measured 2026-09-07, the
+per-edge result builds no topology on `laves 3.3.4.3.4`, `archimedean
+4.8.8` or either `hex-slice` design. The plugin reroutes both through
+`topology_edits._move_edges_vertex_consistent`, which moves each shared
+vertex once, by a single lattice-periodic displacement, so the tiling
+stays edge-to-edge. Where a design's symmetry forces that displacement
+to zero the edit correctly moves nothing and names the symmetry, since
+the per-edge move there is a torn non-tiling rather than a rotation.
+
+The change also exposed a blind spot in `gaps()`, which finds only holes
+enclosed within a patch and so called a per-edge rotate of hex-slice 3
+sound while its units had separated. `plane_coverage` measures the
+coverage of one fundamental cell instead, catching a gap that opens onto
+the surrounding space as readily as an enclosed one; the soundness mark
+and the validity hatch read it now.
+
+The whole investigation, with the alternatives weighed (the library's
+per-edge move, a per-edge move whose slivers are absorbed into
+neighbours, and the vertex-consistent move), the measurement that
+reframed it, and the images, is in
+`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`.
+It ships in the experimental tab as a candidate for testing, and may yet
+be reshaped.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

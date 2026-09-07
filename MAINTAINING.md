@@ -1421,6 +1421,33 @@ out of the vectors' VALUES, key-shape agnostic, where a lookup by
 `(1, 0)` and `(0, 1)` missed every hex-keyed family and drew one copy
 in silence. (M-30.)
 
+### Rotating and scaling an edge keep the tiling
+
+The library's `rotate_edge` and `scale_edge` move an edge's endpoint
+vertices about its own midpoint and write them back last-write-wins,
+which tears the tiling: on every design tried the per-edge result builds
+no topology. `apply` reroutes both `how == "rotate_edge"` and `how ==
+"scale_edge"` to `_move_edges_vertex_consistent`, which takes one
+displacement per lattice orbit (`base_ID`) from the unmoved positions,
+averages it, and applies it to every copy, as `transform_geometry`
+applies `push_vertex`. One vector per orbit is a lattice-periodic
+displacement, so the edited unit still tiles with its own translates.
+Where symmetry forces that displacement to zero the edit moves nothing
+and the `_same_shape` branch names the symmetry, since the per-edge move
+there is a torn non-tiling and no gap-free rotation of that class
+exists.
+
+The soundness mark and the drawn hatch read `plane_coverage`, not
+`gaps()`. `gaps()` finds only holes enclosed within a patch, so a tear
+where the units pull apart (a gap open onto the surrounding space) read
+as sound; `plane_coverage` measures the coverage of one fundamental
+cell and catches gaps and overlaps alike. Both reformulations live here
+rather than in the vendored library, so it stays as upstream ships it
+and the change is easy to withdraw. The account, the alternatives and
+the images are in
+`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`
+(C-341); it ships experimentally as a candidate and may be reshaped.
+
 ### How an edit that cannot be drawn is told apart from one that did nothing
 
 Three different things can go wrong with a replayed edit, they need
