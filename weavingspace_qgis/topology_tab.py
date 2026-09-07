@@ -118,13 +118,15 @@ _CLAMPED_INK = "#f9a825"
 # the fallback for one that gains a handle later and no sentence yet.
 _HELD_SENTENCE = {
   "zigzag_edge": ("A deeper wave than this runs beyond the edges next "
-                  "to it. Let go of the click to draw it as shown."),
-  "rotate_edge": ("Turning it further than this runs beyond the edges "
-                  "next to it. Let go of the click to draw it as shown."),
-  "scale_edge": ("Stretching it further than this runs beyond the edges "
-                 "next to it. Let go of the click to draw it as shown."),
-  None: ("Moving it further than this runs beyond the edges next to it. "
-         "Let go of the click to draw it as shown."),
+                  "to it. Let go of the click to draw the wave as shown."),
+  "rotate_edge": ("Turning this edge further would run it past the edges "
+                  "beside it. Let go of the click to draw the turn as "
+                  "shown."),
+  "scale_edge": ("Stretching this edge further would run it past the "
+                 "edges beside it. Let go of the click to draw the "
+                 "stretch as shown."),
+  None: ("This is as far as the design allows. Let go of the click to "
+         "draw the move as shown."),
 }
 
 # WHAT EACH HANDLE MEANS, AND WHERE IT SITS. A handle IS the choice of
@@ -3567,8 +3569,8 @@ class TopologyPanel(QWidget):
         "reason": (
           (_HELD_SENTENCE.get(key) or _HELD_SENTENCE[None])
           if self._drag_last_good is not None else
-          "This much cannot be laid out as a tiling. Ease back to a "
-          "depth that can be drawn.")})
+          "Your suggestion can't be laid out as a tiling as it "
+          "stands; a smaller move usually can.")})
       return
     # THIS FRAME LAID OUT, so it becomes the value a later frame
     # holds at if the pointer goes further than the design allows.

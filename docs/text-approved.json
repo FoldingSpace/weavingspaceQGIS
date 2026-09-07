@@ -889,6 +889,11 @@
   "excerpt": "The class count has been raised to {} so the {} you set can ",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "50174a21bd83d84d": {
+  "approved": "2026-09-07",
+  "excerpt": "A deeper wave than this runs beyond the edges next to it. Le",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "50a7ab6c958cadcd": {
   "approved": "2026-08-26",
   "excerpt": "That GeoPackage does not carry a saved map, so there is nothing to carry on with. Add its layers in QGIS to look at it.",
@@ -1168,6 +1173,11 @@
   "approved": "2026-08-10",
   "excerpt": "The filter you had set on element '{}' could not be applied ",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "679146d06af1e2e8": {
+  "approved": "2026-09-07",
+  "excerpt": "Your suggestion can't be laid out as a tiling as it stands; ",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "67e58ce3fe99978a": {
   "approved": "2026-08-15",
@@ -1764,6 +1774,11 @@
   "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
   "where": "weavingspace_qgis/help_content.py"
  },
+ "a02a435144247c64": {
+  "approved": "2026-09-07",
+  "excerpt": "Turning this edge further would run it past the edges beside",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "a0836f2df79f1ff8": {
   "approved": "2026-08-28",
   "excerpt": "Saved to {}. The data has changed since this map was drawn, ",
@@ -2058,6 +2073,11 @@
   "approved": "2026-08-15",
   "excerpt": "A {}-class scheme has {} {} to pin, so it cannot carry {}. A",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "bfc15237d9ee209a": {
+  "approved": "2026-09-07",
+  "excerpt": "This is as far as the design allows. Let go of the click to ",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "bfdc348cb87ca105": {
   "approved": "2026-08-27",
@@ -2773,6 +2793,11 @@
   "approved": "2026-08-12",
   "excerpt": "<p>The grid at the top of this page is sixteen designs over ",
   "where": "docs/index.html"
+ },
+ "febdb00de60e8f3e": {
+  "approved": "2026-09-07",
+  "excerpt": "Stretching this edge further would run it past the edges bes",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "fed2c7f13003104b": {
   "approved": "2026-08-08",
