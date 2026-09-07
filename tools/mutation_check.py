@@ -2672,6 +2672,29 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="the-failed-preview-sees-a-torn-tiling", file=TOPOLOGY_TAB,
+       # THE WHOLE DECISION, anchored together rather than one of its
+       # two limbs: the per-edge rotate this is judged against opens a
+       # gap AND an overlap, so disabling either branch alone leaves
+       # the other to answer and the entry would measure nothing.
+       old="""        gap, overlap, _missing = edits_module.plane_coverage(unit)""",
+       new="""        gap, overlap, _missing = 0.0, 0.0, None""",
+       test="test_the_preview_says_which_of_three_states_a_drag_is_in",
+       why="the one drawing whose whole job is honesty about validity "
+           "telling a person a torn move is fine"),
+  dict(name="the-drop-takes-the-drags-state-down", file=TOPOLOGY_TAB,
+       # THE OTHER AXIS. The preview is deliberately KEPT at the drop,
+       # so a status left standing colours a settled picture with the
+       # state of a gesture that ended -- and it would look right on
+       # every path that records an edit, which is why the guard drives
+       # the exit that records nothing.
+       old="""    finally:
+      self.view.set_drag_status(None)""",
+       new="""    finally:
+      pass""",
+       test="test_the_preview_says_which_of_three_states_a_drag_is_in",
+       why="amber or red belonging to a pointer that is still down, "
+           "rather than staying on the picture after the drop"),
   dict(name="a-too-deep-zigzag-is-clamped-not-dropped", file=TOPOLOGY_EDITS,
        # THE CLAMP ITSELF. Disabling the branch restores the old
        # behaviour exactly -- the edit falls through to `_refusal` and

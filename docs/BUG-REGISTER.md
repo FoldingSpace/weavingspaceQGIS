@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-557 defect(s) with a regression test.
+558 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -806,6 +806,8 @@ there is no separate list to remember.
   guarded by `test_taking_an_element_back_from_qgis_restyles_at_once`
 - **the Classes cell on a categorized row reported the region's category count for every element, including elements drawing fewer.**  
   guarded by `test_the_classes_cell_reports_its_own_element`
+- **the honest preview's scaffolding judged validity with the check that cannot see a tiling whose units have separated.**  
+  guarded by `test_the_preview_says_which_of_three_states_a_drag_is_in`
 - **nothing yet; written to keep an assertion the colourspace comparison gave up when it stopped naming matplotlib's colormaps.**  
   guarded by `test_the_ramp_a_row_names_is_the_ramp_the_map_draws`
 - **both generators searched for `Regression:` ANYWHERE in a docstring, so test_support_logic's sentence saying it deliberately carries no such line was published as a guarded defect -- the entry reading "`` line, deliberately", a count of 190 where the suite supported 189, and a shape tally overstating "not written down at the time" by one. check_standards then demanded a [shape] tag for the phantom and one was supplied, so the suite carried a tag on a paragraph declaring it had nothing to tag. Neither checker could see it: check_standards recounts the register with the GENERATOR'S OWN rules, so it agreed with the bug.**  
@@ -1172,7 +1174,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
 - reported by a user: 57
-- reading the code: 16
+- reading the code: 17
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10
 - race and stress testing: 6

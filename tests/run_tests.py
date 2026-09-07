@@ -11792,6 +11792,119 @@ def _ground_moved(before, after):
   return first.symmetric_difference(second).area / first.area
 
 
+def test_the_preview_says_which_of_three_states_a_drag_is_in():
+  """A drag draws valid, clamped or failed, and says so while it lasts.
+
+  The maintainer's principle of 2026-09-06: the preview must never let
+  a person imagine a move will be allowed when it will not. So the
+  drawing carries three states as the gesture goes -- valid, CLAMPED
+  where the pointer asked past a control's own range so what is drawn
+  is the limit, and FAILED where the previewed design cannot be tiled.
+
+  THE FAILED STATE ASKS COVERAGE, NOT `gaps()`, and that is the half
+  worth guarding. The draft this was built from asked `gaps()`, which
+  finds only holes ENCLOSED within a patch, so a move that pulls the
+  units apart would have previewed as perfectly valid -- the blind spot
+  C-341 is about, arriving in the one place whose whole job is to be
+  honest about validity.
+
+  AND THE STATE IS TAKEN DOWN AT THE DROP, through a `finally` so that
+  every exit is covered. The preview is deliberately KEPT there; the
+  amber or red is not, since it describes a pointer that is no longer
+  down.
+
+  Regression: the honest preview's scaffolding judged validity with the check that cannot see a tiling whose units have separated. [review]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    panel = dlg.topology_panel
+    for _ in range(120):
+      _tick(250)
+      if getattr(panel, "_topology", None) is not None:
+        break
+    assert panel._topology is not None, "PREMISE: no topology"
+
+    label = topology_edits.classes(panel._topology).get("edge", "")[:1]
+    assert label, "PREMISE: this design has no edge class"
+    panel._select_classes("edge", label)
+    _tick(100)
+    index = panel.how_combo.findData("zigzag_edge")
+    assert index >= 0, "PREMISE: zigzag is not offered for an edge"
+    panel.how_combo.setCurrentIndex(index)
+    _tick(150)
+
+    box = next((b for _l, b in panel._argument_rows
+                if b.property("argument") == "h"), None)
+    assert box is not None, "PREMISE: no amplitude box is shown"
+
+    # VALID: a value the box accepts, on a design that still tiles.
+    inside = (box.minimum() + box.maximum()) / 2.0
+    state = panel._status_of_a_drag(
+      "zigzag_edge", {"h": inside}, {"h": inside}, panel._topology)
+    assert state["clamped"] is False, \
+      f"a value inside the box's range is not clamped: {state!r}"
+
+    # CLAMPED: the pointer asked past the box's own maximum.
+    beyond = box.maximum() + 1.0
+    state = panel._status_of_a_drag(
+      "zigzag_edge", {"h": beyond}, {"h": box.maximum()}, panel._topology)
+    assert state["clamped"] is True, \
+      f"a gesture past the box's maximum must read as clamped: {state!r}"
+
+    # FAILED: asked of coverage, so a design whose units have PULLED
+    # APART reads as failed even though it encloses no hole at all.
+    # Staged rather than dragged for, since the point is the check.
+    torn = panel._topology.transform_geometry(
+      True, True, label, "rotate_edge", angle=20.0)
+    gap, overlap, _missing = topology_edits.plane_coverage(torn.tileable)
+    # THE PREMISE, asserted so this arm cannot pass vacuously: the
+    # library's per-edge rotate is the move that pulls the units apart,
+    # and if it ever stops doing so this arm proves nothing.
+    assert max(gap, overlap) >= topology_edits.GAP_TOLERANCE, \
+      f"PREMISE: the per-edge rotate left a sound tiling " \
+      f"(gap {gap:.2e}, overlap {overlap:.2e}), so there is nothing " \
+      f"for the failed state to see"
+    state = panel._status_of_a_drag("zigzag_edge", {}, {}, torn)
+    assert state["failed"] is True and state["reason"], \
+      f"a torn design must preview as failed, with a reason: {state!r}"
+
+    # AND THE DROP TAKES IT DOWN ON THE EXIT THAT KEEPS THE PICTURE.
+    # THE EXIT MATTERS, and driving the wrong one measures nothing: a
+    # gesture that records NOTHING leaves through `show_preview(None)`,
+    # which clears the status itself, so the behaviour is held
+    # redundantly there and an entry aimed at it survives. The exit
+    # that needs the clearing is the one that RECORDS an edit, because
+    # the preview is deliberately kept and only the `finally` takes
+    # the colour down.
+    before_rows = panel.edit_list.count()
+    panel.view.set_drag_status({"clamped": True, "failed": False,
+                                "reason": "", "key": "zigzag_edge"})
+    panel._drag_from = {"n": 2.0, "h": box.maximum(), "smoothness": 3.0}
+    panel._drag_started_with = {"n": 2.0, "h": box.minimum(),
+                                "smoothness": 3.0}
+    panel._commit_the_drag()
+    _tick(150)
+    assert panel.edit_list.count() > before_rows, \
+      "PREMISE: this arm must leave by the exit that RECORDS an edit, " \
+      "or it drives the path that clears the status for another reason"
+    assert panel.view._drag_status is None, \
+      f"the drop must take the drag's state down, not leave " \
+      f"{panel.view._drag_status!r} colouring a settled picture"
+  finally:
+    dlg.close()
+    QgsProject.instance().clear()
+
+
 def test_a_zigzag_too_deep_is_clamped_rather_than_dropped():
   """An over-deep zigzag is drawn at the largest amplitude that fits.
 
@@ -91116,6 +91229,8 @@ def main():
         test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture)
   check("a design is shown by name and stored by key",
         test_a_design_is_shown_by_name_and_stored_by_key)
+  check("the preview says which of three states a drag is in",
+        test_the_preview_says_which_of_three_states_a_drag_is_in)
   check("a zigzag too deep is clamped rather than dropped",
         test_a_zigzag_too_deep_is_clamped_rather_than_dropped)
   check("a plain click inside the selection keeps it",

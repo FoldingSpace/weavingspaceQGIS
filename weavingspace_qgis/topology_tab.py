@@ -105,6 +105,10 @@ _GHOST_INK = "#c9b8d8"
 # Ground the tiles no longer cover. Warm, so it reads as a condition
 # rather than as ink somebody drew, and hatched rather than filled.
 _GAP_INK = "#e57373"
+# A MOVE HELD AT ITS LIMIT, drawn amber: the glyph and the preview
+# stop where the parameter does, so a person dragging past the max
+# sees it stop rather than imagining more will happen (2026-09-06).
+_CLAMPED_INK = "#f9a825"
 
 # WHAT EACH HANDLE MEANS, AND WHERE IT SITS. A handle IS the choice of
 # manipulation -- grabbing one selects it -- so the vocabulary is in
@@ -461,6 +465,16 @@ class TopologyView(QWidget):
     # does, which is the maintainer's ruling of 2026-08-31.
     self._gaps = None
     self._preview = None
+    # WHAT A DRAG IN PROGRESS IS: {clamped, failed, reason, key}, or
+    # None at rest. The preview shows the RESULT and this says whether
+    # that result is valid, held at a limit, or a design that cannot
+    # be tiled -- so the drawing never lets a person imagine a move
+    # will be allowed when it will not (maintainer's principle,
+    # 2026-09-06). Ruling 5 of 2026-08-31 still governs the DROP:
+    # validity is shown, not enforced, so a failed move is drawn red
+    # while the pointer is down and still recorded-and-marked if let
+    # go, not refused.
+    self._drag_status = None
     self._message = "Generate a map to see its topology."
     self._shown = {key: on for key, _label, on in TOGGLES}
     self._chosen = ("", "")
@@ -528,6 +542,7 @@ class TopologyView(QWidget):
     self._ghost = ghost
     self._gaps = gaps
     self._preview = None
+    self._drag_status = None
     # THE HELD OBJECT BELONGS TO THE OLD TOPOLOGY and every rebuild
     # makes new ones, so keeping it would draw handles on geometry
     # nothing else refers to -- and `is` comparisons against it would
@@ -562,6 +577,21 @@ class TopologyView(QWidget):
       record does not hold.
     """
     self._preview = topology
+    if topology is None:
+      self._drag_status = None
+    self.update()
+
+  def set_drag_status(self, status):
+    """Record what the drag in progress would do, for the paint.
+
+    Args:
+      status: a dict with `clamped`, `failed`, `reason` and `key`, or
+        None at rest. The preview draws its outline in the state's
+        colour and the active glyph follows, so valid, clamped at a
+        limit, and a design that cannot be tiled are told apart as
+        the gesture goes.
+    """
+    self._drag_status = status
     self.update()
 
   def set_shown(self, key: str, on: bool):
@@ -805,7 +835,19 @@ class TopologyView(QWidget):
 
     if self._shown["tiles"]:
       painter.setBrush(QBrush(QColor(_TILE_FILL)))
-      painter.setPen(QPen(QColor(_TILE_LINE), 1))
+      # WHILE A DRAG IS IN PROGRESS THE OUTLINE CARRIES ITS STATE: red
+      # and dotted where the move would leave a design that cannot be
+      # tiled, amber where it is held at a limit, the ordinary line
+      # where it is fine -- so what is drawn says whether it will be
+      # allowed (2026-09-06).
+      status = self._drag_status if self._preview is not None else None
+      tile_pen = QPen(QColor(_TILE_LINE), 1)
+      if status and status.get("failed"):
+        tile_pen = QPen(QColor(_GAP_INK), 1.5)
+        tile_pen.setStyle(Qt.PenStyle.DotLine)
+      elif status and status.get("clamped"):
+        tile_pen = QPen(QColor(_CLAMPED_INK), 1.5)
+      painter.setPen(tile_pen)
       for tile in topology.tiles:
         painter.drawPath(self._path(tile.shape))
 
@@ -3220,6 +3262,7 @@ class TopologyPanel(QWidget):
     key = self.how_combo.currentData()
     if self._topology is None or not data[1] or not key:
       return
+    raw_changes = {}
     spec = edits_module.MANIPULATIONS.get(key, {})
     # A drag can only mean the manipulation in force, and only where
     # that manipulation is about the kind of thing being dragged.
@@ -3252,9 +3295,10 @@ class TopologyPanel(QWidget):
         # does not reproduce on laves 3.3.4.3.4, where the library
         # refuses a nudge that large before anything is recorded --
         # which is why the guard for this names its design.
-        args["push_d"] = self._within_the_box(
-          "push_d", float(dx * way[0] - dy * way[1]))
+        raw_changes["push_d"] = float(dx * way[0] - dy * way[1])
+        args["push_d"] = self._within_the_box("push_d", raw_changes["push_d"])
       elif key == "nudge_vertex":
+        raw_changes["dx"], raw_changes["dy"] = float(dx), float(dy)
         args["dx"] = self._within_the_box("dx", float(dx))
         args["dy"] = self._within_the_box("dy", float(dy))
       else:
@@ -3277,6 +3321,7 @@ class TopologyPanel(QWidget):
       if not changes:
         return
       for name, value in changes.items():
+        raw_changes[name] = value
         args[name] = self._within_the_box(name, value)
     self._drag_from = dict(args)
     # THE GLYPH FOLLOWS THE GESTURE, because its position is the pair
@@ -3327,6 +3372,68 @@ class TopologyPanel(QWidget):
     # than a second, separate control: drag roughly, then read what it
     # chose and correct it by hand.
     self._show_arguments(args)
+    # AND THE DRAWING SAYS WHICH OF THREE STATES THIS MOVE IS IN, so a
+    # person never imagines a move will be allowed when it will not
+    # (maintainer's principle, 2026-09-06). CLAMPED: the raw gesture
+    # asked past a box limit, so the value stopped and the glyph does
+    # too. FAILED: the previewed design leaves gaps and cannot be
+    # tiled -- asked of the cheap union `gaps`, not a build, so it is
+    # affordable once a frame. Shown, not enforced (ruling 5).
+    self.view.set_drag_status(
+      self._status_of_a_drag(key, raw_changes, args, moved))
+
+  def _status_of_a_drag(self, key, raw_changes, args, moved) -> dict:
+    """Whether the move in progress is valid, clamped or failed.
+
+    Args:
+      key: the manipulation.
+      raw_changes: what the gesture asked for, before the boxes
+        clamped it.
+      args: the values after clamping, which the preview was built
+        from.
+      moved: the previewed topology.
+
+    Returns:
+      {clamped, failed, reason, key}. `clamped` is True where the raw
+      gesture ran past a box's own range, so what is drawn is the
+      limit rather than what the pointer asked; `failed` is True
+      where the previewed design cannot be tiled, with `reason` the
+      words to show. A count SNAPPING to an even value is not
+      clamping -- only a value pushed past its min or max is.
+    """
+    clamped = False
+    for name, raw in raw_changes.items():
+      for _label, box in self._argument_rows:
+        if box.property("argument") != name:
+          continue
+        if float(raw) < box.minimum() - 1e-9 \
+            or float(raw) > box.maximum() + 1e-9:
+          clamped = True
+        break
+    failed, reason = False, ""
+    unit = getattr(moved, "tileable", None)
+    if unit is not None:
+      try:
+        # COVERAGE, NOT `gaps()`. This draft asked `gaps()`, which finds
+        # only holes ENCLOSED within a patch -- so a move that pulls the
+        # units apart, leaving a tear open onto the surrounding space,
+        # read as perfectly sound and the preview would have drawn it
+        # valid (C-341). `plane_coverage` measures one fundamental
+        # cell and catches a gap and an overlap alike, which is what
+        # the soundness mark and the hatch already read.
+        gap, overlap, _missing = edits_module.plane_coverage(unit)
+        if gap >= edits_module.GAP_TOLERANCE:
+          failed = True
+          reason = ("This much would leave gaps the tiles cannot "
+                    "close; ease back to keep a tiling.")
+        elif overlap >= edits_module.GAP_TOLERANCE:
+          failed = True
+          reason = ("This much would make the tiles overlap; ease "
+                    "back to keep a tiling.")
+      except Exception:                             # noqa: BLE001
+        pass
+    return {"clamped": clamped, "failed": failed,
+            "reason": reason, "key": key}
 
   def _within_the_box(self, name, value):
     """Clamp a dragged value to what its own control accepts.
@@ -3398,6 +3505,28 @@ class TopologyPanel(QWidget):
     self.set_unit(*held)
 
   def _commit_the_drag(self):
+    """End the gesture, and take down the state it was drawn in.
+
+    Returns:
+      None. Delegates the whole decision to `_commit_the_drag_body`
+      and clears the drag status afterwards, through a `finally` so
+      every exit is covered -- including one somebody adds later.
+
+    THE STATUS BELONGS TO THE GESTURE, NOT TO THE PICTURE, which is
+    what makes this a different question from the preview's. The
+    preview is deliberately KEPT where an edit was recorded, since the
+    rebuild that answers it is asynchronous and clearing at the drop
+    put the un-edited design back for 1.7 seconds; but the amber or
+    red that says "this is being held at a limit" describes a pointer
+    that is no longer down, and leaving it up would colour a settled
+    picture with the state of a gesture that has ended.
+    """
+    try:
+      self._commit_the_drag_body()
+    finally:
+      self.view.set_drag_status(None)
+
+  def _commit_the_drag_body(self):
     """Turn the gesture just ended into an edit, or discard it.
 
     Returns:
