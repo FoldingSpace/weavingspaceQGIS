@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-550 defect(s) with a regression test.
+552 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1073,6 +1073,8 @@ there is no separate list to remember.
   guarded by `test_a_promoted_dual_covers_its_cell_and_the_library_builds_it`
 - **editing an element's symbology in QGIS did not reach the plugin, and the guard that existed changed field, class count and ramp together -- so it could not show that a retyped boundary alone reached nothing.**  
   guarded by `test_a_qgis_symbology_edit_reaches_the_plugin_on_every_shape`
+- **with the amplitude box already at its maximum from a previous edit, dragging the zigzag handle on another edge previewed a zigzag and then recorded nothing on release, because the clamped amplitude had not changed though the pointer had.**  
+  guarded by `test_a_real_drag_commits_even_where_the_value_did_not_move`
 - **ticking "Map the dual" on the default design left the Topology tab blank, its reason erased by the landing's own next call. Field report 5 against 0.24.4rc15, driven 2026-09-05.**  
   guarded by `test_a_refusal_the_worker_returns_is_shown_not_erased`
 - **a renderer type changed in QGIS's styling panel left the plugin's row naming a style and a ramp that no longer decided the map.**  
@@ -1089,6 +1091,8 @@ there is no separate list to remember.
   guarded by `test_a_save_waits_for_a_run_that_is_about_to_start`
 - **the save was rewritten to write every table in one OGR session, and a writer that put anything different in the file would be a map a colleague opens wrongly.**  
   guarded by `test_a_session_written_file_holds_what_a_per_layer_one_does`
+- **pressing a button that tiles raised a raw TypeError about an unexpected 'rotations' argument when the vendored Tiling in memory predated the parameter.**  
+  guarded by `test_a_stale_vendored_tiling_without_rotations_does_not_crash`
 - **2026-08-19. A style pasted between element layers in QGIS carried the boundaries but not the pins, so the receiving element could neither show them nor keep them.**  
   guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
@@ -1157,7 +1161,7 @@ there is no separate list to remember.
 - the mutation campaign: 188
 - a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
-- reported by a user: 53
+- reported by a user: 55
 - reading the code: 15
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10

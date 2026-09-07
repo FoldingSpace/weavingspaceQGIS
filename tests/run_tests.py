@@ -2108,27 +2108,97 @@ def test_a_declared_rotation_lets_the_grid_ask_the_regions_shape():
     "as one told nothing, so the hint costs nothing when broken and the "
     "saving above is not evidence that it is sound")
 
-  # AND THE PLUGIN REALLY MAKES THE PROMISE IT RELIES ON.
-  # ASKED OF THE SYNTAX, not of the text: a first draft grepped for
-  # "Tiling(" and counted the DOCSTRING that mentions it as a second
-  # construction site, which is this project's own rule that a gate
-  # reading prose must decide what counts as prose.
-  tree = ast.parse(open(os.path.join(ROOT, "weavingspace_qgis",
-                                     "dialog.py"), encoding="utf-8").read())
-  builds = [node for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name) and node.func.id == "Tiling"]
-  assert len(builds) == 1, \
-    f"dialog.py builds a Tiling at {len(builds)} sites; each has to " \
-    f"declare its rotations or none may"
-  declared = [kw for kw in builds[0].keywords if kw.arg == "rotations"]
-  assert declared, (
-    "the one Tiling this plugin builds no longer declares its "
-    "rotations. Either restore it or, if a rotation is now passed to "
-    "get_tiled_map, say so there instead -- an undeclared rotation "
-    "against a grid built for none comes back short at the edges")
-  assert ast.literal_eval(declared[0].value) == (0.0,), \
-    f"it declares {ast.dump(declared[0].value)}, which is not (0.0,)"
+  # AND THE PLUGIN REALLY MAKES THE PROMISE IT RELIES ON. It passes the
+  # hint only where the Tiling in force accepts it (a reloaded plugin
+  # can inherit an older vendored Tiling that predates patch 5), so the
+  # promise is that WITH THIS VENDOR the hint is passed and bites --
+  # which the smaller tight grid above already shows -- and that the
+  # feature test agrees the parameter is there.
+  from weavingspace_qgis.dialog import _tiling_takes_rotations
+  assert _tiling_takes_rotations(Tiling), (
+    "the vendored Tiling no longer declares `rotations`, so the plugin "
+    "would fall back to the any-rotation grid; restore patch 5 or the "
+    "grid saving above is gone")
+
+  # AND THE PLUGIN'S GENERATE ACTUALLY PASSES IT where the Tiling takes
+  # it -- a recording Tiling driven through a real generate must see
+  # `rotations=(0.0,)`, or the grid saving reaches no user.
+  import weavingspace
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  seen = {}
+  class _RecordingTiling(Tiling):
+    # THE REAL VENDOR'S SHAPE, an explicit `rotations`, so the feature
+    # test reads it as taking the hint (a `**kwargs` init would hide it).
+    def __init__(self, u, r, as_icons=False, rotations=None):
+      seen["rotations"] = rotations
+      super().__init__(u, r, as_icons=as_icons, rotations=rotations)
+  real = weavingspace.Tiling
+  weavingspace.Tiling = _RecordingTiling
+  region_layer = make_region_layer()
+  QgsProject.instance().addMapLayer(region_layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    _generate_and_wait(dlg)
+  finally:
+    weavingspace.Tiling = real
+    dlg.close()
+    dlg.deleteLater()
+    QgsProject.instance().removeAllMapLayers()
+  assert seen.get("rotations") == (0.0,), (
+    f"the plugin's generate passed rotations={seen.get('rotations')!r} to a "
+    f"Tiling that accepts the hint, so the smaller grid is not being asked for")
+
+
+
+def test_a_stale_vendored_tiling_without_rotations_does_not_crash():
+  """A generate does not raise where the Tiling in force predates the
+  `rotations` hint.
+
+  This plugin's own vendor carries patch 5, but QGIS caches imported
+  modules, so a plugin RELOADED after an upgrade (rather than QGIS
+  restarted) can leave an older vendored `Tiling` in memory that does
+  not take the keyword -- and passing it then raised
+  `TypeError: Tiling.__init__() got an unexpected keyword argument
+  'rotations'` in the user's face on the dual button. The hint is a
+  performance hint, never a requirement, so where the Tiling cannot
+  take it the plugin omits it and draws the map with the any-rotation
+  grid.
+
+  Regression: pressing a button that tiles raised a raw TypeError about an unexpected 'rotations' argument when the vendored Tiling in memory predated the parameter. [user]
+  """
+  import weavingspace
+  from weavingspace import Tiling
+  from weavingspace_qgis import dialog as _d
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  class _StaleTiling(Tiling):
+    def __init__(self, unit, region, as_icons=False):   # no `rotations`
+      super().__init__(unit, region, as_icons=as_icons)
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  real = weavingspace.Tiling
+  weavingspace.Tiling = _StaleTiling
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    assert not _d._tiling_takes_rotations(_StaleTiling), \
+      "PREMISE: the stale Tiling was read as taking rotations"
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(200)
+    _generate_and_wait(dlg)
+    assert dlg._element_layer_ids, (
+      "a generate against a Tiling with no `rotations` parameter drew "
+      "nothing, so the plugin either crashed or refused where it should "
+      "have fallen back to the any-rotation grid")
+  finally:
+    weavingspace.Tiling = real
+    dlg.close()
+    dlg.deleteLater()
+    QgsProject.instance().removeAllMapLayers()
 
 
 
@@ -57385,6 +57455,71 @@ def test_a_drag_delivered_in_many_moves_records_one_position():
     dlg.deleteLater()
 
 
+def test_a_real_drag_commits_even_where_the_value_did_not_move():
+  """A drag that travels a real distance records the manipulation it
+  drew, even where the number worked out to the one the box already
+  held.
+
+  The amplitude is a POSITION, so the box carries the last edit's `h`
+  to the next edge; at the ceiling of 1.0 an outward drag on that edge
+  cannot raise `h`, so `_drag_moved` -- which asks whether the VALUE
+  moved -- saw no change and the drop discarded the whole gesture, and
+  a person who dragged a plain zigzag on a fresh edge got nothing while
+  the preview had drawn it. The drop commits when the pointer travelled
+  past the click threshold, whatever the number, so what was drawn is
+  what is run.
+
+  Regression: with the amplitude box already at its maximum from a previous edit, dragging the zigzag handle on another edge previewed a zigzag and then recorded nothing on release, because the clamped amplitude had not changed though the pointer had. [user]
+  """
+  from qgis.PyQt.QtCore import QPoint, Qt as QtNamespace
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    panel, view, _handle, _along, normal, _reach = \
+      _the_zigzag_handle_on_the_default_design(dlg)
+    h_box = next(b for _l, b in panel._argument_rows
+                 if b.property("argument") == "h")
+    # THE BOX AT ITS CEILING, as a previous edit on another edge leaves it.
+    h_box.setValue(h_box.maximum())
+    _tick(120)
+    ceiling = float(h_box.value())
+    assert ceiling >= 0.99, f"PREMISE: the box did not reach its ceiling: {ceiling}"
+    before = len(panel._edits)
+    view._chosen_thing = view._chosen_thing
+    seat = next(w for k, w, _s in view.handles() if k == "zigzag_edge")
+    at = QPoint(int(round(seat.x())), int(round(seat.y())))
+    # A REAL OUTWARD DRAG, well past the click threshold, on the side the
+    # handle already sits -- which cannot raise an amplitude at the ceiling.
+    far = QPoint(int(round(seat.x() + normal[0] * 30)),
+                 int(round(seat.y() + normal[1] * 30)))
+    QTest.mousePress(view, QtNamespace.MouseButton.LeftButton,
+                     QtNamespace.KeyboardModifier.NoModifier, at)
+    _tick(30)
+    QTest.mouseMove(view, QPoint(int(round(seat.x() + normal[0] * 15)),
+                                 int(round(seat.y() + normal[1] * 15))))
+    _tick(40)
+    QTest.mouseMove(view, far)
+    _tick(60)
+    QTest.mouseRelease(view, QtNamespace.MouseButton.LeftButton,
+                       QtNamespace.KeyboardModifier.NoModifier, far)
+    _tick(150)
+    _settle_topology(dlg, seconds=40)
+    recorded = panel._edits[before:]
+    assert len(recorded) == 1, (
+      f"a real outward drag recorded {len(recorded)} edits where the "
+      f"amplitude box already sat at its ceiling: the drop discarded a "
+      f"gesture the preview had drawn because the clamped number did not move")
+    assert recorded[0].get("how") == "zigzag_edge", recorded[0]
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+
 def test_a_typed_odd_count_is_settled_when_the_handle_is_taken():
   """A count typed without Return is settled at the grab, not only at
   `editingFinished`.
@@ -90490,6 +90625,8 @@ def main():
         test_the_grid_disc_reaches_only_what_the_region_occupies)
   check("a declared rotation lets the grid ask the region's shape",
         test_a_declared_rotation_lets_the_grid_ask_the_regions_shape)
+  check("a stale vendored tiling without rotations does not crash",
+        test_a_stale_vendored_tiling_without_rotations_does_not_crash)
   check("the overlay clips only the tiles that straddle",
         test_the_overlay_clips_only_the_tiles_that_straddle)
   check("real-world data end to end (Auckland IMD)",
@@ -91698,6 +91835,8 @@ def main():
         test_the_zigzag_ghost_crests_where_the_library_does)
   check("a drag delivered in many moves records one position",
         test_a_drag_delivered_in_many_moves_records_one_position)
+  check("a real drag commits even where the value did not move",
+        test_a_real_drag_commits_even_where_the_value_did_not_move)
   check("a typed odd count is settled when the handle is taken",
         test_a_typed_odd_count_is_settled_when_the_handle_is_taken)
   check("a dual request that is refused does not latch",

@@ -488,6 +488,13 @@ class TopologyView(QWidget):
     self._hover_handle = ""
     self._held_handle = ""
     self._press = None
+    # WHERE THE GRAB AND THE RELEASE LANDED, IN PIXELS, so the drop can
+    # ask how far the pointer travelled without re-deriving it from the
+    # unit-space press. A drag that travelled a real distance is a
+    # gesture the drop must commit whatever the number worked out to --
+    # the whole of 'if you can draw it, you can run it' (2026-09-06).
+    self._press_px = None
+    self._release_px = None
     # The edge a drag took hold of, in UNIT coordinates:
     # (mid_x, mid_y, along_x, along_y, length). Kept here because the
     # view is what did the hit test and knows which concrete edge was
@@ -1804,6 +1811,26 @@ class TopologyView(QWidget):
     """
     return self._press_edge
 
+  def drag_travel_px(self) -> float:
+    """How far the pointer moved between the grab and the release, in pixels.
+
+    Returns:
+      The straight-line pixel distance from where a handle was grabbed
+      to where it was let go, or 0 where there was no grab. The drop
+      reads it to tell a drag from a click: a gesture that travelled a
+      real distance drew a preview and must commit it, even where the
+      number it worked out equals the one the box already held -- a
+      zigzag dragged on a fresh edge whose amplitude box carried a
+      value from the last edit recorded NOTHING before this, because
+      the value had not moved though the pointer plainly had (reported
+      on rc17, 2026-09-06).
+    """
+    if self._press_px is None or self._release_px is None:
+      return 0.0
+    dx = self._release_px.x() - self._press_px.x()
+    dy = self._release_px.y() - self._press_px.y()
+    return (dx * dx + dy * dy) ** 0.5
+
   def unit_span(self) -> float:
     """How big the unit is, in its own coordinates.
 
@@ -1842,6 +1869,8 @@ class TopologyView(QWidget):
       # THE SAME EXPRESSION THE COMMIT USES, asked of the one method
       # that owns it rather than written out a second time here.
       self._press = (self._to_unit(point), self.unit_span())
+      self._press_px = QPointF(point)
+      self._release_px = QPointF(point)
       self._press_edge = (self._edge_frame(self._chosen_thing)
                           if self._chosen[0] == "edge" else None)
       self.grabbed.emit(handle)
@@ -1905,6 +1934,7 @@ class TopologyView(QWidget):
         self.update()
       return
     (x0, y0), span = self._press
+    self._release_px = QPointF(point)
     x, y = self._to_unit(point)
     # AS A FRACTION OF THE UNIT, not in map units: the manipulations
     # take proportions, and a drag that meant different amounts at
@@ -1915,6 +1945,8 @@ class TopologyView(QWidget):
     """End a drag, and let the panel commit it."""
     if self._press is None:
       return
+    self._release_px = QPointF(event.position() if hasattr(event, "position")
+                               else event.pos())
     self._press = None
     self._press_edge = None
     self._held_handle = ""
@@ -3394,8 +3426,17 @@ class TopologyPanel(QWidget):
     # rather than editing anything. The test is on what the drag
     # actually asked for, per manipulation, because "nothing moved"
     # is a different number for an angle than for a fraction.
-    if not self._drag_moved(key, args, self._drag_started_with,
-                            self._amplitude_deadband()):
+    # A REAL DRAG COMMITS WHAT THE PREVIEW DREW, whatever the number
+    # worked out to. `_drag_moved` asks whether the VALUE moved, which
+    # is right for a click on a handle already at its value but wrong
+    # for a drag on a fresh edge whose box holds a leftover value: the
+    # amplitude clamped at the ceiling could not rise, so a plain
+    # outward drag recorded nothing though the preview had drawn the
+    # zigzag (rc17, 2026-09-06). The pointer travelling past the click
+    # threshold IS the gesture, so either answer commits it.
+    if not (self._drag_moved(key, args, self._drag_started_with,
+                             self._amplitude_deadband())
+            or self.view.drag_travel_px() >= _AMPLITUDE_DEADBAND_PX):
       self.view.show_preview(None)
       return
     self._record({"classes": data[1], "how": key, "args": args})

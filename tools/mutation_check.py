@@ -241,8 +241,10 @@ MUTATIONS = [
        # only sound while this plugin's promise is true. The entry
        # above proves the mechanism; this proves the plugin still makes
        # the claim the mechanism rests on.
-       old="""      tiling = Tiling(unit, region, as_icons=as_icons, rotations=(0.0,))""",
-       new="""      tiling = Tiling(unit, region, as_icons=as_icons)""",
+       old="""      if _tiling_takes_rotations(Tiling):
+        tiling_kwargs["rotations"] = (0.0,)""",
+       new="""      if False:  # mutation: never declare the rotation
+        tiling_kwargs["rotations"] = (0.0,)""",
        test="test_a_declared_rotation_lets_the_grid_ask_the_regions_shape",
        why="the hint is a promise a caller can break, and breaking it "
            "costs tiles at the edges -- measured in 12 of 12 cases at "
@@ -2768,6 +2770,17 @@ MUTATIONS = [
        test="test_design_cascade",
        why="a toggle that moves on its own saying so, rather than "
            "leaving somebody to notice they are no longer in weaves"),
+  dict(name="rotations-is-passed-only-where-it-is-taken",
+       file=DIALOG,
+       old="""      if _tiling_takes_rotations(Tiling):
+        tiling_kwargs["rotations"] = (0.0,)""",
+       new="""      if True:  # mutation: pass rotations blind
+        tiling_kwargs["rotations"] = (0.0,)""",
+       test="test_a_stale_vendored_tiling_without_rotations_does_not_crash",
+       why="a raw TypeError on the dual button where a reloaded plugin "
+           "inherited an older vendored Tiling that predates the "
+           "`rotations` hint, the plugin passing it blind rather than "
+           "where it is accepted (reported on rc17, 2026-09-06)"),
   dict(name="the-dual-is-what-the-map-is-tiled-with", file=DIALOG,
        # MUTATED to ignore the switch, so the box is ticked, the record
        # says the map is the dual, and the map is the design -- which
@@ -10688,12 +10701,14 @@ MUTATIONS = [
        # RE-ANCHORED 2026-09-05, when `_drag_moved` gained the numbers
        # the drag started from so a count-only gesture could be told
        # from a click. The line moved; the behaviour it guards did not.
-       old="""    if not self._drag_moved(key, args, self._drag_started_with,
-                            self._amplitude_deadband()):
+       old="""    if not (self._drag_moved(key, args, self._drag_started_with,
+                             self._amplitude_deadband())
+            or self.view.drag_travel_px() >= _AMPLITUDE_DEADBAND_PX):
       self.view.show_preview(None)
       return""",
-       new="""    if not self._drag_moved(key, args, self._drag_started_with,
-                            self._amplitude_deadband()):
+       new="""    if not (self._drag_moved(key, args, self._drag_started_with,
+                             self._amplitude_deadband())
+            or self.view.drag_travel_px() >= _AMPLITUDE_DEADBAND_PX):
       return      # mutation: keep a preview nothing was recorded from""",
        test="test_the_drop_keeps_the_picture_it_was_showing",
        why="the promise that the drawing never shows an edit the "
@@ -10852,6 +10867,18 @@ MUTATIONS = [
        why="the zigzag handle back on the wave's first peak, where its stops "
            "crowd toward the start and four and six cannot be dragged to "
            "(maintainer's ruling of 2026-09-06: the count interpolates)"),
+  dict(name="a-real-drag-commits-what-the-preview-drew",
+       file=TOPOLOGY_TAB,
+       old="""    if not (self._drag_moved(key, args, self._drag_started_with,
+                             self._amplitude_deadband())
+            or self.view.drag_travel_px() >= _AMPLITUDE_DEADBAND_PX):""",
+       new="""    if not self._drag_moved(key, args, self._drag_started_with,
+                            self._amplitude_deadband()):  # mutation: value only""",
+       test="test_a_real_drag_commits_even_where_the_value_did_not_move",
+       why="a real drag discarded because the clamped value did not move: a "
+           "zigzag dragged on a fresh edge whose amplitude box carried the "
+           "ceiling from a previous edit previewed a wave and then recorded "
+           "nothing on release (reported on rc17, 2026-09-06)"),
   dict(name="the-drag-reads-the-count-off-its-seat",
        file=TOPOLOGY_TAB,
        old="""        here = _count_seat(was) * length""",

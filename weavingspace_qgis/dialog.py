@@ -116,6 +116,34 @@ from .category_editor import CategoryColourDialog
 from .widgets import TrimmedSpinBox
 from .worker import TilingTask
 
+
+_TILING_TAKES_ROTATIONS = {}
+
+
+def _tiling_takes_rotations(tiling_class) -> bool:
+  """Whether this Tiling accepts the `rotations` performance hint.
+
+  Args:
+    tiling_class: the vendored `Tiling` actually in force, which a
+      reloaded plugin may have inherited from an earlier version.
+
+  Returns:
+    True where `Tiling.__init__` declares `rotations` (patch 5), so
+    the caller may say it will ask for no rotation and get the
+    smaller grid; False where an older vendored Tiling would raise a
+    TypeError on the keyword. Cached per class object, since the
+    answer is a fact about the code and this is asked on every run.
+  """
+  cached = _TILING_TAKES_ROTATIONS.get(tiling_class)
+  if cached is None:
+    import inspect
+    try:
+      cached = "rotations" in inspect.signature(tiling_class.__init__).parameters
+    except (ValueError, TypeError):
+      cached = False
+    _TILING_TAKES_ROTATIONS[tiling_class] = cached
+  return cached
+
 GROUP_BASE_NAME = "WeavingSpace tiles"
 
 # ---------------------------------------------------------------------
@@ -17394,7 +17422,20 @@ class WeavingSpaceDialog(QDialog):
         coverage["missing"] = bridge.count_units_without_tiles(
           held, unit_id_column, unit_count)
         return None if task.isCanceled() else held
-      tiling = Tiling(unit, region, as_icons=as_icons, rotations=(0.0,))
+      # ROTATIONS IS A PERFORMANCE HINT (patch 5), NEVER A REQUIREMENT.
+      # This plugin's own vendor always carries the patch, but QGIS
+      # caches imported modules, so a plugin RELOADED (rather than a
+      # QGIS restarted) after an upgrade can leave an older vendored
+      # `Tiling` in memory that predates the parameter -- and a raw
+      # `TypeError: ... unexpected keyword argument 'rotations'` then
+      # reached a user on the dual button (reported on rc17,
+      # 2026-09-06). The hint only says the caller will ask for no
+      # rotation, so where the Tiling in force cannot take it the
+      # honest fallback is the any-rotation grid: slower, never wrong.
+      tiling_kwargs = {"as_icons": as_icons}
+      if _tiling_takes_rotations(Tiling):
+        tiling_kwargs["rotations"] = (0.0,)
+      tiling = Tiling(unit, region, **tiling_kwargs)
       if task.isCanceled():
         return None
       task.setProgress(40)
