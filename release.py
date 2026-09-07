@@ -47,6 +47,7 @@ import shutil
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -1421,13 +1422,22 @@ def commit_and_tag(version, report_dir, push):
   else:
     git("tag", "-a", tag, "-m", f"WeavingSpace plugin {tag}")
 
-  # THE ASSET CARRIES ITS VERSION, asked of build.py rather than
+  # EVERY ASSET CARRIES ITS VERSION, asked of build.py rather than
   # composed here: one owner for what a build is called means the
   # release cannot attach a name the builder did not write.
+  # THAT USED TO BE TRUE OF THE ZIP ALONE. The two reports live under
+  # `reports/v<version>/` and are named for what they are, so they
+  # went out bare -- a comment claiming the rule while two of the
+  # three assets broke it, which is worse than no comment because it
+  # is believed and therefore not checked (C-1). They are staged under
+  # their published names into a temporary directory, since no release
+  # step may write into `dist/`.
   assets = [build_module().release_zip_path(),
             os.path.join(report_dir, "testing-report.md"),
             os.path.join(report_dir, "visual-comparison.pdf")]
   assets = [a for a in assets if os.path.exists(a)]
+  assets = build_module().stage_versioned_assets(
+    assets, version, tempfile.mkdtemp(prefix="weavingspace-assets-"))
 
   notes_preview = os.path.join(report_dir, "release-notes.md")
   if not push:

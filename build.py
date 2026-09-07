@@ -239,6 +239,73 @@ def release_zip_path():
   return os.path.join(DIST, f"weavingspace_qgis-{declared_version()}.zip")
 
 
+def asset_name_for(path, version):
+  """What a file must be called once it is a release asset.
+
+  Args:
+    path: the file as it sits on disk, whose basename may or may not
+      already carry the version.
+    version: the version or candidate label it belongs to, e.g.
+      "0.24.4" or "0.24.4rc18".
+
+  Returns:
+    The basename the asset takes on GitHub -- `<stem>-<version><ext>`
+    -- or the basename unchanged where it ALREADY carries the version,
+    since `weavingspace_qgis-0.24.4rc18.zip` must not become
+    `weavingspace_qgis-0.24.4rc18-0.24.4rc18.zip`.
+
+  WHY THIS EXISTS. Every artefact carries its version in its name, in
+  `dist/` and on GitHub alike (CLAUDE.md, C-1). The zip obeyed it and
+  nothing else did: `testing-report.md` and `visual-comparison.pdf`
+  went out bare on every candidate and every release, because both
+  uploaders passed a path whose basename is the version-free name the
+  file has inside its already-versioned `reports/v<version>/`
+  directory. A directory that carries the version does not help
+  somebody with four downloads in one folder.
+  """
+  stem, ext = os.path.splitext(os.path.basename(path))
+  if version in stem:
+    return stem + ext
+  return f"{stem}-{version}{ext}"
+
+
+def stage_versioned_assets(paths, version, into):
+  """Copy each asset under the name it must be published as.
+
+  Args:
+    paths: the files to publish, as they sit on disk.
+    version: the version or candidate label they belong to.
+    into: a directory to copy them into. The caller owns it and is
+      expected to hand over a temporary one -- deliberately NOT
+      `dist/`, which no check or publish step may write into (C-1).
+
+  Returns:
+    A list of paths, in the order given, to hand to `gh release`. A
+    file whose name already carries the version is returned as it
+    stands rather than copied, so the zip is uploaded from `dist/`
+    itself and only the bare-named reports are staged.
+
+  Raises:
+    OSError: where `into` cannot be written, which the caller should
+    let stop the publish rather than silently uploading bare names.
+
+  Copies rather than renames in place, since `reports/v<version>/` is
+  read by the testing report and the comparison PDF's own tooling and
+  a rename there would move a path four documents name.
+  """
+  import shutil
+  staged = []
+  for path in paths:
+    wanted = asset_name_for(path, version)
+    if wanted == os.path.basename(path):
+      staged.append(path)
+      continue
+    target = os.path.join(into, wanted)
+    shutil.copy2(path, target)
+    staged.append(target)
+  return staged
+
+
 def installed_copies():
     """Every QGIS profile that already has this plugin installed.
 

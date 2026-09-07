@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -321,14 +322,34 @@ def main():
     f"colourspace comparison against the library's own renderer. "
     f"{ci_sentence}\n\n{notes}\n\n{CLOSING}\n")
 
+  # EVERY ASSET CARRIES THE CANDIDATE'S LABEL, not just the zip. The
+  # reports live under `reports/v<version>/` and are named for what
+  # they are, so uploading them by basename put `testing-report.md`
+  # and `visual-comparison.pdf` on every pre-release bare -- and a
+  # tester holding two candidates' downloads in one folder cannot tell
+  # them apart (C-1). Staged into a temporary directory, since no
+  # publish step may write into `dist/`.
+  # STAGED BEFORE THE DRY RUN PRINTS, deliberately: a dry run that
+  # lists different names from the ones the real run uploads is a dry
+  # run nobody can check the real one against. The staged list is a
+  # SEPARATE name because `assets[1]` is read above for the reports
+  # directory, and pointing that at a temporary copy would have
+  # `shard_words` counting shards in an empty folder.
+  staging = tempfile.mkdtemp(prefix="weavingspace-assets-")
+  try:
+    to_upload = build.stage_versioned_assets(assets, label, staging)
+  except OSError as exc:
+    print(f"could not stage the assets under their published names: {exc}")
+    return 1
+
   if args.dry_run:
     print(f"would publish {tag} as a pre-release on {sha}, with:")
-    for a in assets:
-      print(f"  {os.path.relpath(a, ROOT)}")
+    for a in to_upload:
+      print(f"  {os.path.basename(a)}")
     print("\n--- body ---\n" + body)
     return 0
 
-  made = run("gh", "release", "create", tag, *assets,
+  made = run("gh", "release", "create", tag, *to_upload,
              "--repo", REPO, "--target", full, "--prerelease",
              "--title", f"{label} — release candidate",
              "--notes", body)

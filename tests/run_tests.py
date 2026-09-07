@@ -30135,6 +30135,66 @@ def test_no_shard_waits_on_a_pipe_nobody_is_reading():
     shutil.rmtree(tree, ignore_errors=True)
 
 
+def test_every_release_asset_carries_its_version():
+  """Every asset a release attaches is named for the version it belongs to.
+
+  The rule is CLAUDE.md's, and the zip obeyed it while nothing else
+  did: `testing-report.md` and `visual-comparison.pdf` went out bare on
+  every candidate and every release, because both uploaders passed a
+  path whose basename is the version-free name the file carries inside
+  its already-versioned `reports/v<version>/` directory. A directory
+  that carries the version does not help somebody holding two
+  candidates' downloads in one folder.
+
+  Two halves, because either alone would pass while the rule was
+  broken: the NAMING answers correctly, and both uploaders actually
+  route their assets through it.
+
+  Regression: testing-report.md and visual-comparison.pdf were attached to every candidate and release without their version, including 0.24.4rc18. [review]
+  """
+  import build as build_module
+
+  # A BARE NAME GAINS THE VERSION, AND A VERSIONED ONE IS LEFT ALONE,
+  # or the zip becomes weavingspace_qgis-0.24.4rc18-0.24.4rc18.zip.
+  assert build_module.asset_name_for(
+    "reports/v0.24.4/testing-report.md", "0.24.4rc18") \
+    == "testing-report-0.24.4rc18.md", "a bare report gains the label"
+  assert build_module.asset_name_for(
+    "reports/v0.24.4/visual-comparison.pdf", "0.24.4") \
+    == "visual-comparison-0.24.4.pdf", "a release labels with the version"
+  assert build_module.asset_name_for(
+    "dist/weavingspace_qgis-0.24.4rc18.zip", "0.24.4rc18") \
+    == "weavingspace_qgis-0.24.4rc18.zip", \
+    "a name that already carries the version is not versioned twice"
+
+  # AND THE STAGED FILES EXIST UNDER THOSE NAMES, since a name the
+  # uploader cannot open is not an asset.
+  staged_from = tempfile.mkdtemp()
+  bare = os.path.join(staged_from, "testing-report.md")
+  with open(bare, "w", encoding="utf-8") as fh:
+    fh.write("# report\n")
+  into = tempfile.mkdtemp()
+  staged = build_module.stage_versioned_assets([bare], "0.24.4rc18", into)
+  assert [os.path.basename(p) for p in staged] \
+    == ["testing-report-0.24.4rc18.md"], f"staged as {staged}"
+  assert os.path.exists(staged[0]) and \
+    open(staged[0], encoding="utf-8").read() == "# report\n", \
+    "the staged copy is the file, not an empty name"
+  assert os.path.exists(bare), "the original is copied rather than moved"
+
+  # AND BOTH UPLOADERS GO THROUGH IT. Without this the naming above is
+  # a helper nobody calls, which is exactly the state this test was
+  # written after: the rule was stated in CLAUDE.md and in a comment
+  # in release.py, and two of three assets broke it. Asked of the
+  # SYMBOL rather than of a sentence, since prose gates are moved by
+  # prose.
+  for path in ("release.py", os.path.join("tools", "publish_candidate.py")):
+    source = open(os.path.join(ROOT, path), encoding="utf-8").read()
+    assert "stage_versioned_assets" in source, \
+      f"{path} attaches assets without routing them through the one " \
+      f"owner of what a published asset is called"
+
+
 def test_a_candidate_number_is_never_reused():
   """A number belongs to a candidate for good, deleted zip or not.
 
@@ -92006,6 +92066,8 @@ def main():
         test_a_stage_log_never_shows_the_previous_run)
   check("no shard waits on a pipe nobody is reading",
         test_no_shard_waits_on_a_pipe_nobody_is_reading)
+  check("every release asset carries its version",
+        test_every_release_asset_carries_its_version)
   check("a candidate number is never reused",
         test_a_candidate_number_is_never_reused)
   check("the tenth candidate is named the tenth",

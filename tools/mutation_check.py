@@ -2672,6 +2672,30 @@ MUTATIONS = [
        test="test_every_way_of_editing_the_topology_moves_the_drawing",
        why="seeing what you just did to the design, which is the whole "
            "of what makes an edit worth making"),
+  dict(name="a-release-asset-carries-its-version", file=BUILD,
+       # THE NAMING AXIS. Handing back the bare basename is exactly
+       # the state every candidate shipped in: the reports went out as
+       # `testing-report.md` beside a zip that did carry its version.
+       old="""  if version in stem:
+    return stem + ext
+  return f"{stem}-{version}{ext}\"""",
+       new="""  if version in stem:
+    return stem + ext
+  return stem + ext""",
+       test="test_every_release_asset_carries_its_version",
+       why="a tester holding two candidates' downloads in one folder "
+           "can tell which report belongs to which build"),
+  dict(name="the-uploader-routes-its-assets-through-the-namer",
+       file=PUBLISH_CANDIDATE,
+       # THE ROUTING AXIS, and it needs its own entry: the namer can be
+       # perfectly correct and called by nobody, which is the shape the
+       # rule was already in -- stated in CLAUDE.md and asserted in a
+       # comment in release.py while two of three assets broke it.
+       old="""    to_upload = build.stage_versioned_assets(assets, label, staging)""",
+       new="""    to_upload = list(assets)""",
+       test="test_every_release_asset_carries_its_version",
+       why="the naming rule reaching the pre-release rather than "
+           "sitting in a helper nobody calls"),
   dict(name="a-worker-that-returned-is-not-a-worker-that-never-ran",
        file=WORKER,
        # THE WHOLE DECISION IS THE `finally`, so that is what this

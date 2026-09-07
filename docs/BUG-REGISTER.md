@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-554 defect(s) with a regression test.
+555 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -792,6 +792,8 @@ there is no separate list to remember.
   guarded by `test_auto_first_render`
 - **a project reopened after an element was styled in QGIS lost the fact that the plugin had stopped styling it, so the next Generate destroyed the user's work.**  
   guarded by `test_deferral_survives_a_project_round_trip`
+- **testing-report.md and visual-comparison.pdf were attached to every candidate and release without their version, including 0.24.4rc18.**  
+  guarded by `test_every_release_asset_carries_its_version`
 - **the two infinity placeholder fills were compared against themselves, so any two elements carrying an infinity were reported as an unreadable pair.**  
   guarded by `test_no_placeholder_fill_is_ever_a_clash`
 - **every shard of a sharded stage was started on a pipe and the pipes were drained one at a time, so any shard producing more than 64 KB blocked until the parent reached it -- fifty minutes in one measured case -- serialising the shards and throwing away most of the benefit of sharding.**  
@@ -1166,7 +1168,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 156
 - not written down at the time: 88
 - reported by a user: 55
-- reading the code: 15
+- reading the code: 16
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10
 - race and stress testing: 6

@@ -117,7 +117,15 @@ self-fixing at low cost for whoever edits them next.)
   `check_before_push` replays CI's packaging step, so the PUSH GATE
   mutates `dist/` from an ungated tree every time anybody runs it. The
   measurement that day, and the ruling that the README follows the
-  artefact rather than the other way round: C-1.
+  artefact rather than the other way round: C-1. AND IT WAS TRUE OF THE
+  ZIP ALONE until 2026-09-07: the testing report and the comparison PDF
+  went out bare on every candidate and release, since both uploaders
+  passed the version-free name those files carry inside their already
+  versioned `reports/v<version>/` folder, and a comment in `release.py`
+  asserted the rule while two of its three assets broke it.
+  `build.asset_name_for` is the one owner of what a published asset is
+  called, guarded on both axes -- the naming, and both uploaders
+  routing through it.
 - **EVERYTHING FOR THIS PROJECT LIVES INSIDE THE PROJECT DIRECTORY,
   worktrees included.** (Maintainer's rule, 2026-08-29: the scratch
   folder is shared by everyone.) Retire a worktree when its work is

@@ -181,10 +181,17 @@ def main():
     "## In this release", "",
     f"- `weavingspace_qgis-{version}.zip` — install through Plugins > "
     f"Manage and Install Plugins... > Install from ZIP",
-    "- `testing-report.md` — every test with its result and measured "
-    "values",
-    "- `visual-comparison.pdf` — each rendered map scored against the "
-    "weavingspace library's own renderer, in a perceptual colourspace",
+    # NAMED AS THEY ARE UPLOADED, version and all. The prose that
+    # names a download follows the artefact rather than the other way
+    # round, so these two are composed from the version exactly as the
+    # zip above is; they read as bare names here while the assets went
+    # out bare too, and correcting one without the other would leave a
+    # release page naming files it does not carry.
+    f"- `testing-report-{version}.md` — every test with its result "
+    f"and measured values",
+    f"- `visual-comparison-{version}.pdf` — each rendered map scored "
+    f"against the weavingspace library's own renderer, in a "
+    f"perceptual colourspace",
     "",
     f"How this is built and tested: [docs/PUBLISHING.md]"
     f"({REPO}/blob/main/docs/PUBLISHING.md) and "

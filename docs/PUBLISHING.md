@@ -701,7 +701,16 @@ does not hand its number back.
 **Naming.** EVERY ARTEFACT CARRIES ITS VERSION, in `dist/` and on the
 release page alike, and the prose that names the download follows the
 artefact; releases already published keep the asset names they went
-out with. **And no CHECK writes into `dist/`**: `check_before_push`
+out with. **THE REPORTS ARE ASSETS TOO**, which is the half that
+lapsed: they live under `reports/v<version>/` and are named for what
+they are, so uploading them by basename put `testing-report.md` and
+`visual-comparison.pdf` on every page bare. `build.asset_name_for` is
+the one owner of a published asset's name and
+`build.stage_versioned_assets` copies each into a temporary directory
+under it -- a copy rather than a rename, since four documents name
+those paths. Both uploaders route through it and a test asserts they
+do, a namer nobody calls being the state the rule was already in.
+**And no CHECK writes into `dist/`**: `check_before_push`
 replays the packaging step, so it builds into a temporary directory,
 having once left an unversioned zip in `dist/` three bytes different
 from the published candidate. (P-12.)
