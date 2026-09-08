@@ -1189,7 +1189,16 @@ The accounts are C-267 and the ids beside each rule.
   AGGREGATES OVER THE DISTINCTION UNDER TEST CANNOT SEE IT, while its
   output reads as an answer rather than as silence: a list of a
   strand's edges concluded that its two long sides share a class,
-  having never asked which side each edge was on (C-349).
+  having never asked which side each edge was on (C-349). AND A
+  REPRESENTATION BUILT TO DISCARD A DISTINCTION CANNOT BE MEASURED FOR
+  IT, however the instrument is sharpened: three constructions read a
+  weave's rendered polygons for the over-and-under, which a flat map
+  cuts the under strand precisely in order to hide, and each failed
+  differently enough to read as a fixable instrument rather than as the
+  wrong question -- so before refining a measurement, ask what the
+  thing measured was designed to leave out, and whether the
+  distinction survives one layer nearer the specification, where it
+  cost nothing to read (C-350).
 - **READ A STALLED PROCESS WITHOUT SIGNALLING IT.** `sample <pid>`
   takes every thread's stack and disturbs nothing, where SIGUSR1 kills
   `run_some` outright for want of a faulthandler; and under CPython

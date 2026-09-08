@@ -61,20 +61,34 @@ leans on four private lines. A canary in the suite asserts the gap is
 still there, so the day it closes we are told.
 
 **The topology of a weave, and what its holes have to do with it**
-(`the-topology-of-a-weave-and-its-holes.md`) is the discussion, with
-figures, behind the weave record below. A weave below aspect 1.0 has holes by
-construction, so it is not a tiling and has no structure to derive;
-filling the daylight with tiles gives it one, and the note shows by
-control that the classes then follow how the holes were cut, the same
-ground cut two ways giving six edge classes or 114. The way out is to
-cut the daylight by what each piece is FOR, which is canonical, and
-then to decide what each kind is: the note measures what happens when
-the incidental gaps are passed through (everything becomes adjacent to
-everything) against what happens when they are absorbed into the
-strand whose width opened them (a small structure that does not move
-with the strand width). Read it before building on a weave's classes,
-or before quoting "the dual of a weave", which is not a definite
-phrase until somebody says what the holes are.
+(`the-topology-of-a-weave-and-its-holes.md`) is the long discussion,
+with figures, behind the weave record below, and it is in five parts
+because the investigation turned over twice. The first works
+on the rendered design: a thin weave has holes by construction, filling
+them with tiles gives it a structure, and a control shows that
+structure follows how the holes were cut, the same ground cut two ways
+giving six edge classes or 114. Cutting the daylight by what each piece
+is for fixes that, and absorbing the incidental part into the strand it
+replaces gives something smaller still. The second part is the turn: no
+construction on those polygons can recover the over-and-under, because
+the rendered design is a PROJECTION and a flat map cuts the strand
+passing under precisely because it cannot show one ribbon over another.
+Read instead from the interlacement, which sits one layer below the
+geometry in the library's `Loom`, a plain weave is four strands in one
+class and a twill eight in one, fewer labels than a tiling has. The third builds the join the second part had left open: a flat
+drawing cuts a strand wherever it passes beneath, so what survives of
+it is exactly its floats, and over five weaves at four aspects every
+drawn piece attributes to one strand with the class partitions
+agreeing in shape read from the code or from the polygons. The fourth
+separates the three ways a weave's ground can be empty, which look
+alike and are not the same kind of thing: an inset is a display
+setting applied last, an aspect gap is incidental and cannot be undone
+by rebuilding, and a dropped strand is declared by the code and is not
+a hole at all. It then says what an edit on a weave would have to
+preserve to be the analogue of an edit on a tiling, which is the
+interlacement rather than the cover. Read it before building on a
+weave's classes, or before quoting "the dual of a weave", which is not
+a definite phrase until somebody says what the holes are.
 
 **Editing a weave's structure** (`weaving-and-topology.md`) asks
 whether the Topology tab's refusal of every weave is a fact about

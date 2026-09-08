@@ -384,6 +384,7 @@ quote them, do not renumber them.
 - **C-347** — A weave's topology by scaffolding, and what weaving asks of an edit  <sub>minted</sub>
 - **C-348** — A strands code you can type, and the count following it  <sub>minted</sub>
 - **C-349** — an instrument that aggregates over the distinction under test  <sub>minted</sub>
+- **C-350** — measuring a representation for what it was built to discard  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11507,3 +11508,51 @@ neither side is that width rather than measuring the wrong direction
 quietly.
 
 (The account.)
+
+### C-350 — measuring a representation for what it was built to discard
+
+From docs/process/the-topology-of-a-weave-and-its-holes.md, the weave
+investigation of 2026-09-08.
+
+The Topology tab refuses every weave, and the route taken was to fill
+the daylight between the strands so the design covers the plane. That
+works and ships. What it cannot do is say which strand rides over
+which, and three constructions were written to read that off the
+rendered polygons.
+
+The first asked for direct contact, on the reading that the under
+strand is cut flush against the over strand's edge: `plain weave a|b`
+has no contacts at all between its thin pieces at any aspect, the cut
+being set back across the daylight. The second asked whose attributed
+ground reaches the other strand's own edge: on a plain weave it named
+nothing, five relations of five unclassified at every aspect, and on
+`twill weave a|b` it named five crossings at aspect 0.9, twelve at
+0.75 and none at 0.5 or 0.25, so its answer moved with a drawing
+parameter. The third asked whether strands meet end-on or side-on:
+every relation landed in the ambiguous band.
+
+Three different failures, each looking like an instrument that could
+be sharpened. The common cause is that the rendered design is a
+PROJECTION and discards two things: the third dimension, so which
+ribbon lies on which is gone, and the continuity of the ribbon, since
+a flat map cuts the strand passing beneath precisely because it cannot
+draw one ribbon over another. So the picture holds neither the
+relation nor the objects it relates.
+
+The distinction is free one layer nearer the specification. The
+library's `Loom` carries the crossing sites and the layer order at
+each, before any polygon exists, and read from there a plain weave is
+four strands in one class and a twill eight in one, against two edge
+classes for `laves 3.3.4.3.4`.
+
+AND THE TWO HALVES DO MEET, which was recorded as the open problem and
+is not. A flat drawing cuts a strand wherever it passes beneath, so
+what survives of a strand in the picture is exactly its floats; piece
+and float are the same thing from two sides.
+`tools/probes/the_join_between_a_weave_and_its_drawing.py` builds each
+side without reference to the other and compares them: over five
+weaves at four aspects every drawn piece is attributed to exactly one
+strand, the number of strands the drawing shows is the number the code
+threads, and the strand-class partitions have the same shape read
+either way, invariant across the strand widths.
+

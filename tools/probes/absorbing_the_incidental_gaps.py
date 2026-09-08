@@ -304,7 +304,7 @@ def figure(name: str, readings, path: str) -> None:
     axis.autoscale()
   figure_.suptitle(f"{name}: the incidental daylight absorbed, so only a "
                    f"dropped strand is left as a hole", fontsize=10)
-  figure_.tight_layout()
+  figure_.tight_layout(rect=(0, 0, 1, 0.88))
   figure_.savefig(path, dpi=140)
   plt.close(figure_)
 

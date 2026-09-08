@@ -276,7 +276,7 @@ def tidy(axis, title):
   """
   axis.set_aspect("equal")
   axis.axis("off")
-  axis.set_title(title, fontsize=9)
+  axis.set_title(title, fontsize=9, pad=8)
   axis.relim()
   axis.autoscale()
 
@@ -302,7 +302,7 @@ def figure_holes_become_tiles(name: str, aspect: float, path: str) -> None:
   tidy(axes[2], f"holes as tiles\n{len(filled.tiles)} tiles, and now a tiling")
   figure.suptitle(f"{name}: a weave becomes a tiling when its holes are tiles",
                   fontsize=10)
-  figure.tight_layout()
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
   plt.close(figure)
 
@@ -332,7 +332,7 @@ def figure_across_aspects(name: str, path: str, rows) -> None:
                f"dual {row.get('dual', '-')} tiles")
   figure.suptitle(f"{name}: the filled design and its dual, as the strands "
                   f"thin. The classes do not move.", fontsize=10)
-  figure.tight_layout()
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
   plt.close(figure)
 
@@ -355,7 +355,7 @@ def figure_the_control_at_one(name: str, path: str) -> None:
   tidy(axes[1], f"aspect 1.0\n{len(solid.tiles)} tiles: same-label pieces "
                 f"have FUSED")
   figure.suptitle(f"{name}: going solid is not the same weave", fontsize=10)
-  figure.tight_layout()
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
   plt.close(figure)
 
@@ -438,7 +438,7 @@ def figure_the_filling_decides(name: str, aspect: float, path: str) -> list:
     rows.append((label, len(pieces), edges, vertices))
   figure.suptitle(f"{name} at aspect {aspect}: the same ground, cut two "
                   f"ways. The classes follow the cutting.", fontsize=10)
-  figure.tight_layout()
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
   plt.close(figure)
   return rows

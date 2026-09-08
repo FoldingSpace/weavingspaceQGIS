@@ -365,35 +365,34 @@ records when its worker enters and leaves `run()`, so the next stall
 answers the shape by being read rather than guessed at.
 
 **TOPOLOGY EDITS ON A WEAVE, BY SCAFFOLDING THE DAYLIGHT.** The tab
-refuses every weave, which is more than half the catalogue. The route
-is the maintainer's: fill the gaps between strands, take the topology
-of the gap-free result, aim the edit at a strand, drop the filler; it
-closes the round trip on 65 of 77. The rulings are in CLAUDE.md, the
-record in docs/process/weaving-and-topology.md, and `daylight_by_kind`
-and a weave-capable `_shallow_copy_with_tiles` are built. WHAT IS OWED:
+refuses every weave, more than half the catalogue. The route is the
+maintainer's: fill the gaps, take the topology of the gap-free result,
+aim the edit at a strand, drop the filler; 65 of 77 close the round
+trip. Rulings in CLAUDE.md; the records are
+docs/process/weaving-and-topology.md and
+docs/process/the-topology-of-a-weave-and-its-holes.md. WHAT IS OWED:
 
-- USE THE DISTINCTION. Both kinds must be FILLED, since a topology
-  needs the design gap-free; what has to survive into the classes is
-  that an edit travels across width daylight and never through a
-  hyphen.
-- THE CLASS SELECTOR CANNOT AIM AT A RIBBON, so ruling 3 wants either a
-  selector aimed at a STRAND or the grid answer below -- a DECISION for
-  the maintainer. On one twill under one selector an aligned class
-  swings the width 0.0% and undulates while a staggered one swings it
-  19.0% and pinches, which supersedes the reading that both long edges
-  share a class.
-- AND THE SCAFFOLDING REACHES A TWO-LETTER CLASS LABEL at 36 classes,
-  which `classes()` and `label in selector` both mishandle. Not a live
-  defect; owed by whatever builds on the scaffolding.
+- USE THE DISTINCTION: an edit travels across width daylight and never
+  through a hyphen, both kinds still being FILLED.
+- AIM AT A STRAND OR TAKE THE GRID ANSWER BELOW, a DECISION for the
+  maintainer, on which the strand half is now better informed: strand
+  classes are few and read off the DRAWING as well as the code,
+  agreeing in shape and steady across strand widths on five weaves
+  (`tools/probes/the_join_between_a_weave_and_its_drawing.py`). OWED
+  FIRST is that join's MEMBERSHIP half, only its shapes being shown.
+- ADMISSIBILITY NOW HAS A STATEMENT to build as a guard: the
+  INTERLACEMENT must be unchanged, C-347's empirical rule restated,
+  and a strand's room is exactly one minus the aspect, so the record
+  names a strand and the clamp lands on the way to the screen (C-342).
+- A TWO-LETTER CLASS LABEL at 36 classes, which `classes()` and `label
+  in selector` both mishandle. Not live; owed by whatever builds on it.
 - THE CUBE WEAVES ARE DIAGNOSED, two to their root: all three fail in
-  `set_precision`, which raises on some filler and splits other filler
-  into a multi-part `get_corners` cannot take. Ours is not to pinch at
-  1e-06, but snapping is not the whole repair -- the largest cube then
-  fails in `insert_vertex_at`, on the bookkeeping the older note
-  reports. TWO notes await a SENDING, the maintainer's act.
+  `set_precision`, which raises on some filler and splits other into a
+  multi-part `get_corners` cannot take. Snapping is not the whole
+  repair. TWO notes await a SENDING, the maintainer's act.
 
-THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand that follows
-a PATH undulates authentically at any width, needing no filler, no
+THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand following a
+PATH undulates authentically at any width, needing no filler, no
 topology and no dropping step. That wants `_weave_grid` to take a path
 rather than an orientation, so it is upstream's as much as ours.
 

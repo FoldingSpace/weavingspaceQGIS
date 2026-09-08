@@ -395,7 +395,7 @@ def draw_structure(axis, reading, title: str) -> None:
               color=LINK, zorder=6)
   axis.set_aspect("equal")
   axis.axis("off")
-  axis.set_title(title, fontsize=9)
+  axis.set_title(title, fontsize=9, pad=8)
   axis.relim()
   axis.autoscale()
 
@@ -416,7 +416,7 @@ def figure_across_aspects(name: str, readings, path: str) -> None:
                    f"{len(reading['pairs'])} adjacent pairs")
   figure.suptitle(f"{name}: strands joined across the daylight that width "
                   f"opens. The structure does not move.", fontsize=10)
-  figure.tight_layout()
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
   plt.close(figure)
 
@@ -442,7 +442,7 @@ def figure_the_hyphen_is_respected(name: str, path: str) -> tuple:
                  f"contracting every gap\n{len(reading['through_all'])} pairs")
   figure.suptitle(f"{name}: a dropped strand is an absence, not a gap "
                   f"to read across", fontsize=10)
-  figure.tight_layout()
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
   plt.close(figure)
   return (fingerprint(reading["tiles"], reading["pairs"]),

@@ -1069,20 +1069,77 @@ AND THE STRUCTURE THAT COMES BACK IS OF THE WEAVE AND THE FILLING
 TOGETHER. The same ground cut two ways gives six edge classes or 114,
 and a twill's classes stand still from aspect 0.9 to 0.5 and then move
 at 0.25, where its daylight falls into twenty-five pieces of seven
-sizes rather than sixteen congruent ones. Cutting the daylight by
-what each piece is FOR removes that dependence -- a plain weave then
-carries thirty edge classes at every aspect -- and absorbing the
-incidental part into the strand whose width opened it gives a smaller
-structure that also holds still, six edge and four vertex classes at
-every aspect. Passing THROUGH the daylight instead does not work: it is
-largely one connected region, so every strand becomes adjacent to every
-other. The discussion, with figures,
-is docs/process/the-topology-of-a-weave-and-its-holes.md.
+sizes rather than sixteen congruent ones. Cutting by KIND removes that
+dependence, and absorbing the incidental part into the strand it
+replaces gives a smaller structure that also holds still.
+
+BUT THE OVER AND UNDER IS NOT IN THE POLYGONS AT ALL, and three
+attempts to read it from them failed: the thin pieces never touch, the
+attribution test calls parallel strands crossing, and an end-on test
+leaves every relation ambiguous. The rendered design is a PROJECTION,
+and a flat map cuts the strand passing under precisely because it
+cannot show one ribbon over another. THE INTERLACEMENT IS WHERE THE
+STRUCTURE IS: the library's `Loom` carries the crossing sites and the
+layer order at each, before any polygon exists, and read from there a
+plain weave is four strands in ONE class (`UO`, float 1) against two
+edge classes for `laves 3.3.4.3.4`. The phase between neighbouring
+strands separates a twill from a basket, (3,3,3) against (0,2,0). The
+discussion, with figures, is
+docs/process/the-topology-of-a-weave-and-its-holes.md.
+
+AND THE TWO HALVES MEET, which had been recorded as the open problem.
+A flat drawing cuts a strand wherever it passes beneath, so what
+survives of a strand in the picture is exactly its FLOATS: piece and
+float are one thing seen from two sides.
+`tools/probes/the_join_between_a_weave_and_its_drawing.py` builds each
+side without reference to the other -- the loom knowing nothing of the
+aspect, the geometry nothing of over and under -- and compares them.
+Over five weaves at four aspects every drawn piece attributes to
+exactly one strand, the number of strands drawn is the number the code
+threads, and the strand-class partitions have the same SHAPE read
+either way, invariant across the strand widths (1 class of 4 on a
+plain weave, 1 of 8 on a twill and on a basket, 2 of sizes 4 and 2 on
+`twill weave a|b-`). Only the SHAPES are shown to agree: the two sides
+name their strands differently and the membership half is owed. The
+same probe measures a strand's room before it meets its neighbour as
+exactly one minus the aspect, on all five.
+AND THE THREE ABSENCES ARE THREE DIFFERENT KINDS OF THING, which is
+what decides how each is treated. An INSET is a distance applied to
+the finished unit and is invisible to any structure built on the
+skeleton, which is ruling 1 of C-346 already; an ASPECT gap is
+incidental and cannot be undone by rebuilding, since 1.0 fuses
+same-label pieces and a thin strand is LONGER along its axis, so the
+only treatment that ignores it entirely is one that measures no
+polygons; a DROPPED strand is declared by the code and is not a hole
+at all but a strand that was never threaded, which is why ruling 2 of
+C-347 reads the hyphen rather than testing the geometry. Two of the
+three are handled by knowing something the picture does not contain,
+and the one we attacked geometrically is the one that defeated every
+geometric rule.
+SO AN OPERATION ON A WEAVE PRESERVES THE INTERLACEMENT, NOT THE COVER.
+A tiling's edit is aimed at an edge class and is safe because the
+result is still a tiling; a weave never covered, and a filled
+tiling's edge class is not a stable name to aim at: the same twill
+ground at aspect 0.5, cut two ways without a strand moving, gives 6
+edge classes or 114, and the same cut at aspect 0.25 gives 122 where
+0.9 to 0.5 give 6. The weave condition is that
+the same strands cross the same partners in the same order with the
+same floats, which is the empirical rule of C-347 restated: an edit
+survives provided a strand does not move across a crossing. The unit
+of aim is a STRAND CLASS rather than an edge class, so a weave edit
+must be recorded against a strand and never against a label that
+moves with the aspect. Changing the over and under, re-phasing, or
+dropping a strand are not edits of this kind at all: they compose a
+different cloth, and belong with the strands code.
 
 The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 `tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`,
-`tools/probes/the_topology_of_a_thin_weave.py` and
-`tools/probes/a_weave_topology_that_ignores_its_gaps.py`. The full
+`tools/probes/the_topology_of_a_thin_weave.py`,
+`tools/probes/a_weave_topology_that_ignores_its_gaps.py`,
+`tools/probes/what_the_daylight_replaces.py`,
+`tools/probes/the_weave_as_an_interlacement.py`,
+`tools/probes/three_kinds_of_absence.py` and
+`tools/probes/the_join_between_a_weave_and_its_drawing.py`. The full
 record, the dead ends and what weaving asks of an edit are in
 docs/process/weaving-and-topology.md; the rulings are C-347.
 

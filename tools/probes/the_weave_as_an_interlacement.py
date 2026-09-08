@@ -43,6 +43,9 @@ import os
 import sys
 import warnings
 
+import matplotlib
+matplotlib.use("Agg")
+
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "weavingspace_qgis", "vendor"))
@@ -51,6 +54,12 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 from weavingspace_qgis import catalog  # noqa: E402
 from weavingspace import weave_matrices  # noqa: E402
 from weavingspace._loom import Loom  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.patches import Rectangle  # noqa: E402
+
+IMAGES = os.path.join(HERE, "docs", "process", "images", "holes-as-tiles")
+WARP_COLOUR = "#4c72b0"
+WEFT_COLOUR = "#dd8452"
 
 WEAVES = ("plain weave a|b", "twill weave a|b", "twill weave ab|cd",
           "basket weave ab|cd", "twill weave a|b-", "plain weave ab-|cd-")
@@ -212,8 +221,152 @@ def longest_float(sequence):
   return min(best, len(sequence))
 
 
+def draw_interlacement(axis, spec, title):
+  """Draw a weave's over-and-under as the grid a weaver would read.
+
+  Args:
+    axis: the matplotlib axis.
+    spec: the catalogue entry.
+    title: what to put above it.
+
+  A filled cell is a crossing where the warp rides over; an empty one is
+  where the weft does. This is the loom's own matrix, not a rendering of
+  any polygon.
+  """
+  found = interlacement(spec)
+  rows = max(site[0] for site, _t in found["crossings"]) + 1
+  columns = max(site[1] for site, _t in found["crossings"]) + 1
+  for site, top in found["crossings"]:
+    i, j = site[0], site[1]
+    if top is None:
+      axis.add_patch(Rectangle((j, rows - 1 - i), 1, 1, facecolor="#f2f2f2",
+                               edgecolor="#bbbbbb", linewidth=0.6))
+      continue
+    axis.add_patch(Rectangle(
+      (j, rows - 1 - i), 1, 1,
+      facecolor=WARP_COLOUR if top == 0 else WEFT_COLOUR,
+      edgecolor="#ffffff", linewidth=1.0))
+  axis.set_xlim(0, columns)
+  axis.set_ylim(0, rows)
+  axis.set_aspect("equal")
+  axis.axis("off")
+  axis.set_title(title, fontsize=9, pad=8)
+
+
+def figure_the_three_families(path):
+  """Figure: plain, twill and basket, and the phase that separates them.
+
+  Args:
+    path: where to write the PNG.
+  """
+  names = ("plain weave a|b", "twill weave ab|cd", "basket weave ab|cd")
+  figure, axes = plt.subplots(1, 3, figsize=(10.5, 4.0))
+  for axis, name in zip(axes, names):
+    spec = spec_for(name)
+    found = interlacement(spec)
+    steps = shifts_along(found["sequences"], "axis0")
+    pattern = "".join("O" if x else "U"
+                      for x in sorted(found["classes"])[0])
+    draw_interlacement(axis, spec,
+                       f"{name}\n{pattern}, float "
+                       f"{longest_float(sorted(found['classes'])[0])}\n"
+                       f"phase steps {steps}")
+  figure.suptitle("The interlacement, read from the code: a filled cell is "
+                  "a crossing the warp rides over", fontsize=10)
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
+  figure.savefig(path, dpi=140)
+  plt.close(figure)
+
+
+def figure_what_the_projection_loses(path):
+  """Figure: continuous ribbons that cross, beside the flat design.
+
+  Args:
+    path: where to write the PNG.
+
+  The left panel is the conceptual object, drawn the way a link diagram
+  is drawn: every strand runs unbroken, and the one passing UNDER is
+  interrupted at the crossing to show that it goes beneath. The right
+  panel is what a flat map can hold, where that interruption becomes a
+  real cut in a real polygon and the reason for it is no longer
+  recoverable.
+  """
+  figure, axes = plt.subplots(1, 2, figsize=(9.0, 4.4))
+  width, gap = 0.34, 0.16
+  for axis, conceptual in zip(axes, (True, False)):
+    for i in range(3):
+      for j in range(3):
+        warp_over = (i + j) % 2 == 0
+        # Warp runs vertically at x = j, weft horizontally at y = i.
+        for horizontal in (True, False):
+          on_top = warp_over != horizontal
+          colour = WEFT_COLOUR if horizontal else WARP_COLOUR
+          if horizontal:
+            x0, y0, w, h = j - 0.5, i - width / 2, 1.0, width
+          else:
+            x0, y0, w, h = j - width / 2, i - 0.5, width, 1.0
+          if on_top:
+            axis.add_patch(Rectangle((x0, y0), w, h, facecolor=colour,
+                                     edgecolor="#333333", linewidth=0.7,
+                                     zorder=3))
+          elif conceptual:
+            # Under, and drawn as a link diagram does: broken at the
+            # crossing so the break MEANS passing beneath.
+            back = width / 2 + gap
+            if horizontal:
+              axis.add_patch(Rectangle((x0, y0), 0.5 - back, h,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+              axis.add_patch(Rectangle((j + back, y0), 0.5 - back, h,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+            else:
+              axis.add_patch(Rectangle((x0, y0), w, 0.5 - back,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+              axis.add_patch(Rectangle((x0, i + back), w, 0.5 - back,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+          else:
+            # The flat design: the same break, but now it is a cut edge
+            # of a polygon and nothing records why it is there.
+            back = width / 2
+            if horizontal:
+              axis.add_patch(Rectangle((x0, y0), 0.5 - back, h,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+              axis.add_patch(Rectangle((j + back, y0), 0.5 - back, h,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+            else:
+              axis.add_patch(Rectangle((x0, y0), w, 0.5 - back,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+              axis.add_patch(Rectangle((x0, i + back), w, 0.5 - back,
+                                       facecolor=colour, edgecolor="#333333",
+                                       linewidth=0.7, zorder=1))
+    axis.set_xlim(-0.6, 2.6)
+    axis.set_ylim(-0.6, 2.6)
+    axis.set_aspect("equal")
+    axis.axis("off")
+    axis.set_title("the weave as it is: ribbons that cross,\nthe break "
+                   "meaning one passes beneath" if conceptual else
+                   "the weave as a flat map can hold it:\nthe break is a "
+                   "cut, and says nothing", fontsize=9)
+  figure.suptitle("What the projection loses", fontsize=10)
+  figure.tight_layout(rect=(0, 0, 1, 0.88))
+  figure.savefig(path, dpi=140)
+  plt.close(figure)
+
+
 def main():
   """Report the interlacement structure, with tilings for scale."""
+  os.makedirs(IMAGES, exist_ok=True)
+  figure_what_the_projection_loses(
+    os.path.join(IMAGES, "what-the-projection-loses.png"))
+  figure_the_three_families(
+    os.path.join(IMAGES, "the-interlacement-of-three-families.png"))
+  print(f"figures written to {IMAGES}\n")
   print("=== tilings, for scale: classes come from symmetry ===")
   from weavingspace_qgis import topology_edits as te
   for name in TILINGS:
