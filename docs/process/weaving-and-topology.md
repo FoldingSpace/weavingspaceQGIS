@@ -89,20 +89,45 @@ remove the filler afterwards. Measured on `twill weave a|b` at 0.75:
 
 That is the round trip the first three attempts could not close.
 
-## What scaffolding does NOT yet do
+## The second refusal was mine, and naming it took the limit away
 
-One of three weaves tried is not a rate, and the two failures refuse
-for a DIFFERENT reason than the one this was built to remove:
+The first run of the scaffolding left two weaves of three refusing,
+with a message that is not the gap one -- "this design's tiles meet,
+but the library could not work out its structure" -- and that was
+written up as a fact about weaves whose reach was unknown. It was a
+fact about my filler.
 
-    design              filled coverage        topology
-    plain weave a|b     gap 0, overlap 0       NO
-    twill weave a|b     gap 0, overlap 0       yes
-    twill weave a|b-    gap 0, overlap 0       NO
+`build` swallows the library's exception to compose that sentence, so
+the diagnosis was one traceback away:
 
-Both failures say "this design's tiles meet, but the library could not
-work out its structure", which is not the gap refusal. Diagnosing that
-second refusal is the first thing owed; until it is understood, the
-size of the family this serves is unknown.
+    File "weavingspace/tiling_utils.py", line 166, in get_corners
+      corners = [geom.Point(pt) for pt in shape.exterior.coords]
+    AttributeError: 'MultiPolygon' object has no attribute 'exterior'
+
+`_setup_regularised_prototile()` DISSOLVES THE TILES BY `tile_id`, so
+filler pieces sharing one id merge into a multi-part tile, and
+`Topology` must take corners from every tile. Give each piece its own
+id, and explode any multi-part the gap geometry arrives as, and
+nothing merges:
+
+    design              shared id      distinct ids   filler dropped
+    plain weave a|b     no (1 multi)   YES            4 tiles, valid
+    twill weave a|b     YES            YES           16 tiles, valid
+    twill weave a|b-    no (1 multi)   YES            8 tiles, valid
+
+THE TWILL WAS NOT DIFFERENT IN KIND. It passed because its daylight
+happened to merge into single polygons; the other two happened not to.
+A property of the scaffolding read as a property of weaves, and it
+would have gone into the roadmap as an unknown of unknown size had the
+maintainer not asked for the limit to be surpassed rather than
+recorded.
+
+THE GENERAL FORM, which this project has paid for in other clothes: a
+refusal composed by our own code is a SENTENCE, not a diagnosis, and
+where it swallows the exception the first move is to unswallow it.
+`_why_not` is honest -- it says the tiles meet and the library could
+not work out the structure, both true -- and it cannot say WHY,
+because it never sees the reason either.
 
 ## The conscious gaps are named by the strands code, not by geometry
 

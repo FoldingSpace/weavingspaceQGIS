@@ -2051,10 +2051,15 @@ Confirmed with the user via an explicit design review:
   an edge-aimed edit gives one wider in some places than others. The
   over and under survives an edit made afterwards, visibility being
   baked in at construction, PROVIDED a strand does not move across a
-  crossing. SCAFFOLDING IS NOT SUFFICIENT ALONE: two of three weaves
-  fill to zero gap and zero overlap and still refuse, for a different
-  reason than gaps, and diagnosing that comes first. The record of
-  what was tried is docs/process/weaving-and-topology.md. (C-347.)
+  crossing. AND EVERY FILLER PIECE TAKES ITS OWN ID, exploded from any
+  multi-part: `_setup_regularised_prototile()` dissolves by `tile_id`,
+  a merged filler is a multi-part tile, and `Topology` takes corners
+  from every tile through `shape.exterior`, which a MultiPolygon has
+  not. Sharing one id left two weaves of three refusing and read as a
+  fact about weaves until the swallowed exception was looked at -- so
+  a refusal our own code composes is a sentence rather than a
+  diagnosis. The record is docs/process/weaving-and-topology.md.
+  (C-347.)
 - **A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
   (Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
   replaces it, as it always has; where several classes are ticked,

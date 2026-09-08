@@ -10,9 +10,11 @@ the four routes tried on 2026-09-08 and printing what each returns.
   3. thin by INSETTING a solid weave
   4. SCAFFOLD the daylight, take the topology, drop the scaffolding
 
-Only the fourth closes the round trip, and only on a twill. The reasoning,
-the dead ends and what is owed are in docs/process/weaving-and-topology.md;
-the rulings are in CLAUDE.md under C-347.
+Only the fourth closes the round trip, and it closes it on all three once
+the filler pieces are exploded and given DISTINCT ids -- see `_filler_ids`,
+which is where an evening went. The reasoning, the dead ends and what is
+owed are in docs/process/weaving-and-topology.md; the rulings are in
+CLAUDE.md under C-347.
 
 Run it with the reference venv, which drives the vendored library with no
 QGIS in the way:
@@ -125,6 +127,48 @@ def route_three_inset_cannot_thin() -> None:
         f"{sym / union_real.area:.1%} of the real weave")
 
 
+def filler_pieces(gap) -> list:
+  """The daylight, as single-part polygons.
+
+  Args:
+    gap: `plane_coverage`'s gap geometry, of any shapely type.
+
+  Returns:
+    A list of Polygons, multi-part members exploded and slivers dropped.
+
+  EXPLODING IS NOT TIDINESS, IT IS THE FIX. A multi-part tile reaches
+  `tiling_utils.get_corners`, which asks for `shape.exterior` and raises
+  `AttributeError` on a MultiPolygon -- which `build` then reports as the
+  library being unable to work out the structure. See `_filler_ids`.
+  """
+  out = []
+  for part in getattr(gap, "geoms", [gap]):
+    if part.is_empty or part.area <= 1:
+      continue
+    out.extend(getattr(part, "geoms", [part]))
+  return [p for p in out if not p.is_empty and p.area > 1]
+
+
+def _filler_ids(count: int) -> list:
+  """One DISTINCT id per filler piece.
+
+  Args:
+    count: how many filler pieces there are.
+
+  Returns:
+    A list of distinct ids, none of which is a strand's.
+
+  THE DISTINCTNESS IS LOAD-BEARING and cost an evening to find.
+  `_setup_regularised_prototile()` dissolves the tiles by `tile_id`, so
+  filler sharing one id merges into a MULTI-PART tile and `Topology`
+  refuses -- not because the design has no structure, but because a tile
+  it must take corners from has no single exterior ring. With one id per
+  piece nothing merges. Sharing an id made two weaves of three fail and
+  read as a fact about weaves.
+  """
+  return [f"{FILLER_ID}{i}" for i in range(count)]
+
+
 def route_four_scaffold_the_daylight() -> None:
   """Route 4: fill the gaps, take the topology, drop the filler.
 
@@ -140,10 +184,9 @@ def route_four_scaffold_the_daylight() -> None:
     if gap is None:
       print(f"  {name:20} no gap geometry")
       continue
-    parts = [p for p in getattr(gap, "geoms", [gap])
-             if not p.is_empty and p.area > 1]
+    parts = filler_pieces(gap)
     tiles = gpd.GeoDataFrame(
-      {"tile_id": list(thin.tiles.tile_id) + [FILLER_ID] * len(parts)},
+      {"tile_id": list(thin.tiles.tile_id) + _filler_ids(len(parts))},
       geometry=list(thin.tiles.geometry) + parts, crs=thin.tiles.crs)
     filled = copy.deepcopy(thin)
     filled.tiles = tiles
@@ -169,7 +212,7 @@ def route_four_scaffold_the_daylight() -> None:
     if edited is None:
       print(f"  {'':20} edit refused: {refused}")
       continue
-    kept = edited.tiles[edited.tiles.tile_id != FILLER_ID]
+    kept = edited.tiles[~edited.tiles.tile_id.str.startswith(FILLER_ID)]
     print(f"  {'':20} edited; dropping the filler leaves {len(kept)} tiles, "
           f"all valid {all(g.is_valid for g in kept.geometry)}")
 

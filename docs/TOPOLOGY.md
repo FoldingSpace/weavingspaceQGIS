@@ -1036,9 +1036,12 @@ of gap still refuses. What works is scaffolding the daylight: on
 `twill weave a|b` at 0.75, 16 strand tiles plus 16 filler give gap
 0.000000 and overlap 0.000000, `Topology` builds with six edge and
 four vertex classes, an edit applies, and dropping the filler leaves
-the original 16 tiles valid. It is NOT sufficient alone -- `plain
-weave a|b` and `twill weave a|b-` fill to zero gap and zero overlap
-and still refuse, with a different message.
+the original 16 tiles valid. EVERY FILLER PIECE NEEDS ITS OWN ID:
+`_setup_regularised_prototile()` dissolves by `tile_id` and `Topology`
+takes corners through `shape.exterior`, so merged filler is a
+multi-part tile the library refuses. Sharing one id left `plain weave
+a|b` and `twill weave a|b-` failing; with distinct ids all three
+build, edit, and give their strand tiles back valid.
 
 The instrument is `tools/probes/can_a_weave_carry_a_topology.py`. The
 full record, the dead ends and what weaving asks of an edit are in

@@ -372,12 +372,11 @@ drop the filler. Proved to close on `twill weave a|b`. The rulings are
 in CLAUDE.md; what was tried, what failed and why is
 docs/process/weaving-and-topology.md. OWED, in this order:
 
-- DIAGNOSE THE SECOND REFUSAL. `plain weave a|b` and `twill weave
-  a|b-` fill to zero gap AND zero overlap and still refuse, saying the
-  tiles meet but the structure could not be worked out. One weave of
-  three working is not a rate, and until this is understood the size
-  of the family this serves is unknown. Nothing else here is worth
-  starting first.
+- MEASURE THE RATE ACROSS THE CATALOGUE'S 77 WEAVE ENTRIES. Three of
+  three close the round trip once each filler piece takes its own id
+  (the second refusal was our filler dissolving into a multi-part
+  tile, diagnosed 2026-09-08), but three is not a rate and the sweep
+  that would give one has not finished.
 - PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the topology's
   classes, since ruling 3 moves them in phase and is unbuildable
   otherwise.
