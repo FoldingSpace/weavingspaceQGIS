@@ -403,6 +403,38 @@ def _in_the_units_the_controls_show(edit):
   return args
 
 
+def _as_the_controls_name_them(edit):
+  """An edit's arguments, named and ordered as its own boxes are.
+
+  Args:
+    edit: one entry of the change list's record.
+
+  Returns:
+    A list of `(label, value)` pairs -- "Amplitude" rather than `h`,
+    "Zigzags" rather than `n` -- in the order the manipulation
+    declares them, which is the order the boxes appear in. An argument
+    the manipulation does not declare keeps its own key and goes last,
+    so a record written before a rule changed still reads.
+
+  WHY THE LABELS RATHER THAN THE RECORD'S KEYS. `MANIPULATIONS`
+  already carries the label each box shows, and the row's own verb
+  comes from that same record -- "Zigzag edge" is `label`. The keys
+  are the LIBRARY's parameter names, which nobody using the plugin has
+  met; and since the amplitude is converted on its way here, a row
+  printing `h` beside a number the record does not hold would look
+  like the record without being it. (Maintainer's ruling, 2026-09-07.)
+  """
+  args = _in_the_units_the_controls_show(edit)
+  spec = edits_module.MANIPULATIONS.get(edit.get("how"), {})
+  named = []
+  for declared in spec.get("args", ()):
+    key, label = declared[0], declared[1]
+    if key in args:
+      named.append((label, args.pop(key)))
+  named.extend((key, args[key]) for key in sorted(args))
+  return named
+
+
 def _even_count(value) -> int:
   """The even count nearest a number, inside the count's range.
 
@@ -4088,8 +4120,8 @@ class TopologyPanel(QWidget):
     self.edit_list.clear()
     for index, edit in enumerate(self._edits):
       spec = edits_module.MANIPULATIONS.get(edit.get("how"), {})
-      args = ", ".join(f"{k} {v:g}" for k, v in
-                       sorted(_in_the_units_the_controls_show(edit).items()))
+      args = ", ".join(f"{label} {value:g}" for label, value in
+                       _as_the_controls_name_them(edit))
       mark = self._marks[index] if index < len(self._marks) else None
       if mark is None:
         suffix = ""

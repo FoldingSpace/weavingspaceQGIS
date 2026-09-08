@@ -2720,6 +2720,17 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-change-list-names-arguments-as-the-boxes-do",
+       file=TOPOLOGY_TAB,
+       # THE NAMING AXIS, which is a different claim from the VALUE's
+       # conversion beside it: the row can carry an honest number
+       # under a name nobody using the plugin has met. Taking the key
+       # for the label is the state the list shipped in.
+       old="""    key, label = declared[0], declared[1]""",
+       new="""    key, label = declared[0], declared[0]""",
+       test="test_the_change_list_shows_the_amplitude_the_box_shows",
+       why="reading back what you changed in the words the controls "
+           "used, rather than the vendored library's parameter names"),
   dict(name="the-ghost-crests-at-the-librarys-pitch", file=TOPOLOGY_TAB,
        # Putting a peak at EVERY multiple of length/(2n) is the state
        # the ghost shipped in: 2n-1 lobes at twice the pitch, and at

@@ -12025,11 +12025,26 @@ def test_the_change_list_shows_the_amplitude_the_box_shows():
     panel._record({"classes": "a", "how": "zigzag_edge",
                    "args": {"n": 2, "h": asked, "smoothness": 3}})
     row = panel.edit_list.item(0).text()
-    assert f"h {shown:g}" in row, (
+    assert f"Amplitude {shown:g}" in row, (
       f"the change list does not show the amplitude the box shows: "
-      f"{row!r} against an expected 'h {shown:g}'")
-    assert f"h {asked:g}" not in row, (
+      f"{row!r} against an expected 'Amplitude {shown:g}'")
+    assert f"Amplitude {asked:g}" not in row, (
       f"the change list prints the stored peak-to-peak value: {row!r}")
+    # AND IT NAMES THE ARGUMENTS AS THE BOXES DO, which is the other
+    # half of the same ruling: `h` and `n` are the LIBRARY's parameter
+    # names and nobody using the plugin has met them.
+    # ASKED OF THE ARGUMENT SEGMENT ALONE, because the row's own prose
+    # says "edge on a" -- a bare `"n " not in row` matches THAT, which
+    # is a test failing on the sentence it is not about.
+    inside = row[row.index("(") + 1:row.rindex(")")]
+    for named in inside.split(", "):
+      label = named.rsplit(" ", 1)[0]
+      assert label not in ("h", "n", "sf", "push_d", "dx", "dy",
+                           "smoothness"), (
+        f"the change list still prints a library parameter name: "
+        f"{named!r} in {row!r}")
+    assert "Zigzags 2" in inside and "Smoothness 3" in inside, (
+      f"the change list does not name every argument as its box does: {row!r}")
 
     # AND THE RECORD ITSELF DID NOT MOVE, or every saved file would.
     assert panel.edits()[0]["args"]["h"] == asked, (
@@ -12040,7 +12055,8 @@ def test_the_change_list_shows_the_amplitude_the_box_shows():
     # control: a conversion applied to every argument would halve a
     # rotation too.
     panel._record({"classes": "a", "how": "rotate_edge", "args": {"angle": 30}})
-    assert "angle 30" in panel.edit_list.item(1).text(), (
+    assert "30" in panel.edit_list.item(1).text() \
+        and "15" not in panel.edit_list.item(1).text(), (
       "the amplitude's conversion is reaching arguments that are not "
       f"amplitudes: {panel.edit_list.item(1).text()!r}")
   finally:
