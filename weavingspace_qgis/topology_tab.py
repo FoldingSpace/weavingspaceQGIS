@@ -403,6 +403,39 @@ def _in_the_units_the_controls_show(edit):
   return args
 
 
+def _push_for_travel(travel, gain):
+  """The `push_d` that moves the ground as far as the pointer went.
+
+  Args:
+    travel: how far the gesture travelled along the rail, as a
+      fraction of the unit's own span.
+    gain: how far the ground moves for `push_d` of one at this vertex,
+      from `TopologyView.push_gain`, or None where it cannot be asked.
+
+  Returns:
+    The value to record, in the library's own `push_d`.
+
+  WHY THERE IS A CONVERSION AT ALL. `push_vertex` multiplies `push_d`
+  by the SUM OF THE UNIT VECTORS from each neighbour to the vertex,
+  whose length is a property of that vertex rather than of anything a
+  person set -- 0.4142 on `archimedean 4.8.8` against a nudge's 1.0,
+  measured 2026-09-07. So a rail drag of sixty pixels moved the vertex
+  twenty-five, and the tab's comment claiming "one unit of travel
+  along the rail is one unit of push, with no gain factor in between"
+  was describing what it intended rather than what it did.
+
+  THE MAINTAINER'S RULING (2026-09-07, by grilling): `push_d` IS A
+  DISTANCE, so the vertex follows the pointer and the record keeps the
+  library's parameter -- the same shape as the Amplitude box, which
+  shows the crest and holds `h`. A gain factor nobody can see is
+  exactly what this tab rejected twice already when the end handle was
+  tuned by guessing.
+  """
+  if not gain:
+    return float(travel)
+  return float(travel) / float(gain)
+
+
 def _as_the_controls_name_them(edit):
   """An edit's arguments, named and ordered as its own boxes are.
 
@@ -1987,6 +2020,34 @@ class TopologyView(QWidget):
       return None
     return (run / reach, rise / reach)
 
+  def push_gain(self):
+    """How far the ground moves for one unit of `push_d` here.
+
+    Returns:
+      The length of the library's own displacement at `push_d = 1.0`,
+      in the unit's coordinates, or None where nothing is chosen, the
+      chosen thing is not a vertex, or the direction cancels.
+
+    ASKED OF THE LIBRARY, exactly as `push_direction` is and for the
+    same reason: `push_vertex` returns its displacement without
+    applying it, so a second copy of the arithmetic here would drift
+    from what the manipulation does. That method NORMALISES what this
+    one measures -- it wants the direction and throws the length away
+    -- which is why the gain went unnoticed: the two halves of one
+    call, and only one of them was ever read.
+    """
+    if self._chosen[0] != "vertex" or self._chosen_thing is None:
+      return None
+    topology = self._drawn()
+    if topology is None:
+      return None
+    try:
+      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)
+    except Exception:                                 # noqa: BLE001
+      return None
+    reach = (dx * dx + dy * dy) ** 0.5
+    return reach if reach > 1e-6 else None
+
   def _handle_at(self, point) -> str:
     """The manipulation whose handle is under a point, or "".
 
@@ -3520,7 +3581,13 @@ class TopologyPanel(QWidget):
         # does not reproduce on laves 3.3.4.3.4, where the library
         # refuses a nudge that large before anything is recorded --
         # which is why the guard for this names its design.
-        raw_changes["push_d"] = float(dx * way[0] - dy * way[1])
+        # AND DIVIDED BY THE VERTEX'S OWN GAIN, so the ground follows
+        # the pointer (maintainer's ruling, 2026-09-07). The comment
+        # above said there was no gain factor in between; there was,
+        # and it was the library's, 0.4142 on `archimedean 4.8.8`.
+        travel = float(dx * way[0] - dy * way[1])
+        raw_changes["push_d"] = _push_for_travel(
+          travel, self.view.push_gain())
         args["push_d"] = self._within_the_box("push_d", raw_changes["push_d"])
       elif key == "nudge_vertex":
         raw_changes["dx"], raw_changes["dy"] = float(dx), float(dy)

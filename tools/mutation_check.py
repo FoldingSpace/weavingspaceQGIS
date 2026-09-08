@@ -2720,6 +2720,21 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-push-rail-carries-no-hidden-gain", file=TOPOLOGY_TAB,
+       # Handing the travel back untouched is the state the drag
+       # shipped in: the library then multiplies it by the vertex's own
+       # summed unit vectors, so the ground moves 0.4142 of the way the
+       # pointer went on `archimedean 4.8.8` and a different fraction
+       # on every other design.
+       old="""  if not gain:
+    return float(travel)
+  return float(travel) / float(gain)""",
+       new="""  if not gain:
+    return float(travel)
+  return float(travel)""",
+       test="test_a_push_moves_the_ground_as_far_as_the_pointer_went",
+       why="the vertex going where you take it, by the distance you "
+           "took it, on every design"),
   dict(name="the-change-list-names-arguments-as-the-boxes-do",
        file=TOPOLOGY_TAB,
        # THE NAMING AXIS, which is a different claim from the VALUE's

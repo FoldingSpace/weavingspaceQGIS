@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-563 defect(s) with a regression test.
+564 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -192,6 +192,8 @@ there is no separate list to remember.
   guarded by `test_a_project_opened_under_an_open_dialog_is_not_drawn_over`
 - **opening a project while the plugin was open deleted that project's no-data layers on the next Generate, because the record naming them was never cleared.**  
   guarded by `test_a_project_opened_under_an_open_dialog_keeps_its_no_data_layers`
+- **dragging the push rail sixty pixels moved the vertex twenty-five, with the factor varying by design and nothing on screen showing it.**  
+  guarded by `test_a_push_moves_the_ground_as_far_as_the_pointer_went`
 - **`make_categorized_renderer` died with `'NoneType' object has no attribute 'color'` when the named ramp was absent, and its graduated twin silently drew every class in placeholder grey. Found 2026-08-17 on the mutation workflow's Linux container, where `get_ramp("tab10")` answered None because the plugin's palettes had never been installed there.**  
   guarded by `test_a_ramp_the_library_lacks_still_draws_a_map_and_says_so`
 - **opening a self-contained GeoPackage with Load and pressing Save silently removed the embedded region copy the sender had included, so the map could never be redrawn again by anyone. Found by the unreachable-guards hunt of 2026-08-28.**  
@@ -1181,7 +1183,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 190
-- a bug hunt pointed in a named direction: 160
+- a bug hunt pointed in a named direction: 161
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18

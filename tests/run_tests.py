@@ -11999,6 +11999,89 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_a_push_moves_the_ground_as_far_as_the_pointer_went():
+  """The push rail has no gain factor in it, because one was removed.
+
+  `push_vertex` multiplies `push_d` by the SUM OF THE UNIT VECTORS
+  from each neighbour to the vertex, whose length belongs to the
+  vertex rather than to anything a person set. So a rail drag moved
+  the ground by that factor rather than by the distance travelled --
+  0.4142 of it on `archimedean 4.8.8` -- while the code's own comment
+  claimed there was no gain factor in between. The maintainer ruled
+  `push_d` a DISTANCE (2026-09-07, by grilling): the vertex follows
+  the pointer and the record keeps the library's parameter, as the
+  Amplitude box shows the crest and holds `h`.
+
+  THE LIBRARY IS THE ORACLE for the gain, so the plugin has no say in
+  the number this is checked against, and the round trip is measured
+  on the GROUND rather than on the arithmetic that produced it.
+
+  Regression: dragging the push rail sixty pixels moved the vertex twenty-five, with the factor varying by design and nothing on screen showing it. [hunt]
+  """
+  from weavingspace_qgis import catalog, topology_edits, topology_tab
+
+  def a_design(sub):
+    for count, designs in sorted(catalog.TILINGS_BY_N.items()):
+      for name in designs:
+        if sub in name:
+          return catalog.make_unit(designs[name], spacing=1000, crs=3857)
+    raise AssertionError(f"PREMISE: no catalogue design matching {sub!r}")
+
+  unit = a_design("4.8.8")
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: no topology -- {why}"
+  label = topology_edits.classes(topology).get("vertex", "")[:1]
+  assert label, "PREMISE: this design has no vertex class to push"
+
+  # THE GAIN, taken from the library itself.
+  moved = next(p for p in topology.points.values() if p.label == label)
+  dx, dy = topology.push_vertex(moved, 1.0)
+  gain = (dx * dx + dy * dy) ** 0.5
+  assert abs(gain - 1.0) > 0.01, (
+    f"PREMISE: this vertex's gain is {gain:.4f}, which is one, so the "
+    "design cannot show a conversion at all")
+
+  # THE ROUND TRIP, measured on the ground: ask to travel a tenth of
+  # the unit and check the design moves a tenth of the unit.
+  span = topology_edits.unit_span(unit)
+  travel = 0.1
+  push_d = topology_tab._push_for_travel(travel, gain)
+  before = [p.point for p in topology.points.values() if p.label == label]
+  ready = topology_edits.in_map_units(
+    topology_edits.whole_where_needed({"push_d": push_d}), topology.tileable)
+  after_topology = topology_edits.move_as_applied(
+    topology, label, "push_vertex", ready)
+  after = [p.point for p in after_topology.points.values()
+           if p.label == label]
+  assert before and after, "PREMISE: the push produced no vertices to compare"
+  went = max(min(a.distance(b) for b in after) for a in before) / span
+  assert abs(went - travel) < 0.005, (
+    f"a push asked to travel {travel:.4f} of the unit moved the ground "
+    f"{went:.4f} of it -- a gain of {went / travel:.4f} the person cannot "
+    "see")
+
+  # AND THE DRAG USES IT, which is the claim the arithmetic above
+  # cannot make: a converter nobody calls is the state this was in.
+  import ast as _ast
+  import inspect
+  tree = _ast.parse(inspect.getsource(topology_tab))
+  dragging = next(
+    (node for node in _ast.walk(tree)
+     if isinstance(node, _ast.FunctionDef) and node.name == "_on_dragging"),
+    None)
+  assert dragging is not None, "PREMISE: the tab has no _on_dragging"
+  called = set()
+  for node in _ast.walk(dragging):
+    if isinstance(node, _ast.Call):
+      if isinstance(node.func, _ast.Attribute):
+        called.add(node.func.attr)
+      elif isinstance(node.func, _ast.Name):
+        called.add(node.func.id)
+  assert "_push_for_travel" in called and "push_gain" in called, (
+    "the drag does not convert the rail's travel into a push distance, "
+    "so the vertex follows the pointer only by accident")
+
+
 def test_the_change_list_shows_the_amplitude_the_box_shows():
   """One wave, one number, wherever the tab prints it.
 
@@ -91642,6 +91725,8 @@ def main():
         test_an_untouched_design_is_never_told_it_does_not_tile)
   check("the change list shows the amplitude the box shows",
         test_the_change_list_shows_the_amplitude_the_box_shows)
+  check("a push moves the ground as far as the pointer went",
+        test_a_push_moves_the_ground_as_far_as_the_pointer_went)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
