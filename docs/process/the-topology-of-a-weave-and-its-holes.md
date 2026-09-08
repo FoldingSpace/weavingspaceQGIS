@@ -254,6 +254,57 @@ pair of `a` strands is adjacent rather than how many are; and at aspect
 0.25 one or two pieces of daylight go unattributed on the twills, which
 is a small hole in the rule rather than in the idea.
 
+## Does it stay the size a tiling's structure is?
+
+A tiling's topology is small. `laves 3.3.4.3.4` has four tiles with two
+edge classes and two vertex classes, `archimedean 4.8.8` two tiles with
+two and one, `hex-slice 3` three tiles with one and two. Any account of
+a weave has to be comparable, or the labels are counting the method
+rather than the design, and an edit aimed at one of a hundred classes
+is not aimed at anything a person can hold in mind.
+
+By that measure the constructions above divide sharply.
+
+| Construction | plain weave a|b | across aspects |
+|---|---|---|
+| Tiling, for scale (`laves 3.3.4.3.4`) | 2 edge, 2 vertex | — |
+| Holes kept as tiles, cut arbitrarily | 10 edge, 7 vertex | moves on a twill |
+| Holes kept as tiles, cut by kind | 30 edge, 20 vertex | invariant |
+| Daylight absorbed, then classes taken | 11 edge, 7 vertex | invariant |
+| Relations between strands | 1 alongside, 1 crossing | invariant |
+
+The typed tiling multiplies labels because every hole tile brings its
+own edges: thirty for a weave of four strands, and 195 for a twill.
+Absorbing the daylight helps and does not fix it. The plain weave comes
+down to eleven and seven, stable at every aspect, but an absorbed
+strand is its own rectangle together with the ground it claimed, so it
+has a complicated outline, and each extra corner is another class. That
+is still multiplication by measurement, only less of it. The twill does
+not survive the step at all: the design tiles exactly, at a gap and an
+overlap of zero, and the library then raises `ValueError: zip()
+argument 2 is longer than argument 1` inside
+`_assign_vertex_and_edge_base_IDs`, which is a count mismatch in its own
+bookkeeping rather than anything about the geometry.
+
+The last row is the one that behaves, and on reflection it is the right
+comparison rather than a lucky one. A tiling's edge classes are
+relations between tiles, so a weave's structure should be relations
+between strands, and that is what stays small: one alongside relation
+and one crossing relation on a plain weave, three on a twill, unmoved
+at every strand width. It stays small precisely because it does not
+inherit the polygons' corners. Absorbing the daylight is then how the
+relations are COMPUTED rather than what should be labelled, and the
+absorbed outlines are scaffolding in the same sense the filler was.
+
+What is missing before this is a structure rather than a promising
+number. The relations are currently reported by element letter, which
+says that some pair of `a` strands is adjacent rather than which, so
+the count is a lower bound on what a real accounting would carry. A
+tiling's classes come with an incidence and a cyclic order at each
+vertex, and nothing here has that yet. And a crossing has an over and
+an under, which is the distinction a weave exists to make and which the
+relation ought to record; adjacency as measured is blind to it.
+
 ## The dropped strand, which is the one real gap
 
 The distinction the whole exercise turns on is between a gap that means
