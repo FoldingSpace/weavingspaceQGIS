@@ -413,6 +413,68 @@ them is two characters. A thin twill at aspect 0.25 is already past it,
 and so is the typed tiling of any twill. Anything built here has to
 treat a class as a label rather than as a character.
 
+## The weave as an interlacement, which is where this should have started
+
+Everything above works on the rendered design, and the rendered design
+is a projection. A flat map cannot show one ribbon lying on another, so
+the strand passing under is cut, and the over-and-under is precisely
+what the picture throws away. Three attempts to recover it from those
+polygons failed, and in hindsight that is what should have been
+expected: we were measuring a shadow for a fact it does not carry.
+
+In the conceptual model the strands are continuous and really do pass
+over and under one another. That model survives one layer below the
+geometry, in the library's `Loom`, whose `indices` are the crossing
+sites and whose `orderings` give the layer order at each. None of it
+depends on the strand width, the inset, or how a hole was cut, because
+no polygon has been drawn yet.
+
+Read from there, a weave's structure is small and says what a weaver
+would say. A strand is a whole ribbon, named by its letter and
+direction, continuous even where the drawing cuts it. A crossing
+carries which strand rides over. A float is a run of crossings a strand
+rides over without dipping. And a dropped strand is simply absent from
+the model, rather than being a hole in it, because the code says it was
+never threaded.
+
+| Weave | strands | classes | pattern | float | phase steps |
+|---|---|---|---|---|---|
+| plain `a|b` | 4 | 1 | `UO` | 1 | (1) |
+| twill `a|b` | 8 | 1 | `UUOO` | 2 | (3, 3, 3) |
+| twill `ab|cd` | 8 | 1 | `UUOO` | 2 | (3, 3, 3) |
+| basket `ab|cd` | 8 | 1 | `UUOO` | 2 | (0, 2, 0) |
+| twill `a|b-` | 6 | 2 | `UO`, `UUOO` | 1, 2 | (1, 0, 1) |
+
+One strand class for a plain weave and one for a twill, against two
+edge classes for `laves 3.3.4.3.4`. The labels are fewer than a
+tiling's, and they are the interlacement itself rather than an artefact
+of measurement.
+
+The per-strand sequence alone is not enough, and the table says why: a
+twill and a basket both ride over two and under two, so both read
+`UUOO`, and anybody can tell them apart by eye. What separates them is
+the PHASE between neighbouring strands. A twill steps by a constant
+amount, which is what draws its diagonal; a basket repeats in blocks.
+With that second invariant the three biaxial families are distinct, and
+both invariants are a few numbers long.
+
+The dropped strand behaves as one would want without a rule written for
+it. `twill weave a|b-` has six strands rather than eight, the missing
+one absent rather than hollow, and its neighbours' floats lengthen --
+which is what happens in cloth when a strand is left out. The
+distinction that the geometry could not express, and that no veto could
+be made to express, is native here.
+
+Two things are missing before this is finished. The strands are named
+by loom coordinate rather than by the element letter a person types, so
+the model does not yet join up with the design somebody is editing. And
+nothing connects it back to the ground: an edit on the Topology tab
+moves geometry, and a structure with no geometry in it cannot say which
+polygon to move. That is the join to build, and it is a smaller problem
+than the one this note started with, because both halves now exist:
+the interlacement says what the weave IS, and the absorbed regions say
+where each strand LIES.
+
 ## Where we have got to, and what is open
 
 Filling the daylight is what the plugin uses today, and there is no
