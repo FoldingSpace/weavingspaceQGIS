@@ -55,6 +55,30 @@ deleting `old_edge` after `insert_vertex_at` on one tile.
 THIS IS A READING OF THE SOURCE and is offered as such. What is
 measured is the paragraph above it.
 
+## A second failure lands in that same method, by another route
+
+Added after the note was first written, because it bears on the
+reading above rather than on the measurement. A DIFFERENT design --
+a triaxial `cube weave abc|def|ghi`, scaffolded the same way, 114
+tiles and a patch of 798, every shape single-part -- fails inside the
+very method the paragraph above suspects:
+
+    _copy_base_tiles_to_patch -> _match_reference_tile_vertices
+      -> Tile.insert_vertex_at
+           old_edge = self.get_edges()[i - 1]
+    IndexError: list index out of range
+
+`get_edges` is the same accessor that raises `KeyError` in the
+measurement at the top of this note, and here it returns a list
+shorter than the index asked of it. We have NOT established that the
+two are one defect, and we are not claiming it; what we can say is
+that a source reading which named `_match_reference_tile_vertices` on
+suspicion was followed by an independent failure inside it.
+
+The two designs differ in a way that may matter to you: gridifying the
+filler changes nothing for the twills below, and for this cube weave
+it is what gets the design as far as this failure at all.
+
 ## How to reproduce
 
 The designs that show it here are weaves whose gaps have been filled
