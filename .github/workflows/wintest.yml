@@ -1,18 +1,25 @@
-# A THROWAWAY. Delete this file once the Windows red on
-# `a project whose output geopackage has moved` is understood.
+# A THROWAWAY, re-aimed rather than rewritten. Delete it once the
+# Windows red it currently names is understood.
 #
-# The question it exists for: that test has failed FIVE Windows CI
-# rounds for five -- every element layer "came back invalid again"
-# after the output is re-pointed at its own path -- while the same
-# journey is green on macOS and all three Linux legs, and the
-# zero-byte-file fix of 2026-08-26 (row 20 of the day's ledger),
-# which shares its moved-away journey, did not kill it. Reaching the
-# test through the `windows` job costs about fifty minutes, because
-# that job installs QGIS and then runs the whole suite; this installs
-# the same QGIS the same way and runs ONLY the failing test, whose
-# failure message now reports what it FOUND (the file's existence and
-# size at the path, the sqlite side files, what the plugin said)
-# rather than which assertion it reached.
+# 2026-09-08: `a save is deferred only when a run is really coming`
+# has failed the Windows leg on three of tonight's pushes -- 6395fb5,
+# 6ae296f and ba27911 -- always alone, always on its own premise: the
+# spacing moved from 500 to 250 and the live debounce was not armed.
+# Three tests changed a control, pumped a fixed fifty milliseconds and
+# asserted the timer was armed, which is a bet on the machine, and
+# this is the leg that loses it. `b387f09` waits on the event instead,
+# through `_wait_for_the_live_debounce`, bounded by CONTENTION.
+#
+# WHY IT CANNOT BE JUDGED AT HOME: on an idle Mac the timer arms in
+# microseconds, so the waiting branch never executes there. Only a
+# slow Windows runner can say whether the repair works, and reaching
+# it through the `windows` job costs about ninety minutes because that
+# job installs QGIS and then runs the whole suite. This installs the
+# same QGIS the same way and runs ONLY the tests in question.
+#
+# Its earlier question, kept because the file may be re-aimed again:
+# `a project whose output geopackage has moved` failed five Windows
+# rounds for five while green on macOS and all three Linux legs.
 #
 # Triggered by pushes that touch THIS FILE ONLY, so it never lengthens
 # an ordinary push and never competes with the rounds that gate a
@@ -105,9 +112,9 @@ jobs:
       # now, the keep-the-result guard prints its whole decision, and
       # the failure block reads the modal store beside the bar.
       - name: The failing tests, and nothing else
-        # Two Windows-only reds as of 6d6ea2d's round: the historic
-        # moved-GeoPackage recovery, and rows 37's kept-work test,
-        # which lost the other field's work across the .qgz boundary
-        # here alone.
+        # THE ONE WINDOWS-ONLY RED as of b387f09, plus the two
+        # siblings that were routed through the same waiter -- because
+        # one fix and three loops is how this project has lost a
+        # repair before, and the siblings have never been driven here.
         shell: cmd
-        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_project_whose_output_geopackage_has_moved test_a_saved_project_keeps_the_other_fields_work
+        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_save_is_deferred_only_when_a_run_is_really_coming test_a_tick_dropped_by_a_save_comes_back test_a_cancel_the_writer_could_not_serve_says_nothing
