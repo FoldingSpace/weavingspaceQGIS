@@ -379,6 +379,7 @@ quote them, do not renumber them.
 - **C-342** — The zigzag clamp, and the ratchet it is shaped to avoid  <sub>minted</sub>
 - **C-343** — The honest preview's four rulings, and what each was measured against  <sub>minted</sub>
 - **C-344** — The Topology tab's four rulings of 2026-09-07, by grilling  <sub>minted</sub>
+- **C-345** — The targeted Windows run, and what a fixed pump costs on a slow leg  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11138,3 +11139,60 @@ THE SHAPE THAT RECURS THROUGH ALL OF IT: a quantity on the wrong side
 of the frozen/live line, or one member of a pair written where its
 twin was not. Every one was found by a hunt launched at the repair
 that made it, within the hour, and none by reading.
+
+### C-345 — The targeted Windows run, and what a fixed pump costs on a slow leg
+
+**WHAT IT COST TO NOT HAVE THIS.** On the night of 2026-09-07 the
+branch went red on the Windows leg three times -- `6395fb5`,
+`6ae296f`, `ba27911` -- always alone, always the same single test of
+about 840, and always on its own premise: `a save is deferred only
+when a run is really coming`, where the spacing moved from 500 to 250
+and the live debounce was not armed. Three tests changed a control,
+pumped a fixed fifty milliseconds and asserted the timer was armed.
+That is a bet on the machine and Windows is the leg that loses it; the
+premise's own comment already recorded it failing there once before,
+on 2026-08-31.
+
+**AND TWO OF THOSE THREE VERDICTS WERE LOST BEFORE BEING READ**, which
+is the half worth remembering. The watcher was pinned to a commit sha
+each time; each new push superseded it and it was killed by hand to
+make room, so the red went by unread and the branch was reported as
+"still running" twice. A poller pinned to one commit sits silent
+through the push that supersedes it -- and killing it by hand is the
+same fault with one's own hands. The watcher re-derives the branch's
+head every pass now.
+
+**THE REPAIR COULD NOT BE JUDGED AT HOME**, which is what made the
+targeted run necessary rather than merely convenient: on an idle Mac
+the timer arms in microseconds, so the waiting branch never executes
+there. Only a slow Windows runner could say whether waiting on the
+event worked.
+
+**WHAT THE TARGETED RUN COST, MEASURED.** `wintest.yml` installs the
+same QGIS the `windows` job installs, by the same Chocolatey route,
+and runs only the named tests: about FIVE MINUTES on 2026-09-08,
+against roughly ninety for the job that installs QGIS and then runs
+the whole suite. It returned `3 passed, 0 failed` on the failing test
+and the two siblings routed through the same new waiter -- siblings
+that had never been driven on Windows at all, and were named
+deliberately, since one fix with three loops is how this project has
+lost a repair before.
+
+**IT IS A STANDING TOOL NOW.** (Maintainer's instruction, 2026-09-08:
+"needs to be a regular tool that is documented and adapted when
+needed, not deleted".) Both it and `winprobe.yml`, its no-QGIS
+sibling, opened with "A THROWAWAY. Delete this file once ... is
+understood", and both had already been re-aimed once by the time that
+instruction arrived -- which is the evidence for it. Their headers now
+say what each is for, when to reach for it, how to re-aim it, the two
+traps they have paid for, and what each has chased before.
+
+**THE TRAPS, kept where they were learned.** `workflow_dispatch` is
+listed on both and does not work from a feature branch: GitHub
+resolves a dispatchable workflow against the DEFAULT branch, so one
+living only on a feature branch answers 404.
+`WEAVINGSPACE_TEST_SLOWNESS` must match the `windows` job's, or a
+targeted run fails on a ceiling sized for the Mac and reports the
+runner rather than the plugin. And each triggers on pushes touching
+only itself, so re-aiming is the trigger and no ordinary round is
+lengthened.

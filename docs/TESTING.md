@@ -570,7 +570,14 @@ The accounts are T-135.
 - WAIT ON THE EVENT, NOT ON A NUMBER OF SECONDS: a flat ten seconds
   failed Windows at 18.7 and passed macOS at 9.0 on identical code, and
   waiting on the task ENDING is faster on a quick machine, patient on a
-  slow one and stricter (T-131). Keep the clock only to catch a hang: a
+  slow one and stricter (T-131). THIS BINDS A PREMISE AS HARD AS AN
+  ASSERTION: three tests changed a control, pumped a fixed fifty
+  milliseconds and asserted the debounce was armed, and Windows failed
+  that premise on three pushes of one night while every other platform
+  passed -- a premise that pumps a fixed number of ticks is a bet on
+  the machine, and it fails on the leg the suite is least able to
+  reproduce. Where a repair's waiting branch CANNOT run at home, the
+  targeted Windows run is what judges it (T-148). Keep the clock only to catch a hang: a
   ceiling is never a performance budget, every one is `CONTENTION`
   times a measured figure, and four shared wait helpers had no such
   factor, so an allowance sized on this Mac is one this Mac will never

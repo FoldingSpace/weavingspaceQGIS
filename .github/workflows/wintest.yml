@@ -1,35 +1,49 @@
-# A THROWAWAY, re-aimed rather than rewritten. Delete it once the
-# Windows red it currently names is understood.
+# THE TARGETED WINDOWS RUN. A standing tool, re-aimed when needed and
+# not deleted. (Maintainer's instruction, 2026-09-08.)
 #
-# 2026-09-08: `a save is deferred only when a run is really coming`
-# has failed the Windows leg on three of tonight's pushes -- 6395fb5,
-# 6ae296f and ba27911 -- always alone, always on its own premise: the
-# spacing moved from 500 to 250 and the live debounce was not armed.
-# Three tests changed a control, pumped a fixed fifty milliseconds and
-# asserted the timer was armed, which is a bet on the machine, and
-# this is the leg that loses it. `b387f09` waits on the event instead,
-# through `_wait_for_the_live_debounce`, bounded by CONTENTION.
+# WHAT IT IS FOR. Windows is where most of this plugin's users are and
+# the leg that finds what no other platform can -- a fixed pump that
+# only a slow machine loses, a path separator, a file still locked by
+# whatever wrote it. It is also the slowest answer in the project:
+# reaching one test through the `windows` job costs about ninety
+# minutes, because that job installs QGIS and then runs the whole
+# suite. This installs the SAME QGIS the SAME way and runs only the
+# tests named at the foot of this file, which is minutes rather than
+# hours -- measured 2026-09-08 at about five.
 #
-# WHY IT CANNOT BE JUDGED AT HOME: on an idle Mac the timer arms in
-# microseconds, so the waiting branch never executes there. Only a
-# slow Windows runner can say whether the repair works, and reaching
-# it through the `windows` job costs about ninety minutes because that
-# job installs QGIS and then runs the whole suite. This installs the
-# same QGIS the same way and runs ONLY the tests in question.
+# WHEN TO REACH FOR IT. A red on the Windows leg alone, or a repair
+# for one that cannot be judged at home. The second is the case that
+# earns it: the wait added on 2026-09-08 could not be exercised on an
+# idle Mac at all, since the timer it waits for arms in microseconds
+# there, so only this could say whether the repair worked.
 #
-# Its earlier question, kept because the file may be re-aimed again:
-# `a project whose output geopackage has moved` failed five Windows
-# rounds for five while green on macOS and all three Linux legs.
+# HOW TO RE-AIM IT. Edit the run line at the foot -- the names are
+# `tools/run_some.py`'s, which are FUNCTION names -- and edit the
+# note above it saying which red it is chasing. That edit is itself
+# the trigger: this runs on pushes that touch THIS FILE ONLY, so it
+# never lengthens an ordinary round and never competes with the rounds
+# that gate a candidate.
 #
-# Triggered by pushes that touch THIS FILE ONLY, so it never lengthens
-# an ordinary push and never competes with the rounds that gate a
-# candidate; re-aiming it at another test is an edit to the run line
-# below, which is itself the trigger. `workflow_dispatch` is listed
-# for the day this reaches the default branch, and does not work
-# before then: GitHub resolves a dispatchable workflow against the
-# DEFAULT branch, so one that lives only on a feature branch answers
-# 404 -- the lesson winprobe.yml already carries.
-name: windows single-test probe (temporary)
+# AND NAME THE SIBLINGS YOU DRIVE WITH IT. A repair usually has more
+# than one caller; on 2026-09-08 the two tests routed through the same
+# new waiter had never been driven on Windows at all, and one fix with
+# three loops is how this project has lost a repair before.
+#
+# TWO TRAPS THIS FILE ALREADY PAID FOR. `workflow_dispatch` is listed
+# and does not work from a feature branch: GitHub resolves a
+# dispatchable workflow against the DEFAULT branch, so one that lives
+# only here answers 404. And `WEAVINGSPACE_TEST_SLOWNESS` must match
+# the `windows` job's, or a probe fails on a ceiling sized for the Mac
+# and reports the runner rather than the plugin.
+#
+# WHAT IT HAS CHASED, kept so a reading months from now has the
+# history: `a project whose output geopackage has moved`, which failed
+# five Windows rounds for five while green on macOS and all three
+# Linux legs; and `a save is deferred only when a run is really
+# coming`, which failed three of one night's pushes on its own premise
+# -- the spacing moved and the live debounce was not armed -- and
+# passed here within five minutes of the repair.
+name: windows targeted run
 
 on:
   workflow_dispatch:

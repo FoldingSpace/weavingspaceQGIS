@@ -331,6 +331,17 @@ self-fixing at low cost for whoever edits them next.)
   hand-kept list, so the two cannot drift apart quietly -- a sentence
   that was FALSE for sixteen days, because `EXPECTED_STAGES` in
   release.py was exactly that. (C-6, C-257.)
+  AND A RED ON ONE PLATFORM IS CHASED WITH A TARGETED RUN RATHER THAN
+  A FULL ROUND. `.github/workflows/wintest.yml` installs QGIS the way
+  the `windows` job does and runs only the tests named at its foot --
+  five minutes against ninety -- and `winprobe.yml` runs a plain
+  script under the runner's own python for questions about the
+  platform rather than the plugin. Both are STANDING TOOLS, re-aimed
+  by editing the run line, which is itself the trigger; neither is
+  deleted when its question closes (maintainer's instruction,
+  2026-09-08). They earn their keep most on a repair that cannot be
+  judged here at all, which is the shape of every Windows-only red
+  this project has had. (C-345.)
   It runs in a second,
   before the pre-candidate push, which is the only moment early
   enough to matter: the push precedes the local gates, so a broken

@@ -410,6 +410,42 @@ Restart QGIS or use Plugin Reloader afterwards. Skipping the install is
 `build.py --no-install`, since `release.py` forwards nothing to it.
 (P-11.)
 
+## A RED ON ONE PLATFORM IS CHASED WITH A TARGETED RUN
+
+Two standing workflows exist so a platform-only red does not cost a
+full round to diagnose, and they are RE-AIMED rather than deleted
+(maintainer's instruction, 2026-09-08).
+
+    .github/workflows/wintest.yml    installs QGIS the way the
+      `windows` job does and runs only the tests named at the foot of
+      the file. About five minutes against that job's ninety.
+
+    .github/workflows/winprobe.yml   touches no QGIS at all and runs a
+      plain script under the runner's own python. The time a runner
+      takes to boot, for questions about the PLATFORM rather than the
+      plugin -- process and cpu accounting, path spellings, what a
+      shell does.
+
+**RE-AIMING ONE IS THE TRIGGER.** Each runs on pushes that touch only
+itself (and, for the probe, its script), so neither lengthens an
+ordinary round nor competes with the rounds that gate a candidate.
+Edit the run line -- `tools/run_some.py` takes FUNCTION names -- and
+edit the note above it saying which red is being chased.
+
+**NAME THE SIBLINGS YOU DRIVE WITH IT.** A repair usually has more
+than one caller. On 2026-09-08 the two tests routed through a new
+waiter had never been driven on Windows at all, and one fix with three
+loops is how this project has lost a repair before.
+
+**WHEN IT EARNS ITS KEEP MOST**: a repair that cannot be judged at
+home. The wait added that day could not be exercised on an idle Mac,
+where the timer it waits for arms in microseconds, so only Windows
+could say whether it worked -- and it said so in five minutes.
+
+`workflow_dispatch` is listed on both and does not work from a feature
+branch: GitHub resolves a dispatchable workflow against the DEFAULT
+branch, so one that lives only here answers 404.
+
 ## READING CI: three ways the reading itself fails
 
 Each looks like an answer rather than a broken instrument. `gh api

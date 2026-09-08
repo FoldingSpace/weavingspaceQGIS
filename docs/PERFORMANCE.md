@@ -620,6 +620,41 @@ as current: whether the drag frame's 158 ms is dominated by the
 transform on every design or only on this one, since the topology build
 it sits beside ranges 0.8 s to 21 s across the catalogue.
 
+## What the honest preview's own work costs, 2026-09-07 (night)
+
+Three figures were added to the drag path that night, and each is
+priced where it runs rather than in the abstract.
+
+    the drop's refinement, 3 probes    ~0.5 s, once, at the release
+    the tear-finder on a torn design   9.5 ms laves, 138 ms hex-slice 3,
+                                       133 ms chavey H, once per landing
+    the push's gain                    one library call, at the press
+
+**THE REFINEMENT IS AT THE DROP AND NOWHERE ELSE.** A drag holds at
+the last value that laid out and computes no ceiling, because the full
+bisection is 1.4 s and that is a freeze at the moment somebody starts
+dragging. What that left was a shortfall bounded by a FRAME of pointer
+travel rather than a pixel of it -- a frame is 158 ms and the default
+design's edges draw at about 94 px, so a pointer at 250 px/s advances
+0.42 of the amplitude between samples against a ceiling of 0.594. Three
+probes at the release, each 161 ms and each halving what remains, cost
+about half a second at the end of a gesture and leave at most an
+eighth of that gap.
+
+**THE TEAR-FINDER STOPPED BEING FREE, which its own docstring claimed
+until it was corrected.** It borrowed the patch `plane_coverage` lays;
+it lays its own now, one per radius it tries, because the radius is
+asked for rather than chosen (docs/TOPOLOGY.md has the table). The
+figures above are on designs torn by a per-edge rotate, which is the
+only case that reaches it -- gated on the coverage figure having
+already said the design is torn, once per landing, against a topology
+build of 0.75 to 19 seconds.
+
+**AND THE PUSH'S GAIN IS ONE LIBRARY CALL, taken at the press and
+held**, which is a correctness decision rather than a saving: read
+live it changes under the gesture, because the preview moves the
+neighbours it is summed from.
+
 ## The costs that are known and are somebody else's
 
 **`Topology.__init__` is eager and expensive**: 0.8s to 21s depending on

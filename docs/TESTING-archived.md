@@ -178,6 +178,7 @@ quote them, do not renumber them.
 - **T-145** — A bounded store sliced by length is empty at its ceiling  <sub>minted</sub>
 - **T-146** — A settle that did not count a deferred press  <sub>minted</sub>
 - **T-147** — Rendering a gesture finds what reading and the suite cannot  <sub>minted</sub>
+- **T-148** — A premise that pumps a fixed number of ticks is a bet on the machine  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7131,3 +7132,47 @@ the question the first had just raised.
 THE HABIT: when a family of acts shares one message, ask which
 member's words it is in; and when a drawing has states, look at it
 DURING the act, not only at what it settles to.
+
+### T-148 — A premise that pumps a fixed number of ticks is a bet on the machine
+
+The suite's own waits have carried `CONTENTION` since 2026-08-16, and
+its PREMISES did not. Three tests set a control, pumped fifty
+milliseconds and asserted `dlg._live_timer.isActive()`:
+
+    was = dlg.spacing_spin.value()
+    dlg.spacing_spin.setValue(was / 2.0)
+    _tick(50)
+    assert dlg.spacing_spin.value() != was, ...
+    assert dlg._live_timer.isActive(), ...
+
+The first assertion was added on 2026-08-31, after Windows failed
+here and the message could not say WHICH half had gone -- the change
+or the arming. It said which, and left the bet in place.
+
+On the night of 2026-09-07 the second assertion failed on three
+successive pushes of that branch -- `6395fb5`, `6ae296f`, `ba27911` --
+on Windows alone, always as the single failure of about 840 tests. The
+value moved every time; the timer had not armed within fifty
+milliseconds of pumping on a runner declaring itself four times slower
+than the machine the suite was written on.
+
+**THE REPAIR IS THE RULE THIS PROJECT ALREADY HAD, applied one level
+up.** `_wait_for_the_live_debounce` pumps until the timer arms or a
+hang-catcher expires, sized by `CONTENTION` like every other wait
+here, and all four arming assertions go through it -- one owner,
+because one fix and three loops is how a repair gets lost.
+
+**WHAT COULD NOT BE VERIFIED AT HOME, AND WAS SAID SO IN THE COMMIT.**
+On an idle Mac the timer arms in microseconds, so the waiting branch
+never executes: every local run exercises the same path it always did.
+That is precisely the case the targeted Windows run exists for, and it
+answered in about five minutes -- `3 passed, 0 failed` on the failing
+test and on the two siblings routed through the same waiter, which had
+never been driven on that platform at all.
+
+**THE GENERAL FORM.** A premise is a claim about the machine as much
+as the code, and a fixed number of ticks is the weakest kind: it
+passes wherever it was written and fails wherever the software is
+slower, which is exactly where the suite is least able to reproduce
+it. Ask of any premise what would make it false on a machine four
+times slower, and wait on the event instead.

@@ -876,6 +876,97 @@ stack and is not: CPython 3.12 does not take a C frame for a
 Python-to-Python call, so one such frame hides a stack of any depth. A
 native sample says WHERE a process is blocked and never WHO called it.
 
+## What round nine measured, 2026-09-07 (night)
+
+Twelve defects closed in one round of hunts, all in the tab and all in
+work of the previous two days. The ledger is
+`docs/process/defects-2026-09-07.md`; what belongs here is the
+evidence, since this document is what the next person opens when they
+want the numbers rather than the story.
+
+**THE PREVIEW DREW A DIFFERENT MOVE FROM THE ONE THE DROP MADE.**
+C-341 reformulated `rotate_edge` and `scale_edge` to move each shared
+vertex once; that went into `apply` alone, and three callers must
+agree with it. On `laves 3.3.4.3.4` class `a`, one fundamental cell:
+
+    edit                    the preview drew        the drop records
+    rotate_edge  15 deg     gap 1.7785% ovl 0.222%  gap 0% ovl 0%
+    rotate_edge  60 deg     RAISED GEOSException    gap 0% ovl 0%
+    scale_edge   sf 1.5     gap 0.8911% ovl 8.216%  gap 0% ovl 0%
+    zigzag_edge  (CONTROL)  gap 0%      ovl 0%      gap 0% ovl 0%
+
+The control is what makes the rest readable: zigzag is not rerouted,
+so both routes are the same call there and agree.
+`move_as_applied` is the one owner now.
+
+**THE GHOST DREW TWICE THE WAVE'S FREQUENCY.**
+`zigzag_between_points` samples a sine at `n*pi` over `2n+1` points,
+so it crests at the ODD multiples of `length/(2n)` and crosses ZERO at
+the even ones. The ghost put a full-amplitude point at every multiple:
+2n-1 lobes, and at the default n=2 a trailing lobe on the wrong side.
+At h=0.4 it drew `(.25,+.2)(.50,-.2)(.75,+.2)` where the map gets
+`(.25,+.2)(.50,0)(.75,-.2)`. Corrected, the two agree exactly at n=2
+and n=4 in position and sign.
+
+**THE PUSH RAIL CARRIED A GAIN NOBODY COULD SEE, and it took three
+repairs to remove.** `push_vertex` returns `push_d` times the sum of
+the unit vectors at the vertex, whose length belongs to the vertex:
+
+    design                push 0.1 moves   nudge 0.1 moves   ratio
+    archimedean 4.8.8            0.0536            0.1293   0.4142
+    laves 3.3.4.3.4              0.0000            0.1414   0.0000
+    hex-slice 3                  0.0000            0.1155   0.0000
+
+The zeroes are the symmetry the rail already suppresses. `push_d` is a
+DISTANCE by ruling, so the drag divides by that gain -- and the gain
+must be measured on ONE store: read live it fell 0.4142, 0.3827,
+0.3470, 0.3138, 0.2660, 0.2001, 0.1029 over seven frames as the
+preview moved the neighbours; frozen at the press but taken off the
+preview, a second drag after a landing-free pause read 0.2143; and
+taken off the held design while the VERTEX stayed on the preview,
+0.0884 where a landing between gave 0.1495. `push_vertex` reads the
+vertex's point from its ARGUMENT and its neighbours from the
+TOPOLOGY, so both halves must come from one store.
+
+**A DUPLICATED PATCH TILE MADE FIVE SOUND DESIGNS READ AS BROKEN.**
+`plane_coverage`'s overlap term is summed tile area minus the union's,
+which cannot tell two tiles from one counted twice, and
+`get_local_patch` hands the same tile back twice on `square-colouring
+3` and `chavey H`, `I`, `J`, `K` -- 5 of 1,168. Untouched,
+`square-colouring 3` read overlap 0.2222 and `still_has_a_topology`
+False. Deduplicated by exact geometry it reads 0.00000000.
+
+**AND THE ONLY DESIGNS THAT LEGITIMATELY DO NOT TILE ARE `grid N` AT
+HIGH COUNTS.** A sweep of all 1,168 at spacing 1000 found 18 of them
+with a genuine gap of 0.004 to 0.059 and no duplicated tiles -- the
+grid extra leaving a remainder, which the tab reports honestly.
+
+**WHAT PATCH RADIUS THE TEAR-FINDER NEEDS, and why it is asked rather
+than computed.** The block of cells must lie inside the patch or its
+corners hang over ground with no tiles and are hatched as damage:
+
+    design               needs r   block half-diag   lattice step
+    laves 3.3.4.3.4            2            2121.3         1000.0
+    archimedean 4.8.8          2            2121.3         1000.0
+    hex-colouring 4            2            1500.0         1000.0
+    hex-slice 3                3            2598.1         1000.0
+    hex-slice 6                3            2598.1         1000.0
+    square-colouring 3         3            2598.1          816.5
+    chavey H, I, J, K          5            2598.1         1000.0
+
+`hex-slice 3` and `chavey H` share a lattice, a cell AND a block and
+need 3 and 5, so nothing here predicts it. The patch is asked whether
+it holds the block and grows until it does, tested against its own
+outline with the holes filled -- a tear is a hole INSIDE that outline,
+while ground beyond it is where the patch stopped.
+
+**AND THE HATCH IS NO LONGER FREE.** It lays its own patches now, one
+per radius tried: 9.5 ms on `laves 3.3.4.3.4`, 138 ms on `hex-slice
+3`, 133 ms on `chavey H`, measured on designs torn by a per-edge
+rotate, which is the only case that reaches it -- once per landing,
+on the branch where the coverage figure has already said the design is
+torn.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

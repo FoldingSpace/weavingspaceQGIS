@@ -1,20 +1,37 @@
-# A THROWAWAY. Delete this file, and tools/win_process_probe.py, once
-# release.py's cpu accounting is understood on Windows.
+# THE WINDOWS PROBE WITHOUT QGIS. A standing tool, re-aimed when
+# needed and not deleted. (Maintainer's instruction, 2026-09-08.)
 #
-# The question it exists for: the PowerShell process-table path in
-# release.py runs on Windows and reports 0.0 seconds of cpu for a tree
-# whose grandchild is deliberately burning it. The functional suite
-# says so and cannot say why, and reaching those two tests through the
-# `windows` job costs about fifty minutes -- it installs QGIS and runs
-# four hundred tests first. This asks only the failing question, needs
-# no QGIS at all, and answers in the time a runner takes to boot.
+# WHAT IT IS FOR, and how it differs from its sibling. `wintest.yml`
+# installs QGIS and runs named tests, which is minutes; this one
+# touches no QGIS at all and runs a plain script under the RUNNER'S
+# own python, which is the time a runner takes to boot. So it answers
+# the Windows questions that are about the PLATFORM rather than about
+# the plugin: process and cpu accounting, path spellings, what a shell
+# does, how a file behaves while something else holds it.
 #
-# Triggered by pushes that touch THIS PROBE ONLY, so it never
-# lengthens an ordinary push and never competes with the rounds that
-# gate a candidate. `workflow_dispatch` would be tidier and does not
-# work: GitHub resolves a dispatchable workflow against the DEFAULT
-# branch, so one that lives only on a feature branch answers 404.
-name: windows process probe (temporary)
+# WHY THAT IS WORTH A WORKFLOW OF ITS OWN. The question it was built
+# for -- release.py reporting 0.0 seconds of cpu for a tree whose
+# grandchild is deliberately burning it -- is stdlib plus a PowerShell
+# call, and reaching it through the `windows` job cost about fifty
+# minutes because that job installs QGIS and runs the suite first.
+# Using the system interpreter is what makes this three minutes.
+#
+# HOW TO RE-AIM IT. Write what you want to know into
+# `tools/win_process_probe.py` -- or point the run line at another
+# script -- and say at the step what question it is asking. That edit
+# is itself the trigger: this runs on pushes touching the probe or
+# this file only, so it never lengthens an ordinary round and never
+# competes with the rounds that gate a candidate.
+#
+# THE TRAP IT ALREADY PAID FOR. `workflow_dispatch` is listed and does
+# not work from a feature branch: GitHub resolves a dispatchable
+# workflow against the DEFAULT branch, so one that lives only here
+# answers 404.
+#
+# WHAT IT HAS CHASED, kept so a later reading has the history: the cpu
+# accounting above, where the functional suite could say the figure
+# was wrong and could not say why.
+name: windows probe, no QGIS
 
 on:
   workflow_dispatch:
