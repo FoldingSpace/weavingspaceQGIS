@@ -40,7 +40,12 @@ shrinks. In woven patterns the elements ride on *strands*, the ribbons
 running across the map; a strands code such as `ab-|cd` names which
 elements travel in each direction, and a hyphen leaves a deliberate
 gap, often the only way to tell otherwise-identical strands apart in a
-twill. *Spacing* is the grain of the pattern in map units: the size of
+twill. You can type your own code into the Strands box beside the
+design, rather than hunting the family list for the arrangement you
+want: the letters you use are the elements your map will carry, so the
+element count follows what you type. Codes run to twelve elements, and
+a code the plugin cannot use says why instead of drawing something
+else. *Spacing* is the grain of the pattern in map units: the size of
 the repeating unit for tilings, the distance between neighbouring
 strands for weaves. *Aspect* is how much of that spacing a strand
 fills; at 1.0 the weave is solid, and smaller values open it up.

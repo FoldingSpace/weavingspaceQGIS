@@ -394,21 +394,21 @@ a PATH undulates authentically at any width, needing no filler, no
 topology and no dropping step. That wants `_weave_grid` to take a path
 rather than an orientation, so it is upstream's as much as ours.
 
-**A STRANDS CODE YOU CAN TYPE, AND THE DESIGNING TAB BEHIND IT.** The
-77 weave entries in `catalog.py` carry their codes baked in and the
-family list is the only way to reach one, while docs/USER-GUIDE.md
-teaches the notation -- so the guide explains a language the dialog
-will not accept. THE SIMPLE VERSION IS SMALL: a validated text field
-feeding `strands`, which `make_unit` already passes to `WeaveUnit`,
-exactly as the over-and-under box already overrides its spec's `n`.
-What needs deciding with it is the element count, since the code
-determines how many elements a design has while the element spinner
-currently drives the catalogue, and the two would have to agree.
+**A STRANDS CODE YOU CAN TYPE -- THE SIMPLE VERSION IS BUILT.** A
+validated box feeds `strands`, the code sets the element count and the
+slider follows (maintainer's ruling, 2026-09-08), and the weave type
+is carried across the count move. Three tests and three catalogue
+entries proved `caught`. Capped at twelve elements, which is the
+CATALOGUE's reach for weaves rather than the library's alphabet: above
+that no weave family exists, the kind would flip to tiling, and a
+strands code means nothing to a tiling. WHAT IS LEFT HERE is that cap,
+which wants the family list reconsidered rather than a bigger number.
 THE LONGER RUN is whether a fuller designing tab is possible -- the
 strands code, the over-and-under pattern and the crossing order
 handled as a design surface rather than as a list of prepared
 combinations, which is also where the deprioritised custom weave type
-and its matrix entry would live.
+and its matrix entry would live, and where the cap above is properly
+answered.
 
 **TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET.** An inset takes the
 Topology tab away outright, which is a large loss: insetting is how a
