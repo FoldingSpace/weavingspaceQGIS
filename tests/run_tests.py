@@ -91873,6 +91873,80 @@ def test_a_weaves_two_kinds_of_daylight_are_told_apart():
     assert plain["width"].area > 1, f"{name} reported no daylight at all"
 
 
+def test_a_weaves_two_kinds_of_daylight_partition_its_gap():
+  """The two halves must be in the same frame, and add up to the gap.
+
+  Regression: `daylight_by_kind` returned `width` from
+  `plane_coverage`, which measures ONE fundamental cell, and
+  `conscious` as a difference of two unions of tile geometry, which
+  overhangs the cell because a weave's strand pieces are longer along
+  their axis than the cell is. Unclipped, the two summed to 0.246 of a
+  cell against a gap of 0.055 on `twill weave a|b-`. Nothing in the
+  product called it yet, so nothing was visibly broken; what it would
+  have broken is the first thing to call it, since scaffolding fills
+  BOTH kinds and filling 4.5 times the gap hands `Topology` a design
+  that overlaps its own translates (C-351) [docs-reading]
+
+  THE OLD GUARD COULD NOT SEE IT. It asked whether a hyphen weave
+  reports SOME conscious gap and whether a hyphen-free one reports
+  none, which an over-large region satisfies as comfortably as a
+  correct one. A quantity is asked here instead of a presence.
+
+  THE PREMISE IS ASSERTED FIRST, since a weave whose conscious gap
+  came back empty would pass the partition test trivially; and the
+  control is a code with no hyphen, where `width` alone must already
+  BE the gap.
+  """
+  import shapely
+  from weavingspace_qgis import catalog, topology_edits
+
+  def measured(name, count, aspect):
+    """Both kinds of daylight beside the gap they are meant to fill.
+
+    Args:
+      name: the catalogue key of the weave.
+      count: its element count, which is how the catalogue is keyed.
+      aspect: the strand width to build at, as a fraction of spacing.
+
+    Returns:
+      (kinds, gap_geometry, cell_area), the second taken from
+      `plane_coverage` so the comparison is against the design's own
+      gap rather than against anything this test computes.
+    """
+    spec = catalog.TILINGS_BY_N[count][name]
+    unit = catalog.make_unit(spec, spacing=1000.0, crs=None, aspect=aspect)
+    gap_geometry = topology_edits.plane_coverage(unit)[2]
+    kinds = topology_edits.daylight_by_kind(unit, spec, 1000.0, aspect)
+    cell = unit.prototile.geometry[0].area
+    return kinds, gap_geometry, cell
+
+  for name, count in (("twill weave a|b-", 2), ("plain weave ab-|cd-", 4)):
+    for aspect in (0.9, 0.75, 0.5, 0.25):
+      kinds, gap_geometry, cell = measured(name, count, aspect)
+      assert kinds["conscious"].area > cell / 1000.0, \
+        f"{name} at aspect {aspect} reported no conscious gap, so the " \
+        f"partition below would hold for the wrong reason"
+      both = shapely.union_all([kinds["width"], kinds["conscious"]])
+      assert abs(both.area - gap_geometry.area) < cell / 1000.0, \
+        f"{name} at aspect {aspect}: the two kinds of daylight cover " \
+        f"{both.area / cell:.4f} of a cell where the design's gap is " \
+        f"{gap_geometry.area / cell:.4f}; scaffolding fills both, so " \
+        f"anything past the gap is ground covered twice"
+      assert kinds["conscious"].difference(gap_geometry).area < cell / 1000.0, \
+        f"{name} at aspect {aspect}: the conscious gap reaches outside " \
+        f"the design's own gap, so it is not in the cell's frame"
+
+  for name, count in (("twill weave a|b", 2), ("plain weave a|b", 2)):
+    kinds, gap_geometry, cell = measured(name, count, 0.75)
+    assert kinds["conscious"].area == 0, \
+      f"{name} has no hyphen but reported a conscious gap"
+    assert abs(kinds["width"].area - gap_geometry.area) < cell / 1000.0, \
+      f"{name} without a hyphen: width daylight is " \
+      f"{kinds['width'].area / cell:.4f} of a cell against a gap of " \
+      f"{gap_geometry.area / cell:.4f}, and with nothing conscious to " \
+      f"remove the two must already be one thing"
+
+
 def test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is():
   """The supplied-geometry workaround must not be tiling-only.
 
@@ -93855,6 +93929,8 @@ def main():
         test_a_task_says_how_far_its_worker_got)
   check("a weave's two kinds of daylight are told apart",
         test_a_weaves_two_kinds_of_daylight_are_told_apart)
+  check("a weave's two kinds of daylight partition its gap",
+        test_a_weaves_two_kinds_of_daylight_partition_its_gap)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

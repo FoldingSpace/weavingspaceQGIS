@@ -385,6 +385,7 @@ quote them, do not renumber them.
 - **C-348** — A strands code you can type, and the count following it  <sub>minted</sub>
 - **C-349** — an instrument that aggregates over the distinction under test  <sub>minted</sub>
 - **C-350** — measuring a representation for what it was built to discard  <sub>minted</sub>
+- **C-351** — the two kinds of daylight were measured in different frames  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11555,4 +11556,61 @@ weaves at four aspects every drawn piece is attributed to exactly one
 strand, the number of strands the drawing shows is the number the code
 threads, and the strand-class partitions have the same shape read
 either way, invariant across the strand widths.
+
+### C-351 — the two kinds of daylight were measured in different frames
+
+Found 2026-09-08 while auditing the weave report, from a figure that
+did not look right rather than from a failure.
+
+`topology_edits.daylight_by_kind` tells the daylight a strand's WIDTH
+opens from the ground a HYPHEN in the strands code leaves empty, and
+C-347's scaffolding fills both, since a topology needs the design
+gap-free. It returned `width` as `plane_coverage(unit)[2]` less the
+conscious region, and `conscious` as
+`ghost_ground.difference(real_ground)` where the ghost is the same
+weave with each hyphen replaced by an unused letter.
+
+The ghost difference is correct as a region of the PLANE and wrong as
+a region of the CELL. A weave's strand pieces are longer along their
+axis than the fundamental cell is, which is what keeps a ribbon
+continuous where it passes under another, so the union of tile
+geometry overhangs and so does any difference of two such unions.
+`plane_coverage`, by contrast, measures exactly one cell.
+
+Measured on `twill weave a|b-` at aspect 0.9: gap 0.0550 of a cell,
+width 0.0269, conscious 0.2194, the two summing to 0.2463. On `plain
+weave ab-|cd-` at the same aspect, gap 0.1600 against a sum of 0.2750.
+Every pairwise intersection inside the unit was 0.000000, which is
+what said the fault was the frame rather than the cutting: the pieces
+are disjoint where they lie and double-covered once tiled.
+
+The consequence was visible before the cause was. Filling both kinds
+on those weaves gave `plane_coverage` an overlap of 0.191250 on
+`twill weave a|b-` and 0.115000 on `plain weave ab-|cd-`, exactly the
+excess above one cell, and the library then refused the topology with
+a `KeyError` or an `IndexError` inside its own bookkeeping. Read
+without the measurement that looked like a fact about weaves with
+dropped strands, and it was reported as one in a draft of
+docs/process/the-topology-of-a-weave-and-its-holes.md.
+
+THE FIX IS THE CLIP, `.intersection(daylight)`, and the control is
+that it changes nothing for a code with no hyphen, whose conscious
+region is empty either way. With it, width and conscious partition the
+gap exactly on five weaves at four aspects each, twenty rows.
+
+NOTHING IN THE PRODUCT CALLED IT, which is why no gate was red and why
+this was worth fixing rather than filing: the first caller would have
+been the scaffolding work, where the symptom is "some weaves refuse"
+and the cause is four functions away.
+
+AND THE GUARD THAT STOOD COULD NOT HAVE SEEN IT.
+`test_a_weaves_two_kinds_of_daylight_are_told_apart` asked whether a
+hyphen weave reports SOME conscious gap and a hyphen-free one none,
+which an over-large region satisfies as comfortably as a correct one.
+`test_a_weaves_two_kinds_of_daylight_partition_its_gap` asks the
+quantity, asserts the premise first so an empty conscious gap cannot
+pass it trivially, and was watched failing with the fix removed:
+"the two kinds of daylight cover 0.2462 of a cell where the design's
+gap is 0.0550". Catalogue entry
+`the-two-kinds-of-daylight-are-in-one-frame`.
 

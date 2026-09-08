@@ -2764,6 +2764,18 @@ MUTATIONS = [
        test="test_a_weaves_two_kinds_of_daylight_are_told_apart",
        why="a deliberate gap in the strands code being scaffolded over "
            "as though it were daylight the strand width opened"),
+  dict(name="the-two-kinds-of-daylight-are-in-one-frame",
+       file="weavingspace_qgis/topology_edits.py",
+       # Dropping the clip is the state this replaces: `width` is
+       # measured over one fundamental cell and the ghost difference
+       # over the plane, so on a hyphen weave the two summed to 0.246
+       # of a cell against a gap of 0.055 and scaffolding both would
+       # hand `Topology` a design overlapping its own translates.
+       old="""  conscious = ghost_ground.difference(real_ground).intersection(daylight)""",
+       new="""  conscious = ghost_ground.difference(real_ground)""",
+       test="test_a_weaves_two_kinds_of_daylight_partition_its_gap",
+       why="a hyphen weave's scaffolding covering four times the "
+           "ground its gap holds, which no topology can be built on"),
   dict(name="a-shallow-copy-serves-both-kinds-of-unit",
        file="weavingspace_qgis/topology_edits.py",
        # Passing `override` unconditionally is the state this was in:

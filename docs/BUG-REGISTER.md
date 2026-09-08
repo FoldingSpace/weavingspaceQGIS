@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-566 defect(s) with a regression test.
+567 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -23,6 +23,8 @@ there is no separate list to remember.
 
 ## Found by re-reading the procedural documents
 
+- **`daylight_by_kind` returned `width` from `plane_coverage`, which measures ONE fundamental cell, and `conscious` as a difference of two unions of tile geometry, which overhangs the cell because a weave's strand pieces are longer along their axis than the cell is. Unclipped, the two summed to 0.246 of a cell against a gap of 0.055 on `twill weave a|b-`. Nothing in the product called it yet, so nothing was visibly broken; what it would have broken is the first thing to call it, since scaffolding fills BOTH kinds and filling 4.5 times the gap hands `Topology` a design that overlaps its own translates (C-351)**  
+  guarded by `test_a_weaves_two_kinds_of_daylight_partition_its_gap`
 - **the inline-span pass read the document RAW, and a ``` fence line carries three backticks -- the pattern needs a non-backtick between a pair, so the first two cannot pair and the third opened a span running to the next backtick. Everything quoted after a fence was invisible and scraps of prose were collected as commands instead. Measured 2026-08-31: MAINTAINING.md contributed ONE command reference where it carries thirteen, and the one the gate could not see named `dev/instruments/probe_zigzag_cleaners.py`, a gitignored path that does not exist -- the same defect whose sibling in ROADMAP.md failed CI and superseded rc6, left standing because the repair went to the instance CI named. Fifteen references were hidden across the gated documents. The per-document check could not catch it either: a document that contributes SOMETHING passes.**  
   guarded by `test_every_documented_command_still_exists`
 
@@ -1199,5 +1201,5 @@ there is no separate list to remember.
 - driving the UI and rebuilding the same map from the library directly: 5
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
+- re-reading the procedural documents: 2
 - comparing rendered output against the reference in Lab space: 1
-- re-reading the procedural documents: 1

@@ -989,7 +989,18 @@ def daylight_by_kind(unit, spec, spacing: float, aspect: float) -> dict:
     return {"width": daylight, "conscious": empty}
   real_ground = shapely.union_all(list(unit.tiles.geometry))
   ghost_ground = shapely.union_all(list(ghost.tiles.geometry))
-  conscious = ghost_ground.difference(real_ground)
+  # THE TWO HALVES MUST BE IN THE SAME FRAME, and until 2026-09-08 they
+  # were not: `width` comes from `plane_coverage`, which measures ONE
+  # fundamental cell, while the ghost difference is a region of the
+  # plane built from tile geometry that overhangs the cell, since a
+  # weave's strand pieces are longer along their axis than the cell is.
+  # Unclipped, the two summed to 0.246 of a cell against a gap of 0.055
+  # on `twill weave a|b-`, so filling both double-covers the ground and
+  # the design that reaches `Topology` overlaps its own translates.
+  # Clipped to the design's own gap they partition it exactly, measured
+  # on five weaves at four aspects each; a code with no hyphen is
+  # unaffected, its conscious gap being empty either way. (C-351.)
+  conscious = ghost_ground.difference(real_ground).intersection(daylight)
   return {"width": daylight.difference(conscious.buffer(_A_WHISKER)),
           "conscious": conscious}
 

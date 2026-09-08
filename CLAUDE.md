@@ -1028,6 +1028,18 @@ and the ids beside each rule.
   the object, not an absence in a registry (C-115).
 
 **Numbers, renderers and what a record describes.**
+- **A FUNCTION RETURNING TWO HALVES OF ONE QUANTITY MUST MEASURE BOTH
+  IN THE SAME FRAME.** `daylight_by_kind` took `width` from
+  `plane_coverage`, which measures ONE fundamental cell, and
+  `conscious` from a difference of tile geometry, which overhangs the
+  cell because a weave's strand pieces are longer along their axis
+  than the cell is; the two summed to 0.246 of a cell against a gap of
+  0.055, so a caller filling both would hand `Topology` a design
+  overlapping its own translates. Nothing called it yet, which is why
+  nothing was red: ask of any pair returned together what each is
+  measured over, and assert the QUANTITY rather than the presence,
+  since the guard that stood asked only whether a hyphen weave
+  reported some conscious gap. (C-351.)
 - **A RANGE IS NOT THE ONLY THING THAT EATS A KEYSTROKE**: a validator,
   a lowered `decimals`, or a `valueChanged` handler that rewrites its
   own box, each invisible to `setValue` (C-65); a settle hung on
