@@ -372,13 +372,13 @@ drop the filler. Proved to close on `twill weave a|b`. The rulings are
 in CLAUDE.md; what was tried, what failed and why is
 docs/process/weaving-and-topology.md. OWED, in this order:
 
-- THE RATE IS 65 OF 77 and the remaining twelve are two shapes, so
-  chase those rather than re-measuring: TEN twills with richer
-  over-under patterns (`a|b- 3`, `a|b 4`, `a|b 1,2,2,1`) still say the
-  tiles meet but the structure could not be worked out, which is the
-  same sentence our filler caused once already and so is worth
-  unswallowing again before assuming it is the library; and TWO
-  triaxial cube weaves raise `GEOSException`.
+- THE RATE IS 65 OF 77, and TEN of the remaining twelve are now
+  DIAGNOSED and are upstream's:
+  `docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`
+  measures an edge deleted from `Topology.edges` while a tile goes on
+  naming it, so `get_edges` raises `KeyError`. Nothing here can mend
+  that; what is owed is sending the note. The other TWO are triaxial
+  cube weaves raising `GEOSException`, undiagnosed.
 - PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the topology's
   classes, since ruling 3 moves them in phase and is unbuildable
   otherwise.

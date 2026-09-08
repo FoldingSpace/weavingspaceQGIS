@@ -143,12 +143,43 @@ has to give back exactly the strand tiles that went in, all valid.
 The twelve that do not are TWO SHAPES rather than a scatter, which is
 what makes them worth chasing rather than accepting. Ten are twills
 with richer over-under patterns -- `a|b- 3`, `a|b 4`, `a|b 1,2,2,1` --
-and they refuse with the SAME sentence our own filler caused above, so
-the first move is to unswallow the exception again rather than to
-conclude anything about the library. Two are triaxial cube weaves
-(`cube weave abc|def|ghi`, `cube weave a-b|c-d|e-f`) raising
-`GEOSException`, which is a different failure and probably a different
-cause.
+and two are triaxial cube weaves raising `GEOSException`, which is a
+different failure and is still undiagnosed.
+
+## The ten twills are upstream's, and two hypotheses died first
+
+Unswallowing the exception again -- the move that worked above -- gave
+the same `KeyError` on all four twills sampled, from `get_edges`,
+which looks a tile's own edge ids up in the topology's `edges` dict.
+
+TWO HYPOTHESES OF MINE WERE REFUTED BY THEIR OWN CONTROLS, which is
+the only reason the third is worth anything. T-JUNCTIONS: a filler
+piece abutting two strands has no vertex at their shared corner, so
+the tiles do not meet vertex-to-vertex -- except that the design which
+BUILDS has 45 of them. PRECISION: the gap geometry comes out of a
+boolean difference and might miss the library's grid -- except that
+`gridify`ing every filler piece changed nothing and there are no
+near-duplicate vertices anywhere, at any epsilon tried.
+
+WHAT THE INSTRUMENT SHOWED. The `edges` dict was replaced with a
+subclass that records deletions and changes nothing else:
+
+    missing edge key                     (241, 238)
+    edges deleted during construction    21
+    was the missing key deleted?         yes
+    was its reverse deleted?             no
+    is its reverse still present?        no
+    tiles still naming the deleted edge  tile 92
+
+So the edge is deleted and a tile goes on naming it, and it is not a
+direction convention, since neither orientation survives. That is
+upstream's to mend, and the note is
+`upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`.
+
+AND THE FIRST INSTRUMENTED RUN MEASURED NOTHING, worth the line: the
+watching dict was never installed, because the subclass that was meant
+to swap it in did nothing at all. It printed the same `KeyError` as
+the plain run and read exactly like a result.
 
 The sweep took about fifty minutes of one core and printed nothing
 until it ended, because its output went through a `grep` that

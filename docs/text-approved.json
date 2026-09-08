@@ -39,6 +39,11 @@
   "excerpt": "The region layer was removed while the map was being made, s",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "0477099b990f6b9a": {
+  "approved": "2026-09-08",
+  "excerpt": "The parentheses in this strands code do not match.",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "04e40fd04661a010": {
   "approved": "2026-08-08",
   "excerpt": "Check your internet connection and try again, or install the",
@@ -78,6 +83,11 @@
   "approved": "2026-08-09",
   "excerpt": "This layer does not report its size, so live update cannot f",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "08aba81bce5417e7": {
+  "approved": "2026-09-08",
+  "excerpt": "Type a strands code, such as a|b or ab-|cd.",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "092bd95217c62864": {
   "approved": "2026-08-19",
@@ -148,6 +158,11 @@
   "approved": "2026-08-09",
   "excerpt": "<p>What the plugin adds to a QGIS project is not an image fi",
   "where": "docs/index.html"
+ },
+ "0e1ad27a2193306f": {
+  "approved": "2026-09-08",
+  "excerpt": "{} is not something a strands code may hold.",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "0e2d5b7a40c3998f": {
   "approved": "2026-08-31",
@@ -264,6 +279,11 @@
   "excerpt": "live update paused (about {} tiles); press Generate",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "145c2948494cbcc6": {
+  "approved": "2026-09-08",
+  "excerpt": "Which elements ride in each direction; - leaves a gap.",
+  "where": "weavingspace_qgis/dialog.py"
+ },
  "14661fe1885e377b": {
   "approved": "2026-08-08",
   "excerpt": "How many variables to map is a design question more than a t",
@@ -273,6 +293,11 @@
   "approved": "2026-08-18",
   "excerpt": "Set *Save to GeoPackage* and every element layer is written ",
   "where": "docs/USER-GUIDE.md"
+ },
+ "14f40eca092d601b": {
+  "approved": "2026-09-08",
+  "excerpt": "A {} weave runs strands in two directions, so a third would ",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "159bf633920001de": {
   "approved": "2026-08-09",
@@ -459,6 +484,11 @@
   "excerpt": "Slant the pattern left-right.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "2a66ddbf885349a8": {
+  "approved": "2026-09-08",
+  "excerpt": "A strands code holds no spaces.",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "2b7a450b687ac15a": {
   "approved": "2026-08-31",
   "excerpt": "How many variables to map is a design question as well as a ",
@@ -564,6 +594,11 @@
   "excerpt": "This tiling has not had a topology calculated for it.",
   "where": "weavingspace_qgis/topology_tab.py"
  },
+ "37445386650edcc2": {
+  "approved": "2026-09-08",
+  "excerpt": "Every direction needs at least one strand, and this code lea",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "382b16c6ec6a72ea": {
   "approved": "2026-08-09",
   "excerpt": "'{}' has no values to colour in this layer.",
@@ -629,6 +664,11 @@
   "excerpt": "A map is still being drawn, so the dual will have to wait: p",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "3ca9f2c7734565af": {
+  "approved": "2026-09-08",
+  "excerpt": "A strands code cannot begin or end with a space.",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "3da4643e9a6cffe9": {
   "approved": "2026-08-16",
   "excerpt": "{} of {} areas do not have finite numeric data for '{}'. The",
@@ -668,6 +708,11 @@
   "approved": "2026-08-16",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "4156f695b6ecff38": {
+  "approved": "2026-09-08",
+  "excerpt": "A strands code names two or three directions at most, and th",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "418cedfc7fa3ea45": {
   "approved": "2026-08-27",
@@ -944,6 +989,11 @@
   "excerpt": "Some class style files could not be used (",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "555bb16353eb234b": {
+  "approved": "2026-09-08",
+  "excerpt": "A strands code needs at least two directions, separated by |",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "55c94fd469d6f825": {
   "approved": "2026-08-08",
   "excerpt": "Rotating the pattern usually helps: roughly 15\u201375\u00b0 suits two",
@@ -1003,6 +1053,11 @@
   "approved": "2026-08-27",
   "excerpt": "More than one layer here says it is element {} of this map, ",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "5bcd6ba65e180ef4": {
+  "approved": "2026-09-08",
+  "excerpt": "The *tileable unit* is the small repeating group of shapes s",
+  "where": "docs/USER-GUIDE.md"
  },
  "5bcf447deef804db": {
   "approved": "2026-08-09",
@@ -1519,6 +1574,11 @@
   "excerpt": "'{}' holds {} distinct values. Draw a colour for each?",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "8ab47b301dfaf3e4": {
+  "approved": "2026-09-08",
+  "excerpt": "Strand labels are lower case: an upper case label is read as",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "8ad335e8aa4ad916": {
   "approved": "2026-08-08",
   "excerpt": "Ran out of memory while tiling; a larger spacing will work f",
@@ -1648,6 +1708,11 @@
   "approved": "2026-08-17",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "9649e5a57b639ef5": {
+  "approved": "2026-09-08",
+  "excerpt": "Which weave types lay strands in THREE directions. Everythin",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "965bdd176b70bb1a": {
   "approved": "2026-08-09",
@@ -1788,6 +1853,11 @@
   "approved": "2026-08-08",
   "excerpt": "Tilings and weaves are both available, from the same catalog",
   "where": "README.md"
+ },
+ "a1a015b921012c6e": {
+  "approved": "2026-09-08",
+  "excerpt": "This code names {} elements, and the currently enabled weave",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "a234fd9294edf990": {
   "approved": "2026-08-24",
@@ -2024,6 +2094,11 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "ba68774f62d33224": {
+  "approved": "2026-09-08",
+  "excerpt": "This code is all gaps, so there would be nothing to draw.",
+  "where": "weavingspace_qgis/catalog.py"
+ },
  "bd0f734ef0ff860f": {
   "approved": "2026-09-06",
   "excerpt": "The dual has no further dual to tile with",
@@ -2043,6 +2118,11 @@
   "approved": "2026-09-05",
   "excerpt": "{} on {} could not be applied, because there has been no top",
   "where": "weavingspace_qgis/topology_edits.py"
+ },
+ "be0906f110a945e9": {
+  "approved": "2026-09-08",
+  "excerpt": "How many elements a typed strands code may name. NOT THE LIB",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "be10acf1b6ff8e21": {
   "approved": "2026-09-05",
@@ -2683,6 +2763,11 @@
   "approved": "2026-08-08",
   "excerpt": "<div class=\"obtain\">\n  <p><a href=\"https://github.com/Foldin",
   "where": "docs/index.html"
+ },
+ "f3bac1d43df2f729": {
+  "approved": "2026-09-08",
+  "excerpt": "border: 1px solid #c0392b;",
+  "where": "weavingspace_qgis/dialog.py"
  },
  "f3e4862ff7f0f693": {
   "approved": "2026-09-05",

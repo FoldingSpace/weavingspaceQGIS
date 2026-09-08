@@ -534,8 +534,9 @@ def strands_problem(code: str, weave_type: str = "plain") -> str | None:
   if not labels:
     return "This code is all gaps, so there would be nothing to draw."
   if len(labels) > STRANDS_CEILING:
-    return (f"This code names {len(labels)} elements, and the weave "
-            f"families go up to {STRANDS_CEILING}.")
+    return (f"This code names {len(labels)} elements, and the "
+            f"currently enabled weave families go up to "
+            f"{STRANDS_CEILING}.")
   return None
 
 
