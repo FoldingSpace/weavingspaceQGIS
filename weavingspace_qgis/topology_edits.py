@@ -552,6 +552,45 @@ def scale_edges_vertex_consistent(topology, selector: str, sf: float):
   return _move_edges_vertex_consistent(topology, selector, displacement_of)
 
 
+def move_as_applied(topology, selector, how, ready):
+  """Perform the manipulation a COMMIT would perform, whoever is asking.
+
+  Args:
+    topology: the Topology the edit is aimed with.
+    selector: the class labels, as the library's own selector string.
+    how: the manipulation's key.
+    ready: its arguments ALREADY in map units -- callers holding a
+      record's own fractions pass them through `in_map_units` and
+      `whole_where_needed` first, exactly as `apply` does.
+
+  Returns:
+    Whatever the manipulation returns, which is the same shape
+    `transform_geometry` gives back, so a caller may chain it.
+
+  WHY THIS IS A FUNCTION AND NOT THREE LINES INSIDE `apply`. Rotate and
+  scale are REFORMULATED here to move each shared vertex once rather
+  than each edge about its own midpoint, because the library's per-edge
+  versions tear the tiling (C-341). That reformulation was written into
+  `apply` alone, and it has three callers who must agree with it: the
+  drop, the drag PREVIEW, and `lays_out`, which is the predicate every
+  ceiling is found with. Measured 2026-09-07 on `laves 3.3.4.3.4` class
+  `a`: the per-edge route leaves 1.78% of a fundamental cell open at 15
+  degrees and raises outright at 60, where the committed route is
+  gap-free at both -- so a person dragging a rotate was shown a torn
+  design, told in red that it could not be tiled, and would have been
+  given a perfect tiling had they let go. One owner is the only thing
+  that stops the three drifting apart again; when a reformulation
+  reroutes a library call, its callers are the door list.
+  """
+  if how == "rotate_edge":
+    return rotate_edges_vertex_consistent(
+      topology, selector, ready.get("angle", 0.0))
+  if how == "scale_edge":
+    return scale_edges_vertex_consistent(
+      topology, selector, ready.get("sf", 1.0))
+  return topology.transform_geometry(True, True, selector, how, **ready)
+
+
 def apply(topology, edits):
   """Replay an edit list onto a topology, returning what to draw.
 
@@ -693,14 +732,7 @@ def apply(topology, edits):
       # stays edge-to-edge where the library's per-edge versions tear it
       # (see _move_edges_vertex_consistent). Every other manipulation
       # goes to the library unchanged.
-      if how == "rotate_edge":
-        moved = rotate_edges_vertex_consistent(
-          current, selector, args.get("angle", 0.0))
-      elif how == "scale_edge":
-        moved = scale_edges_vertex_consistent(
-          current, selector, args.get("sf", 1.0))
-      else:
-        moved = current.transform_geometry(True, True, selector, how, **args)
+      moved = move_as_applied(current, selector, how, args)
     except Exception:                                 # noqa: BLE001
       # A MANIPULATION CAN FAIL BY RAISING AS WELL AS BY PRODUCING
       # SOMETHING UNTILEABLE, and the two arrive here separately. The
@@ -1168,7 +1200,7 @@ def lays_out(unit_or_topology, selector, how, args):
   try:
     ready = in_map_units(whole_where_needed(dict(args or {})),
                          current.tileable)
-    moved = current.transform_geometry(True, True, selector, how, **ready)
+    moved = move_as_applied(current, selector, how, ready)
     drawable, _repaired = _make_drawable(moved.tileable)
     return drawable is not None
   except Exception:                                     # noqa: BLE001

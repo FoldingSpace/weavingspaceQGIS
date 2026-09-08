@@ -2720,6 +2720,24 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-preview-takes-the-commits-own-route", file=TOPOLOGY_EDITS,
+       # THE REROUTE ITSELF, broken at its one owner, which is what the
+       # owner exists for: before `move_as_applied` there were three
+       # callers of the library's per-edge move and only `apply` was
+       # guarded, so the drag drew a tear the drop would never make.
+       # Dropping the rotate arm here restores exactly that state for
+       # every caller at once -- the preview, the drop and the ceiling
+       # predicate -- which is what makes ONE entry honest here where
+       # three sites would each have been sufficient to hide it.
+       old="""  if how == "rotate_edge":
+    return rotate_edges_vertex_consistent(
+      topology, selector, ready.get("angle", 0.0))""",
+       new="""  if False:
+    return rotate_edges_vertex_consistent(
+      topology, selector, ready.get("angle", 0.0))""",
+       test="test_the_drag_previews_the_move_the_drop_would_make",
+       why="a rotate drawing the gap-free tiling its drop records, "
+           "rather than a torn one the person eases back off"),
   dict(name="a-release-asset-carries-its-version", file=BUILD,
        # THE NAMING AXIS. Handing back the bare basename is exactly
        # the state every candidate shipped in: the reports went out as

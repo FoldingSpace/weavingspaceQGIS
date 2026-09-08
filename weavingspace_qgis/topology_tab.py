@@ -3504,9 +3504,16 @@ class TopologyPanel(QWidget):
       # `_drag_from` above keeps the FRACTIONS, deliberately: the
       # record is what a person set and what travels to the file, and
       # only the library call is in map units.
-      moved = self._topology.transform_geometry(
-        True, True, data[1], key,
-        **edits_module.in_map_units(
+      # AND THROUGH THE COMMIT'S OWN DOOR, not the library's. Rotate and
+      # scale are reformulated in `move_as_applied` to keep the tiling
+      # edge-to-edge, and calling the library directly here drew a torn
+      # design for a move whose commit is gap-free -- 1.78% of a cell
+      # open at 15 degrees on `laves 3.3.4.3.4`, and a raise at 60 --
+      # so the honest preview honestly reported a tear the drop would
+      # never have made.
+      moved = edits_module.move_as_applied(
+        self._topology, data[1], key,
+        edits_module.in_map_units(
           edits_module.whole_where_needed(args),
           getattr(self._topology, "tileable", None)))
     except Exception:                                 # noqa: BLE001

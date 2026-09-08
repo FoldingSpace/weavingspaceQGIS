@@ -11967,6 +11967,83 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_the_drag_previews_the_move_the_drop_would_make():
+  """What a drag DRAWS is the move its drop would commit, not the library's.
+
+  Rotate and scale are reformulated so that each shared vertex moves
+  once and the tiling stays edge-to-edge; the library's own per-edge
+  versions move each edge about its own midpoint and tear it (C-341).
+  That reformulation had THREE callers who must agree with it -- the
+  drop, the drag preview, and `lays_out`, which is the predicate every
+  ceiling is found with -- and only the drop was routed through it, so
+  the preview drew a torn design and the honest preview dutifully
+  reported a tear the drop would never have made.
+
+  THE PER-EDGE ROUTE IS THE POSITIVE CONTROL, and it is what makes this
+  test able to fail: it must be measurably torn on the same edit, or
+  the design under test cannot exhibit the case and a green here would
+  mean nothing.
+
+  Regression: a rotate drag drew red-and-dotted "this cannot be laid out as a tiling" over a move whose commit was gap-free, so a person eased back off an edit the plugin would have accepted in full. [round nine, hunt spec]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+  unit = catalog.make_unit(spec, spacing=1000, crs=3857)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: no topology -- {why}"
+  label = topology_edits.classes(topology).get("edge", "")[:1]
+  assert label, "PREMISE: this design has no edge class to move"
+
+  def torn(a_unit):
+    """(gap, overlap) of one fundamental cell, as fractions."""
+    gap, overlap, _missing = topology_edits.plane_coverage(a_unit)
+    return gap, overlap
+
+  for how, args in (("rotate_edge", {"angle": 15}),
+                    ("scale_edge", {"sf": 1.5})):
+    ready = topology_edits.in_map_units(
+      topology_edits.whole_where_needed(dict(args)), topology.tileable)
+
+    # THE CONTROL, run first: the library's per-edge move on this very
+    # edit. It either raises or leaves the cell measurably short, and
+    # either way it proves the two routes CAN disagree here.
+    per_edge_tore = False
+    try:
+      by_edge = topology.transform_geometry(True, True, label, how, **ready)
+      drawn, _repaired = topology_edits._make_drawable(by_edge.tileable)
+      if drawn is None:
+        per_edge_tore = True
+      else:
+        gap, overlap = torn(drawn)
+        per_edge_tore = (gap + overlap) > 1e-3
+    except Exception:                                   # noqa: BLE001
+      per_edge_tore = True
+    assert per_edge_tore, (
+      f"PREMISE: the per-edge {how} lays out cleanly on this design, so "
+      "this fixture cannot show the preview and the drop disagreeing")
+
+    # WHAT THE DRAG DRAWS, through the one owner both doors now use.
+    previewed = topology_edits.move_as_applied(topology, label, how, ready)
+    drawable, _repaired = topology_edits._make_drawable(previewed.tileable)
+    assert drawable is not None, (
+      f"the drag could not draw a {how} whose commit is accepted")
+    seen_gap, seen_overlap = torn(drawable)
+    assert seen_gap + seen_overlap < 1e-6, (
+      f"the drag drew a torn {how}: gap {seen_gap:.6f}, "
+      f"overlap {seen_overlap:.6f} of a fundamental cell")
+
+    # AND WHAT THE DROP RECORDS, which must be the same ground.
+    committed, refusals, _marks = topology_edits.apply(
+      topology, [{"classes": label, "how": how, "args": dict(args)}])
+    assert not refusals, f"{how} was refused at the drop: {refusals}"
+    kept_gap, kept_overlap = torn(committed)
+    assert abs(kept_gap - seen_gap) < 1e-6 \
+        and abs(kept_overlap - seen_overlap) < 1e-6, (
+      f"{how}: the drag drew gap {seen_gap:.6f}/overlap {seen_overlap:.6f} "
+      f"and the drop recorded gap {kept_gap:.6f}/overlap {kept_overlap:.6f}")
+
+
 def test_a_zigzag_too_deep_is_clamped_rather_than_dropped():
   """An over-deep zigzag is drawn at the largest amplitude that fits.
 
@@ -91297,6 +91374,8 @@ def main():
         test_the_preview_says_which_of_three_states_a_drag_is_in)
   check("a zigzag too deep is clamped rather than dropped",
         test_a_zigzag_too_deep_is_clamped_rather_than_dropped)
+  check("the drag previews the move the drop would make",
+        test_the_drag_previews_the_move_the_drop_would_make)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
