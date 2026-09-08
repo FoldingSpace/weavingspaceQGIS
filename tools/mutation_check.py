@@ -2720,21 +2720,34 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
-  dict(name="the-preview-takes-the-commits-own-route", file=TOPOLOGY_EDITS,
-       # THE REROUTE ITSELF, broken at its one owner, which is what the
-       # owner exists for: before `move_as_applied` there were three
-       # callers of the library's per-edge move and only `apply` was
-       # guarded, so the drag drew a tear the drop would never make.
-       # Dropping the rotate arm here restores exactly that state for
-       # every caller at once -- the preview, the drop and the ceiling
-       # predicate -- which is what makes ONE entry honest here where
-       # three sites would each have been sufficient to hide it.
-       old="""  if how == "rotate_edge":
-    return rotate_edges_vertex_consistent(
-      topology, selector, ready.get("angle", 0.0))""",
-       new="""  if False:
-    return rotate_edges_vertex_consistent(
-      topology, selector, ready.get("angle", 0.0))""",
+  dict(name="the-hatch-block-stays-inside-the-patch", file=TOPOLOGY_EDITS,
+       # THE TEST HAD NO ENTRY AT ALL until 2026-09-07, which is how
+       # the fault below shipped: the block of cells is laid on the two
+       # shortest lattice vectors and the patch is not that shape, so
+       # at r=2 the corners hung outside the tiles on every hex-keyed
+       # family and were hatched as damage -- 144,337 units of "tear"
+       # on a `hex-slice 3` whose coverage gap is exactly 0. Putting
+       # the radius back is the defect exactly as it was.
+       old="""    patch = unit.get_local_patch(r=3, include_0=True)""",
+       new="""    patch = unit.get_local_patch(r=2, include_0=True)""",
+       test="test_the_hatch_shows_the_tear_and_not_the_edge_of_the_drawing",
+       why="a sound hex design drawing no red hatching, rather than "
+           "being marked broken at two corners of the block"),
+  dict(name="the-preview-takes-the-commits-own-route", file=TOPOLOGY_TAB,
+       # THE ROUTING AXIS, which is a different claim from whether the
+       # reformulation is correct: `rotate-stays-a-tiling` breaks the
+       # dispatch itself, and this breaks the PREVIEW's use of it. The
+       # two came apart in exactly that way -- the reformulation was
+       # right and one of its three callers went round it -- so an
+       # entry over the dispatch alone would have gone on passing
+       # while the drag drew a tear the drop would never make. The
+       # replacement is the code as it stood before a2f719a.
+       old="""      moved = edits_module.move_as_applied(
+        self._topology, data[1], key,
+        edits_module.in_map_units(""",
+       new="""      moved = self._topology.transform_geometry(
+        True, True, data[1], key,
+        **edits_module.in_map_units(""",
        test="test_the_drag_previews_the_move_the_drop_would_make",
        why="a rotate drawing the gap-free tiling its drop records, "
            "rather than a torn one the person eases back off"),
@@ -2786,19 +2799,24 @@ MUTATIONS = [
        # the reformulation's whole promise -- that a rotate keeps a
        # topology -- fails. See docs/process/rotating-and-scaling-an-
        # edge-without-tearing-the-tiling.md.
-       old="""      if how == "rotate_edge":
-        moved = rotate_edges_vertex_consistent(""",
-       new="""      if False:
-        moved = rotate_edges_vertex_consistent(""",
+       # RE-ANCHORED 2026-09-07 when the reformulation gained its one
+       # owner, `move_as_applied`: the dispatch moved out of `apply`
+       # and this entry stood on the lines it left behind, so it
+       # mutated nothing and reported nothing (C-288).
+       old="""  if how == "rotate_edge":
+    return rotate_edges_vertex_consistent(""",
+       new="""  if False:
+    return rotate_edges_vertex_consistent(""",
        test="test_a_vertex_consistent_rotate_and_scale_keep_the_tiling",
        why="a rotate that leaves a tiling rather than a torn design"),
   dict(name="scale-stays-a-tiling", file=TOPOLOGY_EDITS,
        # The scale twin of the entry above: disabling its reroute sends
        # scale to the library's per-edge move, which tears.
-       old="""      elif how == "scale_edge":
-        moved = scale_edges_vertex_consistent(""",
-       new="""      elif False:
-        moved = scale_edges_vertex_consistent(""",
+       # Re-anchored with its twin above, for the same reason.
+       old="""  if how == "scale_edge":
+    return scale_edges_vertex_consistent(""",
+       new="""  if False:
+    return scale_edges_vertex_consistent(""",
        test="test_a_vertex_consistent_rotate_and_scale_keep_the_tiling",
        why="a scale that leaves a tiling rather than a torn design"),
   dict(name="the-symmetric-no-op-names-the-symmetry", file=TOPOLOGY_EDITS,
@@ -3160,10 +3178,13 @@ MUTATIONS = [
        # tenth of the unit, 70.71 map units committed against 0.10
        # previewed, which is the span. Putting the old call back is
        # the defect exactly as it shipped.
-       old="""        **edits_module.in_map_units(
+       # Re-anchored 2026-09-07: the preview now hands its arguments to
+       # `move_as_applied` rather than splatting them into the library,
+       # so the conversion sits one line further in.
+       old="""        edits_module.in_map_units(
           edits_module.whole_where_needed(args),
           getattr(self._topology, "tileable", None)))""",
-       new="""        **edits_module.whole_where_needed(args))""",
+       new="""        edits_module.whole_where_needed(args))""",
        test="test_a_drag_previews_the_move_it_will_commit",
        why="seeing the move you are making while you make it, rather "
            "than a still picture and then a jump when you let go"),
@@ -9927,8 +9948,11 @@ MUTATIONS = [
        # accepts, so a name it does not know is DROPPED rather than
        # refused, and the unchanged unit draws perfectly -- reading
        # exactly like a manipulation that worked.
-       old="""      moved = current.transform_geometry(True, True, selector, how, **args)""",
-       new="""      moved = current.transform_geometry(True, True, selector, how)""",
+       # Re-anchored 2026-09-07: the library call moved into
+       # `move_as_applied`, where it is now the fall-through every
+       # manipulation but rotate and scale takes.
+       old="""  return topology.transform_geometry(True, True, selector, how, **ready)""",
+       new="""  return topology.transform_geometry(True, True, selector, how)""",
        test="test_the_symmetries_are_drawn_and_gate_what_cannot_move",
        why="every manipulation silently doing nothing, while the "
            "symmetry gate goes on agreeing with it -- because the "

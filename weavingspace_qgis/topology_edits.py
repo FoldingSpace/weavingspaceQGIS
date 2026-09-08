@@ -1022,7 +1022,7 @@ def tears_in_the_patch(unit, across=3):
   Args:
     unit: a Tileable, usually one an edit has just produced.
     across: how many fundamental cells wide the block is. Three gives
-      nine cells, which sits comfortably inside the patch `r=2` lays.
+      nine cells, and the patch is laid at `r=3` to hold them.
 
   Returns:
     A geometry of the ground the tiles fail to cover across that
@@ -1063,7 +1063,7 @@ def tears_in_the_patch(unit, across=3):
         break
     if second is None:
       return None
-    patch = unit.get_local_patch(r=2, include_0=True)
+    patch = unit.get_local_patch(r=3, include_0=True)
     covered = shapely.union_all(list(patch.geometry))
     centre = covered.centroid
     half = across // 2

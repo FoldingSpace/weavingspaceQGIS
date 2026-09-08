@@ -11829,13 +11829,30 @@ def test_the_hatch_shows_the_tear_and_not_the_edge_of_the_drawing():
 
   # A SOUND DESIGN HATCHES NOTHING, which is the half that catches a
   # measure fooled by the patch's own ragged edge.
-  sound = topology_edits.tears_in_the_patch(unit)
-  sound_area = 0.0 if sound is None or sound.is_empty else sound.area
-  cell = float(unit.prototile.geometry.iloc[0].area)
-  assert sound_area <= cell * topology_edits.GAP_TOLERANCE * 10, \
-    f"an untouched design must have no tear to hatch, got " \
-    f"{sound_area:,.0f} against a cell of {cell:,.0f} -- the border " \
-    f"is being counted as damage"
+  # AND IT IS ASKED OF A HEX-KEYED LATTICE TOO, which is the fixture
+  # dimension this guard was missing: the block of cells is a
+  # PARALLELOGRAM laid on the two shortest lattice vectors, and the
+  # patch is not that shape, so on a non-orthogonal lattice the
+  # block's corners hung outside the tiles altogether and were counted
+  # as damage. Measured 2026-09-07 at r=2: `hex-slice 3` and
+  # `hex-slice 6` each reported 144,337 units of tear against a cell
+  # of 866,025, on designs whose coverage gap is exactly 0. Laves
+  # alone could never show it.
+  for family, count in (("laves 3.3.4.3.4", 4), ("hex-slice 3", 3)):
+    sound_unit = catalog.make_unit(
+      catalog.TILINGS_BY_N[count][family], spacing=1000, crs=3857)
+    gap, _overlap, _missing = topology_edits.plane_coverage(sound_unit)
+    assert gap < topology_edits.GAP_TOLERANCE, \
+      f"PREMISE: untouched {family} does not tile cleanly, so it " \
+      f"cannot show a false tear (gap {gap})"
+    sound = topology_edits.tears_in_the_patch(sound_unit)
+    sound_area = 0.0 if sound is None or sound.is_empty else sound.area
+    cell = float(sound_unit.prototile.geometry.iloc[0].area)
+    assert sound_area <= cell * topology_edits.GAP_TOLERANCE * 10, \
+      f"an untouched {family} must have no tear to hatch, got " \
+      f"{sound_area:,.0f} against a cell of {cell:,.0f} -- the block " \
+      f"is reaching outside the patch, or the border is being " \
+      f"counted as damage"
 
   # A TORN ONE HATCHES MORE THAN ONE CELL'S WORTH.
   label = topology_edits.classes(topology).get("edge", "")[:1]
@@ -11984,7 +12001,7 @@ def test_the_drag_previews_the_move_the_drop_would_make():
   the design under test cannot exhibit the case and a green here would
   mean nothing.
 
-  Regression: a rotate drag drew red-and-dotted "this cannot be laid out as a tiling" over a move whose commit was gap-free, so a person eased back off an edit the plugin would have accepted in full. [round nine, hunt spec]
+  Regression: a rotate drag drew red-and-dotted "this cannot be laid out as a tiling" over a move whose commit was gap-free, so a person eased back off an edit the plugin would have accepted in full. [hunt]
   """
   from weavingspace_qgis import catalog, topology_edits
 
@@ -12042,6 +12059,34 @@ def test_the_drag_previews_the_move_the_drop_would_make():
         and abs(kept_overlap - seen_overlap) < 1e-6, (
       f"{how}: the drag drew gap {seen_gap:.6f}/overlap {seen_overlap:.6f} "
       f"and the drop recorded gap {kept_gap:.6f}/overlap {kept_overlap:.6f}")
+
+  # AND THE DRAG ACTUALLY GOES THROUGH THAT OWNER, which is a separate
+  # claim and the one the defect was: `move_as_applied` can be
+  # perfectly correct and called by nobody, which is exactly the state
+  # the reformulation was already in -- right in `apply`, bypassed by
+  # the preview. Asked of the source, because the alternative is
+  # driving a real pointer through a widget to prove which function a
+  # line calls.
+  import ast as _ast
+  import inspect
+  from weavingspace_qgis import topology_tab
+  source = inspect.getsource(topology_tab)
+  tree = _ast.parse(source)
+  dragging = next(
+    (node for node in _ast.walk(tree)
+     if isinstance(node, _ast.FunctionDef) and node.name == "_on_dragging"),
+    None)
+  assert dragging is not None, \
+    "PREMISE: the tab has no _on_dragging, so this cannot ask what it calls"
+  called = {
+    node.func.attr for node in _ast.walk(dragging)
+    if isinstance(node, _ast.Call) and isinstance(node.func, _ast.Attribute)}
+  assert "move_as_applied" in called, (
+    "the drag preview does not go through the move a commit makes, so it "
+    "can draw a design the drop would never record")
+  assert "transform_geometry" not in called, (
+    "the drag preview calls the library's per-edge move directly, which "
+    "is the route that tears rotate and scale")
 
 
 def test_a_zigzag_too_deep_is_clamped_rather_than_dropped():
