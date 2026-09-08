@@ -2190,6 +2190,12 @@ class TopologyPanel(QWidget):
     # A BUILD THAT LANDS WHILE THE POINTER IS DOWN, held until the drop.
     # See `set_unit`, which is where the reasoning lives.
     self._landing_held = None
+    # AND THE SENTENCE THAT CAME WITH IT. A landing arrives as three
+    # calls -- `set_unit`, `set_marks`, `report` -- and only the FIRST
+    # is held while a gesture is in progress, so a refusal was written
+    # into the note and then wiped by the held `set_unit` replaying at
+    # the drop. Held here and said with the landing it belongs to.
+    self._refusals_held = None
     layout = QHBoxLayout(self)
 
     self.view = TopologyView()
@@ -3726,10 +3732,20 @@ class TopologyPanel(QWidget):
       is no second landing coming, so this is the one that draws it.
     """
     held = self._landing_held
+    said, self._refusals_held = self._refusals_held, None
     self._landing_held = None
     if held is None or len(self._edits) != edits_before:
+      # THE SENTENCE GOES WITH THE LANDING IT CAME WITH. Where the
+      # gesture committed an edit the held landing is discarded and a
+      # fresh one is already coming with its own refusals, so keeping
+      # these would put the previous design's sentence over the new
+      # one's.
       return
     self.set_unit(*held)
+    # AND IT IS SAID AFTER `set_unit`, which clears the note: the
+    # order the call site uses, restored at the moment the landing
+    # actually arrives on screen.
+    self._say_what_could_not_be_drawn(said)
 
   def _commit_the_drag(self):
     """End the gesture, and take down the state it was drawn in.
@@ -4084,6 +4100,31 @@ class TopologyPanel(QWidget):
     earlier, so a person met a blank tab. `set_unit` already clears
     the note wherever a topology arrives, so there is nothing for an
     empty report to clear; it only ever had something to ADD.
+
+    AND A GESTURE HOLDS THIS ALONGSIDE THE LANDING IT BELONGS TO.
+    (2026-09-07.) The reasoning above depends on an ORDER -- `set_unit`
+    first, this immediately afterwards -- and a landing arriving under
+    a pointer INVERTS it: `set_unit` returns early and is replayed at
+    the drop, where it clears the note this had already written. So
+    somebody who happened to be holding a handle when the build landed
+    was never told why their replayed edit could not move what it
+    named. Held here and said by `_settle_a_landing_the_drag_held`,
+    which is the one place that knows the landing has arrived.
+    """
+    if self.view.gesture_in_progress():
+      self._refusals_held = list(refusals or [])
+      return
+    self._say_what_could_not_be_drawn(refusals)
+
+  def _say_what_could_not_be_drawn(self, refusals):
+    """Put the replay's refusals into the note, where there are any.
+
+    Args:
+      refusals: sentences from the replay, or an empty list.
+
+    Returns:
+      None; an empty list writes nothing, for the reason `report`
+      gives above.
     """
     if refusals:
       self.note.setText(" ".join(refusals))

@@ -2720,6 +2720,21 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="a-held-landing-keeps-its-sentence", file=TOPOLOGY_TAB,
+       # Saying it at once is the state the code shipped in: the note
+       # then carries the sentence for as long as the gesture lasts and
+       # the held `set_unit`, replaying at the drop, wipes it. The
+       # design is unchanged in every other respect, which is what
+       # makes this the defect rather than a broken function.
+       old="""    if self.view.gesture_in_progress():
+      self._refusals_held = list(refusals or [])
+      return
+    self._say_what_could_not_be_drawn(refusals)""",
+       new="""    self._say_what_could_not_be_drawn(refusals)""",
+       test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
+       why="being told why a replayed edit could not move what it "
+           "named, even when the build happened to land while you "
+           "were holding a handle"),
   dict(name="an-undone-change-takes-its-mark-with-it", file=TOPOLOGY_TAB,
        # ANCHORED ON THE BODY rather than on either call site, because
        # Undo and Clear are two doors into the same room and an entry

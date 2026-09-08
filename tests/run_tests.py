@@ -7088,7 +7088,17 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
       "PREMISE: a press that has not travelled recorded no drag at "
       "all, so this arm is not holding a live gesture")
     quiet_before = len(panel.edits())
+    # DELIVERED AS THE LANDING DELIVERS IT, which is three calls and
+    # not one: `set_unit`, then `set_marks`, then `report`. Only the
+    # FIRST is held while a pointer is down, so the sentence the third
+    # writes was wiped by the first replaying at the drop -- and a
+    # replay's refusal is the only witness that an edit could not move
+    # what it named, the mark reading sound and the row reading clean.
+    told = "Zigzag edge on 'a' was made when this design's edge " \
+           "classes were abcd; they are ab now."
     panel.set_unit(other_unit, other_topology, ghost=None)
+    panel.set_marks([])
+    panel.report([told])
     _tick(50)
     assert panel._topology is landed, (
       "the landing was applied under the pointer even on a gesture "
@@ -7103,6 +7113,11 @@ def test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture():
       "a build that landed during a gesture which committed nothing "
       "was never applied, so the tab goes on drawing a design the "
       "plugin has already replaced")
+    assert told in panel.note.text(), (
+      "the landing's own sentence was lost at the drop: the note "
+      f"reads {panel.note.text()!r}, and the replay's refusal is the "
+      "only place a person is told an edit could not move what it "
+      "named")
   finally:
     dlg.close()
     dlg.deleteLater()
