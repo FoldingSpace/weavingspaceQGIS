@@ -12171,6 +12171,31 @@ def test_a_push_moves_the_ground_as_far_as_the_pointer_went():
     "the frozen gain outlived the gesture, so a later push divides by a "
     "number measured for an earlier one")
 
+  # AND IT IS MEASURED ON THE DESIGN, NOT ON WHAT IS DRAWN, which is
+  # the half a first repair got wrong: freezing the value is no use
+  # while the store it is frozen FROM is the preview. The drop keeps a
+  # preview after a drag that recorded an edit, since the rebuild is
+  # asynchronous, so a second press inside that window took its
+  # divisor from the previous drag's preview and the ground ran 1.93
+  # times ahead of the pointer.
+  view._press = None
+  view._push_gain_now = topology_tab.TopologyView._push_gain_now.__get__(view)
+  view._topology = topology
+  view._preview = None
+  base = view.push_gain()
+  assert base is not None and abs(base - gain) < 1e-9, (
+    f"the gain off the held design is {base}, not the library's {gain:.4f}")
+  after_an_edit = topology_edits.move_as_applied(
+    topology, label, "push_vertex",
+    topology_edits.in_map_units(
+      topology_edits.whole_where_needed({"push_d": 0.2}), topology.tileable))
+  view._preview = after_an_edit
+  assert abs(view.push_gain() - base) < 1e-9, (
+    f"a preview left over from an earlier drag moved the gain to "
+    f"{view.push_gain():.4f} from {base:.4f}, so the next press divides "
+    "by a number measured on a design nobody is editing")
+  view._preview = None
+
   # AND THE PRESS FILLS IT, since a freeze nothing writes falls
   # through to the live reading and this whole arm would be vacuous.
   pressing = next(

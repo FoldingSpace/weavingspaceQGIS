@@ -2066,16 +2066,32 @@ class TopologyView(QWidget):
     return self._push_gain_now()
 
   def _push_gain_now(self):
-    """Measure the push's gain against the geometry drawn right now.
+    """Measure the push's gain against the design an edit is aimed at.
 
     Returns:
-      What `push_gain` describes, taken live. Called by `push_gain`
-      when no gesture is in progress, and once at the press to fill
-      the value a gesture holds.
+      What `push_gain` describes, taken from the held topology.
+      Called by `push_gain` when no gesture is in progress, and once
+      at the press to fill the value a gesture holds.
+
+    ASKED OF `_topology` AND NEVER OF `_drawn()`, which is the half a
+    first repair got wrong: freezing the VALUE at the press is no use
+    while the STORE it is frozen from is the preview. The drop
+    deliberately KEEPS a preview after a drag that recorded an edit --
+    the rebuild is asynchronous and costs 0.75 to 19 seconds -- so a
+    second press inside that window froze its divisor against the
+    PREVIOUS drag's preview and the ground then ran 1.93 times ahead
+    of the pointer (measured 2026-09-07 on `archimedean 4.8.8`, two
+    40px rail drags with no landing between them; with a landing
+    between, 1.0000 both times).
+
+    `_on_dragging` builds every frame from `self._topology`, so this
+    is also the store the gesture is actually aimed at -- and it is
+    what the twin does: `_press_edge` freezes `_edge_frame` of the
+    chosen thing, the base object's geometry, never what is drawn.
     """
     if self._chosen[0] != "vertex" or self._chosen_thing is None:
       return None
-    topology = self._drawn()
+    topology = self._topology
     if topology is None:
       return None
     try:

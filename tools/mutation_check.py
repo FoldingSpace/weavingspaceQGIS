@@ -2720,6 +2720,24 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-push-gain-comes-off-the-held-design", file=TOPOLOGY_TAB,
+       # THE STORE, which is a different claim from the freeze beside
+       # it: freezing the value at the press is no use while the value
+       # is frozen FROM the preview a previous drag left standing.
+       old="""    topology = self._topology
+    if topology is None:
+      return None
+    try:
+      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)""",
+       new="""    topology = self._drawn()
+    if topology is None:
+      return None
+    try:
+      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)""",
+       test="test_a_push_moves_the_ground_as_far_as_the_pointer_went",
+       why="your second push drag behaving like your first, rather "
+           "than dividing by a number measured on the preview the "
+           "last one left on screen"),
   dict(name="the-push-gain-is-frozen-at-the-press", file=TOPOLOGY_TAB,
        # Reading it live is the state the rail was in for an hour
        # after it gained a divisor: `_drawn()` is the drag's own
