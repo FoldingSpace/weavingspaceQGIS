@@ -305,6 +305,46 @@ vertex, and nothing here has that yet. And a crossing has an over and
 an under, which is the distinction a weave exists to make and which the
 relation ought to record; adjacency as measured is blind to it.
 
+## The over and under, which the geometry will not give up
+
+A relation that says two strands meet, without saying which passes
+over, has dropped the thing a weave is for. So we tried to read the
+over and under off the shapes, three ways, and none of them works.
+
+The first asked for direct contact, on the reading that the under
+strand is cut flush against the over strand's edge. It is not: a plain
+weave has no contacts at all between its thin pieces, at any aspect,
+the cut being set back across the daylight, and the two a twill shows
+come and go as the strand width changes. A relation that appears and
+disappears with a measurement is not a relation of the design.
+
+The second asked whose claimed ground reaches the other strand's own
+edge, on the reading that the over strand covers the crossing at full
+width and is therefore handed that ground by the replacement
+attribution. It classifies two parallel strands as passing over one
+another, leaves four relations of five unclassified, and stops being
+invariant.
+
+The third asked whether a strand meets its neighbour end-on or side-on,
+which does not require them to touch. Every relation lands in the
+ambiguous band: five of five unclassified on a plain weave, at every
+aspect.
+
+What that settles is not that the over and under are unavailable but
+that the rendered geometry is the wrong place to look. Which strand is
+cut at a crossing is decided by the strands code and the over-under
+pattern before any polygon exists, and the library differences the
+pieces accordingly; measuring the output to recover the rule is
+reverse-engineering something already in hand, and three attempts is a
+fair price to have paid for learning it.
+
+The parallel with a tiling is closer than it first appears, and it
+points the same way. The library does not measure pictures to find a
+tiling's classes either: it derives them from the design's own
+symmetries. A weave's combinatorics should likewise come from its
+specification, and the geometry should be asked only what geometry is
+good for, which is which strands are adjacent and where.
+
 ## The dropped strand, which is the one real gap
 
 The distinction the whole exercise turns on is between a gap that means
@@ -375,31 +415,55 @@ treat a class as a label rather than as a character.
 
 ## Where we have got to, and what is open
 
-Filling the daylight is what the plugin uses today and there is no
-argument for abandoning it: it is the only route that gives a thin
-weave a structure at all while leaving the weave alone. What we would
-not do is present its classes as the structure of the weave.
+Filling the daylight is what the plugin uses today, and there is no
+argument here for abandoning it: it is the only route that gives a thin
+weave a structure at all while leaving the weave alone, and it closes
+the round trip on sixty-five of seventy-seven. What we would not do is
+present its classes as the structure of the weave.
 
-If the question is what a weave's structure *is*, the answer we would
-now pursue is ownership over a typed cut: divide the daylight by what
-each piece is for, absorb the part that only strand width opened into
-the strand that opened it, and let a dropped strand be the one hole
-that survives. On a plain weave that gives a small structure which does
-not move with the aspect, which is what one wants from an invariant.
+If the question is what a weave's structure *is*, this is where we have
+arrived. Cut the daylight canonically, by what each piece is for.
+Attribute the incidental part to the strand it replaces, computed
+against the same weave built just under solid, so no distance is
+measured and no tie broken by order. Absorb it, so a gap that only
+strand width opened cannot license a connection, and let the band a
+dropped strand left be the one hole that survives. Then read the
+relations between strands rather than the edges of the absorbed
+polygons, because a tiling's edge classes are relations between tiles,
+and that is the object a weave should be compared with.
 
-Three things are genuinely open. The attribution of aspect daylight is
-currently by proximity, and it should probably be by the grid's own
-cells, since what a piece of ground is for is decided by which strand
-slot it lies in rather than by which strand it happens to be nearest;
-that is likely also why a twill absorbs cleanly and then fails to
-build, which we have not yet diagnosed. The structures we have compared
-are coarse, being counts of classes and of adjacent pairs, and a real
-comparison wants the incidence itself, with the cyclic order at a
-vertex. And behind all of it sits the observation that a strand is more
-naturally a path than a row of tiles: were the grid a weave rides on to
-carry the undulation, the strand would keep its width, nothing would
-need filling or absorbing at any aspect, and none of the choices above
-would have to be made. That is upstream's territory as much as ours,
-and the two are not rivals, since a structure of the kind sketched here
-would say what a weave's combinatorics is whoever computes the
-geometry.
+That much behaves. The relations are few, they are the size a tiling's
+classes are, they do not move as the strand width varies, they keep a
+pair of strands running alongside one another, and they refuse to join
+two strands diagonally across a hole without needing a rule that says
+so. The absorbed outlines are scaffolding in the same sense the filler
+tiles were: erected to compute with, and taken down before anything is
+written down.
+
+What is not yet built is the half that would make it a structure rather
+than a promising set of counts, and it divides into three.
+
+The relations need to carry the over and under, and that must come from
+the specification rather than from the shapes, for the reason the
+section above gives. This is the piece we would build next, and it is
+the one that decides whether any of this describes a weave or merely a
+grid.
+
+The relations need an incidence and a cyclic order. A tiling's classes
+come with both, an edit is aimed at them, and nothing here has them:
+what we have is which strands are related and in what way, reported by
+element letter, so it undercounts and cannot yet say which of two `a`
+strands is meant.
+
+And a weave's daylight is not always tidy. At an aspect of 0.25 a piece
+or two goes unattributed on the twills, and the absorbed twill tiles
+exactly and then meets a count mismatch inside the library's own
+bookkeeping. Neither looks fundamental; both are unfinished.
+
+Behind all of it sits the observation that a strand is more naturally a
+path than a row of tiles. Were the grid a weave rides on to carry the
+undulation, the strand would keep its width, nothing would need filling
+or absorbing at any aspect, and most of the choices in this note would
+not have to be made. That is upstream's territory as much as ours, and
+the two are not rivals: a structure of the kind sketched here would say
+what a weave's combinatorics is whoever computes the geometry.
