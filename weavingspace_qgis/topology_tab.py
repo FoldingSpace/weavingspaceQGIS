@@ -3823,7 +3823,7 @@ class TopologyPanel(QWidget):
       return
     # THIS FRAME LAID OUT, so it becomes the value a later frame
     # holds at if the pointer goes further than the design allows.
-    self._drag_last_good = dict(args)
+    self._this_frame_laid_out(args)
     self.view.show_preview(moved)
     # AND THE NUMBER BOXES FOLLOW, so a drag is a way of typing rather
     # than a second, separate control: drag roughly, then read what it
@@ -4063,6 +4063,33 @@ class TopologyPanel(QWidget):
     args = self._refined_towards_what_was_asked(key, data[1], args,
                                                 self._drag_reached)
     self._record({"classes": data[1], "how": key, "args": args})
+
+  def _this_frame_laid_out(self, args):
+    """Keep a frame that laid out, and forget anything held before it.
+
+    Args:
+      args: the values this frame previewed, which laid out.
+
+    Returns:
+      None; `_drag_last_good` becomes these values and
+      `_drag_reached` is dropped.
+
+    WHY THE FORGETTING IS THE POINT. `_drag_reached` is what the
+    pointer had asked for at the moment the value stopped following
+    it, and the drop refines from the held value toward it. Its reason
+    expires the instant a later frame lays out: somebody who drags too
+    far, meets the refusal, eases back inside and lets go is no longer
+    holding anything. Left standing, it made the drop bisect toward a
+    value abandoned mid-gesture -- measured 2026-09-07 on `archimedean
+    4.8.8`: a gesture ending on 0.100, with the box, the preview and
+    the status all agreeing, recorded 0.350, and the record is what
+    travels to the file and replays.
+
+    So the two are written at ONE site, since a pair whose members are
+    set in different places is a pair that comes apart.
+    """
+    self._drag_last_good = dict(args)
+    self._drag_reached = None
 
   def _refined_towards_what_was_asked(self, key, labels, good, asked,
                                       steps=_REFINING_STEPS):

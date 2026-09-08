@@ -12046,6 +12046,25 @@ def test_the_drop_closes_the_gap_a_frame_of_travel_left():
   panel = TopologyPanel(None)
   try:
     panel._topology = topology
+
+    # A FRAME THAT LAYS OUT FORGETS WHAT WAS HELD BEFORE IT, which is
+    # the half that decides whether the refinement is safe at all.
+    # `_drag_reached` is what the pointer asked for when the value
+    # stopped following it, and its reason expires the moment a later
+    # frame lays out: somebody who overshoots, meets the refusal,
+    # eases back inside and lets go is holding nothing. Left standing
+    # it made the drop bisect toward a value abandoned mid-gesture --
+    # a gesture ending on 0.100 recorded 0.350, with the box, the
+    # preview and the status all agreeing on 0.100.
+    panel._drag_last_good = dict(held)
+    panel._drag_reached = dict(asked)
+    panel._this_frame_laid_out({"n": 2, "h": ceiling * 0.5, "smoothness": 3})
+    assert panel._drag_reached is None, (
+      "a frame that laid out left an abandoned value standing, so the "
+      "drop will refine toward something the person moved away from")
+    assert panel._drag_last_good["h"] == ceiling * 0.5, (
+      "the frame that laid out was not kept as the value to hold at")
+
     refined = panel._refined_towards_what_was_asked(
       "zigzag_edge", label, held, asked)
     assert refined["h"] > held["h"], (
@@ -12059,6 +12078,24 @@ def test_the_drop_closes_the_gap_a_frame_of_travel_left():
     assert refined["n"] == held["n"] \
         and refined["smoothness"] == held["smoothness"], (
       f"the refinement moved a discrete argument: {refined}")
+    # AND THE DRAG USES THAT OWNER, since a clearing nobody calls is
+    # the state this was in: the success path assigned the held value
+    # directly and the pair came apart there.
+    import ast as _ast
+    import inspect
+    from weavingspace_qgis import topology_tab
+    tree = _ast.parse(inspect.getsource(topology_tab))
+    dragging = next(
+      (node for node in _ast.walk(tree)
+       if isinstance(node, _ast.FunctionDef)
+       and node.name == "_on_dragging"), None)
+    assert dragging is not None, "PREMISE: the tab has no _on_dragging"
+    called = {node.func.attr for node in _ast.walk(dragging)
+              if isinstance(node, _ast.Call)
+              and isinstance(node.func, _ast.Attribute)}
+    assert "_this_frame_laid_out" in called, (
+      "the drag does not record a good frame through the one place "
+      "that also forgets what was held before it")
   finally:
     panel.deleteLater()
 

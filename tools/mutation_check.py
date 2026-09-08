@@ -2762,6 +2762,19 @@ MUTATIONS = [
        test="test_a_change_never_wears_the_verdict_of_the_one_it_replaced",
        why="a design you switch to being judged on its own edits, not "
            "on the verdicts of the design you left"),
+  dict(name="a-frame-that-lays-out-forgets-what-was-held",
+       file=TOPOLOGY_TAB,
+       # THE FORGETTING, which is a different claim from the refining
+       # beside it and is what makes the refining safe: an abandoned
+       # value left standing is a target the drop bisects toward after
+       # the person has moved away from it.
+       old="""    self._drag_last_good = dict(args)
+    self._drag_reached = None""",
+       new="""    self._drag_last_good = dict(args)""",
+       test="test_the_drop_closes_the_gap_a_frame_of_travel_left",
+       why="easing back inside the limit and letting go recording the "
+           "move you released at, not the one you had already moved "
+           "away from"),
   dict(name="the-drop-closes-what-a-frame-left", file=TOPOLOGY_TAB,
        # Spending no probes is the state the drop shipped in: the
        # record then holds whatever the last frame of pointer travel
