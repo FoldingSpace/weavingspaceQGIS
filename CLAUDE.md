@@ -1996,6 +1996,40 @@ Confirmed with the user via an explicit design review:
   the library's parameter, as the Amplitude box shows the crest and
   holds `h`. A gain factor nobody can see is what this tab rejected
   twice already. (C-344.)
+- **TOPOLOGY EDITS SURVIVE AN INSET: THREE RULINGS OF 2026-09-08, NOT
+  YET BUILT.** (Settled by grilling, each measurement taken before its
+  question was asked.) The insets are the LAST two steps of
+  `_build_unit`'s chain and every step before them preserves the
+  tiling, so an inset design's structure is one call back rather than
+  absent: the topology is built from the un-inset unit, the edits are
+  replayed there, and the insets go on afterwards. Measured buildable
+  on three designs across zigzag, rotate and nudge, at tile insets of
+  1% and 5% and group insets to 10%, with no empty or invalid tile.
+  (1) THE SKELETON IS WHAT THE DRAWING DRAWS, solid and clickable,
+  with the inset result GHOSTED underneath through the channel ruling
+  2 of 2026-08-31 already provides -- so the handles sit on the ink
+  they aim at, which drawing the inset design and laying un-inset
+  handles over it cannot do, the highlight then standing off the ink
+  by the inset distance. (2) A TEAR IS STILL SAID, and the sentence
+  names WHICH gap it is. An inset opens gaps by design and swamps a
+  tear as a fraction -- 0.371 of a cell against a sound design's 0.358
+  at 5% -- while the tear's own contribution is conserved at about
+  0.011 either way, so the judgement runs on the SKELETON and never on
+  the inset design, or every inset design reads as catastrophically
+  torn, which is row 5 of round nine at scale. Ruling 5 of 2026-08-31
+  governs: validity is shown rather than enforced, and a tear is a
+  different KIND of thing from an inset gap, deciding whether later
+  edits replay and whether a dual can be taken at all. (3) THE FILE
+  CARRIES THREE FRAMES -- the skeleton, its dual, and the as-built
+  unit -- so a colleague can open either without reconstructing one.
+  This was the maintainer's choice against a recommendation of two,
+  and its price is a table name older plugins will not read plus three
+  rules that must each learn about it: the stale-table drop, the
+  `topology_design` key, and the both-or-neither test. WEAVES ARE OUT
+  OF SCOPE, measured rather than assumed: strand width is an argument
+  to `make_unit` rather than a transform applied after, so there is no
+  un-thinned unit to edit and thin later, which is the R-40 boundary.
+  (C-346.)
 - **A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
   (Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
   replaces it, as it always has; where several classes are ticked,

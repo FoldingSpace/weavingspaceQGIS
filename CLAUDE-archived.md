@@ -380,6 +380,7 @@ quote them, do not renumber them.
 - **C-343** — The honest preview's four rulings, and what each was measured against  <sub>minted</sub>
 - **C-344** — The Topology tab's four rulings of 2026-09-07, by grilling  <sub>minted</sub>
 - **C-345** — The targeted Windows run, and what a fixed pump costs on a slow leg  <sub>minted</sub>
+- **C-346** — Topology edits despite an inset: the three rulings of 2026-09-08  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11196,3 +11197,81 @@ targeted run fails on a ceiling sized for the Mac and reports the
 runner rather than the plugin. And each triggers on pushes touching
 only itself, so re-aiming is the trigger and no ordinary round is
 lengthened.
+
+### C-346 — Topology edits despite an inset: the three rulings of 2026-09-08
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-346).</sub>
+
+Grilled at the maintainer's asking, for the roadmap rather than for a
+build, with every measurement taken before its question was put.
+
+**THE FACT THAT MADE IT BUILDABLE AT ALL.** `_build_unit`'s modifier
+chain is `make_unit` -> rotate -> scale -> skew -> `inset_tiles` ->
+`inset_prototile`, so the insets are the LAST two steps and every step
+before them preserves the tiling. The un-inset design is not lost; it
+is one call back. Nobody had said so, and the tab's refusal reads as
+though an inset design has no structure rather than as though the
+structure is a step behind the one being drawn.
+
+**WHAT WAS MEASURED, in `.venv-reference` with no QGIS in the way.**
+Today's refusal reproduces: a 1% or 5% tile inset makes `Topology`
+refuse on `laves 3.3.4.3.4`, `archimedean 4.8.8` and `hex-slice 3`.
+Editing the PLAIN unit and insetting the result works on every design
+and every manipulation tried -- zigzag, rotate and nudge, at 1% and 5%
+tile inset and at 1%, 5% and 10% group inset -- with no empty tile and
+no invalid geometry anywhere. Zigzag was the one expected to shatter,
+since it makes tiles concave and an inset is a negative buffer; it
+does not.
+
+**AND WEAVES ARE A DIFFERENT PROBLEM, MEASURED RATHER THAN ASSERTED.**
+A plain weave and a twill at aspect 1.0 carry a topology; at the
+default 0.75 neither does. Strand width is an argument to `make_unit`
+rather than a transform applied afterwards, so there is no un-thinned
+unit to edit and thin later -- which is the R-40 boundary with a
+measurement under it at last. A strands code carrying a hyphen has no
+topology even at 1.0, the gap being deliberate.
+
+**THE NUMBER BEHIND RULING 2.** On `laves 3.3.4.3.4` class `b`, which
+is the class the audit's own table says tears on an odd zigzag count:
+
+    state                          gap of one cell
+    zigzag n=2 skeleton (sound)           0.000000
+       + inset 1%                         0.077946
+       + inset 5%                         0.358133
+    zigzag n=3 skeleton (TORN)            0.010781
+       + inset 1%                         0.088401
+       + inset 5%                         0.370981
+
+The tear's own contribution is CONSERVED, about 0.011 of a cell with
+or without an inset over it. As a FRACTION it is swamped: at 5% a torn
+design reads 0.371 against a sound one's 0.358, so anything judging
+the inset design against a threshold calls every inset design
+catastrophically torn -- which is row 5 of round nine arriving again
+at scale. That is the arithmetic reason the validity judgement runs on
+the skeleton, and it is why ruling 2 keeps the marks rather than
+suppressing them on a design the person has deliberately made gappy.
+
+**A FIXTURE TRAP ON THE WAY, worth the line because it is the third
+time this family has recorded it.** The first sweep drove class `a`,
+where odd counts are sound at every count the table lists, and came
+back with no tear at all -- a negative that could not have been
+positive. Re-aimed at class `b` it produced the tear above. And the
+first probe of the evening typed its catalogue spec rather than
+looking it up and got `KeyError: 'tiling_type'` on all three designs.
+A FAMILY TYPED IS NOT A FAMILY CHOSEN.
+
+**WHAT THE MAINTAINER CHOSE AGAINST THE RECOMMENDATION, and what it
+costs, recorded so nobody re-argues it from nothing.** Ruling 3 was
+put with three options and the recommendation was the two-table form,
+writing the skeleton and its dual; the maintainer chose THREE tables,
+skeleton, its dual and the as-built unit. What that buys is a
+colleague who can open either without reconstructing anything. What it
+costs is a name in the GeoPackage format that older plugins will not
+read, and three rules that must each learn about it: the stale-table
+drop (wrong four times already, and redesigned rather than patched a
+fifth), the `topology_design` key that decides whether the tables
+describe this design, and the both-or-neither test, which currently
+means "both frames, of one design" and would have to mean something
+else with three. The two-table form was recommended because the insets
+are already in the working-state record as `tile_inset` and
+`prototile_inset`, so the skeleton alone is lossless.

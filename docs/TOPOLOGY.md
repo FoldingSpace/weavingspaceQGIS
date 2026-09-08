@@ -303,6 +303,11 @@ the path:
     draw_the_handles                       renders the drawing with an
       edge and then a vertex held, and writes the pixels out, because
       "perceivable" is a visual claim.
+    can_a_topology_edit_survive_an_inset   whether an inset refuses a
+      topology, whether editing the plain unit and insetting the
+      result works, and whether a tear stays visible once an inset has
+      opened gaps of its own. Three arms; the third carries the number
+      the validity ruling turns on.
     the_re_vendor_moved_no_map             two checkouts compared
       design by design, which is the only thing that asks whether a
       re-vendor moved what the library DRAWS.
@@ -966,6 +971,59 @@ per radius tried: 9.5 ms on `laves 3.3.4.3.4`, 138 ms on `hex-slice
 rotate, which is the only case that reaches it -- once per landing,
 on the branch where the coverage figure has already said the design is
 torn.
+
+## An inset takes the tab away, and it need not: measured 2026-09-08
+
+`Topology` needs a gap-free tiling, so a tile or group inset refuses
+the tab outright. THE INSETS ARE THE LAST TWO STEPS OF `_build_unit`'s
+chain -- `make_unit`, rotate, scale, skew, `inset_tiles`,
+`inset_prototile` -- and every step before them preserves the tiling,
+so the un-inset design is one call back rather than lost. The
+instrument is `tools/probes/can_a_topology_edit_survive_an_inset.py`,
+driven in `.venv-reference` with no QGIS in the way, and it takes no
+timings deliberately: the candidate's suite held the machine, and a
+structural answer is honest under contention where a timing is not.
+
+Today's refusal reproduces at 1% and 5% tile inset on `laves
+3.3.4.3.4`, `archimedean 4.8.8` and `hex-slice 3`. Editing the PLAIN
+unit and insetting the result works on all three, across zigzag,
+rotate and nudge, at 1% and 5% tile inset and 1%, 5% and 10% group
+inset: no empty tile, no invalid geometry, areas falling with the
+inset as they should. Zigzag was the case expected to shatter, an
+inset being a negative buffer and a zigzagged tile concave; it does
+not.
+
+**AND THE VALIDITY JUDGEMENT MUST RUN ON THE SKELETON**, which is
+arithmetic rather than taste. On `laves 3.3.4.3.4` class `b`, the
+class the audit's table says tears on an odd count:
+
+    state                          gap of one cell
+    zigzag n=2 skeleton (sound)           0.000000
+       + inset 1%                         0.077946
+       + inset 5%                         0.358133
+    zigzag n=3 skeleton (TORN)            0.010781
+       + inset 1%                         0.088401
+       + inset 5%                         0.370981
+
+The tear's own contribution is CONSERVED at about 0.011 of a cell
+whether or not an inset sits over it, and swamped as a FRACTION: at 5%
+a torn design reads 0.371 against a sound design's 0.358. Anything
+judging the INSET design against a threshold therefore calls every
+inset design catastrophically torn, which is row 5 of round nine
+arriving again at scale.
+
+**WEAVES ARE A DIFFERENT PROBLEM.** A plain weave and a twill carry a
+topology at aspect 1.0 and neither does at the default 0.75; strand
+width is an argument to `make_unit` rather than a transform applied
+afterwards, so there is no un-thinned unit to edit and thin later.
+That is the R-40 boundary with a measurement under it. A strands code
+carrying a hyphen has no topology even at 1.0, the gap being
+deliberate.
+
+THE FIRST SWEEP MEASURED NOTHING and is worth the line: it drove class
+`a`, where odd counts are sound at every count the table above lists,
+so it produced a negative that could not have been positive. Vary the
+class as well as the design before believing one.
 
 ## Symmetry, and what a crystallographic reading would give
 

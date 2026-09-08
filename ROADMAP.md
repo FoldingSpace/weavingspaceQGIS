@@ -364,6 +364,38 @@ IT WAITS ON A RECURRENCE and is deferred until one comes: `TilingTask`
 records when its worker enters and leaves `run()`, so the next stall
 answers the shape by being read rather than guessed at.
 
+**TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET.** An inset takes the
+Topology tab away outright, which is a large loss: insetting is how a
+tiled map is made to read as separate elements, so the two things
+somebody most wants to combine are the two the plugin will not. It is
+buildable because `_build_unit` applies the insets LAST and every step
+before them preserves the tiling, so the structure is one call back
+rather than gone: build the topology from the un-inset unit, replay
+the edits there, inset the result. The three rulings settling what is
+drawn, what is said and what the file holds are in CLAUDE.md; the
+measurements are C-346 and docs/TOPOLOGY.md. WHAT IS OWED BEFORE ANY
+CODE, in this order:
+
+- A DIFFERENTIAL PROVING THE TOPOLOGY IS THE SAME AT EVERY INSET
+  VALUE, class labels included, since the whole design rests on the
+  topology being a function of the design WITHOUT its insets.
+- `_topology_stamp` THEN DROPS ITS TWO INSET TERMS, in the same commit
+  as that differential or not at all: a key narrowing is the shape
+  behind three of this project's wrong maps. `_geometry_signature`
+  KEEPS them, and the two keys answering differently about one term is
+  the point rather than an oversight.
+- THE THIRD FRAME IN THE FILE, per ruling 3, which the stale-table
+  drop, the `topology_design` key and the both-or-neither test must
+  each learn about. Read M-4 first: the drop was wrong four times and
+  redesigned rather than patched a fifth, and "both or neither" needs
+  a meaning when there are three.
+- THE VALIDITY JUDGEMENT RE-AIMED AT THE SKELETON, with a guard,
+  since judging the inset design reads every inset design as torn.
+
+WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
+rather than a transform applied after, so there is no un-thinned unit
+to edit and thin later. That is the R-40 boundary, measured.
+
 **THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
 DEFERRED BACK HERE on 2026-09-07: it wants a before/after put to the
 maintainer rather than built blind, so it waits on their eye rather
