@@ -12226,16 +12226,35 @@ def test_a_push_moves_the_ground_as_far_as_the_pointer_went():
   base = view.push_gain()
   assert base is not None and abs(base - gain) < 1e-9, (
     f"the gain off the held design is {base}, not the library's {gain:.4f}")
+  # THE LEFTOVER PREVIEW IS A ROTATE, chosen by measurement rather
+  # than by convenience: a push preview leaves this vertex's gain
+  # EXACTLY unchanged (0.41421356, delta 0.00e+00), so a fixture built
+  # from one cannot tell which store the gain came off. A rotate moves
+  # it to 0.51667956 and a scale to 0.40734061.
+  edge_label = topology_edits.classes(topology).get("edge", "")[:1]
+  assert edge_label, "PREMISE: this design has no edge class to disturb"
   after_an_edit = topology_edits.move_as_applied(
-    topology, label, "push_vertex",
+    topology, edge_label, "rotate_edge",
     topology_edits.in_map_units(
-      topology_edits.whole_where_needed({"push_d": 0.2}), topology.tileable))
+      topology_edits.whole_where_needed({"angle": 12}), topology.tileable))
   view._preview = after_an_edit
+  # AND THE CHOSEN VERTEX IS SEATED ON THE PREVIEW TOO, which is what
+  # the tab itself does -- `_settle_what_the_handles_sit_on` re-seats
+  # it off `_drawn()` at every change of chosen class. Holding the
+  # design's own vertex here while swapping only the preview holds a
+  # half the product does not, and that is how a repair that fixed one
+  # half of the pair passed this test with the other half stale: the
+  # library takes the vertex's point from the argument and its
+  # neighbours from the topology, so both must come from one store.
+  view._chosen_thing = next(
+    (point for point in after_an_edit.points.values()
+     if getattr(point, "ID", None) == getattr(moved, "ID", None)), moved)
   assert abs(view.push_gain() - base) < 1e-9, (
     f"a preview left over from an earlier drag moved the gain to "
     f"{view.push_gain():.4f} from {base:.4f}, so the next press divides "
     "by a number measured on a design nobody is editing")
   view._preview = None
+  view._chosen_thing = moved
 
   # AND THE PRESS FILLS IT, since a freeze nothing writes falls
   # through to the live reading and this whole arm would be vacuous.

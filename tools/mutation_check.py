@@ -2720,20 +2720,34 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-push-gain-takes-both-halves-from-one-store",
+       file=TOPOLOGY_TAB,
+       # THE THIRD DOOR ON ONE PAIR. `push_vertex` takes the vertex's
+       # own point from the ARGUMENT and its neighbours from the
+       # TOPOLOGY, so a vertex seated on the preview handed to the held
+       # design mixes a moved point with unmoved neighbours -- the same
+       # fault as the entry below with the halves swapped, and neither
+       # entry can catch the other.
+       old="""      dx, dy = topology.push_vertex(seated, 1.0)""",
+       new="""      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)""",
+       test="test_a_push_moves_the_ground_as_far_as_the_pointer_went",
+       why="a push measured against one design rather than half of "
+           "each, so the ground goes where the pointer goes"),
   dict(name="the-push-gain-comes-off-the-held-design", file=TOPOLOGY_TAB,
        # THE STORE, which is a different claim from the freeze beside
        # it: freezing the value at the press is no use while the value
        # is frozen FROM the preview a previous drag left standing.
+       # Re-anchored when the vertex gained its own lookup one line
+       # below; the claim is unchanged -- the TOPOLOGY comes off the
+       # held design rather than off the picture.
        old="""    topology = self._topology
     if topology is None:
       return None
-    try:
-      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)""",
+    # BOTH HALVES FROM ONE STORE""",
        new="""    topology = self._drawn()
     if topology is None:
       return None
-    try:
-      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)""",
+    # BOTH HALVES FROM ONE STORE""",
        test="test_a_push_moves_the_ground_as_far_as_the_pointer_went",
        why="your second push drag behaving like your first, rather "
            "than dividing by a number measured on the preview the "

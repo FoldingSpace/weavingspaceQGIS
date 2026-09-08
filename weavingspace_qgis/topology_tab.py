@@ -2094,8 +2094,23 @@ class TopologyView(QWidget):
     topology = self._topology
     if topology is None:
       return None
+    # BOTH HALVES FROM ONE STORE, which is the whole of this. The
+    # library takes the vertex's own point from the ARGUMENT and its
+    # neighbours from the TOPOLOGY -- `neighbours = [self.points[v] for
+    # v in vertex.neighbours]` -- so handing a vertex seated on the
+    # preview to the held design mixes a moved point with unmoved
+    # neighbours and the gain is neither design's. A first repair took
+    # the topology off the preview and left the vertex there; this took
+    # the topology off the design and left the vertex on the preview,
+    # which is the same fault with the halves swapped: measured
+    # 2026-09-07, a second push after re-choosing the class recorded
+    # 0.0884 where a landing between gave 0.1495, and the gain read
+    # 0.4746 to 0.6801 against the honest 0.4142.
+    # The vertex carries its own `ID`, and `points` is keyed by it.
+    seated = topology.points.get(
+      getattr(self._chosen_thing, "ID", None), self._chosen_thing)
     try:
-      dx, dy = topology.push_vertex(self._chosen_thing, 1.0)
+      dx, dy = topology.push_vertex(seated, 1.0)
     except Exception:                                 # noqa: BLE001
       return None
     reach = (dx * dx + dy * dy) ** 0.5
