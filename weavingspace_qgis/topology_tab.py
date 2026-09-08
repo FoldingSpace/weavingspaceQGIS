@@ -3980,10 +3980,34 @@ class TopologyPanel(QWidget):
     self._refresh_list()
     self.edits_changed.emit()
 
+  def _keep_the_marks_in_step(self):
+    """Drop any mark left without an edit under it.
+
+    Returns:
+      None; `_marks` is truncated to the length of `_edits`.
+
+    WHY IT IS NEEDED AT ALL. `_marks` is written by ONE writer, a
+    landing, and read BY INDEX beside `_edits`. Undo and Clear change
+    `_edits` alone, which is harmless for the rows that survive -- the
+    marks still line up -- and is not harmless for the NEXT edit
+    somebody makes, which lands on an index a stale mark still
+    occupies and wears the verdict of the change it replaced. Measured
+    2026-09-07: record a rotate that tears, undo it, record a sound
+    scale, and the new row reads "from here the tiles no longer meet"
+    until the rebuild lands seconds later -- up to nineteen on the
+    slowest design in the catalogue.
+
+    A mark that is ABSENT is already handled everywhere: `_refresh_list`
+    says nothing rather than guessing, which is the right answer for an
+    edit no build has judged yet. So truncating is the whole repair.
+    """
+    del self._marks[len(self._edits):]
+
   def _undo(self):
     """Take the most recent change off."""
     if self._edits:
       self._edits.pop()
+      self._keep_the_marks_in_step()
       self._refresh_list()
       self.edits_changed.emit()
 
@@ -3991,6 +4015,7 @@ class TopologyPanel(QWidget):
     """Take every change off this design."""
     if self._edits:
       self._edits = []
+      self._keep_the_marks_in_step()
       self._refresh_list()
       self.edits_changed.emit()
 

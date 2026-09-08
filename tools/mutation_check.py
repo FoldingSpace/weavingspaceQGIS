@@ -2720,6 +2720,17 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="an-undone-change-takes-its-mark-with-it", file=TOPOLOGY_TAB,
+       # ANCHORED ON THE BODY rather than on either call site, because
+       # Undo and Clear are two doors into the same room and an entry
+       # over one of them would be answered by the other still being
+       # right. Emptying the body is the state the code shipped in.
+       old="""    del self._marks[len(self._edits):]""",
+       new="""    pass""",
+       test="test_a_change_never_wears_the_verdict_of_the_one_it_replaced",
+       why="a change you make after an undo being judged on its own "
+           "merits, rather than wearing the verdict of the one you "
+           "took off"),
   dict(name="the-hatch-block-stays-inside-the-patch", file=TOPOLOGY_EDITS,
        # THE TEST HAD NO ENTRY AT ALL until 2026-09-07, which is how
        # the fault below shipped: the block of cells is laid on the two

@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-560 defect(s) with a regression test.
+561 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -60,6 +60,8 @@ there is no separate list to remember.
   guarded by `test_a_bound_the_editor_prints_can_be_typed_into_its_own_box`
 - **the fix that made a hand-set paired renderer survive a Generate applied the carried renderer unconditionally, so a re-tile that produced a new kind of absence left those tiles unpainted, while elements that LOST a kind kept its legend entry. Measured 2026-08-16 by rendering each paired layer over a magenta ground: uncovered rows came back as the background while their neighbours drew #8c9fc7 and #dddddd.**  
   guarded by `test_a_carried_renderer_never_leaves_an_absence_unpainted`
+- **after undoing a rotate that tore the tiling, the next change was labelled "from here the tiles no longer meet" although it tiled perfectly.**  
+  guarded by `test_a_change_never_wears_the_verdict_of_the_one_it_replaced`
 - **moving the Classes spinner to a count too small for a row's pins destroyed both bounds, the layer's stamp and the saved copy, told the user their data had changed when it had not, and did not restore them when the count was put back.**  
   guarded by `test_a_class_count_is_refused_rather_than_destroying_a_pin`
 - **after the swatch hatching was removed nothing told a user a class was empty, though four documents and the approved changelog said something did.**  
@@ -1175,7 +1177,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 190
-- a bug hunt pointed in a named direction: 157
+- a bug hunt pointed in a named direction: 158
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18

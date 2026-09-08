@@ -11984,6 +11984,64 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_a_change_never_wears_the_verdict_of_the_one_it_replaced():
+  """An undone change takes its soundness mark with it.
+
+  Each row of the change list says whether the design still carried a
+  topology once that change had been made, which is what tells
+  somebody how far back to roll. The marks have ONE writer, a landing,
+  and are read BY INDEX beside the edits — so Undo and Clear, which
+  change the edits alone, leave marks with no edit under them.
+
+  THE SURVIVING ROWS ARE FINE, which is what made this quiet: undo
+  removes the LAST edit and the marks that remain still line up. The
+  harm lands on the NEXT change somebody makes, which takes an index a
+  stale mark still occupies and wears the verdict of the change it
+  replaced — for as long as the rebuild takes, up to nineteen seconds
+  on the slowest design in the catalogue.
+
+  Regression: after undoing a rotate that tore the tiling, the next change was labelled "from here the tiles no longer meet" although it tiled perfectly. [hunt]
+  """
+  from weavingspace_qgis.topology_tab import TopologyPanel
+
+  panel = TopologyPanel(None)
+  try:
+    torn = {"applied": True, "gap": 0.05, "sound": False}
+    sound = {"applied": True, "gap": 0.0, "sound": True}
+
+    panel._record({"classes": "a", "how": "rotate_edge", "args": {"angle": 5}})
+    panel._record({"classes": "a", "how": "rotate_edge", "args": {"angle": 80}})
+    panel.set_marks([sound, torn])
+    rows = [panel.edit_list.item(i).text()
+            for i in range(panel.edit_list.count())]
+    assert "no longer meet" in rows[1], \
+      f"PREMISE: the torn mark is not being shown at all -- {rows}"
+
+    # THE ACT: take the torn change off and make a different one.
+    panel._undo()
+    panel._record({"classes": "b", "how": "scale_edge", "args": {"sf": 1.05}})
+
+    rows = [panel.edit_list.item(i).text()
+            for i in range(panel.edit_list.count())]
+    assert len(rows) == 2, f"PREMISE: the list does not hold two rows -- {rows}"
+    assert "no longer meet" not in rows[1], (
+      "a change made after an undo wears the verdict of the change it "
+      f"replaced: {rows[1]!r}")
+
+    # AND CLEAR IS THE SAME QUESTION, which is the arm a repair aimed
+    # at undo alone would leave open.
+    panel._clear()
+    panel._record({"classes": "a", "how": "zigzag_edge",
+                   "args": {"n": 2, "h": 0.1}})
+    rows = [panel.edit_list.item(i).text()
+            for i in range(panel.edit_list.count())]
+    assert "no longer meet" not in rows[0], (
+      "a change made after a clear wears an older change's verdict: "
+      f"{rows[0]!r}")
+  finally:
+    panel.deleteLater()
+
+
 def test_the_drag_previews_the_move_the_drop_would_make():
   """What a drag DRAWS is the move its drop would commit, not the library's.
 
@@ -91421,6 +91479,8 @@ def main():
         test_a_zigzag_too_deep_is_clamped_rather_than_dropped)
   check("the drag previews the move the drop would make",
         test_the_drag_previews_the_move_the_drop_would_make)
+  check("a change never wears the verdict of the one it replaced",
+        test_a_change_never_wears_the_verdict_of_the_one_it_replaced)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
