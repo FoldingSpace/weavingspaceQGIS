@@ -225,6 +225,38 @@ above, so pieces arrive already clipped and an edit inherits the
 crossings. The constraint that follows is worth stating rather than
 discovering: an edit must not move a strand ACROSS a crossing.
 
+## A strand's two long edges pair by CLASS, measured
+
+Ruling 3 says a manipulation moves a strand's two long edges IN PHASE,
+and that was recorded as unbuildable until the edges could be
+identified. Read off the scaffolded topology, they identify
+themselves:
+
+    twill a|b, strand tile a    4 edges: 750 'b', 750 'b',
+                                         250 'd', 250 'd'
+    plain a|b, strand tile a   10 edges: 750 'e', 750 'i', 750 'i',
+                                         750 'e', 250 'j', 250 'b',
+                                         and four of 125
+
+THE LONG EDGES SHARE A CLASS. Both 750-length edges of the twill's
+strand are class `b`; the plain weave's four long edges are two `e`
+and two `i`. So the class selector the tab already has names both
+sides of a strand together, and ruling 3 may need no new selection
+machinery -- which is the opposite of what the roadmap assumed.
+
+WHAT IS STILL OPEN, and it is the whole of the ruling rather than a
+detail: whether a class-aimed zigzag moves those two edges IN PHASE,
+so the ribbon undulates at constant width, or in ANTIPHASE, so it
+pinches and swells. The identification is measured; the phase is not,
+and an area digest cannot answer it, since a zigzag conserves area
+either way -- which this project already records about a different
+measurement of the same manipulation.
+
+AND THE PROBE MEASURED NOTHING TWICE BEFORE IT MEASURED THIS. A
+topology `Tile` carries `label`, not `tile_id`, so the first run
+matched no strand tile at all and printed an empty list that read
+exactly like "no strands found".
+
 ## The longer-run answer, which is a different feature
 
 Undulating a ribbon by moving its edges is a way of approximating what

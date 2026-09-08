@@ -379,9 +379,12 @@ each guarded and proved `caught`. WHAT IS OWED:
   needs the design gap-free; what has to survive into the classes is
   that an edit travels across width daylight and never through a
   hyphen.
-- PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the
-  topology's classes, since the strand-aimed ruling moves them in
-  phase and is unbuildable otherwise.
+- THE LONG EDGES ARE IDENTIFIED, and by the class selector the tab
+  already has: both long edges of a strand tile share a class label,
+  measured. WHAT IS OPEN is the PHASE -- whether a class-aimed zigzag
+  makes the ribbon undulate at constant width or pinch and swell --
+  and an area digest cannot answer it, a zigzag conserving area
+  either way.
 - THE TWO TRIAXIAL CUBE WEAVES raising `GEOSException`, the only
   undiagnosed failures left. The other ten are upstream's, measured:
   see the upstream note on an edge deleted while a tile still names
