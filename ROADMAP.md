@@ -367,12 +367,10 @@ answers the shape by being read rather than guessed at.
 **TOPOLOGY EDITS ON A WEAVE, BY SCAFFOLDING THE DAYLIGHT.** The tab
 refuses every weave, which is more than half the catalogue. The route
 is the maintainer's: fill the gaps between strands, take the topology
-of the gap-free result, aim the edit at a strand, drop the filler. It
-closes the round trip on 65 of 77 weaves. The rulings are in
-CLAUDE.md, the record in docs/process/weaving-and-topology.md. TWO
-PIECES ARE BUILT AND GUARDED: `daylight_by_kind`, telling a hyphen's
-conscious gap from the daylight strand width opens, and a
-`_shallow_copy_with_tiles` that serves weaves too. WHAT IS OWED:
+of the gap-free result, aim the edit at a strand, drop the filler; it
+closes the round trip on 65 of 77. The rulings are in CLAUDE.md, the
+record in docs/process/weaving-and-topology.md, and `daylight_by_kind`
+and a weave-capable `_shallow_copy_with_tiles` are built. WHAT IS OWED:
 
 - USE THE DISTINCTION. Both kinds must be FILLED, since a topology
   needs the design gap-free; what has to survive into the classes is
@@ -387,10 +385,11 @@ conscious gap from the daylight strand width opens, and a
 - AND THE SCAFFOLDING REACHES A TWO-LETTER CLASS LABEL at 36 classes,
   which `classes()` and `label in selector` both mishandle. Not a live
   defect; owed by whatever builds on the scaffolding.
-- THE TWO TRIAXIAL CUBE WEAVES raising `GEOSException`, the only
-  undiagnosed failures left. The other ten are upstream's, measured:
-  see the upstream note on an edge deleted while a tile still names
-  it, which is owed a SENDING rather than a repair.
+- THE CUBE WEAVES ARE DIAGNOSED: all three fail inside `set_precision`,
+  which raises on some filler and splits other filler into a multi-part
+  `get_corners` cannot take. Ours is not to pinch at 1e-06; upstream's
+  is its cleaner's contract. TWO notes now await a SENDING, which is
+  the maintainer's act.
 
 THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand that follows
 a PATH undulates authentically at any width, needing no filler, no

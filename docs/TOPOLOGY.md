@@ -1056,6 +1056,15 @@ two edges displaced by the same graph function leave every chord at the
 original width, while a swing is a chord on a fixed axis and reads
 slightly wide on a sloped edge.
 
+AND THE CUBE WEAVES FAIL INSIDE `set_precision`, all three, which is
+one root wearing two faces: it raises on some filler and splits other
+filler into a multi-part that `get_corners` asks for `.exterior`. The
+control is the reading that settles it -- the same tile cleans to a
+Polygon in the base frame and to a MultiPolygon in two of its seven
+translated copies, so a lattice offset moving a near-pinch onto the
+1e-06 grid is what decides it, and nothing about triaxiality is special
+beyond its offsets being irrational multiples of the resolution.
+
 The instruments are `tools/probes/can_a_weave_carry_a_topology.py` and
 `tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`. The full
 record, the dead ends and what weaving asks of an edit are in

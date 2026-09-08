@@ -307,6 +307,57 @@ strand 750 wide reported a constant width of 250. The across extent is
 the axis now, and the probe refuses a piece where neither side is that
 width rather than measuring the wrong direction quietly.
 
+## The cube weaves are diagnosed, and it is ONE root wearing two faces
+
+They were recorded here as the only undiagnosed weave failures. Driven
+with the exception UNSWALLOWED -- because a refusal our own code
+composes is a sentence rather than a diagnosis, which this record
+already says once -- all three fail inside the SAME library call:
+
+    a--|b--|c--   AttributeError: 'MultiPolygon' object has no
+                  attribute 'exterior', from `get_corners`
+    a-b|c-d|e-f   GEOSException: unable to assign free hole to a shell
+    abc|def|ghi   at -433.01270299999999 1000.000002
+
+`get_clean_polygon` ends `return gridify(geom.Polygon(corners))`, and
+`gridify` is `shapely.set_precision` at `RESOLUTION = 1e-06`. That call
+is both failures: it RAISES on some input, and on other input it SPLITS
+a pinched polygon and hands back a MultiPolygon that `get_corners` asks
+for `.exterior` on the very next line.
+
+THE DECISIVE READING IS THAT THE SAME TILE IS FINE IN THE FRAME. Of a
+154-shape patch, two clean to multi-part, and both are copies of one
+filler piece:
+
+    shape 53 = tile 'z0', copy 2
+      before  Polygon, area 378886.116, 8 corners, valid
+      after   MultiPolygon, 2 parts, losing 0.000750 of area
+      the same tile in the base frame cleans to a Polygon
+
+So a lattice translation moves a near-pinch onto the precision grid,
+and whether a copy survives is a property of the OFFSET rather than of
+the tile. Nothing about triaxiality is special except that its offsets
+are irrational multiples of the resolution.
+
+TWO REPAIRS WERE TRIED, ONE TERM AT A TIME, AND ONLY ONE MOVED
+ANYTHING. Snapping the filler to the library's own grid before handing
+it over takes `a-b|c-d|e-f` past the GEOSException entirely -- so that
+half is ours to avoid. Exploding multi-part tiles after regularising
+does NOT help, and its own control says why: the multi-part count in
+the frame goes to zero and the same exception still fires, because the
+geometry that raises is made downstream, in the patch, by the cleaner.
+A repair aimed at the object you can see rather than the object that
+raises is dead code that reads as protection.
+
+WHAT IS OURS AND WHAT IS UPSTREAM'S. Ours is not to hand the library
+filler that pinches at 1e-06. Upstream's is that `get_clean_polygon`
+may return a multi-part and `get_corners` assumes it cannot, which any
+tiling with a pinched tile can reach and which arrives as an
+`AttributeError` about `.exterior` rather than as anything a reader
+would connect to precision. That is written up in
+docs/process/upstream-note-a-cleaned-polygon-may-be-multi-part.md and
+is owed a SENDING rather than a repair.
+
 ## The longer-run answer, which is a different feature
 
 Undulating a ribbon by moving its edges is a way of approximating what

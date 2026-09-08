@@ -33,6 +33,16 @@ to confirmed rather than for the prose, and including the two hunts
 that recorded their own sloppiness about timestamps.
 
 **The newest upstream note**,
+`upstream-note-a-cleaned-polygon-may-be-multi-part.md`, reports two
+lines of one method disagreeing about what a shape can be:
+`get_clean_polygon` ends in `set_precision`, which may split a polygon
+that pinches at the grid's scale, and `get_corners` asks the result for
+`.exterior`. The measurement worth reading is the control rather than
+the failure — the same tile cleans to a Polygon where it sits and to a
+MultiPolygon in two of its seven translated copies, so what decides it
+is the lattice offset rather than the tile.
+
+**The note before it**,
 `upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`,
 reports a `Topology` construction that deletes an edge from its own
 dict while a tile goes on naming it, so `get_edges` raises `KeyError`.
