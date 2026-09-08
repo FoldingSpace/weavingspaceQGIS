@@ -449,9 +449,121 @@ def get_over_under(pattern: str):
   return tuple(numbers[:length])
 
 
+STRANDS_CEILING = 12
+"""How many elements a typed strands code may name.
+
+NOT THE LIBRARY'S LIMIT, WHICH IS THE ALPHABET. A weave is specified
+one CHARACTER per strand, so `WeaveUnit` would take twenty-six; this
+is the CATALOGUE's reach, measured -- weave families exist at element
+counts 2 to 12 and nowhere above. A code naming more would move the
+element count somewhere no weave family lives, the kind would flip to
+tiling by the rule that already speaks when a weave crosses twelve,
+and a strands code means nothing to a tiling: the design would become
+something else without anybody asking for it. Lifting this belongs
+with the designing tab in ROADMAP.md, where the family list itself is
+the thing being reconsidered.
+"""
+
+
+TRIAXIAL_WEAVES = ("cube",)
+"""Which weave types lay strands in THREE directions.
+
+Everything else is biaxial and silently DROPS a third direction: a
+plain weave given `a|b|c` builds two elements while the code names
+three, so a validator that counts letters without asking the weave
+type promises an element the map will not carry. Measured across the
+catalogue's 77 weave entries, where `cube` is the only type that ever
+appears with three.
+"""
+
+
+def strands_problem(code: str, weave_type: str = "plain") -> str | None:
+  """Why this strands code cannot be used, or None where it can.
+
+  Args:
+    code: what somebody typed, e.g. ``ab-|cd`` or ``(ab)|cd``.
+    weave_type: the family's own type, which decides how many
+      directions are meaningful -- see TRIAXIAL_WEAVES.
+
+  Returns:
+    One sentence naming the fault, in the terms of the box rather than
+    of the library, or None where the code is usable.
+
+  THE LIBRARY VALIDATES NOTHING, which is the whole reason this
+  exists: `get_strand_ids` says in its own docstring that "superfluous
+  parentheses are removed, but no other error-checks are applied", and
+  what it does with the rest was MEASURED rather than assumed
+  (docs/process/weaving-and-topology.md). Three shapes RAISE -- an
+  empty direction (`a|`) and a bare `|` divide by zero, an empty code
+  gives too few directions, and four directions too many. Worse are
+  the ones it ACCEPTS: `a a|b` yields an element whose id is a space,
+  `a|b)` one called `)`, and `AB|cd` builds four elements that come
+  back lowercase, so `A` and `a` collide -- which is the GeoPackage
+  case folding of R-62 arriving through a text box.
+  """
+  if not code.strip():
+    return "Type a strands code, such as a|b or ab-|cd."
+  if code != code.strip():
+    return "A strands code cannot begin or end with a space."
+  groups = code.split("|")
+  if len(groups) < 2:
+    return ("A strands code needs at least two directions, separated "
+            "by | -- as in a|b.")
+  if len(groups) > 3:
+    return ("A strands code names two or three directions at most, "
+            f"and this one names {len(groups)}.")
+  if len(groups) == 3 and weave_type not in TRIAXIAL_WEAVES:
+    return (f"A {weave_type} weave runs strands in two directions, so "
+            "a third would not be drawn.")
+  for character in code:
+    if character in "|()-" or ("a" <= character <= "z"):
+      continue
+    if "A" <= character <= "Z":
+      return ("Strand labels are lower case: an upper case label is "
+              "read as the same element as its lower case twin.")
+    if character == " ":
+      return "A strands code holds no spaces."
+    return f"{character!r} is not something a strands code may hold."
+  if code.count("(") != code.count(")"):
+    return "The parentheses in this strands code do not match."
+  for group in groups:
+    if not group:
+      return ("Every direction needs at least one strand, and this "
+              "code leaves one empty.")
+  labels = elements_in_strands(code)
+  if not labels:
+    return "This code is all gaps, so there would be nothing to draw."
+  if len(labels) > STRANDS_CEILING:
+    return (f"This code names {len(labels)} elements, and the weave "
+            f"families go up to {STRANDS_CEILING}.")
+  return None
+
+
+def elements_in_strands(code: str) -> list[str]:
+  """Which elements a strands code names, in the order they appear.
+
+  Args:
+    code: the strands code, valid or not.
+
+  Returns:
+    The distinct single-letter labels, `-` excluded because a hyphen
+    is a deliberate GAP rather than an element -- the library drops
+    those pieces itself, on `tile_id != "-"`.
+
+  A COMBINED STRAND IS STILL ITS OWN LETTERS. `(ab)|cd` slices one
+  strand lengthwise into a and b, and the map carries four elements,
+  which is what this counts.
+  """
+  seen = []
+  for character in code:
+    if "a" <= character <= "z" and character not in seen:
+      seen.append(character)
+  return seen
+
+
 def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
               point_angle=None, aspect=0.75, over_under=None,
-              nrows=None, ncols=None):
+              nrows=None, ncols=None, strands=None):
   """Construct a TileUnit or WeaveUnit from a catalogue entry.
 
   Mirrors mapweaver's get_base_tile_unit(): the catalogue says WHICH
@@ -475,6 +587,12 @@ def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
       nonsense rather than raising at the user.
     nrows, ncols: the grid family's array shape. Left None, the
       tightest near-square fit for the element count is used.
+    strands: a typed strands code overriding the entry's own, weaves
+      only. Left None, the catalogue's code stands -- which is what a
+      record written before the control existed holds, so nothing
+      saved moves. Validate with `strands_problem` BEFORE passing one:
+      the library error-checks nothing and will build a unit whose
+      elements are spaces or brackets.
 
   Returns:
     A Tileable (TileUnit or WeaveUnit) with no modifiers applied yet;
@@ -506,8 +624,16 @@ def make_unit(spec: dict, spacing: float, crs, offset=None, offset_angle=None,
   if spec["weave_type"] in ("twill", "basket"):
     n = get_over_under(over_under if over_under is not None
                        else str(spec.get("n", "2")))
+  # THE TYPED CODE OVERRIDES THE CATALOGUE'S, exactly as `over_under`
+  # above overrides the entry's own `n`: the family says which WEAVE
+  # TYPE this is and supplies a default, and the box says which
+  # elements ride in which direction. A code that cannot be used never
+  # reaches here -- `strands_problem` is asked at the control, because
+  # the library error-checks nothing and would build a unit whose
+  # elements are spaces or brackets.
   return WeaveUnit(weave_type=spec["weave_type"], spacing=spacing,
-                   strands=spec["strands"], n=n, aspect=aspect, crs=crs)
+                   strands=(strands or spec["strands"]),
+                   n=n, aspect=aspect, crs=crs)
 
 # ---------------------------------------------------------------------
 # WHAT THESE DESIGNS ARE CALLED WHEN THEY ARE NOT CALLED THIS

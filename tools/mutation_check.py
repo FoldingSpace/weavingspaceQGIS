@@ -2752,6 +2752,40 @@ MUTATIONS = [
        why="your second push drag behaving like your first, rather "
            "than dividing by a number measured on the preview the "
            "last one left on screen"),
+  dict(name="a-typed-strands-code-reaches-the-weave", file=CATALOG,
+       # THE NAMING AXIS: does the box's code actually override the
+       # catalogue's? Break it and the family's own code stands, so a
+       # person typing `ab|cd` on a two-element weave goes on getting
+       # `a|b` while the count and the box both say four.
+       old="""                   strands=(strands or spec["strands"]),""",
+       new="""                   strands=spec["strands"],""",
+       test="test_a_typed_strands_code_draws_the_elements_it_names",
+       why="a typed strands code that changes the element count and "
+           "the box while the map goes on being drawn from the "
+           "family's own code"),
+  dict(name="a-strands-code-is-refused-before-it-is-passed", file=DIALOG,
+       # THE VALIDATION AXIS, which is a different claim from the
+       # naming one: the library error-checks nothing, so an unusable
+       # code reaching `make_unit` builds a unit whose elements are
+       # spaces or brackets, or divides by zero.
+       old="""    if catalog.strands_problem(code, spec.get("weave_type", "plain")):
+      return None
+    return code""",
+       new="""    return code""",
+       test="test_a_strands_code_that_cannot_be_used_changes_nothing",
+       why="a half-typed code tearing the design down, or building "
+           "one whose elements are punctuation"),
+  dict(name="the-strands-validator-knows-a-weave-has-two-axes",
+       file=CATALOG,
+       # A plain weave DROPS a third direction, so a validator that
+       # counts letters without asking the weave type promises an
+       # element the map will not carry -- measured, and the fault my
+       # own first validator had.
+       old="""  if len(groups) == 3 and weave_type not in TRIAXIAL_WEAVES:""",
+       new="""  if len(groups) == 3 and weave_type in TRIAXIAL_WEAVES:""",
+       test="test_a_strands_code_that_cannot_be_used_changes_nothing",
+       why="a plain weave accepting `a|b|c` and reporting three "
+           "elements where the map draws two"),
   dict(name="the-push-gain-is-frozen-at-the-press", file=TOPOLOGY_TAB,
        # Reading it live is the state the rail was in for an hour
        # after it gained a divisor: `_drawn()` is the drag's own

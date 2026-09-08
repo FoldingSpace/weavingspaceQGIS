@@ -323,6 +323,11 @@ WORKING_STATE_DESIGN = (
   ("point_angle", "opt_point_angle", "number"),
   ("aspect", "opt_aspect", "number"),
   ("over_under", "opt_over_under", "line"),
+  # WHICH ELEMENTS RIDE IN WHICH DIRECTION, where the family says only
+  # which weave TYPE this is. Empty means the family's own code, so a
+  # record written before this control existed restores as it always
+  # did rather than as a design with no strands at all.
+  ("strands", "opt_strands", "line"),
   ("grid_rows", "opt_grid_rows", "number"),
   ("grid_cols", "opt_grid_cols", "number"),
   ("rotate", "mod_rotate", "number"),
@@ -2913,6 +2918,24 @@ class WeavingSpaceDialog(QDialog):
     self.opt_over_under_row = self._form_row(
       form, "Over-under", self.opt_over_under)
 
+    self.opt_strands = QLineEdit()
+    self.opt_strands.setPlaceholderText("e.g. a|b or ab-|cd")
+    self.opt_strands.setToolTip(
+      "Which elements ride in each direction; - leaves a gap.")
+    # Sized from the font and the longest pattern the placeholder
+    # offers, for the reason the over-under box beside it gives.
+    self.opt_strands.setSizePolicy(
+      QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+    self.opt_strands.setMinimumWidth(
+      self.opt_strands.fontMetrics().horizontalAdvance(
+        "e.g. 2 or 1,2 or 1,2,2,1") + 16)
+    # NOT `_queue_preview` DIRECTLY, unlike every other option: a
+    # half-typed code is not a design, so the handler decides whether
+    # this keystroke is one worth rebuilding for.
+    self.opt_strands.textChanged.connect(self._on_strands_typed)
+    self.opt_strands_row = self._form_row(
+      form, "Strands", self.opt_strands)
+
     # grid's array shape: two spinners in one row. With fewer
     # elements than cells the library leaves the surplus cells as
     # regular openings (see catalog.tightest_grid), so these two
@@ -4417,6 +4440,7 @@ class WeavingSpaceDialog(QDialog):
       self.opt_offset_angle_row: not is_weave and "dissect" in tiling_type,
       self.opt_point_angle_row: tiling_type == "star1",
       self.opt_aspect_row: is_weave,
+      self.opt_strands_row: is_weave,
       self.opt_over_under_row:
         is_weave and spec.get("weave_type") in ("twill", "basket"),
       self.opt_grid_row: tiling_type == "grid",
@@ -4433,6 +4457,24 @@ class WeavingSpaceDialog(QDialog):
       self.opt_over_under.blockSignals(True)
       self.opt_over_under.setText(str(spec.get("n", "2")))
       self.opt_over_under.blockSignals(False)
+    if is_weave and not getattr(self, "_strands_are_driving", False):
+      # THE BOX SHOWS THE FAMILY'S OWN CODE, so somebody meets the
+      # notation on a design that already works rather than an empty
+      # field and a placeholder. Signals blocked, or filling it in
+      # would read as somebody typing and move the element count --
+      # which is the count this family was chosen at.
+      #
+      # AND NOT WHILE THE BOX ITSELF IS DRIVING, which is the whole
+      # reason for the guard. A typed code moves the element count,
+      # the count repopulates the family list, the new family lands
+      # here, and this line wrote ITS code over the one somebody had
+      # just typed -- so `ac|eg` was answered with `ab|cd` and the map
+      # drew the family's design. Caught by the catalogue entry
+      # SURVIVING first and then by the test failing outright.
+      self.opt_strands.blockSignals(True)
+      self.opt_strands.setText(str(spec.get("strands", "")))
+      self.opt_strands.blockSignals(False)
+      self._mark_the_strands_box(None)
     if tiling_type == "grid":
       # reset to the tightest fit for this element count; a signal
       # here would schedule a second rebuild of the same unit
@@ -6683,7 +6725,121 @@ class WeavingSpaceDialog(QDialog):
       over_under=self.opt_over_under.text() or None,
       nrows=self.opt_grid_rows.value(),
       ncols=self.opt_grid_cols.value(),
+      # A CODE THAT CANNOT BE USED IS NOT PASSED, so a half-typed one
+      # leaves the design where it was rather than tearing it down on
+      # the keystroke between `a|` and `a|b`. Empty means the family's
+      # own code, which is what every record written before this
+      # control existed holds.
+      strands=self._strands_in_force(),
     )
+
+  def _on_strands_typed(self, _text: str = "") -> None:
+    """Somebody typed in the strands box.
+
+    Returns:
+      None. A usable code moves the element count to what it names and
+      rebuilds; an unusable one marks the box with the reason and
+      changes nothing, so a design is never torn down on the keystroke
+      between `a|` and `a|b`.
+
+    THE CODE SETS THE COUNT AND THE SLIDER FOLLOWS (maintainer's
+    ruling, 2026-09-08). The elements of a weave ARE the letters of
+    its code, so the code is the authority; the alternative -- refusing
+    a code whose count disagrees with the slider -- makes the
+    commonest act an error and asks somebody to set two controls in
+    the right order to do one thing.
+
+    AND THE WEAVE TYPE IS CARRIED ACROSS THE MOVE, which is the part
+    that is not obvious. `_on_n_changed` repopulates the family list
+    for the new count and lands on its FIRST entry, so a person on a
+    twill who typed a four-element code would have been moved to
+    whichever family sorts first at four -- their weave type changed
+    by an act that was about its strands. The type is remembered
+    before the count moves and re-selected after it.
+    """
+    spec = self._current_spec()
+    if spec is None or spec.get("type") != "weave":
+      return
+    code = self.opt_strands.text().strip()
+    if not code:
+      self._mark_the_strands_box(None)
+      self._queue_preview()
+      return
+    weave_type = spec.get("weave_type", "plain")
+    problem = catalog.strands_problem(code, weave_type)
+    self._mark_the_strands_box(problem)
+    if problem:
+      return
+    wanted = len(catalog.elements_in_strands(code))
+    if wanted != self._element_count():
+      # HELD FOR THE WHOLE CASCADE, in a `finally`, because the count
+      # move reaches `_refresh_option_rows` through two hops and any
+      # exit that skipped the reset would leave the box unable to be
+      # refilled by an ordinary family change ever again.
+      self._strands_are_driving = True
+      try:
+        self._on_element_count_moved(wanted)
+        # The family list is the new count's now, so put the weave
+        # type back where the person left it if this count has it.
+        if (self._current_spec() or {}).get("weave_type") != weave_type:
+          for name, entry in catalog.TILINGS_BY_N.get(wanted, {}).items():
+            if entry.get("weave_type") == weave_type:
+              self._select_family(name)
+              break
+      finally:
+        self._strands_are_driving = False
+    self._queue_preview()
+
+  def _mark_the_strands_box(self, problem: str | None) -> None:
+    """Say on the box itself whether its code can be used.
+
+    Args:
+      problem: the sentence from `catalog.strands_problem`, or None
+        where the code is usable.
+
+    Returns:
+      None. The reason goes in the TOOLTIP and the border, which is
+      where somebody typing is already looking -- the same argument
+      the drag's sentence was moved into the drawing on. A message bar
+      notice per keystroke would be noise, and a modal on a path that
+      rebuilds the design is forbidden outright.
+    """
+    box = getattr(self, "opt_strands", None)
+    if box is None:
+      return
+    box.setStyleSheet("" if problem is None
+                      else "border: 1px solid #c0392b;")
+    box.setToolTip(
+      problem or
+      "Which elements ride in each direction; - leaves a gap.")
+
+  def _strands_in_force(self) -> str | None:
+    """The typed strands code, where there is a usable one.
+
+    Returns:
+      The code, or None to leave the catalogue entry's own in place --
+      which is the answer for an empty box, for a design that is not a
+      weave, and for a code somebody is still typing.
+
+    ASKED IN ONE PLACE because `_unit_kwargs` feeds BOTH the unit and,
+    through it, `_geometry_signature`: the signature reads these
+    kwargs wholesale rather than enumerating them, so a term added
+    here is a term the re-tile decision already knows about. A second
+    reading of "what code is in force" would be the copy of the
+    signature this project has been bitten by three times.
+    """
+    box = getattr(self, "opt_strands", None)
+    if box is None:
+      return None
+    code = box.text().strip()
+    if not code:
+      return None
+    spec = self._current_spec() or {}
+    if spec.get("type") != "weave":
+      return None
+    if catalog.strands_problem(code, spec.get("weave_type", "plain")):
+      return None
+    return code
 
   def _build_unit(self):
     """Construct the Tileable exactly as the web app does: catalogue

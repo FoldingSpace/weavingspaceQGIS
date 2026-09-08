@@ -91810,6 +91810,136 @@ def test_unticking_the_source_takes_it_out_of_the_file():
     project.clear()
 
 
+def test_a_typed_strands_code_draws_the_elements_it_names():
+  """The code is the authority on what a weave contains.
+
+  A weave's elements ARE the letters of its strands code, so typing
+  one moves the element count to what it names and the map is drawn
+  from it (maintainer's ruling, 2026-09-08). Before the box existed
+  the 77 catalogue entries carried their codes baked in and the family
+  list was the only way to reach one, while the user guide taught the
+  notation -- so the guide explained a language the dialog would not
+  accept.
+
+  THREE THINGS, because a fix that only passed the code through would
+  satisfy the first alone: the unit's own tile ids must be the code's
+  letters, the element count must have followed, and the weave TYPE
+  must have survived the move -- `_on_n_changed` repopulates the
+  family list for the new count and lands on its first entry, so a
+  twill would otherwise become whatever sorts first at four.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import catalog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.n_spin.setValue(2)
+    dlg.kind_combo.setCurrentText("weave")
+    _choose_family(dlg, "twill weave a|b")
+    assert dlg.opt_strands_row[1].isVisibleTo(dlg), \
+      "the strands box is not shown on a weave"
+    # the box arrives holding the family's own code
+    assert dlg.opt_strands.text() == "a|b", \
+      f"box shows {dlg.opt_strands.text()!r}, not the family's own code"
+
+    # LETTERS NO CATALOGUE FAMILY USES. With `ab|cd` this test passed
+    # with the override broken: moving the count to four lands on a
+    # family whose OWN code is `ab|cd`, so the fallback produced the
+    # same four elements by coincidence and the entry SURVIVED. The
+    # fixture's choice must differ from the default the mutation falls
+    # back to, or preference and coincidence are indistinguishable.
+    dlg.opt_strands.setText("ac|eg")
+    dlg._rebuild_unit()
+    ids = sorted(set(dlg._unit.tiles.tile_id))
+    assert ids == ["a", "c", "e", "g"], \
+      f"unit carries {ids}, not the letters the box names"
+    assert dlg._element_count() == 4, \
+      f"the count is {dlg._element_count()}, not the code's four"
+    assert dlg.n_slider.value() == 4, \
+      f"the slider is at {dlg.n_slider.value()} while the box says four"
+    spec = dlg._current_spec()
+    assert spec is not None and spec.get("weave_type") == "twill", \
+      f"the weave type became {spec and spec.get('weave_type')!r}"
+  finally:
+    dlg.close()
+
+
+def test_a_strands_code_that_cannot_be_used_changes_nothing():
+  """A half-typed code leaves the design where it was, and says why.
+
+  The library error-checks NOTHING -- `get_strand_ids` says so in its
+  own docstring -- so `a|` divides by zero, `a a|b` yields an element
+  whose id is a space, and `AB|cd` builds four elements that come back
+  lowercase, colliding `A` with `a` exactly as a GeoPackage folds
+  `tiles_A` onto `tiles_a`. Every one of those has to be refused HERE.
+
+  AND THE REFUSAL IS NOT A REBUILD. A person types `a|b` one character
+  at a time and passes through `a`, `a|` on the way; tearing the
+  design down at each would make the box unusable, so an unusable code
+  marks itself and the unit stands.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import catalog
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.n_spin.setValue(2)
+    dlg.kind_combo.setCurrentText("weave")
+    _choose_family(dlg, "plain weave a|b")
+    dlg._rebuild_unit()
+    before = sorted(set(dlg._unit.tiles.tile_id))
+    count_before = dlg._element_count()
+
+    for bad in ("a|", "AB|cd", "a a|b", "a|b)", "a|b|c", "-|-"):
+      dlg.opt_strands.setText(bad)
+      assert catalog.strands_problem(bad, "plain"), \
+        f"{bad!r} should have been refused"
+      dlg._rebuild_unit()
+      assert sorted(set(dlg._unit.tiles.tile_id)) == before, \
+        f"{bad!r} changed the design to " \
+        f"{sorted(set(dlg._unit.tiles.tile_id))}"
+      assert dlg._element_count() == count_before, \
+        f"{bad!r} moved the element count to {dlg._element_count()}"
+      assert dlg.opt_strands.toolTip() != \
+        "Which elements ride in each direction; - leaves a gap.", \
+        f"{bad!r} was refused without the box saying why"
+  finally:
+    dlg.close()
+
+
+def test_every_catalogue_weave_code_is_one_the_box_would_accept():
+  """The validator must not refuse what the plugin already ships.
+
+  A validator written from a handful of examples is the shape that
+  rejects the product's own data, so the control is every weave entry
+  the catalogue holds -- each asked with its OWN weave type, since a
+  third direction is meaningful to a cube weave and dropped by a plain
+  one.
+  """
+  from weavingspace_qgis import catalog
+  refused = []
+  for entries in catalog.TILINGS_BY_N.values():
+    for name, spec in entries.items():
+      if spec.get("type") != "weave":
+        continue
+      problem = catalog.strands_problem(
+        spec["strands"], spec.get("weave_type", "plain"))
+      if problem:
+        refused.append((name, spec["strands"], problem))
+  assert not refused, \
+    f"{len(refused)} catalogue weaves refused, e.g. {refused[:3]}"
+  # and the premise: there were weaves to check
+  weaves = sum(1 for entries in catalog.TILINGS_BY_N.values()
+               for spec in entries.values() if spec.get("type") == "weave")
+  assert weaves >= 70, f"only {weaves} weave entries were examined"
+
+
 def test_a_task_says_how_far_its_worker_got():
   """The stall instrument tells the four states of a worker apart.
 
@@ -93631,6 +93761,12 @@ def main():
         test_a_donor_reaches_its_follower_in_the_same_run)
   check("a task says how far its worker got",
         test_a_task_says_how_far_its_worker_got)
+  check("a typed strands code draws the elements it names",
+        test_a_typed_strands_code_draws_the_elements_it_names)
+  check("a strands code that cannot be used changes nothing",
+        test_a_strands_code_that_cannot_be_used_changes_nothing)
+  check("every catalogue weave code is one the box would accept",
+        test_every_catalogue_weave_code_is_one_the_box_would_accept)
   check("saving holds on every route", test_saving_holds_on_every_route)
   check("a generate draws and only a save writes",
         test_a_generate_draws_and_only_a_save_writes)
