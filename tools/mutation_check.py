@@ -2720,6 +2720,19 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-push-gain-is-frozen-at-the-press", file=TOPOLOGY_TAB,
+       # Reading it live is the state the rail was in for an hour
+       # after it gained a divisor: `_drawn()` is the drag's own
+       # preview from the second frame on, and a push moves the very
+       # neighbours the gain is summed from, so the divisor falls away
+       # under the gesture -- C-198 in the rail rather than in the fit.
+       old="""    if self.gesture_in_progress() and self._press_gain is not None:
+      return self._press_gain
+    return self._push_gain_now()""",
+       new="""    return self._push_gain_now()""",
+       test="test_a_push_moves_the_ground_as_far_as_the_pointer_went",
+       why="a rail drag recording the same distance however many move "
+           "events the machine happened to deliver"),
   dict(name="a-restored-design-brings-no-marks-with-it", file=TOPOLOGY_TAB,
        # THE THIRD DOOR, and it needs its own entry because the entry
        # over Undo and Clear is answered by them still being right.

@@ -639,6 +639,10 @@ class TopologyView(QWidget):
     # grabbed, while the panel is what knows the manipulations -- so
     # the geometry crosses over and the meaning does not.
     self._press_edge = None
+    # AND THE PUSH RAIL'S GAIN, frozen with it and for the same
+    # reason: both are measured on the geometry as it stood at the
+    # press, never on the preview the gesture is moving.
+    self._press_gain = None
     self._scale = 1.0
     self._origin = (0.0, 0.0)
     self._bounds = (0.0, 0.0, 1.0, 1.0)
@@ -2035,7 +2039,19 @@ class TopologyView(QWidget):
     Returns:
       The length of the library's own displacement at `push_d = 1.0`,
       in the unit's coordinates, or None where nothing is chosen, the
-      chosen thing is not a vertex, or the direction cancels.
+      chosen thing is not a vertex, or the direction cancels. DURING A
+      GESTURE it is the value measured at the press and held there.
+
+    HELD FOR THE LENGTH OF A DRAG, exactly as the edge's frame is.
+    `_drawn()` is the drag's own PREVIEW once the first frame has been
+    painted, and a push moves the very neighbours this length is
+    summed from -- so read live it falls 0.4142, 0.3827, 0.3470,
+    0.3138, 0.2660, 0.2001, 0.1029 over seven frames while the ground
+    runs 1.9 times ahead of the pointer, and what gets recorded then
+    depends on how many move events the machine delivered: 45 px
+    recorded 0.2805 and 90 px recorded 0.1996. Measured 2026-09-07.
+    This is the loop `_fit` already froze the frame for (C-198),
+    arriving in the rail an hour after the rail gained a divisor.
 
     ASKED OF THE LIBRARY, exactly as `push_direction` is and for the
     same reason: `push_vertex` returns its displacement without
@@ -2044,6 +2060,18 @@ class TopologyView(QWidget):
     one measures -- it wants the direction and throws the length away
     -- which is why the gain went unnoticed: the two halves of one
     call, and only one of them was ever read.
+    """
+    if self.gesture_in_progress() and self._press_gain is not None:
+      return self._press_gain
+    return self._push_gain_now()
+
+  def _push_gain_now(self):
+    """Measure the push's gain against the geometry drawn right now.
+
+    Returns:
+      What `push_gain` describes, taken live. Called by `push_gain`
+      when no gesture is in progress, and once at the press to fill
+      the value a gesture holds.
     """
     if self._chosen[0] != "vertex" or self._chosen_thing is None:
       return None
@@ -2187,6 +2215,14 @@ class TopologyView(QWidget):
       self._release_px = QPointF(point)
       self._press_edge = (self._edge_frame(self._chosen_thing)
                           if self._chosen[0] == "edge" else None)
+      # AND THE PUSH'S GAIN, FROZEN WITH IT. Measured on the topology
+      # as it stands at the PRESS, because `_drawn()` becomes the
+      # drag's own preview a frame later and the vertex's neighbours
+      # move with it: the divisor then falls 0.4142 -> 0.1029 over
+      # seven frames and the ground runs 1.9x ahead of the pointer.
+      # This is C-198 in the rail rather than in the fit.
+      self._press_gain = (self._push_gain_now()
+                          if self._chosen[0] == "vertex" else None)
       self.grabbed.emit(handle)
       self.setCursor(Qt.CursorShape.ClosedHandCursor)
       return
@@ -2263,6 +2299,7 @@ class TopologyView(QWidget):
                                else event.pos())
     self._press = None
     self._press_edge = None
+    self._press_gain = None
     self._held_handle = ""
     self.setCursor(Qt.CursorShape.OpenHandCursor
                    if self._hover_handle or self._hover[0]

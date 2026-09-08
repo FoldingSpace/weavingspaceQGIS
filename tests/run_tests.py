@@ -12145,6 +12145,48 @@ def test_a_push_moves_the_ground_as_far_as_the_pointer_went():
     "the drag does not convert the rail's travel into a push distance, "
     "so the vertex follows the pointer only by accident")
 
+  # AND THE GAIN IS FROZEN AT THE PRESS, which is a separate claim and
+  # the one that bit within the hour: `_drawn()` becomes the drag's own
+  # PREVIEW after the first frame, and a push moves the very
+  # neighbours this length is summed from -- so read live it fell
+  # 0.4142 to 0.1029 over seven frames while the ground ran 1.9x ahead
+  # of the pointer, and what got recorded depended on how many move
+  # events the machine delivered. This is C-198 in the rail.
+  view = topology_tab.TopologyView()
+  view._chosen = ("vertex", label)
+  view._chosen_thing = moved
+  view._press_gain = gain
+  view._press = ((0.0, 0.0), 1.0)          # a gesture is in progress
+  assert view.gesture_in_progress(), \
+    "PREMISE: the view does not think a gesture is under way"
+  view._push_gain_now = lambda: gain * 0.25    # the live reading, moved
+  assert abs(view.push_gain() - gain) < 1e-9, (
+    f"the push's gain is re-read during the gesture: {view.push_gain():.4f} "
+    f"against the {gain:.4f} measured at the press")
+
+  # AND WITHOUT A GESTURE IT IS LIVE, or the freeze would outlast the
+  # drag it belongs to and every later push would use a stale divisor.
+  view._press = None
+  assert abs(view.push_gain() - gain * 0.25) < 1e-9, (
+    "the frozen gain outlived the gesture, so a later push divides by a "
+    "number measured for an earlier one")
+
+  # AND THE PRESS FILLS IT, since a freeze nothing writes falls
+  # through to the live reading and this whole arm would be vacuous.
+  pressing = next(
+    (node for node in _ast.walk(tree)
+     if isinstance(node, _ast.FunctionDef)
+     and node.name == "mousePressEvent"), None)
+  assert pressing is not None, "PREMISE: the view has no mousePressEvent"
+  assigned = {target.attr
+              for node in _ast.walk(pressing)
+              if isinstance(node, _ast.Assign)
+              for target in node.targets
+              if isinstance(target, _ast.Attribute)}
+  assert "_press_gain" in assigned, (
+    "the press does not record the push's gain, so the drag falls "
+    "through to a reading taken against its own preview")
+
 
 def test_the_change_list_shows_the_amplitude_the_box_shows():
   """One wave, one number, wherever the tab prints it.
