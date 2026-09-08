@@ -12,7 +12,14 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-06 (evening), with ROUND EIGHT CLOSED AT EIGHTEEN:
+Last updated 2026-09-08 (early morning), with ROUND NINE OF
+2026-09-07 CLOSED AT TWELVE: twenty-one hunts in six waves, twelve
+product defects closed, four dead axes tallied apart and all four
+repaired, and one ruling question that became a ruling. Its section is
+immediately below; note that an OLDER round nine, the bulletproofing
+round of 2026-08-26, sits further down -- the numbering restarted with
+the campaign's successor, so these are told apart by date.
+Before it, 2026-09-06 (evening), with ROUND EIGHT CLOSED AT EIGHTEEN:
 twenty-seven hunts in five waves, eighteen product defects closed
 (ledger `defects-2026-09-06.md`; the two claims left open at midday
 were repaired that evening as rows 17 and 18), one claim settled by
@@ -461,6 +468,66 @@ described as looking for old bugs; here it was overwhelmingly a check
 on new work, and the directions that paid were the ones aimed at
 shapes (a paired identity, an order, a record that outlives its
 subject) rather than at features
+
+## ROUND NINE, 2026-09-07 (night): twelve closed, and nine of them one shape
+
+Eight hunts at once on worktrees under `dev/hunts/`, replenished as
+bugs CLOSED rather than as they were reported, to the maintainer's
+target of twelve; twenty-one hunts in six waves by the end. The ledger
+is `defects-2026-09-07.md`. Every yield below is what SURVIVED a route
+its hunt did not use.
+
+THE GROUND WAS THE FRESHEST IN THE REPOSITORY -- everything between
+rc18 and the head, which was one evening's honest-preview work -- and
+the round's own repairs after that.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| the specification itself (8th) | 1 | a reformulation that reroutes a library call makes its CALLERS the door list: grep for the library's symbol, not the reformulation's name. Three callers, one guarded, and the drag drew a tear the drop would never make |
+| backwards from harm (11th) | (same) + 1 | converged on the preview defect from the opposite end, having ranked the losses before opening any source; separately found a sound hex design hatched as torn |
+| two stores of one fact (tab) | 1 | a landing is THREE calls and only the first is held during a gesture, so the held one replayed at the drop and wiped the sentence the third had written |
+| write-only at the honest preview | 1 | a guard that asserts a field is WRITTEN is not a guard that it is SHOWN: render the widget and hash it. Every sentence the preview composed reached nobody |
+| one boundary but not another | 1 | when a quantity acquires a display convention, grep every place it is RENDERED, not only the widgets the ruling named -- the list that dumps the raw record is the site nobody counts as a reader |
+| the specification itself (9th) | 1 + 1 ruling | the quantity to suspect is the one whose test pins a SINGLE SAMPLE of it: the ghost's crest was guarded, so its pitch was never asked, and it drew 2n-1 lobes at twice the frequency |
+| unreachable branches (8th) | 1 | the literal reading of a new branch yields dead code; the yield came from asking which WRITERS of a store a repair enumerated -- undo and clear were the two anybody would list, and the restore was the third |
+| the round's own repairs (11th-16th) | 5 | ten for ten tonight. Every one was found within the hour of the repair that made it, and none by reading |
+| stochastic settled sessions (11th) | 0 | 39 seeded sessions, six invariants, ALL SIX watched to fire under their own sabotage. A sabotage must stay inside what the product accepts, and a control that never fires may be the control rather than the invariant |
+| tests that cannot fail (10th, 11th) | 0, 4 dead axes | one in five holds. Two of the four could not fail because a SIBLING arm added the same night emptied the state they needed |
+| backwards from harm (12th) | 0 | five hypotheses killed by measurement across 40 builds; the label-collision risk is real and unreachable on any design a person would wait for |
+| one boundary but not another (assets) | 0 | walked the release-asset namer end to end -- both uploaders' argv, the generated prose diffed against the namer, the four documents naming report paths -- and found nothing. Ground the next round need not walk |
+
+**WHAT THIS ROUND SETTLES.**
+
+**NINE OF THE TWELVE WERE ONE OF TWO SHAPES**, which is the sharpest
+thing here and is worth carrying into the next round's aim file: a
+quantity read from the wrong side of the FROZEN/LIVE line, or one
+member of a PAIR written where its twin was not. Rows 9, 10 and 12 are
+the same pair repaired three times over -- a divisor that must be
+frozen at the press, taken off the held design, with its subject
+looked up in that same design.
+
+**A HUNT AIMED AT A REPAIR MINUTES OLD IS STILL THE BEST BUY**, and
+this round is the strongest evidence yet: five of the twelve came that
+way, each within the hour of the commit that caused it, and the
+maintainer's own reading found none of them. The rate does not improve
+with practice and did not improve tonight.
+
+**AND THE VERIFIER'S OWN INSTRUMENTS WERE THE COSTLIEST PART, AGAIN.**
+C-288 twice -- a repair that MOVES lines strands every catalogue entry
+anchored on them, and the second time the gate said so in a second
+while its output was read only to the last two lines. C-35 once: a
+mutation applied by a heredoc after the QGIS environment was exported
+dies at `encodings` having edited nothing, and the test then passes
+unmutated, which reads exactly like a guard that cannot fail. RUN
+`check_standards` BEFORE ANY PROBE on a round aimed at repairs; one
+hunt did, and said so as its lesson.
+
+**AND A CLAIM CAN BE REAL BEFORE A REPAIR AND INERT AFTER IT.** The
+held arm's amber-over-a-torn-picture claim was true when reported and
+dead by the time it was verified, because a sibling repair had removed
+the only route to it -- measured over 155 combinations across three
+designs, including the one the claim was made on, since a negative
+that omits the claim's own design is not a negative.
 
 ## ROUND SIX, 2026-09-01: ten hunts, eight defects, and a verification queue that was the whole cost
 

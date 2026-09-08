@@ -41,6 +41,21 @@ configuration tried. The difference was not the model. The first was
 asked for a structural property that either exists or does not; the
 second was asked, in effect, for a failure.
 
+Updated 2026-09-08, after ROUND NINE of 2026-09-07: twenty-one hunts
+in six waves, twelve product defects closed, four dead axes tallied
+apart. NINE OF THE TWELVE WERE ONE OF TWO SHAPES, and a hunt is worth
+pointing at them by name: a quantity read from the wrong side of the
+FROZEN/LIVE line -- what a gesture must not re-read while it is
+changing it -- or one member of a PAIR written where its twin was
+not. Three of the twelve were the same pair repaired three times over,
+each repair broken within the hour by the hunt aimed at it. RUN
+`check_standards` BEFORE ANY PROBE when you are aimed at a repair: a
+repair that MOVES lines strands every catalogue entry anchored on
+them, twice that night, and the gate says so in a second. And a claim
+can be REAL when reported and INERT by the time it is verified,
+because a sibling repair removed the only route to it -- which is a
+good outcome to report as such rather than defend.
+
 Updated 2026-09-06, after ROUND EIGHT of the 24-bug campaign's
 successor: twenty-seven hunts in five waves, eighteen product defects
 closed the same day, six dead axes tallied apart. Eleven of the

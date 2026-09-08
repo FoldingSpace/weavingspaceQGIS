@@ -171,6 +171,12 @@ and the zigzag's clamp came in with them and are built too.
 will commit, in three states, with the clamp, the cue and the widened
 hatch that go with them (R-94, R-95; the rulings are in CLAUDE.md, the
 mechanism in MAINTAINING.md and the measurements in docs/TOPOLOGY.md).
+AND ROUND NINE CLOSED TWELVE DEFECTS IN IT on 2026-09-07 (night),
+every one in that evening's own work or in the round's own repairs
+(docs/process/defects-2026-09-07.md), with four rulings settled by
+grilling and built (C-344): the drag's sentence is painted in the
+drawing, the drop refines a held value, the change list names
+arguments as the boxes do, and `push_d` is a distance.
 The ceiling caching this entry owed is not built and is not owed: the
 drag holds the last value that laid out for nothing, so there is no
 ceiling to cache.
