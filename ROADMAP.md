@@ -364,6 +364,51 @@ IT WAITS ON A RECURRENCE and is deferred until one comes: `TilingTask`
 records when its worker enters and leaves `run()`, so the next stall
 answers the shape by being read rather than guessed at.
 
+**TOPOLOGY EDITS ON A WEAVE, BY SCAFFOLDING THE DAYLIGHT.** The tab
+refuses every weave, which is more than half the catalogue. The route
+is the maintainer's: fill the gaps between strands with filler tiles,
+take the topology of the gap-free result, aim the edit at a strand,
+drop the filler. Proved to close on `twill weave a|b`. The rulings are
+in CLAUDE.md; what was tried, what failed and why is
+docs/process/weaving-and-topology.md. OWED, in this order:
+
+- DIAGNOSE THE SECOND REFUSAL. `plain weave a|b` and `twill weave
+  a|b-` fill to zero gap AND zero overlap and still refuse, saying the
+  tiles meet but the structure could not be worked out. One weave of
+  three working is not a rate, and until this is understood the size
+  of the family this serves is unknown. Nothing else here is worth
+  starting first.
+- PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the topology's
+  classes, since ruling 3 moves them in phase and is unbuildable
+  otherwise.
+- GENERATE THE FILLER FROM THE STRANDS CODE, never from geometry: a
+  position marked `-` is a conscious gap and stays open.
+- WIDEN `_shallow_copy_with_tiles`, which cannot copy a WeaveUnit at
+  all -- `WeaveUnit._setup_regularised_prototile()` takes no
+  `override` where TileUnit's does, so the supplied-geometry
+  workaround the dual leans on is silently tiling-only.
+
+THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand that follows
+a PATH undulates authentically at any width, needing no filler, no
+topology and no dropping step. That wants `_weave_grid` to take a path
+rather than an orientation, so it is upstream's as much as ours.
+
+**A STRANDS CODE YOU CAN TYPE, AND THE DESIGNING TAB BEHIND IT.** The
+77 weave entries in `catalog.py` carry their codes baked in and the
+family list is the only way to reach one, while docs/USER-GUIDE.md
+teaches the notation -- so the guide explains a language the dialog
+will not accept. THE SIMPLE VERSION IS SMALL: a validated text field
+feeding `strands`, which `make_unit` already passes to `WeaveUnit`,
+exactly as the over-and-under box already overrides its spec's `n`.
+What needs deciding with it is the element count, since the code
+determines how many elements a design has while the element spinner
+currently drives the catalogue, and the two would have to agree.
+THE LONGER RUN is whether a fuller designing tab is possible -- the
+strands code, the over-and-under pattern and the crossing order
+handled as a design surface rather than as a list of prepared
+combinations, which is also where the deprioritised custom weave type
+and its matrix entry would live.
+
 **TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET.** An inset takes the
 Topology tab away outright, which is a large loss: insetting is how a
 tiled map is made to read as separate elements, so the two things

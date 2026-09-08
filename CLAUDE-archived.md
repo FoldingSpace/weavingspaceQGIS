@@ -381,6 +381,7 @@ quote them, do not renumber them.
 - **C-344** — The Topology tab's four rulings of 2026-09-07, by grilling  <sub>minted</sub>
 - **C-345** — The targeted Windows run, and what a fixed pump costs on a slow leg  <sub>minted</sub>
 - **C-346** — Topology edits despite an inset: the three rulings of 2026-09-08  <sub>minted</sub>
+- **C-347** — A weave's topology by scaffolding, and what weaving asks of an edit  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11275,3 +11276,97 @@ means "both frames, of one design" and would have to mean something
 else with three. The two-table form was recommended because the insets
 are already in the working-state record as `tile_inset` and
 `prototile_inset`, so the skeleton alone is lossless.
+
+### C-347 — A weave's topology by scaffolding, and what weaving asks of an edit
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-347).</sub>
+
+Grilled 2026-09-08, straight after the inset grilling, which had ruled
+weaves out on the ground that strand width is a construction argument.
+The maintainer pushed on that boundary and then supplied the
+construction that gets past it, so the ruling below is theirs rather
+than a recommendation of mine.
+
+**WHY THINNING CANNOT BE FAKED, which is what closed my own options.**
+`_get_cell_strands` builds strands directly from the grid at the
+requested width -- `sf = 2 - width`, an expanded cell, slices of width
+`w * spacing`, intersected and rotated -- so a thin weave is generated
+rather than derived from a solid one. Measured on `plain weave a|b` at
+spacing 1000: the real 0.75 strand piece is 750 x 1250, narrower
+ACROSS and LONGER ALONG than its 1000-unit cell, because `sf` extends
+it into its neighbours and that is what keeps ribbons continuous
+across cell boundaries. `inset_tiles(125)` on the solid weave gives
+750 x 750: narrower in both directions. Symmetric difference 40% of
+the real weave. An inset SHORTENS where thinning LENGTHENS, so the
+one operation the plugin already applies to weaves cannot stand in.
+
+**AND GOING SOLID IS NOT A BACK DOOR EITHER.** At aspect 1.0 a plain
+weave keeps its four tiles, but a twill collapses from 16 to 2:
+`_get_weave_tiles_gdf` buffers, dissolves by `tile_id` and explodes
+when `aspect == 1`, so touching same-label pieces FUSE. Its six edge
+classes there are boundaries between fused regions rather than between
+strand pieces. And the gap is a cliff rather than a slope: at aspect
+0.999 the gap is one part in a million of a cell and `Topology` still
+refuses, so there is no tolerance to exploit.
+
+**THE MAINTAINER'S CONSTRUCTION, AND IT WORKS.** Fill the daylight
+between strands with scaffolding tiles, take the topology of the
+resulting gap-free tiling, and drop the scaffolding afterwards.
+Measured on `twill weave a|b` at 0.75: 16 strand tiles plus 16 filler
+gives 32, coverage gap 0.000000 and overlap 0.000000, `Topology`
+BUILDS with six edge and four vertex classes, a zigzag aimed at a
+strand class applies, and dropping the filler leaves the original 16
+tiles, every one valid. That is the path back that thinning could not
+give.
+
+**IT IS NOT SUFFICIENT ON ITS OWN**, which is the half that is owed.
+`plain weave a|b` fills to gap 0.000000 and overlap 0.000000 and STILL
+refuses, and so does `twill weave a|b-` -- both with a DIFFERENT
+message from the gap one: "this design's tiles meet, but the library
+could not work out its structure". One of three weaves tried is not a
+rate, and what that second refusal is has to be diagnosed before any
+of this is built.
+
+**TWO OF MY OWN INSTRUMENTS WERE WRONG, both caught by their own
+output.** The first gap measure subtracted the union of the tiles from
+the prototile, which docs/TOPOLOGY.md already records as reading 10.6%
+of an untouched design missing, "because a unit's tiles need not lie
+inside the particular polygon its prototile is"; the tell was a twill
+whose SOLID gap came back larger than its thin one, which is
+impossible. `plane_coverage`'s third return is the gap geometry and is
+the instrument that works. And I told the maintainer that a conscious
+gap survives aspect 1.0 as a gap; measured properly, `twill weave
+a|b-` at 1.0 has gap 0.000000 and OVERLAP 0.125000, so the hyphen
+shows up as an overlap rather than a gap. Both statements were made
+from `build()` refusing, which it does, for a reason I had not asked.
+
+**AND THE CONSCIOUS GAPS NEED NO GEOMETRY AT ALL.** The strands code
+names them: `strands="a|b-"` says which positions carry a strand and
+which carry nothing, so the filler is generated from the CODE and a
+position marked `-` is never filled. That is the maintainer's own
+"connects across insets but not across conscious gaps", answered
+declaratively rather than inferred -- and it retires both of the wrong
+geometric tests above.
+
+**WHY THE EDIT IS AIMED AT A STRAND RATHER THAN AN EDGE.** A strand is
+a continuous ribbon of roughly constant width that passes over and
+under others; that constancy is what makes it read as yarn. Moving one
+edge of one piece, which is what the tab does for tilings and what
+scaffolding would allow, gives a ribbon wider in some places than
+others -- torn paper rather than weaving, and the kind of result that
+comes back as a defect report. So a manipulation moves a strand's two
+long edges IN PHASE. Whether those two edges are identifiable from the
+topology's classes is unmeasured and is the first thing owed.
+
+**THE OVER AND UNDER SURVIVES AN EDIT MADE AFTERWARDS**, because
+`get_visible_cell_strands` bakes visibility into the polygons at
+construction, differencing each layer against the mask of the one
+above. The pieces arrive already clipped, so an edit inherits the
+crossings -- provided it does not move a strand ACROSS one, which is a
+constraint to state rather than to discover.
+
+**AND `_shallow_copy_with_tiles` CANNOT COPY A WEAVEUNIT**, found on
+the way: `WeaveUnit._setup_regularised_prototile()` takes no `override`
+argument where `TileUnit`'s does, so the supplied-geometry workaround
+this project already leans on for the dual is silently tiling-only.
+Anything built on it for weaves has to widen it first.

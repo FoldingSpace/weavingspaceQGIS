@@ -41,6 +41,16 @@ over a 3km region for laves 3.3.4.3.4, 84 for archimedean 4.8.8) and
 leans on four private lines. A canary in the suite asserts the gap is
 still there, so the day it closes we are told.
 
+**Editing a weave's structure** (`weaving-and-topology.md`) asks
+whether the Topology tab's refusal of every weave is a fact about
+weaves or an artefact of how they are built. Four routes were tried
+and three failed, each for a reason worth keeping; the fourth, the
+maintainer's own, closes the round trip on one weave of three. It is
+also the clearest example in these records of the difference between
+what a library CAN be made to do and what would be in the spirit of
+the thing it models, which is the question that reshaped the
+investigation halfway through.
+
 **Two studies of 2026-09-05**, `study-tiling-and-layer-data-2026-09-05.md`
 and `study-dialog-complexity-2026-09-05.md`, answer the maintainer's
 questions about whether the data behind a map and the dialog that

@@ -2030,6 +2030,31 @@ Confirmed with the user via an explicit design review:
   to `make_unit` rather than a transform applied after, so there is no
   un-thinned unit to edit and thin later, which is the R-40 boundary.
   (C-346.)
+- **A WEAVE REACHES A TOPOLOGY BY SCAFFOLDING, AND AN EDIT IS AIMED AT
+  A STRAND: THE RULINGS OF 2026-09-08, NOT YET BUILT.** (Maintainer's
+  construction, after the inset grilling had ruled weaves out.) A thin
+  weave is GENERATED from the grid rather than derived from a solid
+  one -- its strand piece is narrower across its axis and LONGER along
+  it, which is what keeps ribbons continuous across cells -- so no
+  route through solidity works: an inset shortens where thinning
+  lengthens (40% wrong), aspect 1.0 FUSES same-label pieces (a twill's
+  16 tiles become 2), and a millionth of a cell of gap still refuses.
+  (1) FILL THE DAYLIGHT WITH SCAFFOLDING, take the topology of the
+  gap-free result, and drop the filler afterwards -- measured on
+  `twill weave a|b`, where 16 tiles plus 16 filler build a topology,
+  an edit applies, and dropping the filler leaves the original 16
+  valid. (2) THE STRANDS CODE NAMES THE CONSCIOUS GAPS: a position
+  marked `-` is a deliberate absence and is never filled, so the rule
+  is declarative and no geometric test is needed -- two were tried and
+  both were wrong. (3) AN EDIT MOVES A STRAND'S TWO LONG EDGES IN
+  PHASE, because a ribbon of constant width is what reads as yarn and
+  an edge-aimed edit gives one wider in some places than others. The
+  over and under survives an edit made afterwards, visibility being
+  baked in at construction, PROVIDED a strand does not move across a
+  crossing. SCAFFOLDING IS NOT SUFFICIENT ALONE: two of three weaves
+  fill to zero gap and zero overlap and still refuse, for a different
+  reason than gaps, and diagnosing that comes first. The record of
+  what was tried is docs/process/weaving-and-topology.md. (C-347.)
 - **A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
   (Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
   replaces it, as it always has; where several classes are ticked,

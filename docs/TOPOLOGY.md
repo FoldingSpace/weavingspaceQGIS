@@ -1025,6 +1025,25 @@ THE FIRST SWEEP MEASURED NOTHING and is worth the line: it drove class
 so it produced a negative that could not have been positive. Vary the
 class as well as the design before believing one.
 
+## A weave has no topology, and what it would take: 2026-09-08
+
+A weave's strands are narrower than their cells, so the design has
+gaps and the tab refuses. Three routes through solidity were measured
+and all fail -- an inset shortens where thinning lengthens (40% wrong
+on `plain weave a|b`), `aspect == 1` fuses same-label pieces so a
+twill's 16 tiles become 2, and at aspect 0.999 a millionth of a cell
+of gap still refuses. What works is scaffolding the daylight: on
+`twill weave a|b` at 0.75, 16 strand tiles plus 16 filler give gap
+0.000000 and overlap 0.000000, `Topology` builds with six edge and
+four vertex classes, an edit applies, and dropping the filler leaves
+the original 16 tiles valid. It is NOT sufficient alone -- `plain
+weave a|b` and `twill weave a|b-` fill to zero gap and zero overlap
+and still refuse, with a different message.
+
+The instrument is `tools/probes/can_a_weave_carry_a_topology.py`. The
+full record, the dead ends and what weaving asks of an edit are in
+docs/process/weaving-and-topology.md; the rulings are C-347.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the
