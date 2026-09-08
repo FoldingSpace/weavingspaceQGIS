@@ -207,6 +207,53 @@ strand boundaries assigns the same ground with stepped edges where the
 true partition is a straight midline, which the library's regularising
 step then raised on at two aspects of four.
 
+## Attributing the daylight to what it replaces
+
+Ownership needs a rule for whose daylight a piece is, and proximity is
+the wrong one. At a crossing the ground was opened by two strands
+retreating from it, and it belongs to neither one more than the other;
+worse, a nearest-strand rule divides a hole along its diagonals, so
+each piece faces one strand and meets the others only at points, which
+is not the division the design suggests.
+
+The canonical rule asks what each piece REPLACES: which strand would
+have covered that ground had the yarn been drawn at full width. It is
+computed the way `daylight_by_kind` computes a conscious gap, by
+building a second weave and comparing. The reference is the same weave
+at an aspect just below 1.0, since at 1.0 the assembly fuses pieces
+that share a label and there would be nothing left to attribute to.
+Every piece of daylight then goes to the full-width piece covering most
+of it, with no distance measured anywhere.
+
+Measured on three weaves at four aspects, it attributes every piece of
+daylight and the absorbed regions partition the ground exactly, at an
+overlap of zero. Two questions this raised are settled by it.
+
+A pair of strands running ALONGSIDE one another stays adjacent. At full
+width they would abut along a line, so they are neighbours, and the
+worry was that carving each crossing hole among perpendicular pairs
+would leave them sharing nothing. It does not: `plain weave a|b` has
+its two `a` strands adjacent at every aspect from 0.9 to 0.25, and the
+twill has both its `a` pair and its `b` pair.
+
+And the diagonal is refused, without a rule written to refuse it. Two
+absorbed regions at opposite corners of a hole meet at a point, and
+adjacency here requires a shared segment rather than a shared point, so
+no such pair is ever joined. Where those two strands genuinely cross
+somewhere else, that crossing is where the relation is recorded, with
+whatever over-and-under sense it has. An adjacency asserted across the
+diagonal would be the same relation restated in a place where nothing
+happens, and restated without the over and under, which is the part of
+a weave worth keeping.
+
+What the attribution gives is therefore a small, stable answer: three
+kinds of relation on a plain weave, one alongside and one crossing, at
+every strand width, with nothing left over. Two caveats belong with it.
+The relations are reported by element letter, so they say that some
+pair of `a` strands is adjacent rather than how many are; and at aspect
+0.25 one or two pieces of daylight go unattributed on the twills, which
+is a small hole in the rule rather than in the idea.
+
 ## The dropped strand, which is the one real gap
 
 The distinction the whole exercise turns on is between a gap that means
