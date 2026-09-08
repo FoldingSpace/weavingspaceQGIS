@@ -4902,6 +4902,33 @@ def test_ticking_the_experimental_box_fills_the_topology_tab():
     dlg.close()
 
 
+def _wait_for_the_live_debounce(dlg, seconds: float = 10.0) -> bool:
+  """Pump until the live timer is armed, or the ceiling is reached.
+
+  Args:
+    dlg: the dialog whose `_live_timer` is being waited on.
+    seconds: the hang-catcher, multiplied by `CONTENTION` like every
+      other wait here. It is not a budget: the timer arms in
+      microseconds on an idle machine.
+
+  Returns:
+    True where the timer armed, False where it never did -- the caller
+    asserts, so that the message names what it was waiting for.
+
+  WHY IT EXISTS. Three tests changed a control, pumped a fixed fifty
+  milliseconds and asserted the debounce was armed. That is a bet on
+  the machine, and Windows is the leg that loses it: the spacing moved
+  and the timer had not yet armed, so a premise failed there on
+  2026-08-31 and again on 2026-09-08 while every other platform
+  passed. Waiting on the EVENT is faster on a quick machine, patient
+  on a slow one, and stricter than any number of ticks.
+  """
+  armed_by = time.monotonic() + seconds * CONTENTION
+  while not dlg._live_timer.isActive() and time.monotonic() < armed_by:
+    _tick(int(50 * CONTENTION))
+  return dlg._live_timer.isActive()
+
+
 def test_a_save_is_deferred_only_when_a_run_is_really_coming():
   """A Save waits for a redraw only where a redraw is actually coming.
 
@@ -4970,11 +4997,20 @@ def test_a_save_is_deferred_only_when_a_run_is_really_coming():
           "PREMISE: the spacing did not move when halved -- it was " \
           f"{was} and still is, so nothing was queued and the timer " \
           "was never asked to arm"
-        assert dlg._live_timer.isActive(), \
+        # AND THE ARMING IS WAITED FOR, NOT ASSUMED. Fifty milliseconds
+        # of pumping is a bet on the machine, and Windows is the leg
+        # that loses it: the value moved and the timer had not yet
+        # armed, so this premise failed there on 2026-08-31 and again
+        # on 2026-09-08 while every other platform passed. Waiting on
+        # the EVENT is faster on a quick machine, patient on a slow one
+        # and stricter than any fixed number of ticks -- and the
+        # ceiling below is a hang-catcher rather than a budget, sized
+        # by `CONTENTION` like every other wait here.
+        assert _wait_for_the_live_debounce(dlg), \
           "PREMISE: the spacing moved from " \
           f"{was} to {dlg.spacing_spin.value()} and the live timer is " \
-          "still not armed, so this test never reaches the question " \
-          "it is about"
+          f"still not armed {10.0 * CONTENTION:.0f}s later, so this " \
+          "test never reaches the question it is about"
         dlg._save_the_map()
         said = " ".join(str(text) for _kind, text in BAR_MESSAGES)
         verdicts[live] = (bool(getattr(dlg, "_save_pending", None)), said)
@@ -5780,7 +5816,7 @@ def test_a_tick_dropped_by_a_save_comes_back():
     assert not dlg._live_timer.isActive(), \
       "PREMISE: the timer is already armed, so re-arming proves nothing"
     dlg._maybe_live_generate()
-    assert dlg._live_timer.isActive(), (
+    assert _wait_for_the_live_debounce(dlg), (
       "a live tick that fired while a save was writing was dropped and "
       "not armed again: the timer is single-shot, so nothing will ask "
       "again, and the map stops following the controls with nothing "
@@ -9123,7 +9159,7 @@ def _a_save_waiting_on_a_redraw(dlg, out):
   assert dlg.spacing_spin.value() != was, (
     f"PREMISE: the spacing did not move when halved -- it was {was} "
     f"and still is, so nothing was queued")
-  assert dlg._live_timer.isActive(), (
+  assert _wait_for_the_live_debounce(dlg), (
     f"PREMISE: the spacing moved from {was} to "
     f"{dlg.spacing_spin.value()} and the live timer is still not "
     f"armed, so no redraw is coming and no press can be deferred")
@@ -10341,7 +10377,7 @@ def test_a_cancel_the_writer_could_not_serve_says_nothing():
       _tick(50)
       assert dlg.spacing_spin.value() != was, (
         f"PREMISE: the spacing did not move when halved from {was}")
-      assert dlg._live_timer.isActive(), (
+      assert _wait_for_the_live_debounce(dlg), (
         "PREMISE: no redraw is coming, so no press can be deferred")
       MODAL_ANSWERS["question"] = QMessageBox.StandardButton.Save
       dlg.save_button.click()
