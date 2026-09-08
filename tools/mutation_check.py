@@ -2752,6 +2752,18 @@ MUTATIONS = [
        why="your second push drag behaving like your first, rather "
            "than dividing by a number measured on the preview the "
            "last one left on screen"),
+  dict(name="a-hyphen-is-told-from-a-gap-strand-width-opens",
+       file="weavingspace_qgis/topology_edits.py",
+       # Returning the whole daylight as width-daylight is the state
+       # this replaces: a hyphen is then bridged like any other gap,
+       # so an edit travels through a strand somebody deliberately
+       # left out.
+       old="""  return {"width": daylight.difference(conscious.buffer(_A_WHISKER)),
+          "conscious": conscious}""",
+       new="""  return {"width": daylight, "conscious": shapely.Polygon()}""",
+       test="test_a_weaves_two_kinds_of_daylight_are_told_apart",
+       why="a deliberate gap in the strands code being scaffolded over "
+           "as though it were daylight the strand width opened"),
   dict(name="a-shallow-copy-serves-both-kinds-of-unit",
        file="weavingspace_qgis/topology_edits.py",
        # Passing `override` unconditionally is the state this was in:

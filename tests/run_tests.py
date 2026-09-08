@@ -91810,6 +91810,47 @@ def test_unticking_the_source_takes_it_out_of_the_file():
     project.clear()
 
 
+def test_a_weaves_two_kinds_of_daylight_are_told_apart():
+  """A hyphen is a deliberate gap; strand width is not.
+
+  Scaffolding a weave fills its daylight so a topology can be built,
+  and a topology needs the design gap-free -- so the conscious gap is
+  filled too. What must not be shared is MEANING: strands either side
+  of width-daylight are the same fabric, while a hyphen is a strand
+  somebody left out and nothing should connect through it
+  (maintainer's construction, 2026-09-08).
+
+  THE CODE ANSWERS IT, not the geometry. Two geometric tests were
+  tried and both were wrong, and the aspect-1.0 one is measurably so:
+  a hyphen weave built solid has gap 0.000000 and OVERLAP 0.125000,
+  the neighbours having grown across the empty slot.
+
+  THE CONTROL IS A CODE WITH NO HYPHEN, which must report no conscious
+  gap at all -- without it a function returning "everything is
+  conscious" would pass.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  def kinds(name, count):
+    spec = catalog.TILINGS_BY_N[count][name]
+    unit = catalog.make_unit(spec, spacing=1000.0, crs=None, aspect=0.75)
+    return spec, topology_edits.daylight_by_kind(unit, spec, 1000.0, 0.75)
+
+  spec, hyphened = kinds("twill weave a|b-", 2)
+  assert "-" in spec["strands"], "the fixture lost its hyphen"
+  assert hyphened["conscious"].area > 1, \
+    "a code with a hyphen reported no conscious gap"
+  assert hyphened["width"].area > 1, \
+    "a code with a hyphen reported no width daylight either"
+
+  for name, count in (("twill weave a|b", 2), ("plain weave a|b", 2)):
+    spec, plain = kinds(name, count)
+    assert "-" not in spec["strands"], f"{name} unexpectedly has a hyphen"
+    assert plain["conscious"].area == 0, \
+      f"{name} has no hyphen but reported " \
+      f"{plain['conscious'].area:.0f} of conscious gap"
+    assert plain["width"].area > 1, f"{name} reported no daylight at all"
+
+
 def test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is():
   """The supplied-geometry workaround must not be tiling-only.
 
@@ -93790,6 +93831,8 @@ def main():
         test_a_donor_reaches_its_follower_in_the_same_run)
   check("a task says how far its worker got",
         test_a_task_says_how_far_its_worker_got)
+  check("a weave's two kinds of daylight are told apart",
+        test_a_weaves_two_kinds_of_daylight_are_told_apart)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

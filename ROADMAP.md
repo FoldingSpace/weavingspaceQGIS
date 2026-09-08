@@ -366,29 +366,26 @@ answers the shape by being read rather than guessed at.
 
 **TOPOLOGY EDITS ON A WEAVE, BY SCAFFOLDING THE DAYLIGHT.** The tab
 refuses every weave, which is more than half the catalogue. The route
-is the maintainer's: fill the gaps between strands with filler tiles,
-take the topology of the gap-free result, aim the edit at a strand,
-drop the filler. Proved to close on `twill weave a|b`. The rulings are
-in CLAUDE.md; what was tried, what failed and why is
-docs/process/weaving-and-topology.md. OWED, in this order:
+is the maintainer's: fill the gaps between strands, take the topology
+of the gap-free result, aim the edit at a strand, drop the filler. It
+closes the round trip on 65 of 77 weaves. The rulings are in
+CLAUDE.md, the record in docs/process/weaving-and-topology.md. TWO
+PIECES ARE BUILT -- `daylight_by_kind`, which tells a hyphen's
+conscious gap from the daylight strand width opens, and a
+`_shallow_copy_with_tiles` that serves weaves as well as tilings --
+each guarded and proved `caught`. WHAT IS OWED:
 
-- THE RATE IS 65 OF 77, and TEN of the remaining twelve are now
-  DIAGNOSED and are upstream's:
-  `docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`
-  measures an edge deleted from `Topology.edges` while a tile goes on
-  naming it, so `get_edges` raises `KeyError`. Nothing here can mend
-  that; what is owed is sending the note. The other TWO are triaxial
-  cube weaves raising `GEOSException`, undiagnosed.
-- PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the topology's
-  classes, since ruling 3 moves them in phase and is unbuildable
-  otherwise.
-- GENERATE THE FILLER FROM THE STRANDS CODE, never from geometry: a
-  position marked `-` is a conscious gap and stays open.
-- DONE: `_shallow_copy_with_tiles` serves both kinds. It passed
-  `override` unconditionally, which only `TileUnit` takes, so it
-  answered None for every weave and the dual's own workaround was
-  silently tiling-only. It asks the method now; guarded, with the
-  tiling as the control, and the entry proved `caught`.
+- USE THE DISTINCTION. Both kinds must be FILLED, since a topology
+  needs the design gap-free; what has to survive into the classes is
+  that an edit travels across width daylight and never through a
+  hyphen.
+- PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the
+  topology's classes, since the strand-aimed ruling moves them in
+  phase and is unbuildable otherwise.
+- THE TWO TRIAXIAL CUBE WEAVES raising `GEOSException`, the only
+  undiagnosed failures left. The other ten are upstream's, measured:
+  see the upstream note on an edge deleted while a tile still names
+  it, which is owed a SENDING rather than a repair.
 
 THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand that follows
 a PATH undulates authentically at any width, needing no filler, no

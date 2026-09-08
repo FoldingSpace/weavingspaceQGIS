@@ -933,6 +933,76 @@ def gaps(unit):
 GAP_TOLERANCE = 1e-6
 
 
+def daylight_by_kind(unit, spec, spacing: float, aspect: float) -> dict:
+  """Tell a weave's two kinds of daylight apart, using its strands code.
+
+  Args:
+    unit: the WeaveUnit as built, at the strand width in force.
+    spec: its catalogue entry, which carries `strands` and `weave_type`.
+    spacing: the spacing the unit was built at.
+    aspect: the strand width the unit was built at.
+
+  Returns:
+    ``{"width": geometry, "conscious": geometry}`` -- the daylight that
+    strand WIDTH opens, and the ground a HYPHEN in the strands code
+    leaves deliberately empty. Either may be an empty geometry, and a
+    code with no hyphen always makes `conscious` empty.
+
+  WHY BOTH ARE NEEDED AT ONCE. Scaffolding a weave means filling its
+  daylight so a topology can be built at all, and a topology needs the
+  design GAP-FREE -- so the conscious gap has to be filled too, or
+  there is no topology to reprocess. What the two must not share is
+  MEANING: strands either side of width-daylight are the same fabric
+  and an edit may travel across it, while a hyphen is a strand the
+  person deliberately left out and nothing should connect through it.
+  (Maintainer's construction, 2026-09-08; C-347.)
+
+  IT ASKS THE LIBRARY RATHER THAN REIMPLEMENTING THE GRID. The same
+  weave is built with each hyphen replaced by an unused letter, and
+  the ground that ghost carries and the real one does not IS the
+  conscious gap, exactly. Reconstructing the strand bands here would
+  duplicate `_get_cell_strands`, whose widths, expansions and
+  over-under differencing are the library's business.
+
+  AND THE ASPECT TRICK DOES NOT WORK, which is why this is not that:
+  a hyphen weave built at aspect 1.0 has gap 0.000000 and OVERLAP
+  0.125000, the neighbouring strands having grown across the empty
+  slot, so subtracting the solid design's gaps isolates nothing.
+  """
+  import shapely
+  from . import catalog
+  code = str(spec.get("strands", ""))
+  gap = plane_coverage(unit)[2]
+  empty = shapely.Polygon()
+  daylight = gap if gap is not None else empty
+  if "-" not in code:
+    return {"width": daylight, "conscious": empty}
+  used = set(catalog.elements_in_strands(code))
+  spare = [c for c in "zyxwvutsrq" if c not in used]
+  if len(spare) < code.count("-"):
+    return {"width": daylight, "conscious": empty}
+  ghost_code = "".join(spare.pop(0) if ch == "-" else ch for ch in code)
+  try:
+    ghost = catalog.make_unit(spec, spacing=spacing, crs=None,
+                              aspect=aspect, strands=ghost_code)
+  except Exception:                                   # noqa: BLE001
+    return {"width": daylight, "conscious": empty}
+  real_ground = shapely.union_all(list(unit.tiles.geometry))
+  ghost_ground = shapely.union_all(list(ghost.tiles.geometry))
+  conscious = ghost_ground.difference(real_ground)
+  return {"width": daylight.difference(conscious.buffer(_A_WHISKER)),
+          "conscious": conscious}
+
+
+_A_WHISKER = 1e-6
+"""How far a boolean difference may miss by and still mean the same thing.
+
+Small enough not to move a boundary anybody can see, large enough that
+two coordinates the same to a millionth are treated as one -- which is
+what a difference of two independently built unions needs.
+"""
+
+
 def plane_coverage(unit):
   """Whether a unit tiles the plane cleanly -- no gaps AND no overlaps.
 

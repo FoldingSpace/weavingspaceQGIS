@@ -399,6 +399,11 @@
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
  },
+ "1edbf6f1d3ee793b": {
+  "approved": "2026-09-08",
+  "excerpt": "How far a boolean difference may miss by and still mean the ",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "1fd28a120d53cae4": {
   "approved": "2026-08-27",
   "excerpt": "Drawing a map and saving one are separate acts. Nothing is w",
