@@ -1065,8 +1065,24 @@ translated copies, so a lattice offset moving a near-pinch onto the
 1e-06 grid is what decides it, and nothing about triaxiality is special
 beyond its offsets being irrational multiples of the resolution.
 
-The instruments are `tools/probes/can_a_weave_carry_a_topology.py` and
-`tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`. The full
+AND THE STRUCTURE THAT COMES BACK IS OF THE WEAVE AND THE FILLING
+TOGETHER. The same ground cut two ways gives six edge classes or 114,
+and a twill's classes stand still from aspect 0.9 to 0.5 and then move
+at 0.25, where its daylight falls into twenty-five pieces of seven
+sizes rather than sixteen congruent ones. Cutting the daylight by
+what each piece is FOR removes that dependence -- a plain weave then
+carries thirty edge classes at every aspect -- and absorbing the
+incidental part into the strand whose width opened it gives a smaller
+structure that also holds still, six edge and four vertex classes at
+every aspect. Passing THROUGH the daylight instead does not work: it is
+largely one connected region, so every strand becomes adjacent to every
+other. The discussion, with figures,
+is docs/process/the-topology-of-a-weave-and-its-holes.md.
+
+The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
+`tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`,
+`tools/probes/the_topology_of_a_thin_weave.py` and
+`tools/probes/a_weave_topology_that_ignores_its_gaps.py`. The full
 record, the dead ends and what weaving asks of an edit are in
 docs/process/weaving-and-topology.md; the rulings are C-347.
 

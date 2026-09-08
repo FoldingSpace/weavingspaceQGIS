@@ -60,6 +60,22 @@ over a 3km region for laves 3.3.4.3.4, 84 for archimedean 4.8.8) and
 leans on four private lines. A canary in the suite asserts the gap is
 still there, so the day it closes we are told.
 
+**The topology of a weave, and what its holes have to do with it**
+(`the-topology-of-a-weave-and-its-holes.md`) is the discussion, with
+figures, behind the weave record below. A weave below aspect 1.0 has holes by
+construction, so it is not a tiling and has no structure to derive;
+filling the daylight with tiles gives it one, and the note shows by
+control that the classes then follow how the holes were cut, the same
+ground cut two ways giving six edge classes or 114. The way out is to
+cut the daylight by what each piece is FOR, which is canonical, and
+then to decide what each kind is: the note measures what happens when
+the incidental gaps are passed through (everything becomes adjacent to
+everything) against what happens when they are absorbed into the
+strand whose width opened them (a small structure that does not move
+with the strand width). Read it before building on a weave's classes,
+or before quoting "the dual of a weave", which is not a definite
+phrase until somebody says what the holes are.
+
 **Editing a weave's structure** (`weaving-and-topology.md`) asks
 whether the Topology tab's refusal of every weave is a fact about
 weaves or an artefact of how they are built. Four routes were tried
