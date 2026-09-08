@@ -3530,9 +3530,21 @@ class TopologyPanel(QWidget):
       # cache. The pointer may keep going; the number does not.
       # WHY NOT A CEILING HERE. Bisecting for the exact maximum costs
       # 1.4s, which is a freeze at the moment somebody starts dragging.
-      # This is exact to one frame of pointer travel instead, and the
-      # COMMIT-time clamp then applies the true ceiling at the drop, so
-      # a fast drag that stops a little short is corrected on release.
+      # This is exact to one frame of pointer travel instead.
+      # AND THE DROP DOES NOT MAKE IT EXACT, which this comment claimed
+      # until 2026-09-07 and which is worth stating plainly because the
+      # claim is inviting: `apply`'s clamp is entered only where the
+      # edit produced nothing drawable, and a held value laid out by
+      # construction, so the clamp can only ever LOWER what it is
+      # given. Nothing raises a held value to the true ceiling.
+      # WHAT THAT COSTS, measured: a frame is 158 ms and the default
+      # design's edges draw at about 94 px, so a pointer at 250 px/s
+      # advances 0.42 of the amplitude between samples against a
+      # ceiling of 0.594 -- the shortfall is bounded by a frame of
+      # travel, not by a pixel of it. Ruling 2 is what ships (the value
+      # holds at the last one that laid out); making the drop seek the
+      # exact ceiling would be a change to that ruling rather than a
+      # repair, and it is the maintainer's.
       if self._drag_last_good is not None:
         self._drag_from = dict(self._drag_last_good)
         self._show_arguments(self._drag_last_good)
