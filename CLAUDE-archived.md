@@ -378,6 +378,7 @@ quote them, do not renumber them.
 - **C-341** — a validity check that sees one failure mode is blind to the other; rotate and scale ref...  <sub>minted</sub>
 - **C-342** — The zigzag clamp, and the ratchet it is shaped to avoid  <sub>minted</sub>
 - **C-343** — The honest preview's four rulings, and what each was measured against  <sub>minted</sub>
+- **C-344** — The Topology tab's four rulings of 2026-09-07, by grilling  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11035,3 +11036,105 @@ fundamental cells is interior by construction, with no boundary to
 erode and nothing to tune. The maintainer chose the wider hatch drawn
 LIGHTER, this project having withdrawn a hatching once already for
 confusing people.
+
+### C-344 — The Topology tab's four rulings of 2026-09-07, by grilling
+
+Put to the maintainer one at a time late on 2026-09-07, during round
+nine of the hunt campaign, with every measurement taken BEFORE its
+question was asked -- which is what the record says a decision is only
+as good as. Three of the four came out of hunts; the fourth arrived
+mid-grilling from a fifth hunt and was put as a ruling rather than
+repaired.
+
+**1. WHERE A DRAG'S SENTENCE APPEARS.** `_status_of_a_drag` composes a
+sentence per manipulation into `reason` -- the held wording, the
+refusal, and one for each way a design can fail to tile -- and the
+paint read only `failed` and `clamped`, to pick a pen colour. Hunt
+`repairs3` rendered the widget and hashed it: with a preview up, the
+zigzag reason, the rotate reason and an empty reason all gave
+`7fae319ddbde`. Write-only, all of it, including text the maintainer
+had reviewed and approved hours earlier.
+
+The three candidate homes were not equal, and the measurement that
+decided it was of the STORES rather than of the pixels. `note` already
+carries two meanings -- the reason there is no topology (`set_unit`)
+and what the replay refused (`report`) -- and five places in the suite
+read it, including `_settle_topology`, which treats text there as an
+answer having ARRIVED; a third meaning there is M-25's fault exactly.
+A label of its own is a second place to look mid-gesture. The drawing
+is where the eye already is, and a sentence painted there dies with
+the picture, so no clearing has to be remembered -- which is the half
+this tab keeps getting wrong (the drop's preview, the held landing's
+sentence, `_marks`, `_drag_reached`, all in one night).
+
+Rejected: deleting the sentences on the ground that amber and red
+already say which state a drag is in. The colour says WHICH; the words
+say why and what to do.
+
+**2. WHETHER THE DROP SEEKS THE EXACT CEILING.** Ruling 2 of the
+earlier grilling had the drag hold at the last value that laid out and
+compute no ceiling, because bisecting costs 1.4 s and that is a freeze
+at the moment somebody starts dragging. What was not measured then is
+how far short that leaves a real gesture: a frame is 158 ms and the
+default design's edges draw at about 94 px, so a pointer at 250 px/s
+advances 0.42 of the amplitude between samples against a ceiling of
+0.594. The value somebody ended up with depended on how fast they
+moved the mouse.
+
+One option was excluded by measurement rather than taste: recording
+the exact ceiling would write a clamp INTO the record, which is the
+ratchet C-342 forbids -- the ceiling moves as neighbouring edits move,
+so every replay would shave the number again.
+
+A door asymmetry was put with it: typing 1.0 where the ceiling is 0.59
+records 1.0 and draws 0.59, while dragging past the limit recorded
+whatever the last frame managed. Making the drag record what was ASKED
+would need clamps for rotate and scale that do not exist, so a held
+drag there would become a refused edit.
+
+Settled: three bounded probes at the DROP, each halving the remaining
+gap, about half a second at the end of a gesture and at most an eighth
+of the shortfall left. Ruling 2's reasoning kept -- nothing is
+computed at the press -- and its consequence removed. The discrete
+arguments are excluded, since a count between two even numbers is not
+a value any control can hold; that exclusion was mine rather than the
+maintainer's and was reported as such.
+
+**3. WHAT THE CHANGE LIST CALLS AN ARGUMENT.** The rows printed the
+vendored library's parameter names, and after the amplitude's
+conversion landed they printed them beside a number the record does
+not hold -- looking like the record without being it. `MANIPULATIONS`
+already carries the label each box shows and the row's own verb comes
+from that same record, so this was a lookup rather than a decision
+about wording. The keys stay in the record; only the row changes.
+
+**4. WHETHER `push_d` IS A DISTANCE OR A MULTIPLIER.** Hunt `spec2`
+measured that `push_vertex` multiplies `push_d` by the sum of the unit
+vectors at the vertex, whose length is a property of that vertex:
+0.4142 on `archimedean 4.8.8` against a nudge's 1.0000, so a 60px rail
+drag moved the vertex 24.85px. The tab's own comment claimed there was
+no gain factor in between. Confirmed here on a third route -- a push
+of 0.1 moving 0.0536 of the unit against a nudge's 0.1293, and 0.0000
+on the two designs whose symmetry cancels the push.
+
+Settled as a DISTANCE: the vertex follows the pointer, the record
+keeps the library's parameter, which is the shape the Amplitude box
+already has. The tab's own standard rejects a gain factor nobody can
+see, and this one was never chosen -- it was inherited.
+
+**WHAT THE BUILDING THEN COST, which is the part worth reading twice.**
+Ruling 4 was built in one commit and broken in the next three hunts:
+the gain was re-read from the drag's own preview (C-198 in the rail),
+then frozen but frozen FROM the preview, then taken from the design
+while the VERTEX stayed on the preview -- the library reading the
+point from its argument and the neighbours from the topology, so both
+halves must come from one store. Three doors, three entries, each
+answered by the others still being right. Ruling 2's build was broken
+once in the same way: `_drag_reached` survived a frame that laid out,
+so easing back after an overshoot recorded up to 3.5x what the preview
+drew.
+
+THE SHAPE THAT RECURS THROUGH ALL OF IT: a quantity on the wrong side
+of the frozen/live line, or one member of a pair written where its
+twin was not. Every one was found by a hunt launched at the repair
+that made it, within the hour, and none by reading.

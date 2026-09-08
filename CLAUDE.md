@@ -1962,6 +1962,29 @@ Confirmed with the user via an explicit design review:
   worth. A HULL IS THE TRAP: a patch's outer edge is ragged, and the
   first version reported a whole cell of "tear" on an untouched design.
   (C-343.)
+- **THE TOPOLOGY TAB: FOUR RULINGS OF 2026-09-07 (LATE)**, settled by
+  grilling with each measurement taken before its question was asked.
+  (1) A DRAG'S SENTENCE IS PAINTED IN THE DRAWING, while the pointer
+  is down, in the colour the outlines take. Every sentence the honest
+  preview composes was written into a field nothing read, and the
+  three possible homes are not equal: the panel's `note` already means
+  two things and the suite's settle helper reads text there as an
+  answer having ARRIVED, a label of its own is a second place to look
+  during a gesture, and the drawing is where the eye already is -- and
+  it dies with the picture, so nothing has to remember to clear it.
+  (2) THE DROP REFINES A HELD VALUE, three bounded probes toward what
+  the pointer asked, each halving what is left. Ruling 2 of the
+  earlier grilling stands and its mouse-speed dependence goes: the
+  shortfall it left is a FRAME of travel rather than a pixel of it,
+  0.42 of the amplitude at 250 px/s. The discrete arguments are not
+  interpolated, a count between two even numbers being a value no
+  control can hold. (3) THE CHANGE LIST NAMES ARGUMENTS AS THE BOXES
+  DO -- "Amplitude", not `h` -- since the keys are the library's and
+  the values had already stopped matching the record. (4) `push_d` IS
+  A DISTANCE: the vertex follows the pointer, the record still holding
+  the library's parameter, as the Amplitude box shows the crest and
+  holds `h`. A gain factor nobody can see is what this tab rejected
+  twice already. (C-344.)
 - **A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
   (Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
   replaces it, as it always has; where several classes are ticked,

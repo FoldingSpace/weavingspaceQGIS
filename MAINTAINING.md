@@ -1515,6 +1515,43 @@ zigzag was in hand told somebody dragging a ROTATE that "a deeper wave
 than this runs beyond the edges next to it". Found by rendering the
 gesture; the refusal beside it carried the same fault (T-147).
 
+**AND THEY ARE PAINTED IN THE DRAWING**, across its foot, in the
+colour the outlines take (maintainer's ruling, 2026-09-07; C-344).
+They were written into `reason` and read by nothing for a day: the
+paint took `failed` and `clamped` for a pen colour and stopped, so
+rendering the widget with the reason replaced or emptied gave
+byte-identical pixels. The drawing is where the eye already is during
+a gesture, and a sentence there DIES WITH THE PICTURE, so no clearing
+has to be remembered -- where `note` already means two things and the
+suite's own settle helper reads text there as an answer having
+arrived.
+
+**AND THE DROP REFINES WHAT THE DRAG HELD**, three bounded probes
+toward what the pointer asked, each halving the gap
+(`_refined_towards_what_was_asked`, `_REFINING_STEPS`). Holding at the
+last value that laid out leaves a shortfall bounded by a FRAME of
+travel -- 0.42 of the amplitude at 250 px/s against a ceiling of 0.594
+-- so what somebody ended up with depended on how fast they moved the
+mouse. Nothing is computed at the press, where 1.4 s would be a
+freeze; half a second at the end of a gesture is not. The discrete
+arguments are not interpolated, a count between two even numbers being
+a value no control can hold, and `_this_frame_laid_out` is the ONE
+site that keeps `_drag_last_good` and forgets `_drag_reached`, since a
+pair written in two places comes apart -- as it did, letting a gesture
+that ended at 0.100 record 0.350.
+
+**AND THE PUSH RAIL CARRIES NO GAIN.** `push_d` is a DISTANCE: the
+drag divides travel by the vertex's own gain (`push_gain`,
+`_push_for_travel`) so the ground follows the pointer, while the
+record keeps the library's parameter, as the Amplitude box shows the
+crest and holds `h`. THE GAIN IS FROZEN AT THE PRESS beside
+`_press_edge` AND TAKEN OFF THE HELD DESIGN, and the vertex is looked
+up in that same topology by its `ID`: `push_vertex` reads the vertex's
+point from its ARGUMENT and its neighbours from the TOPOLOGY, so both
+halves must come from one store. Each of those three is a separate
+door and each was found, in turn, by a hunt aimed at the repair before
+it (ledger rows 9, 10 and 12 of 2026-09-07).
+
 ### How an edit that cannot be drawn is told apart from one that did nothing
 
 Three different things can go wrong with a replayed edit, they need
