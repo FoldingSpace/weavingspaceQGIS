@@ -349,6 +349,27 @@ geometry that raises is made downstream, in the patch, by the cleaner.
 A repair aimed at the object you can see rather than the object that
 raises is dead code that reads as protection.
 
+BUT SNAPPING IS NOT THE WHOLE REPAIR, AND SAYING SO CORRECTS THIS
+RECORD. Run end to end, the largest cube gets PAST the cleaner when its
+filler is snapped and then fails somewhere else entirely:
+
+    cube weave abc|def|ghi, snapped, 114 tiles, patch of 798, all
+    single-part
+
+      _copy_base_tiles_to_patch -> _match_reference_tile_vertices
+        -> Tile.insert_vertex_at
+             old_edge = self.get_edges()[i - 1]
+      IndexError: list index out of range
+
+That is a tile's own edge list being shorter than the index asked of
+it, which is the SAME BOOKKEEPING the older note here is about -- an
+edge deleted from the topology while a tile goes on naming it. Whether
+it is the same defect is a HYPOTHESIS and is not measured; what is
+measured is that the two reproductions land in the same pair of
+methods. So two of the three cube weaves are diagnosed to their root
+and the third is diagnosed as far as the cleaner, with a second
+failure behind it on ground already reported upstream.
+
 WHAT IS OURS AND WHAT IS UPSTREAM'S. Ours is not to hand the library
 filler that pinches at 1e-06. Upstream's is that `get_clean_polygon`
 may return a multi-part and `get_corners` assumes it cannot, which any

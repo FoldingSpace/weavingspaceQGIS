@@ -385,11 +385,12 @@ and a weave-capable `_shallow_copy_with_tiles` are built. WHAT IS OWED:
 - AND THE SCAFFOLDING REACHES A TWO-LETTER CLASS LABEL at 36 classes,
   which `classes()` and `label in selector` both mishandle. Not a live
   defect; owed by whatever builds on the scaffolding.
-- THE CUBE WEAVES ARE DIAGNOSED: all three fail inside `set_precision`,
-  which raises on some filler and splits other filler into a multi-part
-  `get_corners` cannot take. Ours is not to pinch at 1e-06; upstream's
-  is its cleaner's contract. TWO notes now await a SENDING, which is
-  the maintainer's act.
+- THE CUBE WEAVES ARE DIAGNOSED, two to their root: all three fail in
+  `set_precision`, which raises on some filler and splits other filler
+  into a multi-part `get_corners` cannot take. Ours is not to pinch at
+  1e-06, but snapping is not the whole repair -- the largest cube then
+  fails in `insert_vertex_at`, on the bookkeeping the older note
+  reports. TWO notes await a SENDING, the maintainer's act.
 
 THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand that follows
 a PATH undulates authentically at any width, needing no filler, no
