@@ -12036,8 +12036,12 @@ def test_the_drop_closes_the_gap_a_frame_of_travel_left():
 
   # A HELD FRAME WELL SHORT OF THE CEILING, and a pointer that had
   # gone past it -- which is exactly what a fast drag leaves.
+  # THE DISCRETE ARGUMENTS DIFFER BETWEEN THE TWO, which a real drag
+  # produces -- the zigzag's count and its amplitude move together --
+  # and without which the assertion about not interpolating them
+  # cannot fail: the value filter already excludes anything equal.
   held = {"n": 2, "h": ceiling * 0.4, "smoothness": 3}
-  asked = {"n": 2, "h": ceiling * 1.6, "smoothness": 3}
+  asked = {"n": 6, "h": ceiling * 1.6, "smoothness": 5}
   assert topology_edits.lays_out(topology, label, "zigzag_edge", held), \
     "PREMISE: the held value does not lay out, so it is not a held value"
   assert not topology_edits.lays_out(topology, label, "zigzag_edge", asked), \
@@ -12426,6 +12430,11 @@ def test_a_change_never_wears_the_verdict_of_the_one_it_replaced():
 
     # AND CLEAR IS THE SAME QUESTION, which is the arm a repair aimed
     # at undo alone would leave open.
+    # IT MUST BE GIVEN A MARK TO CARRY FIRST. The restore arm above
+    # empties them, so without this Clear arrives with nothing to drop
+    # and the arm passes however `_clear` behaves -- a dead axis found
+    # by mutating this very assertion (round nine, hunt `trigger2`).
+    panel.set_marks([torn])
     panel._clear()
     panel._record({"classes": "a", "how": "zigzag_edge",
                    "args": {"n": 2, "h": 0.1}})
