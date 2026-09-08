@@ -2720,6 +2720,17 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-drop-closes-what-a-frame-left", file=TOPOLOGY_TAB,
+       # Spending no probes is the state the drop shipped in: the
+       # record then holds whatever the last frame of pointer travel
+       # managed, which on a fast drag is a fraction of what the
+       # design would have taken.
+       old="""    for _ in range(max(0, int(steps))):""",
+       new="""    for _ in range(0):""",
+       test="test_the_drop_closes_the_gap_a_frame_of_travel_left",
+       why="the value you end up with being the one the design "
+           "allows, rather than one that depended on how fast you "
+           "moved the mouse"),
   dict(name="the-push-rail-carries-no-hidden-gain", file=TOPOLOGY_TAB,
        # Handing the travel back untouched is the state the drag
        # shipped in: the library then multiplies it by the vertex's own

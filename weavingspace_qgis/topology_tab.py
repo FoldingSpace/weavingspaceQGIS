@@ -371,6 +371,15 @@ _AMPLITUDE_DEADBAND_PX = 6.0
 # the sine short of its peak by about 5%, which is left to the map.
 _CREST_OF_H = 0.5
 
+# HOW MANY PROBES THE DROP SPENDS closing the gap between the value a
+# drag held and the one the pointer reached. Each halves what is left
+# and costs about 161 ms -- the same transform the preview performs
+# every frame -- so three is about half a second at the end of a
+# gesture and leaves at most an eighth of the shortfall. The full
+# bisection is eight steps and 1.4 s, which is why it is not run at
+# the press. (Maintainer's ruling, 2026-09-07.)
+_REFINING_STEPS = 3
+
 
 def _in_the_units_the_controls_show(edit):
   """An edit's arguments as the tab displays them, not as it stores them.
@@ -2310,6 +2319,11 @@ class TopologyPanel(QWidget):
     # `_commit_the_drag` at the drop, so a later drag can never hold a
     # number an earlier one left behind.
     self._drag_last_good = None
+    # WHAT THE POINTER ASKED FOR after the value stopped following it,
+    # kept so the drop can close most of the gap between the two. Its
+    # writers and clearers are exactly `_drag_last_good`'s, since the
+    # pair is meaningless apart.
+    self._drag_reached = None
     # The numbers as they stood when the handle was grabbed; see
     # `_on_grabbed`.
     self._drag_started_with = {}
@@ -3398,6 +3412,7 @@ class TopologyPanel(QWidget):
     # because 3 is what the box holds after the drag put it there.
     self._drag_started_with = dict(self._arguments())
     self._drag_last_good = None
+    self._drag_reached = None
 
   # ------------------------------------------------------------ drag
 
@@ -3690,6 +3705,9 @@ class TopologyPanel(QWidget):
       # repair, and it is the maintainer's.
       if self._drag_last_good is not None:
         self._drag_from = dict(self._drag_last_good)
+        # AND WHAT THE POINTER ASKED FOR ANYWAY, which the drop uses to
+        # close most of the gap the frame's own coarseness leaves.
+        self._drag_reached = dict(args)
         self._show_arguments(self._drag_last_good)
       else:
         # NOTHING HAS LAID OUT YET IN THIS GESTURE, so there is no
@@ -3906,6 +3924,7 @@ class TopologyPanel(QWidget):
     finally:
       self.view.set_drag_status(None)
       self._drag_last_good = None
+      self._drag_reached = None
 
   def _commit_the_drag_body(self):
     """Turn the gesture just ended into an edit, or discard it.
@@ -3972,7 +3991,73 @@ class TopologyPanel(QWidget):
             or self.view.drag_travel_px() >= _AMPLITUDE_DEADBAND_PX):
       self.view.show_preview(None)
       return
+    args = self._refined_towards_what_was_asked(key, data[1], args,
+                                                self._drag_reached)
     self._record({"classes": data[1], "how": key, "args": args})
+
+  def _refined_towards_what_was_asked(self, key, labels, good, asked,
+                                      steps=_REFINING_STEPS):
+    """Close most of the gap between a held value and the pointer's.
+
+    Args:
+      key: the manipulation.
+      labels: the classes the edit is aimed at.
+      good: the value the drag held, which laid out by construction.
+      asked: what the pointer had reached by then, or None where the
+        gesture was never held at all.
+      steps: how many probes to spend. Each halves the remaining gap
+        and costs about 161 ms, being the same transform the preview
+        performs every frame.
+
+    Returns:
+      The furthest value toward `asked` that still lays out, or `good`
+      unchanged where there is nothing to close or no topology to ask.
+
+    WHY THE DROP AND NOT THE DRAG. A drag holds at the last value that
+    laid out (ruling 2, 2026-09-07) and computes no ceiling, because
+    bisecting for the exact one costs 1.4 s -- a freeze at the moment
+    somebody starts dragging. What that leaves is a shortfall bounded
+    by a FRAME of pointer travel rather than a pixel of it: a frame is
+    158 ms and the default design's edges draw at about 94 px, so a
+    pointer at 250 px/s advances 0.42 of the amplitude between samples
+    against a ceiling of 0.594. The number you ended up with depended
+    on how fast you moved the mouse.
+
+    So the refining happens ONCE, at the drop, where half a second is
+    a gesture ending rather than a window freezing, and three probes
+    leave at most an eighth of that gap. (Maintainer's ruling,
+    2026-09-07, by grilling: ruling 2's reasoning kept and its
+    mouse-speed dependence removed.)
+
+    THE DISCRETE ARGUMENTS ARE NOT INTERPOLATED. A zigzag's count
+    snaps to even numbers and its smoothness is a sample count, so a
+    midpoint between two of them is not a value any control can hold;
+    they stay as the held frame had them, which is what the person was
+    shown.
+    """
+    topology = self._topology
+    if topology is None or not asked or not good:
+      return good
+    moving = [name for name in asked
+              if name not in ("n", "smoothness")
+              and isinstance(asked.get(name), (int, float))
+              and isinstance(good.get(name), (int, float))
+              and abs(float(asked[name]) - float(good[name])) > 1e-12]
+    if not moving:
+      return good
+    low, high = 0.0, 1.0
+    best = dict(good)
+    for _ in range(max(0, int(steps))):
+      middle = (low + high) / 2.0
+      candidate = dict(good)
+      for name in moving:
+        candidate[name] = (float(good[name]) + middle
+                           * (float(asked[name]) - float(good[name])))
+      if edits_module.lays_out(topology, labels, key, candidate):
+        best, low = candidate, middle
+      else:
+        high = middle
+    return best
 
   def _amplitude_deadband(self) -> float:
     """Half a handle seat, as a fraction of the chosen edge's length.

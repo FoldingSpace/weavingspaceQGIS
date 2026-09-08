@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-564 defect(s) with a regression test.
+565 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -330,6 +330,8 @@ there is no separate list to remember.
   guarded by `test_the_documents_numbers_match_the_code`
 - **a rotate drag drew red-and-dotted "this cannot be laid out as a tiling" over a move whose commit was gap-free, so a person eased back off an edit the plugin would have accepted in full.**  
   guarded by `test_the_drag_previews_the_move_the_drop_would_make`
+- **a fast drag recorded whatever the last frame managed, which could be a third of the amplitude the design would have taken.**  
+  guarded by `test_the_drop_closes_the_gap_a_frame_of_travel_left`
 - **with topology edits standing, "Generate the dual and tile it" drew and saved the dual of the design BEFORE the edits, while the tab went on showing the edited motif and its dual.**  
   guarded by `test_the_dual_is_taken_of_the_design_as_edited`
 - **the ghost's peak and the handle could have been drawn apart on the tab with every guard green, since the only assertion that they meet ran on a view that draws no handle.**  
@@ -1183,7 +1185,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 190
-- a bug hunt pointed in a named direction: 161
+- a bug hunt pointed in a named direction: 162
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18

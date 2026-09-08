@@ -11999,6 +11999,70 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_the_drop_closes_the_gap_a_frame_of_travel_left():
+  """A held drag ends nearer what was asked than the last frame managed.
+
+  A drag holds at the last value that laid out and computes no
+  ceiling, because bisecting for the exact one costs 1.4 s and that is
+  a freeze at the moment somebody starts dragging (ruling 2). What
+  that leaves is a shortfall bounded by a FRAME of pointer travel: a
+  frame is 158 ms and the default design's edges draw at about 94 px,
+  so a pointer at 250 px/s advances 0.42 of the amplitude between
+  samples against a ceiling of 0.594 -- the value you ended up with
+  depended on how fast you moved the mouse.
+
+  The drop spends three probes closing that gap, each halving what
+  remains. BOTH HALVES ARE ASSERTED: the result must be nearer what
+  was asked, and it must still lay out -- a refinement that overshot
+  would record an edit the replay then refuses, which is worse than
+  the shortfall it set out to fix.
+
+  Regression: a fast drag recorded whatever the last frame managed, which could be a third of the amplitude the design would have taken. [hunt]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.topology_tab import TopologyPanel
+
+  spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+  unit = catalog.make_unit(spec, spacing=1000, crs=3857)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: no topology -- {why}"
+  label = topology_edits.classes(topology).get("edge", "")[:1]
+  assert label, "PREMISE: this design has no edge class to zigzag"
+
+  ceiling = topology_edits.zigzag_ceiling(
+    topology, label, {"n": 2, "smoothness": 3})
+  assert ceiling > 0.1, \
+    f"PREMISE: no usable ceiling on this class to fall short of ({ceiling})"
+
+  # A HELD FRAME WELL SHORT OF THE CEILING, and a pointer that had
+  # gone past it -- which is exactly what a fast drag leaves.
+  held = {"n": 2, "h": ceiling * 0.4, "smoothness": 3}
+  asked = {"n": 2, "h": ceiling * 1.6, "smoothness": 3}
+  assert topology_edits.lays_out(topology, label, "zigzag_edge", held), \
+    "PREMISE: the held value does not lay out, so it is not a held value"
+  assert not topology_edits.lays_out(topology, label, "zigzag_edge", asked), \
+    "PREMISE: what the pointer asked for lays out, so nothing was held"
+
+  panel = TopologyPanel(None)
+  try:
+    panel._topology = topology
+    refined = panel._refined_towards_what_was_asked(
+      "zigzag_edge", label, held, asked)
+    assert refined["h"] > held["h"], (
+      f"the drop left the held value where it was: {refined['h']:.4f} "
+      f"against {held['h']:.4f}, with {asked['h']:.4f} asked for")
+    assert topology_edits.lays_out(topology, label, "zigzag_edge", refined), (
+      f"the drop recorded {refined['h']:.4f}, which does not lay out -- "
+      "the replay will refuse an edit the gesture appeared to make")
+    # AND THE DISCRETE ARGUMENTS ARE NOT INTERPOLATED, or the count
+    # would land between two even numbers no control can hold.
+    assert refined["n"] == held["n"] \
+        and refined["smoothness"] == held["smoothness"], (
+      f"the refinement moved a discrete argument: {refined}")
+  finally:
+    panel.deleteLater()
+
+
 def test_a_push_moves_the_ground_as_far_as_the_pointer_went():
   """The push rail has no gain factor in it, because one was removed.
 
@@ -91727,6 +91791,8 @@ def main():
         test_the_change_list_shows_the_amplitude_the_box_shows)
   check("a push moves the ground as far as the pointer went",
         test_a_push_moves_the_ground_as_far_as_the_pointer_went)
+  check("the drop closes the gap a frame of travel left",
+        test_the_drop_closes_the_gap_a_frame_of_travel_left)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
