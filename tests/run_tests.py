@@ -12305,6 +12305,21 @@ def test_a_change_never_wears_the_verdict_of_the_one_it_replaced():
       "a change made after an undo wears the verdict of the change it "
       f"replaced: {rows[1]!r}")
 
+    # AND A RESTORE IS THE SAME QUESTION AGAIN, which is the THIRD
+    # writer of the edit list and the one the first repair missed:
+    # `set_edits` is the design-change door, so every mark on hand
+    # describes the design being left. Measured 2026-09-07: switching
+    # design carried the outgoing one's "not applied" onto the
+    # incoming one's first change for 6.45 seconds.
+    panel.set_marks([torn, torn])
+    panel.set_edits([{"classes": "a", "how": "rotate_edge",
+                      "args": {"angle": 5}}])
+    rows = [panel.edit_list.item(i).text()
+            for i in range(panel.edit_list.count())]
+    assert "no longer meet" not in rows[0], (
+      "a restored design's first change wears the previous design's "
+      f"verdict: {rows[0]!r}")
+
     # AND CLEAR IS THE SAME QUESTION, which is the arm a repair aimed
     # at undo alone would leave open.
     panel._clear()

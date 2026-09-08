@@ -2720,6 +2720,17 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="a-restored-design-brings-no-marks-with-it", file=TOPOLOGY_TAB,
+       # THE THIRD DOOR, and it needs its own entry because the entry
+       # over Undo and Clear is answered by them still being right.
+       # Leaving the marks is the state the restore shipped in, and
+       # the state tonight's own repair for the other two doors left.
+       old="""    self._edits = [dict(edit) for edit in (edits or [])]
+    self._marks = []""",
+       new="""    self._edits = [dict(edit) for edit in (edits or [])]""",
+       test="test_a_change_never_wears_the_verdict_of_the_one_it_replaced",
+       why="a design you switch to being judged on its own edits, not "
+           "on the verdicts of the design you left"),
   dict(name="the-drop-closes-what-a-frame-left", file=TOPOLOGY_TAB,
        # Spending no probes is the state the drop shipped in: the
        # record then holds whatever the last frame of pointer travel

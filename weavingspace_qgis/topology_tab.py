@@ -2601,8 +2601,24 @@ class TopologyPanel(QWidget):
       None. Silent because this is a RESTORE: announcing it would ask
       the dialog to redraw a map that already describes these edits,
       which is how a restore comes to look like an edit.
+
+    AND THE MARKS GO ENTIRELY, rather than being trimmed. This is the
+    DESIGN-CHANGE door -- a family or an element count moved, and the
+    working state's own edit list put back -- so every mark on hand
+    describes the design being left. `set_marks`' docstring already
+    says it: a mark that outlives the replay it came from describes
+    another design. Trimming would keep the first few, which is worse
+    than keeping none, since they would be silently about somebody
+    else's edits.
+
+    (Measured 2026-09-07: switching a design carried the outgoing
+    one's "not applied" onto the incoming one's first change for 6.45
+    seconds, until the rebuild landed. The repair for that fault two
+    hours earlier enumerated Undo and Clear -- the two writers anybody
+    would list -- and this restore is the third.)
     """
     self._edits = [dict(edit) for edit in (edits or [])]
+    self._marks = []
     self._refresh_list()
 
   def showEvent(self, event):  # noqa: N802 (Qt API)
