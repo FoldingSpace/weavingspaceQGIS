@@ -376,6 +376,8 @@ quote them, do not renumber them.
 - **C-339** — The preview and the drop are judged by one rule: a real drag commits what was drawn  <sub>minted</sub>
 - **C-340** — A performance hint is passed only where the dependency takes it, since a reload can lea...  <sub>minted</sub>
 - **C-341** — a validity check that sees one failure mode is blind to the other; rotate and scale ref...  <sub>minted</sub>
+- **C-342** — The zigzag clamp, and the ratchet it is shaped to avoid  <sub>minted</sub>
+- **C-343** — The honest preview's four rulings, and what each was measured against  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -10940,3 +10942,96 @@ as upstream ships it and the change is easy to withdraw; whether it
 should become a vendored patch offered upstream is left open. Shipped
 experimentally in the candidate after rc17, for testing, and may be
 reshaped after use. (2026-09-07.)
+
+### C-342 — The zigzag clamp, and the ratchet it is shaped to avoid
+
+A zigzag deeper than its neighbouring edges allow used to be refused
+whole, with "a smaller value often works where a larger one does not" --
+which costs the person the gesture and leaves them to find the limit by
+bisecting it by hand. `zigzag_ceiling` asks the layout for the largest
+amplitude that lays out, by bisection against the same two steps `apply`
+takes, so the ceiling and the refusal cannot disagree about what fits.
+Measured on `laves 3.3.4.3.4`: class `a` ceilings at h 1.172, 0.594 and
+0.422 for counts of 2, 4 and 6 -- it tightens with the count -- while
+class `b` has none inside the box's range.
+
+THE PREMISE THE DESIGN WAS FIRST ARGUED FROM DID NOT SURVIVE
+MEASUREMENT, and the decision was re-put on the corrected one. The
+argument offered was that an over-deep wave leaves a self-intersecting
+tile which `make_valid` silently rewrites, making the failure this
+software's characteristic one, a plausible wrong map. Driven, the raw
+tiles are VALID at every amplitude on both classes and the design is
+left untouched: the clamp replaces a clean refusal rather than
+preventing a corruption, which is a weaker case and was put back to the
+maintainer as one.
+
+THE RATCHET IS THE HAZARD THE SHAPE IS BUILT AROUND. The ceiling moves
+as neighbouring edits move, so writing the clamped value back into the
+record would shave the amplitude again on every replay and never give
+it back -- a one-way loss dressed as a safety feature. The record holds
+what was asked and the clamp is applied on the way to the screen, which
+makes it idempotent: replaying the same list twice draws the same wave,
+and a design that regains room draws the full one.
+
+TWO FAULTS IN THE BUILDING, both caught by checking rather than by
+reading. The clamp was written against `_make_drawable` returning None,
+and a zigzag at h=2.0 on class `a` RAISES inside the library instead, so
+the first version fired on neither route and the check reported the old
+refusal verbatim. And the coverage figures for class `b` are
+byte-identical at every amplitude, which reads exactly like an inert
+control until a geometry digest shows the perimeter moving 7,755 to
+11,424 -- a finding taken off that proxy would have been false.
+
+AND IT MOVED A PREMISE UNDER ANOTHER TEST. `a topology edit reaches the
+map` drove an over-deep zigzag to guard `_refusal`'s wording; the clamp
+took that input to the clamp, and the leg went red on all three Linux
+suite legs while every targeted run passed. Repaired as the leg's own
+comment asks -- sweep and re-aim, or record the path unreachable --
+with `scale_edge` at 25, which still refuses on both designs.
+
+### C-343 — The honest preview's four rulings, and what each was measured against
+
+Settled by grilling on 2026-09-07, with each measurement taken before
+its question was asked rather than after the answer arrived.
+
+THE ANCHOR. The question was put as "where does a glyph anchor while
+the geometry beneath it moves", and looking first showed two facts
+already in the code that narrowed it: `_press_edge` captures the
+grabbed edge's frame at the press and holds it for the gesture, and
+`_fit` freezes the view transform for the same span. So a stable
+anchor existed and the choice was only which. The press-time frame won
+on the project's own precedent: re-deriving a paint-time frame from a
+gesture's own preview is what made a nudge held perfectly still climb
+0.104, 0.207, 0.280, 0.318, 0.342, 0.356 over six repaints.
+
+THE LIVE CLAMP, and this is where the measurement dissolved the choice
+offered. The options put were a background task or a first-drag freeze,
+on the strength of a 1.40s bisection. Measured, one drag frame already
+costs 158 ms for its transform and one ceiling probe 161 ms -- because
+it IS that transform plus a cheap repair -- with `plane_coverage`
+adding 15.8 ms already paid every frame. So the predicate was already
+being evaluated once a frame, and a third option existed that neither
+offered choice contained: hold the last value that laid out and never
+compute a ceiling at all. It costs nothing, is exact to one frame of
+pointer travel, and composes with the commit-time clamp, which applies
+the true ceiling at the drop.
+
+THE THIRD QUESTION DISSOLVED RATHER THAN BEING ANSWERED. Whether a
+failed preview should commit had been raised as a ruling; with the
+value never advancing past what lays out, no failed value reaches the
+drop, so the contract stands untouched. The three states also sharpen:
+CLAMPED becomes "held at the last depth that lays out" and FAILED
+narrows to "it lays out and still tears", which is what
+`plane_coverage` measures.
+
+THE HATCH, where the first build was wrong and its own guard caught it.
+Widening from one fundamental cell to the whole tear was free -- 8.1 ms
+against 9.0 -- and showed 21 pieces of torn ground against 4. But the
+first version took the covered union's convex hull, eroded it by one
+cell and subtracted, and reported 1,000,000 units of "tear" on an
+UNTOUCHED design: a patch's outer edge is ragged and a hull does not
+follow it, so the border was being painted as damage. A block of whole
+fundamental cells is interior by construction, with no boundary to
+erode and nothing to tune. The maintainer chose the wider hatch drawn
+LIGHTER, this project having withdrawn a hatching once already for
+confusing people.

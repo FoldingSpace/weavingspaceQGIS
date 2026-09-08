@@ -161,46 +161,19 @@ shipped version owes nothing.)
 
 ## 0.24.4 — next
 
-**ONE THING IS OUTSTANDING IN CODE**: the honest preview's remaining
-drawing, below. It came here from 0.24.5 on the maintainer's decision
-of 2026-09-07, along with the palette and the stall recovery -- and
-those two went back the same day, the palette because it waits on the
-maintainer's eye rather than on anybody's typing, the recovery because
-it cannot be verified until a stall recurs. Neither should hold a
-candidate behind it. The selection rule and the zigzag's clamp came in
-with them and are BUILT, so they are not listed here.
-The declaration this replaces, and what it covered, stands below.
+**NOTHING OUTSTANDING IN CODE.** The honest preview, which was the
+last of it, is built and its entry is below; the palette and the stall
+recovery went back to 0.24.5 on the maintainer's decision, the first
+waiting on their eye and the second on a recurrence. The selection rule
+and the zigzag's clamp came in with them and are built too.
 
-**THE HONEST PREVIEW: A MANIPULATION SHOWS ONLY WHAT WILL COMMIT.**
-(Maintainer's principle, 2026-09-06, after rc17's drag reports.) The
-preview must never let a person imagine a move will be allowed when it
-will not. Three states shown as the drag goes: VALID as now; CLAMPED,
-the glyph stopping at the max so the rotation arc, the scale and
-displacement arrows and the zigzag do not draw past their limits;
-FAILED, red and dotted for a move that cannot be tiled, with the
-reason. Each manipulation also shows a live sense of MAGNITUDE and a
-subtle cue of the entity or symmetry it bears on (the pivot, the push
-rail, the edge); a dashed rotation arc is part of it. The drop
-already commits what a real drag draws (C-339); this is the drawing.
-IN PROGRESS, and the FAILED-state conflict is largely dissolved as of
-2026-09-07. Rotate and scale were reformulated to move shared vertices
-consistently rather than tear the tiling, so they no longer leave gaps
-and 'any gaps' no longer paints every rotate red; and `gaps()`'s blind
-spot behind the FAILED question -- it saw only enclosed holes, so a tear
-where the units pull apart read as sound -- is fixed by `plane_coverage`,
-which the soundness mark and hatch now read. FAILED can therefore mean a
-move that genuinely cannot be laid out, a narrow well-defined set. Both
-ship experimentally in the next candidate for David and may be reshaped;
-the account, alternatives and images are in
-`docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`
-(C-341). THE ZIGZAG'S CLAMP IS BUILT AT THE COMMIT, the first of the
-three states to exist: an over-deep wave is drawn at the largest
-amplitude that lays out rather than dropped, the record holding what
-was asked so it cannot ratchet down over replays (R-94). THE LIVE DRAG
-CLAMP IS STILL OWED, its search costing up to 1.40s and so freezing the
-painting thread until cached. STILL TO BUILD: that caching, the drawing
-(glyph capping, dashed arc, symmetry cue), the status clearing on the
-drop, the one-cell hatch widened; `dev/honest-preview-wip.patch`.
+**THE HONEST PREVIEW IS BUILT** -- a manipulation now shows only what
+will commit, in three states, with the clamp, the cue and the widened
+hatch that go with them (R-94, R-95; the rulings are in CLAUDE.md, the
+mechanism in MAINTAINING.md and the measurements in docs/TOPOLOGY.md).
+The ceiling caching this entry owed is not built and is not owed: the
+drag holds the last value that laid out for nothing, so there is no
+ceiling to cache.
 
 **NOTHING ELSE IS OUTSTANDING IN CODE, AS OF 2026-09-05 (LATE).** The
 declaration of 2026-09-01 was struck when five field reports and a

@@ -711,6 +711,15 @@ The accounts are T-137.
   the answer, which four platforms agreeing settled (T-109); when an
   instrument disagrees with a hand-run, run the tool's inner command
   yourself with nothing suppressed (T-54).
+- RENDER THE GESTURE: a drawing's faults live on branches no reading
+  walks and no assertion names. Drawing a drag mid-flight showed a
+  ROTATE held at its limit saying "a deeper wave than this runs beyond
+  the edges" -- one sentence written for every manipulation, reachable
+  only when a drag passes the limit, and the same fault was still
+  sitting in the refusal beside it telling somebody to ease back to a
+  DEPTH. Ask of any message shared by a family which member's words it
+  is in, and of any drawing what it looks like DURING the act rather
+  than after it. (T-147.)
 - AN INSTRUMENT IN THE USER'S HANDS BEATS SIX REPRODUCTIONS IN YOURS:
   a dump from the reporter's session answered in a minute (T-50). AN
   AUDIT READS EVERY STORE AFTER EVERY ACT: driving the Topology tab as

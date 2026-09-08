@@ -800,6 +800,82 @@ reframed it, and the images, is in
 It ships in the experimental tab as a candidate for testing, and may yet
 be reshaped.
 
+## How deep a zigzag an edge can carry, and what the search costs
+
+Measured 2026-09-07, driving `topology_edits` in the reference venv with
+no QGIS in the way. The ceiling is the largest `h` that still lays out,
+found by bisection against the same two steps `apply` takes -- the
+transform, then `_make_drawable` -- so it cannot disagree with the
+refusal it replaces.
+
+    n=2   class a   h 1.172 (crest 0.586)   class b   none in range
+    n=4   class a   h 0.594 (crest 0.297)   class b   none in range
+    n=6   class a   h 0.422 (crest 0.211)   class b   none in range
+
+IT TIGHTENS WITH THE COUNT rather than being a property of the class
+alone, which is why a ceiling cached per class would be wrong: the key
+is class, count and smoothness together.
+
+WHAT THE SEARCH COSTS, and it is what decides where the clamp may run:
+0.07 s where the cap lays out and one probe settles it, up to 1.40 s
+where it must bisect eight times. Against that, ONE DRAG FRAME ALREADY
+COSTS 158 ms for its transform and one probe 161 ms, since a probe IS
+that transform plus a cheap repair -- so the live drag holds the last
+value that laid out and computes no ceiling at all, while the commit
+pays the bisection only on an edit that would otherwise be lost.
+
+AND THE PREMISE THE CLAMP WAS FIRST ARGUED FROM WAS FALSE. It was put
+to the maintainer that an over-deep wave leaves a self-intersecting
+tile which `make_valid` silently rewrites. The raw tiles are VALID at
+every amplitude on both classes; what happens past the limit is a clean
+refusal with the design untouched. The clamp replaces a refusal rather
+than preventing a corruption (C-342).
+
+## What a tear looks like, and why a hull will not measure it
+
+`plane_coverage` decides whether a tiling has torn by measuring ONE
+fundamental cell, which is enough to decide and not enough to draw:
+on a per-edge rotate of the default design it is 4 pieces of ground
+against the 21 that are actually torn. `tears_in_the_patch` answers the
+wider question at the same cost, 8.1 ms against 9.0, because the patch
+is already laid to measure the single cell.
+
+A HULL IS THE TRAP, and the first version fell into it. Taking the
+covered union's convex hull, eroding it by one cell and subtracting
+reported 1,000,000 units of tear on an UNTOUCHED `laves 3.3.4.3.4` --
+exactly one cell's worth -- because a patch is a finite piece of an
+infinite tiling and its outer edge is ragged, so the space between the
+outermost tiles and any hull round them is not damage. Hatching it
+paints a sound design as broken at its border. A block of whole
+fundamental cells is interior BY CONSTRUCTION: no boundary to erode,
+nothing to tune. Its guard asserts both halves, that a sound design
+hatches nothing and a torn one hatches more than one cell shows.
+
+## A stall caught live, and what it ruled out
+
+Sampled 2026-09-07 while a single test sat at 15 s of CPU in 162 s of
+elapsed at 0%, using `sample <pid>`, which takes every thread's stack
+and disturbs nothing -- SIGUSR1 would have killed `run_some` outright
+for want of a faulthandler. Four threads:
+
+    main                  QEventLoop::exec, inside the suite's own wait
+    NSEventThread         idle
+    two pool threads      start_wqthread -> __workq_kernreturn, parked
+
+SO NO WORKER WAS EXECUTING ANYTHING, and the main thread was blocked in
+a wait that was legitimate for something that never arrived. It does
+NOT separate "QGIS never started it" from "it finished and was never
+handed back", since both look identical from outside; that is what
+`TilingTask.where_the_work_got_to()` is for, and reading it needs to be
+inside the process. It did not reproduce on CI, which is consistent
+with everything else known about this fault.
+
+AND ONE INFERENCE HAD TO BE WITHDRAWN. The sample shows a single
+`_PyEval_EvalFrameDefault` frame, which reads as a shallow Python
+stack and is not: CPython 3.12 does not take a C frame for a
+Python-to-Python call, so one such frame hides a stack of any depth. A
+native sample says WHERE a process is blocked and never WHO called it.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

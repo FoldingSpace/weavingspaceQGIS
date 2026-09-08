@@ -588,6 +588,38 @@ alive across a save** (2026-09-01). 0.91 to 1.02 of the plain cost, so
 GDAL's shared dataset cache is not the lever; the repair had to be a
 genuine single OGR session, and was.
 
+## What a drag frame costs, and what that decided, 2026-09-07
+
+The Topology tab's drag rebuilds a preview every frame, and the honest
+preview's clamp needed to know whether asking "would this lay out"
+could be afforded there. Measured on `laves 3.3.4.3.4` at spacing 1000,
+best of five, by
+`tools/probes/what_a_running_task_reading_can_tell_apart.py`'s
+neighbour in the same session:
+
+    one drag frame's transform                158.2 ms
+    one ceiling probe (transform + repair)    161.0 ms
+    plane_coverage, already paid every frame   15.8 ms
+    a full 8-step bisection                  1449.1 ms
+
+THE PROBE IS THE FRAME, near enough: asking whether a move lays out is
+the same `transform_geometry` the preview already performs, plus a
+repair that costs nothing beside it. That dissolved the choice the
+work had been framed around -- a background task or a first-drag freeze
+-- because the predicate was already being evaluated once a frame and
+neither was needed: the drag holds the last value that laid out and
+computes no ceiling at all.
+
+AND IT SAYS WHERE THE BISECTION MAY RUN. 1.4 s is a freeze at the
+moment somebody starts dragging, so the exact ceiling is found only at
+the COMMIT, where it is paid on an edit that would otherwise be refused
+outright and produce nothing.
+
+WHAT IS NOT MEASURED HERE, and is owed before either figure is quoted
+as current: whether the drag frame's 158 ms is dominated by the
+transform on every design or only on this one, since the topology build
+it sits beside ranges 0.8 s to 21 s across the catalogue.
+
 ## The costs that are known and are somebody else's
 
 **`Topology.__init__` is eager and expensive**: 0.8s to 21s depending on

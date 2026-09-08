@@ -177,6 +177,7 @@ quote them, do not renumber them.
 - **T-144** — A gate that reads this machine's disk reports this machine: gitignored files named in t...  <sub>minted</sub>
 - **T-145** — A bounded store sliced by length is empty at its ceiling  <sub>minted</sub>
 - **T-146** — A settle that did not count a deferred press  <sub>minted</sub>
+- **T-147** — Rendering a gesture finds what reading and the suite cannot  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7096,3 +7097,37 @@ The mutation runner's clean run had failed the same two entries once
 that afternoon, unexplained at the time; this is the explanation.
 `_settle` counts `_press_pending` and `_live_pending` now, at the one
 owner (T-100), so every caller learned it at once.
+
+### T-147 — Rendering a gesture finds what reading and the suite cannot
+
+The honest preview's drawing was built on 2026-09-07 and twice the
+thing that found a fault was a rendered gesture rather than a reading
+or a test.
+
+THE FIRST was structural and cost nothing to find once looked at: the
+handles were drawn only where no preview stood, so during a drag the
+tab showed the moving geometry and nothing else -- no glyph, no ghost,
+no cue. That is visible in one screenshot and invisible in the source,
+where it is a single early-exit condition with a reasonable comment
+above it.
+
+THE SECOND is the transferable one. `_show_drag_preview` sets one
+`reason` for a drag held at its limit, and that sentence was written
+while zigzag was the manipulation in hand. Driven with a ROTATE, the
+tab said "a deeper wave than this runs beyond the edges next to it" --
+about a rotation. Nothing could have caught it cheaply: the words are
+correct on the branch the tests drive, wrong only where a drag passes
+what the design allows, and no assertion in the suite reads the
+sentence a held drag shows. It was found by rendering the gesture and
+printing the state beside the pixels.
+
+AND THE SAME FAULT WAS STILL BESIDE IT, which is why this is a lesson
+rather than an incident. The refusal shown when a move cannot be laid
+out at all read "Ease back to a depth that can be drawn" -- zigzag's
+vocabulary again, reached by every manipulation. One was found by
+rendering; its twin was found by asking, of the sentence next to it,
+the question the first had just raised.
+
+THE HABIT: when a family of acts shares one message, ask which
+member's words it is in; and when a drawing has states, look at it
+DURING the act, not only at what it settles to.

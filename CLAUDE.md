@@ -826,6 +826,16 @@ are C-265 and the ids beside each rule.
   (C-106); a temporary list from a QGIS getter frees its contents, so
   `renderer.ranges()[0].symbol()` reads released memory -- bind the
   list to a name first.
+- **A TASK THAT HAS RETURNED STILL READS `Running`, AND TWO OF THE
+  THREE READINGS A STALL IS DIAGNOSED FROM PROVE NOTHING.** A
+  `QgsTask`'s status moves to `Complete` only when the MAIN THREAD
+  delivers the callback, so a worker that finished and was never
+  handed back is indistinguishable by status from one that never
+  started -- and the two want opposite recoveries. Neither
+  `QThreadPool.globalInstance().activeThreadCount()` nor
+  `threading.enumerate()` can see a live task worker at all: both read
+  as empty with one demonstrably inside `run()`. Only a faulthandler
+  dump separates them (R-93).
 - **PyQGIS ANSWERS BY RETURN VALUE.** `provider.addFeatures` returns a
   tuple, so `if not ...` never fires (C-152); OGR's `CommitTransaction`
   refuses by return code and no `except` can catch it (C-220); a
@@ -947,6 +957,15 @@ and the ids beside each rule.
   commonest journey (C-332); and a per-file memory answers absent
   for a file being CREATED, so a Save As asks the file the map came
   in from (C-335).
+- **A LIMIT WRITTEN BACK INTO A RECORD RATCHETS.** Where what a person
+  asked for is legal only sometimes -- a zigzag whose depth the
+  neighbouring geometry allows or does not, as other edits move it --
+  clamping the value and STORING the clamp shaves it again on every
+  replay and never gives it back, which is a one-way loss dressed as a
+  safety feature. Hold what was asked and clamp on the way to the
+  screen: the same design then always draws the same thing, and one
+  that regains room draws it in full. The shape of a kept scheme being
+  held rather than owned. (C-342.)
 - **A DISPLAY RULE IS DISPLAY-ONLY ONLY IF NOTHING RE-READS THE
   DISPLAY** (C-133); a count quoted to a person is asked of the
   geometry, not of two totals (C-131); a guard that rebuilds a layer
@@ -1148,6 +1167,21 @@ The accounts are C-267 and the ids beside each rule.
   known cell rather than the shape of the uncovered ground, and this is
   what a gap-free reformulation of rotate and scale was measured
   against (C-341).
+- **A QUANTITY THAT IS CHEAP TO PRINT IS NOT A MEASUREMENT UNTIL
+  SOMETHING HAS BEEN SHOWN TO MOVE IT.** Three readings agreed about a
+  stall and two of them were incapable of disagreeing, so their
+  agreement was read as corroboration (R-93); an area digest is
+  CONSERVED by a zigzag, which moves ground from one tile to its
+  neighbour, so it reported a working wave as one that did nothing.
+  Ask of any figure what would make it change, and prefer a digest of
+  the geometry to a statistic over it.
+- **READ A STALLED PROCESS WITHOUT SIGNALLING IT.** `sample <pid>`
+  takes every thread's stack and disturbs nothing, where SIGUSR1 kills
+  `run_some` outright for want of a faulthandler; and under CPython
+  3.12 ONE `_PyEval_EvalFrameDefault` frame hides a Python stack of any
+  depth, since Python-to-Python calls no longer take a C frame -- so a
+  native sample says WHERE a process is blocked and never WHO called
+  it. (C-342.)
 - **AN AUDIT READS EVERY STORE AFTER EVERY ACT**, and the Topology tab
   audit of 2026-09-05 found three defects three matrices had passed
   over, each two stores disagreeing after an ordinary act
@@ -1907,6 +1941,35 @@ Confirmed with the user via an explicit design review:
   where a class's stabiliser leaves it nowhere to go -- necessary, not
   sufficient. THE ELEMENT SLIDER KEEPS ITS RANGE AND THE FLIP SPEAKS
   when a weave crosses 12 into tilings.
+- **THE HONEST PREVIEW: FOUR RULINGS OF 2026-09-07**, settled by
+  grilling with each measurement taken before its question was asked.
+  (1) A DRAG DRAWS, ANCHORED TO THE FRAME IT BEGAN IN -- handles, the
+  ghost and the cue take the edge frame captured at the press, which
+  is already what the drag's value is measured against, never the
+  preview's own moving geometry, since re-deriving a paint-time anchor
+  from what a gesture is changing is the loop that made a nudge held
+  still climb 0.104 to 0.356 over six repaints. (2) THE VALUE HOLDS AT
+  THE LAST ONE THAT LAID OUT rather than a ceiling being computed: a
+  drag frame already costs 158 ms for its transform and a ceiling probe
+  161 ms because it IS that transform, so the predicate is already in
+  hand and a true ceiling would have cost 1.4 s of frozen window at the
+  press. The commit-time clamp corrects a fast drag on release. (3) THE
+  FAILED-DRAG COMMIT CONTRACT STANDS, the question having dissolved:
+  with the value never advancing past what lays out, no failed value
+  reaches the drop. (4) THE HATCH SHOWS THE TEAR AND NOT THE EDGE OF
+  THE DRAWING, over a block of whole fundamental cells and drawn
+  lighter now that it covers every torn piece rather than one cell's
+  worth. A HULL IS THE TRAP: a patch's outer edge is ragged, and the
+  first version reported a whole cell of "tear" on an untouched design.
+  (C-343.)
+- **A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
+  (Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
+  replaces it, as it always has; where several classes are ticked,
+  clicking one of them used to collapse the selection onto it, so an
+  edit aimed at both was narrowed by the act of pointing at what was
+  already selected. The click still moves the drawing's chosen thing,
+  so the handles follow the pointer; only the class selection stands
+  still.
 - **NOTHING ENDS WHILE A SAVE IS OUTSTANDING.** (Maintainer's ruling,
   2026-09-01.) A waiting window holds a quit or a window close while a
   save is promised or being written, says what it waits for, and

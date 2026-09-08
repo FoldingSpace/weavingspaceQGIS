@@ -565,6 +565,17 @@ vertex classes" -- which is replaced rather than accumulated.
 defect of its own: "every edge" has always carried the whole group as
 its datum, so an equality test lit nothing at all.
 
+**AND A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
+(Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
+replaces it, which is what a plain click has always done; where several
+classes are ticked, clicking one of them used to collapse the selection
+onto that one, so an edit aimed at two was narrowed by the act of
+pointing at what was already selected. `_on_chose` returns early where
+the clicked class is already in hand, refreshing the manipulations and
+nothing else -- the view has already moved `_chosen_thing` to the
+instance under the pointer by then, so the handles follow while the
+class selection stands still.
+
 ### The symmetries, and the one control they take away
 
 `Topology` already holds `tile_matching_transforms`; the tab draws the
@@ -1447,6 +1458,62 @@ and the change is easy to withdraw. The account, the alternatives and
 the images are in
 `docs/process/rotating-and-scaling-an-edge-without-tearing-the-tiling.md`
 (C-341); it ships experimentally as a candidate and may be reshaped.
+
+### What a drag shows while it is happening
+
+(Maintainer's principle, 2026-09-06, and four rulings of 2026-09-07 in
+CLAUDE.md.) The preview must never let a person imagine a move will be
+allowed when it will not, so a gesture carries one of three states and
+the drawing says which.
+
+**THE STATE IS THE VIEW'S, THE JUDGEMENT IS THE PANEL'S.**
+`TopologyPanel._status_of_a_drag` answers `{clamped, failed, reason,
+key}` and `TopologyView.set_drag_status` holds it; the tile outlines
+take their pen from it -- ordinary, amber where a value is held at its
+limit, red and dotted where the previewed design cannot be tiled.
+
+**FAILED ASKS COVERAGE, NEVER `gaps()`.** The scaffolding for this
+predated C-341 and judged validity with the check that finds only holes
+ENCLOSED within a patch, so a move pulling the units apart would have
+previewed as sound -- the blind spot arriving in the one drawing whose
+whole job is honesty about validity. `plane_coverage` answers gaps and
+overlaps alike and each has its own sentence.
+
+**THE VALUE HOLDS AT THE LAST ONE THAT LAID OUT.** Where the next step
+raises or cannot be laid out, `_drag_last_good` is put back and the
+state is CLAMPED: the pointer keeps going and the number does not. No
+ceiling is computed for this, because the drag has already evaluated
+the predicate -- a frame's transform is 158 ms and a ceiling probe 161
+ms, being the same call -- and a true ceiling costs 1.4 s, which is a
+freeze at the moment somebody starts dragging. The commit-time clamp
+in `topology_edits.apply` then applies the exact ceiling at the drop,
+so the two compose and a fast drag that stops short is corrected on
+release.
+
+**AND THE CUE IS ANCHORED TO THE FRAME THE GESTURE BEGAN IN.**
+`_draw_what_the_move_bears_on` draws the pivot a rotate turns about and
+a scale holds fixed, the edge a zigzag rides on, and a dashed arc swept
+from where the edge's end WAS to where the pointer has taken it --
+all against `grabbed_edge()`, captured at the press. Never the
+preview's own geometry: a pivot that moves with what the gesture is
+changing stops being the point that stays still, and re-deriving a
+paint-time anchor from a gesture's own preview is the loop `_fit`
+already paid for.
+
+**THE STATE COMES DOWN AT THE DROP, THROUGH A `finally`.** The preview
+is deliberately KEPT where an edit was recorded, since clearing it
+there put the un-edited design back for 1.7 seconds; the colour is not,
+describing as it does a pointer that is no longer down. The `finally`
+covers every exit including one added later -- and the exit that needs
+it is the one that RECORDS, since a gesture recording nothing leaves
+through `show_preview(None)`, which clears the status for its own
+reasons and made the first catalogue entry survive.
+
+**AND THE SENTENCES ARE KEYED BY MANIPULATION.** `_HELD_SENTENCE` has
+one per move with a fallback, because a single sentence written while
+zigzag was in hand told somebody dragging a ROTATE that "a deeper wave
+than this runs beyond the edges next to it". Found by rendering the
+gesture; the refusal beside it carried the same fault (T-147).
 
 ### How an edit that cannot be drawn is told apart from one that did nothing
 

@@ -118,6 +118,7 @@ quote them, do not renumber them.
 - **R-92** — Periodicity, the join lookup and zigzag's repeated vertices: measured, patched or fixed...  <sub>DONE entries cut to their headline, 2026-09-05 (third pass)</sub>
 - **R-93** — What a Running task, an idle pool and a thread list can tell apart  <sub>minted</sub>
 - **R-94** — The zigzag's amplitude ceiling, and what the search costs  <sub>minted</sub>
+- **R-95** — The honest preview, built  <sub>minted</sub>
 
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
@@ -4789,3 +4790,46 @@ never give it back -- a one-way loss dressed as a safety feature. The
 record holds what was asked and the clamp is applied on the way to the
 screen, which makes it idempotent: replaying the same list twice draws
 the same wave, and a design that regains room draws the full one.
+
+### R-95 — The honest preview, built
+
+The principle was the maintainer's of 2026-09-06, after rc17's drag
+reports: the preview must never let a person imagine a move will be
+allowed when it will not. What it asked for was three states shown as a
+drag goes -- VALID, CLAMPED with the glyph stopping at the limit, and
+FAILED in red with the reason -- plus a live sense of magnitude and a
+cue of what the move bears on.
+
+WHAT WAS BUILT, and in what order. The three states with the tile
+outlines carrying them; the FAILED state asking `plane_coverage` rather
+than `gaps()`, since the scaffolding predated C-341 and would have
+previewed a tiling whose units had pulled apart as perfectly sound; the
+state taken down at the drop through a `finally`; the clamp at commit
+and replay with the record untouched so it cannot ratchet; the live
+hold at the last value that laid out; the hatch widened to a block of
+interior cells and drawn lighter; and the pivot, baseline and dashed
+rotation arc anchored to the frame the gesture began in.
+
+WHAT IT COST TO GET RIGHT, kept because each was found by a different
+instrument and none by reading. The scaffolding's validity check was
+the one with the blind spot, in the one drawing whose job is honesty
+about it. A rendered gesture showed a ROTATE held at its limit saying
+"a deeper wave than this runs beyond the edges" -- one sentence written
+for every manipulation -- and the same fault was still in the refusal
+beside it (T-147). The first widened hatch reported a whole cell of
+tear on an untouched design, caught by its own guard before it shipped.
+And the clamp moved a premise under `a topology edit reaches the map`,
+which went red on all three Linux suite legs while every targeted run
+passed.
+
+WHAT WAS NOT BUILT, AND IS NOT OWED. The entry asked for a ceiling
+cached per class, count and smoothness so a drag could stop at its
+limit. Measured, one drag frame already costs 158 ms for its transform
+and one ceiling probe 161 ms, being the same call -- so the drag holds
+the last value that laid out at no cost and there is no ceiling to
+cache. The maintainer chose that over a background task and over a 1.4 s
+freeze at the press.
+
+The rulings are in CLAUDE.md (C-343), the mechanism in MAINTAINING.md
+under what a drag shows while it is happening, and the measurements in
+docs/TOPOLOGY.md and docs/PERFORMANCE.md.
