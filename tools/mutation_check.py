@@ -3156,12 +3156,15 @@ MUTATIONS = [
        # replaced and nothing says so. An entry that either half could
        # satisfy would report `caught` about nothing, which is the
        # rule this project settled on the topology record's two entries.
-       old="""    if held is None or len(self._edits) != edits_before:
-      return
-    self.set_unit(*held)""",
-       new="""    if held is None or len(self._edits) != edits_before:
-      return
-    pass  # mutation: the landing is dropped on the floor""",
+       # RE-ANCHORED 2026-09-07: the held landing now carries its
+       # refusal sentence too, so the lines this stood on gained a
+       # neighbour and the entry stopped matching (C-288, twice in one
+       # night). It still breaks the same decision -- the landing is
+       # dropped rather than drawn.
+       old="""    self.set_unit(*held)
+    # AND IT IS SAID AFTER `set_unit`, which clears the note: the""",
+       new="""    pass  # mutation: the landing is dropped on the floor
+    # AND IT IS SAID AFTER `set_unit`, which clears the note: the""",
        test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
        why="the build that arrived during a gesture being drawn once "
            "the gesture is over, rather than discarded with it"),
