@@ -2776,6 +2776,21 @@ MUTATIONS = [
        test="test_a_change_never_wears_the_verdict_of_the_one_it_replaced",
        why="a design you switch to being judged on its own edits, not "
            "on the verdicts of the design you left"),
+  dict(name="a-held-drag-says-so-on-the-drawing", file=TOPOLOGY_TAB,
+       # Returning before the words is the state the tab shipped in:
+       # every sentence the honest preview composes went into a field
+       # the paint never read, so a held or refused drag showed a
+       # colour and nothing else. The mutation leaves the COLOUR
+       # correct, which is what makes it the sentence's own axis.
+       old="""    saying = (status.get("reason") or "").strip()
+    if not saying:
+      return""",
+       new="""    saying = (status.get("reason") or "").strip()
+    if saying or not saying:
+      return""",
+       test="test_a_held_drag_says_so_on_the_drawing",
+       why="being told why a move is being held or refused, in the "
+           "place you are already looking"),
   dict(name="a-frame-that-lays-out-forgets-what-was-held",
        file=TOPOLOGY_TAB,
        # THE FORGETTING, which is a different claim from the refining

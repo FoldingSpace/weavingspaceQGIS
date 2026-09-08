@@ -12007,6 +12007,82 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_a_held_drag_says_so_on_the_drawing():
+  """The sentence a drag composes reaches the person having the drag.
+
+  `_status_of_a_drag` writes a sentence per manipulation into `reason`
+  -- the held wording, the refusal, and one for each way a design can
+  fail to tile -- and until 2026-09-07 the paint read only `failed`
+  and `clamped`, to choose a pen colour. So `_HELD_SENTENCE`, the
+  refusal and both coverage sentences were WRITE-ONLY: rendering the
+  widget with the reason replaced, or emptied, gave byte-identical
+  pixels. A person dragging past what a design can take was shown an
+  amber outline and no words at all.
+
+  THE MAINTAINER RULED IT PAINTED IN THE DRAWING (2026-09-07, by
+  grilling), over a label of its own or the panel's note: it is read
+  where the eye already is, and it dies with the picture, so nothing
+  has to remember to clear it.
+
+  ASSERTED BY RENDERING, because that is the only way this could have
+  been caught: a drawing's faults live on branches no reading walks
+  and no assertion names, and the guards over this status asserted
+  that the field was WRITTEN.
+
+  Regression: every sentence the honest preview composes was written into a field nothing read, so a held or refused drag showed a colour and no words. [hunt]
+  """
+  from qgis.PyQt.QtCore import QPointF
+  from weavingspace_qgis import catalog, topology_edits, topology_tab
+
+  spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+  unit = catalog.make_unit(spec, spacing=1000, crs=3857)
+  topology, why = topology_edits.build(unit)
+  assert topology is not None, f"PREMISE: no topology -- {why}"
+
+  view = topology_tab.TopologyView()
+  view.resize(420, 380)
+  view.show_topology(topology, "")
+  view.show_preview(topology)
+  view.grab()                      # `_fit` runs in paintEvent
+  assert view._preview is not None, \
+    "PREMISE: no preview is up, and the status is only read while one is"
+
+  def pixels(status):
+    """What the widget draws with this drag status, as bytes."""
+    view.set_drag_status(status)
+    picture = view.grab().toImage()
+    return picture.constBits().asstring(
+      picture.sizeInBytes() if hasattr(picture, "sizeInBytes")
+      else picture.byteCount())
+
+  said = "Stretching this edge further would tear the tiling."
+  quiet = pixels(None)
+  wordless = pixels({"clamped": True, "failed": False, "reason": "",
+                     "key": "scale_edge"})
+  spoken = pixels({"clamped": True, "failed": False, "reason": said,
+                   "key": "scale_edge"})
+
+  # THE CONTROL: a status with no words still changes the drawing,
+  # since the outlines take their colour from it. Without this, a
+  # green below could mean the status is not being read at all.
+  assert wordless != quiet, (
+    "a drag status changed nothing on the drawing at all, so this test "
+    "cannot tell a missing sentence from a status nobody reads")
+  assert spoken != wordless, (
+    "the drag's sentence is composed and never drawn: the widget "
+    "renders identically with the reason present and absent")
+
+  # AND A REFUSAL IS SAID TOO, which is the other state and the one a
+  # person most needs words for.
+  refused = pixels({"clamped": False, "failed": True,
+                    "reason": "This cannot be laid out as a tiling.",
+                    "key": "rotate_edge"})
+  assert refused != pixels({"clamped": False, "failed": True,
+                            "reason": "", "key": "rotate_edge"}), (
+    "a refused drag draws its red outline and none of its words")
+  view.deleteLater()
+
+
 def test_the_drop_closes_the_gap_a_frame_of_travel_left():
   """A held drag ends nearer what was asked than the last frame managed.
 
@@ -91948,6 +92024,8 @@ def main():
         test_a_push_moves_the_ground_as_far_as_the_pointer_went)
   check("the drop closes the gap a frame of travel left",
         test_the_drop_closes_the_gap_a_frame_of_travel_left)
+  check("a held drag says so on the drawing",
+        test_a_held_drag_says_so_on_the_drawing)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",

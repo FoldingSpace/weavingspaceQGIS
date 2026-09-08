@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-565 defect(s) with a regression test.
+566 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -142,6 +142,8 @@ there is no separate list to remember.
   guarded by `test_a_group_whose_layer_has_gone_is_refused_in_words`
 - **a renderer or filter set on an element's no-data layer in QGIS was destroyed by the next Generate, silently, while the same work on the element beside it survived and was reported. Found independently by two hunts on 2026-08-16; confirmed by reading layer_styles out of the exported GeoPackage, where tiles_a carried the hand-set colour and tiles_a_no_data carried the default.**  
   guarded by `test_a_hand_styled_no_data_layer_survives_a_re_tile`
+- **every sentence the honest preview composes was written into a field nothing read, so a held or refused drag showed a colour and no words.**  
+  guarded by `test_a_held_drag_says_so_on_the_drawing`
 - **a floor or ceiling, and every colour picked after it, were destroyed by a save-and-reopen before Generate, because those stamps happen only as a side effect of a restyle that a limit makes decline. Found by the colour-editor hunt of 2026-08-28.**  
   guarded by `test_a_limit_and_the_colours_after_it_survive_a_reopen`
 - **2026-08-19, found by a hunt pointed at what that day's own signature fix had broken -- a floor set wide of the data changed nothing and said nothing.**  
@@ -1185,7 +1187,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 190
-- a bug hunt pointed in a named direction: 162
+- a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18

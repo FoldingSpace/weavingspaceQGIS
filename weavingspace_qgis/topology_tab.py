@@ -1123,7 +1123,58 @@ class TopologyView(QWidget):
     for key, where, shape in self.handles():
       lit = (key in (self._hover_handle, self._held_handle))
       self._draw_handle(painter, key, where, frame, lit)
+    self._say_what_the_drag_is_doing(painter)
     painter.end()
+
+  def _say_what_the_drag_is_doing(self, painter):
+    """Put the drag's own sentence at the foot of the drawing.
+
+    Args:
+      painter: the active QPainter.
+
+    Returns:
+      None; nothing is drawn where no gesture is being held or
+      refused, which is the ordinary case.
+
+    WHY IT IS PAINTED HERE RATHER THAN PUT IN A LABEL. (Maintainer's
+    ruling, 2026-09-07, by grilling.) The sentences existed and
+    reached nobody: `_status_of_a_drag` composes them into `reason`
+    and the paint read only `failed` and `clamped`, so `_HELD_SENTENCE`,
+    the refusal and both coverage sentences were write-only. Three
+    homes were possible and this is the one chosen: the panel's `note`
+    already means two things and the suite's own settle helper reads
+    text there as an answer having ARRIVED, so a third meaning is the
+    one-store-two-meanings fault this tab has paid for once; a label
+    of its own is a second place to look during a gesture, and people
+    do not look away mid-drag. Painted in the drawing it is read where
+    the eye already is, and it DIES WITH THE PICTURE -- nothing has to
+    remember to clear it, which is the half of this that keeps going
+    wrong elsewhere.
+
+    IT TAKES THE COLOUR THE OUTLINES TAKE, so the words and the ink
+    say the same thing: amber where a value is held at its limit, red
+    where the previewed design cannot be tiled.
+    """
+    status = self._drag_status if self._preview is not None else None
+    if not status:
+      return
+    saying = (status.get("reason") or "").strip()
+    if not saying:
+      return
+    ink = QColor(_GAP_INK if status.get("failed") else _CLAMPED_INK)
+    painter.setPen(QPen(ink))
+    font = painter.font()
+    font.setPointSizeF(max(8.0, font.pointSizeF() - 1.0))
+    painter.setFont(font)
+    # ACROSS THE FOOT OF THE WIDGET, wrapped, over the ground rather
+    # than over the unit: the drawing is 420px at its floor and a
+    # sentence across the middle of it would cover the thing being
+    # judged.
+    room = QRectF(8.0, self.height() - 40.0,
+                  max(40.0, self.width() - 16.0), 34.0)
+    painter.drawText(room, int(Qt.AlignmentFlag.AlignLeft
+                               | Qt.AlignmentFlag.AlignBottom
+                               | Qt.TextFlag.TextWordWrap), saying)
 
   def _draw_what_the_move_bears_on(self, painter, frame):
     """Draw the thing a drag turns, stretches or rides on.
