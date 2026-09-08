@@ -11999,6 +11999,57 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_an_untouched_design_is_never_told_it_does_not_tile():
+  """A design straight from the catalogue tiles, and is judged to.
+
+  `plane_coverage`'s overlap term is the summed tile area inside one
+  fundamental cell MINUS the union's, which is the only way a union
+  can reveal two tiles on one piece of ground. That subtraction cannot
+  tell two tiles apart from ONE TILE COUNTED TWICE, and
+  `get_local_patch` hands the same tile back twice on five of the
+  catalogue's designs.
+
+  WHAT IT COSTS A PERSON, and it is not subtle: the mark on every row
+  of the change list and the colour of every drag both read this, so
+  on those designs every edit was marked as having broken the tiling
+  and every drag drew red over moves the plugin accepts in full.
+
+  THE CONTROL IS A DESIGN WITH NO DUPLICATES, asserted here rather
+  than assumed, because a repair that made every design read zero
+  would satisfy the other half of this test perfectly.
+
+  Regression: `square-colouring 3` and the chavey family read overlap 0.2222 untouched, so the tab called a perfect tiling broken. [hunt]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  def named(name):
+    for count, designs in sorted(catalog.TILINGS_BY_N.items()):
+      if name in designs:
+        return catalog.make_unit(designs[name], spacing=1000, crs=3857)
+    raise AssertionError(f"PREMISE: {name} is not in the catalogue")
+
+  # THE PREMISE, on a design that duplicates: the patch really does
+  # hand the same ground back twice, or this test is about nothing.
+  duplicating = named("square-colouring 3")
+  shapes = list(duplicating.get_local_patch(r=2, include_0=True).geometry)
+  kept = topology_edits._one_tile_per_piece_of_ground(shapes)
+  assert len(kept) < len(shapes), (
+    "PREMISE: this design's patch holds no duplicate tiles, so it "
+    f"cannot show the double count ({len(shapes)} tiles, none repeated)")
+
+  for name in ("square-colouring 3", "chavey H", "laves 3.3.4.3.4"):
+    unit = named(name)
+    gap, overlap, _missing = topology_edits.plane_coverage(unit)
+    assert gap < topology_edits.GAP_TOLERANCE, (
+      f"{name} is untouched and reads a gap of {gap:.8f}")
+    assert overlap < topology_edits.GAP_TOLERANCE, (
+      f"{name} is untouched and reads an overlap of {overlap:.8f}, so "
+      "every edit on it is marked as having broken the tiling and "
+      "every drag draws red")
+    assert topology_edits.still_has_a_topology(unit), (
+      f"{name} came out of the catalogue and is judged not to tile")
+
+
 def test_a_change_never_wears_the_verdict_of_the_one_it_replaced():
   """An undone change takes its soundness mark with it.
 
@@ -91496,6 +91547,8 @@ def main():
         test_the_drag_previews_the_move_the_drop_would_make)
   check("a change never wears the verdict of the one it replaced",
         test_a_change_never_wears_the_verdict_of_the_one_it_replaced)
+  check("an untouched design is never told it does not tile",
+        test_an_untouched_design_is_never_told_it_does_not_tile)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",

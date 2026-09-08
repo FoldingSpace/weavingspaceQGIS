@@ -2720,6 +2720,19 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="one-tile-per-piece-of-ground", file=TOPOLOGY_EDITS,
+       # Handing the patch back unchanged is the state the measure
+       # shipped in: the overlap term then counts a duplicated tile
+       # twice and calls five of the catalogue's designs broken while
+       # they are untouched.
+       old="""    if key in seen:
+      continue""",
+       new="""    if False:
+      continue""",
+       test="test_an_untouched_design_is_never_told_it_does_not_tile",
+       why="a design that tiles being judged to tile, so an edit made "
+           "on it is marked on its own merits rather than on a tile "
+           "the patch handed back twice"),
   dict(name="a-held-landing-keeps-its-sentence", file=TOPOLOGY_TAB,
        # Saying it at once is the state the code shipped in: the note
        # then carries the sentence for as long as the gesture lasts and

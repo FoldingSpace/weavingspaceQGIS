@@ -987,7 +987,7 @@ def plane_coverage(unit):
     if second is None:
       return 0.0, 0.0, None
     patch = unit.get_local_patch(r=2, include_0=True)
-    tiles = list(patch.geometry)
+    tiles = _one_tile_per_piece_of_ground(list(patch.geometry))
     covered = shapely.union_all(tiles)
     centre = covered.centroid
     ox = centre.x - (first[0] + second[0]) / 2
@@ -1014,6 +1014,49 @@ def plane_coverage(unit):
     return gap_ratio, overlap_ratio, missing
   except Exception:                                   # noqa: BLE001
     return 0.0, 0.0, None
+
+
+def _one_tile_per_piece_of_ground(tiles):
+  """Drop tiles the patch hands back twice.
+
+  Args:
+    tiles: the patch's geometries, as `get_local_patch` returns them.
+
+  Returns:
+    The same list with exact duplicates removed, keeping the first of
+    each.
+
+  WHY IT IS NEEDED. `plane_coverage`'s overlap term is the summed tile
+  area inside one cell MINUS the union's, which is the only way a mere
+  union can reveal two tiles on one piece of ground. That subtraction
+  cannot tell two tiles apart from one tile counted twice, and
+  `get_local_patch(r=2)` hands the same tile back twice on five of the
+  catalogue's 1,168 designs -- `square-colouring 3` and `chavey H`,
+  `I`, `J`, `K`. Measured 2026-09-07: `square-colouring 3` untouched
+  read overlap 0.2222 and `still_has_a_topology` False, so every edit
+  a person made on it was marked as having broken a tiling that was
+  never broken, and every drag drew red. Deduplicated, it reads
+  0.00000000.
+
+  EXACT EQUALITY IS THE RIGHT TEST HERE, not a tolerance: these are
+  the same tile emitted twice by the same construction, not two tiles
+  that happen to coincide, and a tolerance would start merging tiles
+  that genuinely overlap -- which is the thing this measure exists to
+  find.
+  """
+  kept = []
+  seen = set()
+  for tile in tiles:
+    try:
+      key = tile.wkb
+    except Exception:                                   # noqa: BLE001
+      kept.append(tile)
+      continue
+    if key in seen:
+      continue
+    seen.add(key)
+    kept.append(tile)
+  return kept
 
 
 def tears_in_the_patch(unit, across=3):

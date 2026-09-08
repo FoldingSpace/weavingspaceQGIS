@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-561 defect(s) with a regression test.
+562 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -258,6 +258,8 @@ there is no separate list to remember.
   guarded by `test_an_element_sitting_wholly_on_missing_values_still_draws`
 - **every element on Quant: Unclassed was warned that a third of its fifty steps were empty, on a map drawing exactly what that style means.**  
   guarded by `test_an_unclassed_row_is_not_warned_about_its_fifty_steps`
+- **`square-colouring 3` and the chavey family read overlap 0.2222 untouched, so the tab called a perfect tiling broken.**  
+  guarded by `test_an_untouched_design_is_never_told_it_does_not_tile`
 - **an element's no-data layer ignored its opacity when the run landed, so a faded element drew opaque patches until something unrelated restyled it.**  
   guarded by `test_both_halves_of_an_element_fade_together`
 - **opening a map whose layers were still in the project took the already-open branch, which never recorded a run signature, so live update re-tiled the opened map into memory and the file's own layers were dropped from the project. Found by the path-spelling hunt of 2026-08-28.**  
@@ -1177,7 +1179,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 190
-- a bug hunt pointed in a named direction: 158
+- a bug hunt pointed in a named direction: 159
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18
