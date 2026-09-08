@@ -384,10 +384,11 @@ docs/process/weaving-and-topology.md. OWED, in this order:
   otherwise.
 - GENERATE THE FILLER FROM THE STRANDS CODE, never from geometry: a
   position marked `-` is a conscious gap and stays open.
-- WIDEN `_shallow_copy_with_tiles`, which cannot copy a WeaveUnit at
-  all -- `WeaveUnit._setup_regularised_prototile()` takes no
-  `override` where TileUnit's does, so the supplied-geometry
-  workaround the dual leans on is silently tiling-only.
+- DONE: `_shallow_copy_with_tiles` serves both kinds. It passed
+  `override` unconditionally, which only `TileUnit` takes, so it
+  answered None for every weave and the dual's own workaround was
+  silently tiling-only. It asks the method now; guarded, with the
+  tiling as the control, and the entry proved `caught`.
 
 THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand that follows
 a PATH undulates authentically at any width, needing no filler, no

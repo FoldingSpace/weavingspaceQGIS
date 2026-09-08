@@ -91810,6 +91810,35 @@ def test_unticking_the_source_takes_it_out_of_the_file():
     project.clear()
 
 
+def test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is():
+  """The supplied-geometry workaround must not be tiling-only.
+
+  `_shallow_copy_with_tiles` is how this project builds a Tileable
+  from geometry the library has no constructor for -- the dual leans
+  on it, and so would any scaffolding of a weave's daylight. It called
+  `_setup_regularised_prototile(override=True)`, which `TileUnit`
+  takes and `WeaveUnit` does not, so it raised `TypeError` on every
+  weave and returned None for all of them. A helper that answers None
+  reads as "the library will not make one" rather than as "this line
+  passed an argument that does not exist" (C-347).
+
+  THE TILING IS THE CONTROL, since a repair that broke the other kind
+  would otherwise pass unnoticed.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  for name, count, kwargs in (
+      ("plain weave a|b", 2, {"aspect": 0.75}),
+      ("twill weave a|b", 2, {"aspect": 0.75}),
+      ("laves 3.3.4.3.4", 4, {})):
+    spec = catalog.TILINGS_BY_N[count][name]
+    unit = catalog.make_unit(spec, spacing=1000.0, crs=None, **kwargs)
+    twin = topology_edits._shallow_copy_with_tiles(unit, unit.tiles.copy())
+    assert twin is not None, \
+      f"{name}: the copy came back None, so a whole KIND is excluded"
+    assert len(twin.tiles) == len(unit.tiles), \
+      f"{name}: copy has {len(twin.tiles)} tiles against {len(unit.tiles)}"
+
+
 def test_a_typed_strands_code_draws_the_elements_it_names():
   """The code is the authority on what a weave contains.
 
@@ -93761,6 +93790,8 @@ def main():
         test_a_donor_reaches_its_follower_in_the_same_run)
   check("a task says how far its worker got",
         test_a_task_says_how_far_its_worker_got)
+  check("a unit can be copied with new tiles whatever kind it is",
+        test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",
         test_a_typed_strands_code_draws_the_elements_it_names)
   check("a strands code that cannot be used changes nothing",

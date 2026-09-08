@@ -1541,12 +1541,26 @@ def _shallow_copy_with_tiles(unit, tiles):
     `transform_geometry` does not take and which upstream's own
     notebook takes by hand whenever it builds a unit from topology
     output.
+
+  THE `override` ARGUMENT IS ASKED FOR RATHER THAN ASSUMED.
+  `TileUnit._setup_regularised_prototile` takes it and
+  `WeaveUnit`'s does not, so passing it unconditionally raised
+  `TypeError` on every weave and this function answered None for
+  ALL of them -- which made the supplied-geometry workaround the
+  dual leans on silently tiling-only, and read as a fact about
+  weaves rather than about this line. Found 2026-09-08 while
+  scaffolding a weave's daylight (C-347).
   """
   import copy
+  import inspect
   try:
     twin = copy.deepcopy(unit)
     twin.tiles = tiles
-    twin._setup_regularised_prototile(override=True)
+    settle = twin._setup_regularised_prototile
+    if "override" in inspect.signature(settle).parameters:
+      settle(override=True)
+    else:
+      settle()
   except Exception:                                   # noqa: BLE001
     return None
   return twin

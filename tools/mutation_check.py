@@ -2752,6 +2752,21 @@ MUTATIONS = [
        why="your second push drag behaving like your first, rather "
            "than dividing by a number measured on the preview the "
            "last one left on screen"),
+  dict(name="a-shallow-copy-serves-both-kinds-of-unit",
+       file="weavingspace_qgis/topology_edits.py",
+       # Passing `override` unconditionally is the state this was in:
+       # TileUnit takes it, WeaveUnit does not, so every weave raised
+       # TypeError and the helper answered None for a whole KIND --
+       # which reads as the library refusing rather than as this line
+       # being wrong.
+       old="""    if "override" in inspect.signature(settle).parameters:
+      settle(override=True)
+    else:
+      settle()""",
+       new="""    settle(override=True)""",
+       test="test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is",
+       why="the supplied-geometry workaround silently excluding every "
+           "weave, so a dual or a scaffold of one cannot be built"),
   dict(name="a-typed-strands-code-reaches-the-weave", file=CATALOG,
        # THE NAMING AXIS: does the box's code actually override the
        # catalogue's? Break it and the family's own code stands, so a
