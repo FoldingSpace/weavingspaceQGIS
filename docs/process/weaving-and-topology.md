@@ -129,6 +129,33 @@ where it swallows the exception the first move is to unswallow it.
 not work out the structure, both true -- and it cannot say WHY,
 because it never sees the reason either.
 
+## The rate over the whole catalogue: 65 of 77
+
+Three designs is not a rate, so the scaffolding was put to every weave
+entry the catalogue holds, with the round trip judged in full: the
+topology has to build, an edit has to apply, and dropping the filler
+has to give back exactly the strand tiles that went in, all valid.
+
+    topology built      65/77
+    edit applied        65/77
+    round trip closed   65/77
+
+The twelve that do not are TWO SHAPES rather than a scatter, which is
+what makes them worth chasing rather than accepting. Ten are twills
+with richer over-under patterns -- `a|b- 3`, `a|b 4`, `a|b 1,2,2,1` --
+and they refuse with the SAME sentence our own filler caused above, so
+the first move is to unswallow the exception again rather than to
+conclude anything about the library. Two are triaxial cube weaves
+(`cube weave abc|def|ghi`, `cube weave a-b|c-d|e-f`) raising
+`GEOSException`, which is a different failure and probably a different
+cause.
+
+The sweep took about fifty minutes of one core and printed nothing
+until it ended, because its output went through a `grep` that
+block-buffers to a file. That is the project's own "an empty log is
+not evidence of absence" met in a probe written an hour after quoting
+it; a long sweep prints per design.
+
 ## The conscious gaps are named by the strands code, not by geometry
 
 A weave has two kinds of daylight and they must be treated

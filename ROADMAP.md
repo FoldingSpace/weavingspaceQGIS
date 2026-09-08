@@ -372,11 +372,13 @@ drop the filler. Proved to close on `twill weave a|b`. The rulings are
 in CLAUDE.md; what was tried, what failed and why is
 docs/process/weaving-and-topology.md. OWED, in this order:
 
-- MEASURE THE RATE ACROSS THE CATALOGUE'S 77 WEAVE ENTRIES. Three of
-  three close the round trip once each filler piece takes its own id
-  (the second refusal was our filler dissolving into a multi-part
-  tile, diagnosed 2026-09-08), but three is not a rate and the sweep
-  that would give one has not finished.
+- THE RATE IS 65 OF 77 and the remaining twelve are two shapes, so
+  chase those rather than re-measuring: TEN twills with richer
+  over-under patterns (`a|b- 3`, `a|b 4`, `a|b 1,2,2,1`) still say the
+  tiles meet but the structure could not be worked out, which is the
+  same sentence our filler caused once already and so is worth
+  unswallowing again before assuming it is the library; and TWO
+  triaxial cube weaves raise `GEOSException`.
 - PROVE A STRAND'S TWO LONG EDGES ARE IDENTIFIABLE from the topology's
   classes, since ruling 3 moves them in phase and is unbuildable
   otherwise.
