@@ -959,6 +959,11 @@
   "excerpt": "hold no values inside the range {}, so they were left out.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "534744daca69ca5f": {
+  "approved": "2026-09-08",
+  "excerpt": "<h2>What this plugin makes</h2> <p>Mapping several attribute",
+  "where": "weavingspace_qgis/help_content.py"
+ },
  "53997e95bb56f55c": {
   "approved": "2026-08-08",
   "excerpt": "<footer>\n<p>The two figures above are reproduced from the <e",

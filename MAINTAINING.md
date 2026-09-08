@@ -525,6 +525,52 @@ colleague can open without the plugin at all. And anything travelling
 as a tuple comes home as a list, JSON having no tuple, so every reader
 has to put it back.
 
+### A strands code you can type, and what follows what
+
+A weave's strands code says which elements ride in which direction --
+`ab-|cd`, where `|` separates directions, `()` combines labels into one
+strand sliced lengthwise, and `-` is a deliberate gap. It was a
+catalogue value only until 2026-09-08: the 77 weave entries carried it
+in their specs and the family list was the only way to reach one.
+
+**THE BOX OVERRIDES THE ENTRY, AS THE OVER-AND-UNDER BOX ALREADY
+DOES.** `catalog.make_unit` takes `strands=None` and passes `strands or
+spec["strands"]` to `WeaveUnit`, so an empty box means the family's own
+code and every record written before the control existed restores
+unchanged. `_strands_in_force` is the one reader, and it feeds
+`_unit_kwargs`, which `_geometry_signature` consumes WHOLESALE -- so
+the re-tile decision learned about this term without a second
+enumeration, which is the shape that has gone stale here three times.
+
+**THE CODE SETS THE COUNT AND THE SLIDER FOLLOWS** (the ruling is in
+CLAUDE.md). Two things about that are not obvious. The weave TYPE is
+remembered across the move and re-selected afterwards, because
+`_on_n_changed` repopulates the family list for the new count and lands
+on its FIRST entry -- so a twill would otherwise become whichever
+family sorts first at four, the weave type changed by an act that was
+about its strands. And `_strands_are_driving` guards the prefill in
+`_refresh_option_rows`: the count move reaches that method through two
+hops, and its `setText` wrote the new family's code over the one
+somebody had just typed. It is held in a `finally`, since an exit that
+skipped the reset would leave the box unable to be refilled by an
+ordinary family change ever again.
+
+**VALIDATION IS OURS BECAUSE THE LIBRARY HAS NONE.**
+`tiling_utils.get_strand_ids` says in its own docstring that
+"superfluous parentheses are removed, but no other error-checks are
+applied", and what it does with the rest was measured:
+`catalog.strands_problem` refuses the three shapes that raise and the
+three that build quietly wrong -- an element id that is a space, one
+that is a bracket, and an upper case label folded onto its lower case
+twin. `TRIAXIAL_WEAVES` is why the weave type is an argument: every
+type but `cube` is biaxial and silently DROPS a third direction, so a
+validator counting letters alone promises an element the map will not
+carry.
+
+`STRANDS_CEILING` is 12 and is the CATALOGUE's reach rather than the
+library's alphabet; the reasoning, and where it would be lifted, is at
+the constant.
+
 ### A design is shown by one name and looked up by another
 
 `family_combo` was built with `addItems(names)`, so a catalogue key --

@@ -32,6 +32,15 @@ beside it in `hunt-logs-2026-08-13/`, kept for the ratio of ruled-out
 to confirmed rather than for the prose, and including the two hunts
 that recorded their own sloppiness about timestamps.
 
+**The newest upstream note**,
+`upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`,
+reports a `Topology` construction that deletes an edge from its own
+dict while a tile goes on naming it, so `get_edges` raises `KeyError`.
+It is worth reading beside the weave note above for what it took to
+believe: two hypotheses of ours were refuted by their own controls
+first, and the run that finally showed it observed the dict rather
+than replacing any logic.
+
 **The second upstream note**, `upstream-note-a-unit-from-supplied-
 tiles.md`, asks the weavingspace project for a constructor that builds
 a Tileable from tiles you already have. The plugin needs one to tile a

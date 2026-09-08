@@ -2060,6 +2060,25 @@ Confirmed with the user via an explicit design review:
   a refusal our own code composes is a sentence rather than a
   diagnosis. The record is docs/process/weaving-and-topology.md.
   (C-347.)
+- **A STRANDS CODE IS SOMETHING YOU TYPE, AND THE CODE SETS THE
+  ELEMENT COUNT.** (Maintainer's ruling, 2026-09-08.) The catalogue's
+  77 weave entries carried their codes baked in while the guide taught
+  the notation, so the guide explained a language the dialog would not
+  accept. A validated box feeds `strands` as the over-and-under box
+  already overrides its spec's `n`; the elements of a weave ARE the
+  letters of its code, so the code is the authority and the slider
+  follows, and the WEAVE TYPE is carried across the move, since
+  repopulating the family list lands on its first entry and would
+  otherwise turn a twill into whatever sorts first. THE LIBRARY
+  VALIDATES NOTHING -- `get_strand_ids` says so itself -- so every
+  refusal is ours and each was measured rather than invented: three
+  shapes raise, and three worse ones build quietly wrong, an element
+  id that is a space, one that is a bracket, and an upper case label
+  folded onto its lower case twin, which is R-62's GeoPackage case
+  collision arriving through a text box. CAPPED AT TWELVE, which is
+  the CATALOGUE's reach and not the library's alphabet: above it no
+  weave family exists, the kind flips to tiling, and a strands code
+  means nothing to a tiling. (C-348.)
 - **A PLAIN CLICK INSIDE THE SELECTION CHANGES NOTHING.**
   (Maintainer's rule, 2026-09-07.) A plain click OUTSIDE the ticked set
   replaces it, as it always has; where several classes are ticked,

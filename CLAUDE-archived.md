@@ -382,6 +382,7 @@ quote them, do not renumber them.
 - **C-345** — The targeted Windows run, and what a fixed pump costs on a slow leg  <sub>minted</sub>
 - **C-346** — Topology edits despite an inset: the three rulings of 2026-09-08  <sub>minted</sub>
 - **C-347** — A weave's topology by scaffolding, and what weaving asks of an edit  <sub>minted</sub>
+- **C-348** — A strands code you can type, and the count following it  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11370,3 +11371,73 @@ the way: `WeaveUnit._setup_regularised_prototile()` takes no `override`
 argument where `TileUnit`'s does, so the supplied-geometry workaround
 this project already leans on for the dual is silently tiling-only.
 Anything built on it for weaves has to widen it first.
+
+### C-348 — A strands code you can type, and the count following it
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-348).</sub>
+
+Asked as an aside during the weave grilling -- "did we fail to
+implement a weave strand string input into the UI?" -- and the answer
+was yes, entirely. The 77 weave entries in `catalog.py` carry
+`strands="a|b-"` in the spec, the family list was the only way to
+reach one, and docs/USER-GUIDE.md taught the notation to somebody who
+had no box to type it into.
+
+**WHY THE COUNT FOLLOWS THE CODE AND NOT THE OTHER WAY.** Three
+options were put. The count could constrain the code, refusing a
+mismatch -- but that makes the commonest act, typing a longer code, an
+error, and asks somebody to set two controls in the right order to do
+one thing. A `custom weave` entry in the family list could reveal the
+box -- which keeps every existing control's meaning and is where the
+deprioritised matrix entry would land, at the price of not being able
+to tweak a catalogue weave you already like. The maintainer took the
+third: the elements of a weave ARE the letters of its code, so the
+code is the authority and the two element widgets follow it, exactly
+as they already follow each other.
+
+**WHAT THE MEASUREMENT GAVE, and it is the whole validator.** The
+library error-checks nothing, which `get_strand_ids` states in its own
+docstring, so every case was driven rather than imagined. THREE RAISE:
+`a|` and `|` divide by zero on an empty direction, `''` unpacks too
+few directions, `a|b|c|d` too many. THREE BUILD QUIETLY WRONG, which
+are the dangerous ones: `a a|b` yields an element whose id is a SPACE,
+`a|b)` one called `)`, and `AB|cd` builds four elements that come back
+lower case, so `A` and `a` collide -- the same folding that makes
+`tiles_A` and `tiles_a` one GeoPackage table (R-62). And superfluous
+parentheses are cleaned by the library itself, so `((a))|b` is fine.
+
+**AND A THIRD DIRECTION IS NOT ALWAYS A DIRECTION.** My first
+validator counted letters and accepted `a|b|c` on a plain weave,
+promising three elements where the map draws two: everything but a
+`cube` weave is biaxial and silently DROPS the third. Caught by the
+probe's own control -- built ids against named ids -- rather than by
+reading, and `TRIAXIAL_WEAVES` is the fix.
+
+**THE CEILING IS THE CATALOGUE'S, NOT THE LIBRARY'S.** `WeaveUnit`
+would take twenty-six, one per letter. Weave families exist at element
+counts 2 to 12 and nowhere above, so a code naming thirteen would move
+the count somewhere no weave family lives, the kind would flip to
+tiling by the rule that already speaks at twelve, and a strands code
+means nothing to a tiling: the design would quietly become something
+else. Twelve, with the maintainer's own wording for the refusal --
+"the currently enabled weave families" -- which says the limit is a
+setting rather than a fact about weaving.
+
+**TWO FAULTS OF MINE, BOTH CAUGHT BY THE GUARDS RATHER THAN BY
+READING.** The first catalogue entry SURVIVED: the fixture typed
+`ab|cd`, and the family the count lands on at four has its own
+`ab|cd`, so breaking the override produced the same four elements by
+coincidence -- preference and coincidence indistinguishable, which
+docs/TESTING.md already warns about in exactly these words. Re-aimed
+at `ac|eg`, letters no catalogue family uses, the test then FAILED on
+the real tree: moving the count repopulates the family list, whose
+prefill wrote the new family's code over the one just typed. The
+prefill is guarded by `_strands_are_driving`, held in a `finally`
+because the cascade reaches it through two hops.
+
+**AND THE PAIRED DOCUMENT WAS MISSED AND THEN BROKEN.**
+MAINTAINING.md says the guide and `help_content.py` are edited
+together; only the guide was. Repairing that, the help text was
+patched by anchoring mid-sentence and produced "The result last.",
+which is the span-surgery trap this project records -- assert every
+anchor, and read the result rather than the diff.
