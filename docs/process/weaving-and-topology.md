@@ -225,37 +225,87 @@ above, so pieces arrive already clipped and an edit inherits the
 crossings. The constraint that follows is worth stating rather than
 discovering: an edit must not move a strand ACROSS a crossing.
 
-## A strand's two long edges pair by CLASS, measured
+## A strand's long side is FOUR OR FIVE edges, and the class selector cannot aim at a ribbon
 
 Ruling 3 says a manipulation moves a strand's two long edges IN PHASE,
 and that was recorded as unbuildable until the edges could be
-identified. Read off the scaffolded topology, they identify
-themselves:
+identified. An earlier reading here concluded that they identify
+themselves -- that both long edges of a strand share one class, so the
+selector the tab already has would name both sides together. THAT
+CONCLUSION IS WITHDRAWN. It listed a strand tile's edges without
+separating the two SIDES, and separating them reverses the answer on a
+plain weave. `tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`
+is the measurement, and it reports each side apart.
 
-    twill a|b, strand tile a    4 edges: 750 'b', 750 'b',
-                                         250 'd', 250 'd'
-    plain a|b, strand tile a   10 edges: 750 'e', 750 'i', 750 'i',
-                                         750 'e', 250 'j', 250 'b',
-                                         and four of 125
+A LONG SIDE IS NOT ONE EDGE. The scaffolding abuts a strand at every
+crossing, so each side is cut into segments, each carrying its own
+class:
 
-THE LONG EDGES SHARE A CLASS. Both 750-length edges of the twill's
-strand are class `b`; the plain weave's four long edges are two `e`
-and two `i`. So the class selector the tab already has names both
-sides of a strand together, and ruling 3 may need no new selection
-machinery -- which is the opposite of what the roadmap assumed.
+    plain a|b, strand piece     4 edges a side, 1250 long:
+                                + j250 i750 c125 a125
+                                - b250 e750 f125 h125
+    twill a|b, full piece       5 edges a side, 2250 long:
+                                + a250 f750 c250 b750 e250
+                                - e250 b750 c250 f750 a250
+    twill a|b, under piece      1 edge a side, 250 long: d, d
 
-WHAT IS STILL OPEN, and it is the whole of the ruling rather than a
-detail: whether a class-aimed zigzag moves those two edges IN PHASE,
-so the ribbon undulates at constant width, or in ANTIPHASE, so it
-pinches and swells. The identification is measured; the phase is not,
-and an area digest cannot answer it, since a zigzag conserves area
-either way -- which this project already records about a different
-measurement of the same manipulation.
+WHETHER THE TWO SIDES SHARE A CLASS AT ALL DEPENDS ON THE WEAVE. The
+twill's two sides carry the same five classes; the plain weave's carry
+`{a,c,i,j}` against `{b,e,f,h}` and share NOTHING. So on a plain weave
+every class-aimed edit moves exactly one side of a ribbon.
 
-AND THE PROBE MEASURED NOTHING TWICE BEFORE IT MEASURED THIS. A
-topology `Tile` carries `label`, not `tile_id`, so the first run
-matched no strand tile at all and printed an empty list that read
-exactly like "no strands found".
+AND WHERE A CLASS IS ON BOTH SIDES, WHAT DECIDES THE PHASE IS WHETHER
+ITS TWO SEGMENTS SIT OPPOSITE EACH OTHER. Measured along the strand
+from its centre, on the twill's full-length piece:
+
+    class c   + at (-125, 125)      - at (-125, 125)      ALIGNED
+    class b   + at (125, 875)       - at (-875, -125)     STAGGERED
+    class a   + at (-1125, -875)    - at (875, 1125)      STAGGERED
+
+SO THE ANSWER IS NEITHER OF THE TWO THE QUESTION OFFERED. A zigzag
+aimed at an ALIGNED class moves both sides together and the ribbon
+undulates at constant width; aimed at a STAGGERED one it moves one side
+at a time and the ribbon pinches and swells. Both happen on one design,
+under one selector, at one strand width:
+
+    twill, class c    width 750.0-750.0  swing 0.0%   centreline 6.3%
+    twill, class d    width 750.0-750.0  swing 0.0%   centreline 6.3%
+    twill, class b    width 678.7-821.3  swing 19.0%  centreline 9.5%
+    twill, class f    width 678.7-821.3  swing 19.0%  centreline 9.5%
+    plain, class e    width 626.4-821.3  swing 26.0%  centreline 9.5%
+    control, no edit  width 750.0-750.0  swing  0.0%  centreline 0.0%
+
+A SWING OF TWICE THE CENTRELINE'S TRAVEL IS THE SIGNATURE OF ONE SIDE
+MOVING, which is what the staggered rows read, and it is why the
+stagger was MEASURED rather than left as the arithmetic that suggested
+it. The constant reading is the exact one and is what the conclusion
+rests on: two edges displaced by the same graph function leave every
+chord at the original width. The swings are not exact amplitudes, since
+the width is a chord on a fixed axis and a sloped edge reads slightly
+wide.
+
+WHAT THAT COSTS RULING 3. The class selector cannot deliver a ribbon of
+constant width, on any weave measured, because the classes are a fact
+about the tiling's symmetry and a ribbon is not. An edit aimed at a
+STRAND is a different selector from an edit aimed at a class, and
+building one is work nobody has scoped. The alternative the ruling
+already points at is the longer-run answer below, where the strand
+follows a path and the question does not arise.
+
+AND AN AREA DIGEST CANNOT ANSWER ANY OF IT, a zigzag conserving area
+whichever way the edges move -- which this project already records
+about a different measurement of the same manipulation.
+
+TWO INSTRUMENT FAULTS, BOTH MINE. A topology `Tile` carries `label`,
+not `tile_id`, so an early run matched no strand tile and printed an
+empty list that read exactly like "no strands found". And the width
+probe first took each piece's LONGER side as the strand's axis, which
+is right for a full piece and wrong for the under-piece a weave cuts
+750 across by 250 along -- so those rows came back transposed, and a
+strand 750 wide reported a constant width of 250. The across extent is
+`aspect * spacing` on every piece, over or under, so that is what picks
+the axis now, and the probe refuses a piece where neither side is that
+width rather than measuring the wrong direction quietly.
 
 ## The longer-run answer, which is a different feature
 
@@ -280,7 +330,24 @@ Anything built on it for weaves widens it first.
 **AND THERE IS NO STRANDS-CODE INPUT IN THE DIALOG.** The 77 weave
 entries in `catalog.py` carry their codes baked in, and the family
 list is the only way to reach one, while docs/USER-GUIDE.md teaches
-the notation. Its own roadmap entry follows from that.
+the notation. Its own roadmap entry follows from that. (Built
+2026-09-08; the entry that remains is the cap and the designing tab.)
+
+**AND THE SCAFFOLDING CAN REACH A TWO-LETTER CLASS LABEL, WHICH THE
+CLASS MACHINERY DOES NOT SURVIVE.** The library labels transitivity
+classes `a`..`z` and then `aa`, `ab`, with its own comment reading
+"note that it is inconceivable that this many labels will ever be
+needed" -- and a scaffolded `basket weave ab|cd` carries 36 edge
+classes. Two things break there. `topology_edits.classes` returns the
+labels JOINED INTO ONE STRING, which cannot be split back once any
+label is two characters; and the library matches a selector with
+`label in selector`, so aiming at `aa` also moves the class `a`. IT IS
+NOT A LIVE DEFECT: the eight most intricate designs this project's own
+measurements single out carry one to five edge classes, `chavey K`
+highest at five, so nothing on the shipped path is near the ceiling.
+The scaffolding is what multiplies the count, so whatever is built on
+it settles this first -- a class is a LABEL rather than a character,
+and the selector needs a boundary the library does not give it.
 
 ## My own instruments, tallied apart
 
@@ -303,6 +370,9 @@ hyphen shows up as an overlap, not a gap. The claim was directionally
 useful and factually wrong, and it is the reason the strands-code
 answer above is better than either geometric test.
 
-The instrument is
-`tools/probes/can_a_weave_carry_a_topology.py`, committed because a
-figure with no instrument beside it is folklore.
+The instruments are
+`tools/probes/can_a_weave_carry_a_topology.py`, for whether a weave can
+carry a topology at all, and
+`tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`, for what an
+edit then does to the ribbon. Both are committed, because a figure with
+no instrument beside it is folklore.

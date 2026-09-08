@@ -1043,8 +1043,22 @@ multi-part tile the library refuses. Sharing one id left `plain weave
 a|b` and `twill weave a|b-` failing; with distinct ids all three
 build, edit, and give their strand tiles back valid.
 
-The instrument is `tools/probes/can_a_weave_carry_a_topology.py`. The
-full record, the dead ends and what weaving asks of an edit are in
+AND A CLASS-AIMED EDIT DOES NOT GIVE A RIBBON. The scaffolding abuts a
+strand at every crossing, so a long side is four edges on a plain weave
+and five on a twill; the two sides share no class at all on a plain
+weave, and where they do share one the phase turns on whether that
+class's segments sit opposite each other. On one twill, under one
+selector: class `c` is aligned and the width swings 0.0% while the
+centreline travels 6.3% of the strand's width, and class `b` is
+staggered and the width swings 19.0%. A swing of twice the centreline's
+travel is one side moving; the constant reading is the exact one, since
+two edges displaced by the same graph function leave every chord at the
+original width, while a swing is a chord on a fixed axis and reads
+slightly wide on a sloped edge.
+
+The instruments are `tools/probes/can_a_weave_carry_a_topology.py` and
+`tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`. The full
+record, the dead ends and what weaving asks of an edit are in
 docs/process/weaving-and-topology.md; the rulings are C-347.
 
 ## Symmetry, and what a crystallographic reading would give

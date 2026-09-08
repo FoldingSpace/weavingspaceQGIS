@@ -370,21 +370,23 @@ is the maintainer's: fill the gaps between strands, take the topology
 of the gap-free result, aim the edit at a strand, drop the filler. It
 closes the round trip on 65 of 77 weaves. The rulings are in
 CLAUDE.md, the record in docs/process/weaving-and-topology.md. TWO
-PIECES ARE BUILT -- `daylight_by_kind`, which tells a hyphen's
+PIECES ARE BUILT AND GUARDED: `daylight_by_kind`, telling a hyphen's
 conscious gap from the daylight strand width opens, and a
-`_shallow_copy_with_tiles` that serves weaves as well as tilings --
-each guarded and proved `caught`. WHAT IS OWED:
+`_shallow_copy_with_tiles` that serves weaves too. WHAT IS OWED:
 
 - USE THE DISTINCTION. Both kinds must be FILLED, since a topology
   needs the design gap-free; what has to survive into the classes is
   that an edit travels across width daylight and never through a
   hyphen.
-- THE LONG EDGES ARE IDENTIFIED, and by the class selector the tab
-  already has: both long edges of a strand tile share a class label,
-  measured. WHAT IS OPEN is the PHASE -- whether a class-aimed zigzag
-  makes the ribbon undulate at constant width or pinch and swell --
-  and an area digest cannot answer it, a zigzag conserving area
-  either way.
+- THE CLASS SELECTOR CANNOT AIM AT A RIBBON, so ruling 3 wants either a
+  selector aimed at a STRAND or the grid answer below -- a DECISION for
+  the maintainer. On one twill under one selector an aligned class
+  swings the width 0.0% and undulates while a staggered one swings it
+  19.0% and pinches, which supersedes the reading that both long edges
+  share a class.
+- AND THE SCAFFOLDING REACHES A TWO-LETTER CLASS LABEL at 36 classes,
+  which `classes()` and `label in selector` both mishandle. Not a live
+  defect; owed by whatever builds on the scaffolding.
 - THE TWO TRIAXIAL CUBE WEAVES raising `GEOSException`, the only
   undiagnosed failures left. The other ten are upstream's, measured:
   see the upstream note on an edge deleted while a tile still names

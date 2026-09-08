@@ -383,6 +383,7 @@ quote them, do not renumber them.
 - **C-346** — Topology edits despite an inset: the three rulings of 2026-09-08  <sub>minted</sub>
 - **C-347** — A weave's topology by scaffolding, and what weaving asks of an edit  <sub>minted</sub>
 - **C-348** — A strands code you can type, and the count following it  <sub>minted</sub>
+- **C-349** — an instrument that aggregates over the distinction under test  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11441,3 +11442,68 @@ together; only the guide was. Repairing that, the help text was
 patched by anchoring mid-sentence and produced "The result last.",
 which is the span-surgery trap this project records -- assert every
 anchor, and read the result rather than the diff.
+
+### C-349 — an instrument that aggregates over the distinction under test
+
+Ruling 3 of C-347 says an edit moves a strand's two long edges IN
+PHASE, and the question the roadmap carried was whether the class
+selector the tab already has delivers that. A probe answered it by
+listing the edges of a strand tile with their class labels and their
+lengths, and the answer read cleanly: both 750-length edges of the
+twill's strand are class `b`, the plain weave's four long edges are two
+`e` and two `i`, so a class names both sides of a strand together and
+ruling 3 needs no new selection machinery. That went into
+docs/process/weaving-and-topology.md and into ROADMAP.md as measured.
+
+IT WAS WITHDRAWN ON 2026-09-08. The list never asked WHICH SIDE each
+edge was on, and the distinction it was aggregating over is the whole
+of the question: a ribbon has two sides and the ruling is about their
+relationship. Separated, on `tools/probes/what_a_class_aimed_edit_
+does_to_a_ribbon.py`:
+
+    plain a|b, strand piece   + j250 i750 c125 a125
+                              - b250 e750 f125 h125    SHARE NOTHING
+    twill a|b, full piece     + a250 f750 c250 b750 e250
+                              - e250 b750 c250 f750 a250
+
+So the plain weave's `e` and `i` are one side each, and the earlier
+sentence "the plain weave's four long edges are two `e` and two `i`" is
+TRUE and its conclusion is false. On the twill the classes do coincide,
+and the phase then turns on a second thing the list could not show
+either -- WHERE along the strand each segment sits:
+
+    class c   + at (-125, 125)     - at (-125, 125)     ALIGNED
+    class b   + at (125, 875)      - at (-875, -125)    STAGGERED
+    class a   + at (-1125, -875)   - at (875, 1125)     STAGGERED
+
+    twill, class c    width 750.0-750.0  swing 0.0%   centreline 6.3%
+    twill, class b    width 678.7-821.3  swing 19.0%  centreline 9.5%
+    control, no edit  width 750.0-750.0  swing 0.0%   centreline 0.0%
+
+A swing of twice the centreline's travel is one side moving, which is
+what the staggered rows read -- and the stagger was then MEASURED
+rather than left as the arithmetic that suggested it, because this
+project has paid before for a mechanism inferred from numbers that fit.
+
+THE GENERAL FORM, and it is why this is a lesson rather than a weave
+fact. An instrument that AGGREGATES over the very distinction under
+test cannot see it, and its output looks like an answer rather than
+like silence. This project already records the shape twice in other
+clothes -- an area digest is conserved by a zigzag, so it reported a
+working wave as one that did nothing; and `gaps()` finds only enclosed
+holes, so a tiling pulled apart read as sound. The question to ask of
+any list, digest or count is what it has summed over, and whether the
+thing under test lives in what was summed away.
+
+AND THE REPLACEMENT INSTRUMENT HAD THE SAME FAULT ONCE MORE, in a
+different place. Its first version took each piece's LONGER side as the
+strand's axis, which is right for a full-length piece and wrong for the
+piece a weave cuts where a strand passes under -- 750 across by 250
+along at spacing 1000 and aspect 0.75 -- so those rows came back
+transposed and a strand 750 wide reported a constant width of 250. The
+across extent is `aspect * spacing` on EVERY piece, over or under, so
+that is what picks the axis now, and `axis_of` returns None where
+neither side is that width rather than measuring the wrong direction
+quietly.
+
+(The account.)

@@ -1185,7 +1185,11 @@ The accounts are C-267 and the ids beside each rule.
   CONSERVED by a zigzag, which moves ground from one tile to its
   neighbour, so it reported a working wave as one that did nothing.
   Ask of any figure what would make it change, and prefer a digest of
-  the geometry to a statistic over it.
+  the geometry to a statistic over it. AND AN INSTRUMENT THAT
+  AGGREGATES OVER THE DISTINCTION UNDER TEST CANNOT SEE IT, while its
+  output reads as an answer rather than as silence: a list of a
+  strand's edges concluded that its two long sides share a class,
+  having never asked which side each edge was on (C-349).
 - **READ A STALLED PROCESS WITHOUT SIGNALLING IT.** `sample <pid>`
   takes every thread's stack and disturbs nothing, where SIGUSR1 kills
   `run_some` outright for want of a faulthandler; and under CPython
