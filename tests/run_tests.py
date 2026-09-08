@@ -11999,6 +11999,54 @@ def test_the_preview_says_which_of_three_states_a_drag_is_in():
     QgsProject.instance().clear()
 
 
+def test_the_change_list_shows_the_amplitude_the_box_shows():
+  """One wave, one number, wherever the tab prints it.
+
+  `h` is the zigzag's PEAK-TO-PEAK width and the crest sits half of it
+  out from the edge, so `_CREST_OF_H` converts at the handle, the
+  ghost, the drag's inverse, the Amplitude box and the clamp's
+  sentence. The change list was the sixth readout and printed the raw
+  record, so somebody who typed 0.25 read `h 0.5` in their own list of
+  changes -- and a clamped edit could put `h 1` on the same screen as
+  a sentence saying it was drawn at 0.488.
+
+  THE RECORD IS DELIBERATELY UNTOUCHED, which is the other half: it
+  holds the library's `h` so that nothing already saved moves, and the
+  conversion happens on the way to the screen alone.
+
+  Regression: the change list printed the zigzag's amplitude at twice the number the Amplitude box showed for the same edit. [hunt]
+  """
+  from weavingspace_qgis.topology_tab import TopologyPanel, _CREST_OF_H
+
+  panel = TopologyPanel(None)
+  try:
+    asked = 0.5                       # the record's own h
+    shown = asked * _CREST_OF_H       # what every other readout says
+    panel._record({"classes": "a", "how": "zigzag_edge",
+                   "args": {"n": 2, "h": asked, "smoothness": 3}})
+    row = panel.edit_list.item(0).text()
+    assert f"h {shown:g}" in row, (
+      f"the change list does not show the amplitude the box shows: "
+      f"{row!r} against an expected 'h {shown:g}'")
+    assert f"h {asked:g}" not in row, (
+      f"the change list prints the stored peak-to-peak value: {row!r}")
+
+    # AND THE RECORD ITSELF DID NOT MOVE, or every saved file would.
+    assert panel.edits()[0]["args"]["h"] == asked, (
+      "the display conversion reached the record, which is what would "
+      "make every file written before tonight read differently")
+
+    # A MANIPULATION WITHOUT AN AMPLITUDE IS UNTOUCHED, which is the
+    # control: a conversion applied to every argument would halve a
+    # rotation too.
+    panel._record({"classes": "a", "how": "rotate_edge", "args": {"angle": 30}})
+    assert "angle 30" in panel.edit_list.item(1).text(), (
+      "the amplitude's conversion is reaching arguments that are not "
+      f"amplitudes: {panel.edit_list.item(1).text()!r}")
+  finally:
+    panel.deleteLater()
+
+
 def test_an_untouched_design_is_never_told_it_does_not_tile():
   """A design straight from the catalogue tiles, and is judged to.
 
@@ -91549,6 +91597,8 @@ def main():
         test_a_change_never_wears_the_verdict_of_the_one_it_replaced)
   check("an untouched design is never told it does not tile",
         test_an_untouched_design_is_never_told_it_does_not_tile)
+  check("the change list shows the amplitude the box shows",
+        test_the_change_list_shows_the_amplitude_the_box_shows)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",

@@ -2720,6 +2720,14 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-change-list-converts-the-amplitude", file=TOPOLOGY_TAB,
+       # Printing the record raw is the state the list shipped in, and
+       # it is the sixth readout of a quantity five others convert.
+       old="""    args["h"] = float(args["h"]) * _CREST_OF_H""",
+       new="""    args["h"] = float(args["h"])""",
+       test="test_the_change_list_shows_the_amplitude_the_box_shows",
+       why="one wave described by one number, so the list of changes "
+           "agrees with the box that made them"),
   dict(name="one-tile-per-piece-of-ground", file=TOPOLOGY_EDITS,
        # Handing the patch back unchanged is the state the measure
        # shipped in: the overlap term then counts a duplicated tile

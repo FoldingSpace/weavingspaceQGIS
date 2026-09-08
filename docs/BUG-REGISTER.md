@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-562 defect(s) with a regression test.
+563 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -310,6 +310,8 @@ there is no separate list to remember.
   guarded by `test_swapping_two_variables_re_cuts_both_splits`
 - **taking an element back from QGIS by mixing a plain fill there lost the fill to the plugin's own default, and the style the row had followed reverted at the next unrelated change.**  
   guarded by `test_taking_an_element_back_keeps_the_fill_you_mixed`
+- **the change list printed the zigzag's amplitude at twice the number the Amplitude box showed for the same edit.**  
+  guarded by `test_the_change_list_shows_the_amplitude_the_box_shows`
 - **opening the colour editor for an Unclassed element on a column with no values raised an unhandled OverflowError, so the button did nothing and QGIS showed a Python error.**  
   guarded by `test_the_colour_editor_opens_on_a_column_with_no_values`
 - **opening the colour editor on an element whose column holds an infinity raised IndexError inside a Qt slot, so the button did nothing and QGIS showed a Python error; the map drew the three kinds correctly and the window meant to colour them could not open. Found by a hunt on 2026-08-16, the day the kinds went from one to three.**  
@@ -1179,7 +1181,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 190
-- a bug hunt pointed in a named direction: 159
+- a bug hunt pointed in a named direction: 160
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18

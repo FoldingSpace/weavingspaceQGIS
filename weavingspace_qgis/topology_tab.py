@@ -372,6 +372,37 @@ _AMPLITUDE_DEADBAND_PX = 6.0
 _CREST_OF_H = 0.5
 
 
+def _in_the_units_the_controls_show(edit):
+  """An edit's arguments as the tab displays them, not as it stores them.
+
+  Args:
+    edit: one entry of the change list's record.
+
+  Returns:
+    A copy of its `args`, with the zigzag's `h` converted to the crest
+    distance the Amplitude box shows. The record itself is untouched:
+    it holds the library's `h` so that nothing saved moves (C-337).
+
+  WHY IT IS NEEDED. `h` is the wave's PEAK-TO-PEAK width and the crest
+  sits half of it out from the edge, so `_CREST_OF_H` converts at the
+  handle, the ghost, the drag's inverse, the Amplitude box and the
+  clamp's sentence -- five readouts of one quantity. The change list
+  was a sixth and printed the raw record, so a person who typed 0.25
+  read `h 0.5` in their own list of changes, and a clamped edit could
+  put `h 1` on the same screen as "drawn at an amplitude of 0.488
+  rather than 0.5". (Found 2026-09-07; the KEYS are still the
+  library's names throughout this list, which is a display question
+  nobody has put to the maintainer.)
+  """
+  args = dict(edit.get("args") or {})
+  if edit.get("how") == "zigzag_edge" and "h" in args:
+    try:
+      args["h"] = float(args["h"]) * _CREST_OF_H
+    except (TypeError, ValueError):
+      pass
+  return args
+
+
 def _even_count(value) -> int:
   """The even count nearest a number, inside the count's range.
 
@@ -4051,7 +4082,7 @@ class TopologyPanel(QWidget):
     for index, edit in enumerate(self._edits):
       spec = edits_module.MANIPULATIONS.get(edit.get("how"), {})
       args = ", ".join(f"{k} {v:g}" for k, v in
-                       sorted((edit.get("args") or {}).items()))
+                       sorted(_in_the_units_the_controls_show(edit).items()))
       mark = self._marks[index] if index < len(self._marks) else None
       if mark is None:
         suffix = ""
