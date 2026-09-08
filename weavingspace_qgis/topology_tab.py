@@ -2836,10 +2836,12 @@ class TopologyPanel(QWidget):
         # torn, which is what `ratio` is for, and it is not enough to
         # SHOW the tear: on a per-edge rotate of the default design it
         # is 4 pieces of ground against 21, a fortieth of what is
-        # actually torn. `tears_in_the_patch` erodes the patch's own
-        # ragged border first, so what is hatched is damage rather
-        # than the edge of what was drawn, and it costs what the one
-        # cell costs because the patch is already laid.
+        # actually torn. `tears_in_the_patch` lays its own patch, wide
+        # enough to hold the block it measures, so what is hatched is
+        # damage rather than the edge of what was drawn. It costs
+        # 9.5 ms on the default design and about 140 ms on a hex-keyed
+        # one -- paid once per landing, and only on this branch, where
+        # the coverage figure has already said the design is torn.
         where = edits_module.tears_in_the_patch(unit) or missing
     self.view.show_topology(topology, message, ghost=ghost, gaps=where)
     self._say_what_the_symmetry_is(unit, topology)

@@ -11853,7 +11853,15 @@ def test_the_hatch_shows_the_tear_and_not_the_edge_of_the_drawing():
   # `hex-slice 6` each reported 144,337 units of tear against a cell
   # of 866,025, on designs whose coverage gap is exactly 0. Laves
   # alone could never show it.
-  for family, count in (("laves 3.3.4.3.4", 4), ("hex-slice 3", 3)):
+  # AND THE FAMILIES ARE CHOSEN BY WHAT THEY NEEDED, measured rather
+  # than assumed: `laves` fits a 3x3 block at a patch radius of 2,
+  # `hex-slice 3` at 3, and `chavey H` at 5 -- though chavey and
+  # hex-slice share a lattice, a cell and a block, so nothing about
+  # the geometry predicts it. A radius chosen by measuring a few
+  # designs was wrong twice; the patch is asked whether it holds the
+  # block now, and this drives one design from each answer.
+  for family, count in (("laves 3.3.4.3.4", 4), ("hex-slice 3", 3),
+                        ("chavey H", 15)):
     sound_unit = catalog.make_unit(
       catalog.TILINGS_BY_N[count][family], spacing=1000, crs=3857)
     gap, _overlap, _missing = topology_edits.plane_coverage(sound_unit)

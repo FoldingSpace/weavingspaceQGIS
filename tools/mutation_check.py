@@ -2892,8 +2892,14 @@ MUTATIONS = [
        # family and were hatched as damage -- 144,337 units of "tear"
        # on a `hex-slice 3` whose coverage gap is exactly 0. Putting
        # the radius back is the defect exactly as it was.
-       old="""    patch = unit.get_local_patch(r=3, include_0=True)""",
-       new="""    patch = unit.get_local_patch(r=2, include_0=True)""",
+       # Re-anchored 2026-09-07 when the radius stopped being a
+       # number and became a question: fixing the patch at the
+       # smallest radius restores the defect for every family that
+       # needs more, which is what the guard now drives.
+       old="""      if block.within(_outline_of(covered)):
+        break""",
+       new="""      if True:
+        break""",
        test="test_the_hatch_shows_the_tear_and_not_the_edge_of_the_drawing",
        why="a sound hex design drawing no red hatching, rather than "
            "being marked broken at two corners of the block"),

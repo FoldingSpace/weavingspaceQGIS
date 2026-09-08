@@ -1016,6 +1016,45 @@ def plane_coverage(unit):
     return 0.0, 0.0, None
 
 
+# HOW WIDE A PATCH `tears_in_the_patch` MAY LAY. It starts at the
+# smallest that has ever sufficed and grows until the block of cells
+# it measures fits inside; the ceiling is there because a design that
+# never fits should draw no hatch rather than lay patches for ever.
+# Measured 2026-09-07: `laves 3.3.4.3.4` and `archimedean 4.8.8` fit
+# at 2, `hex-slice 3` and `square-colouring 3` at 3, and the four
+# `chavey` designs at 5 -- though chavey and hex-slice share a
+# lattice, a cell and a block, which is why this is asked rather than
+# computed.
+_LEAST_PATCH = 2
+_MOST_PATCH = 7
+
+
+def _outline_of(covered):
+  """The ground a patch is responsible for, holes filled in.
+
+  Args:
+    covered: the union of a patch's tiles.
+
+  Returns:
+    The same shape with every interior ring closed, so a tear inside
+    it stays visible as a difference while ground beyond it does not.
+
+  WHY IT IS NOT A CONVEX HULL. That was the first version of this
+  measure and it reported 1,000,000 units of tear on an untouched
+  design, because a patch's outer edge is ragged and a hull does not
+  follow it. An outline follows it exactly: it is the patch's own
+  boundary, and the only thing removed is the holes -- which are what
+  a tear IS.
+  """
+  # IMPORTED AT THE POINT OF USE, as everything geometric here is.
+  import shapely
+  from shapely.geometry import Polygon
+  parts = getattr(covered, "geoms", None) or [covered]
+  filled = [Polygon(part.exterior) for part in parts
+            if getattr(part, "exterior", None) is not None]
+  return shapely.union_all(filled) if filled else covered
+
+
 def _one_tile_per_piece_of_ground(tiles):
   """Drop tiles the patch hands back twice.
 
@@ -1065,7 +1104,8 @@ def tears_in_the_patch(unit, across=3):
   Args:
     unit: a Tileable, usually one an edit has just produced.
     across: how many fundamental cells wide the block is. Three gives
-      nine cells, and the patch is laid at `r=3` to hold them.
+      nine cells; the patch is laid wide enough to hold them, which is
+      asked rather than computed -- see below.
 
   Returns:
     A geometry of the ground the tiles fail to cover across that
@@ -1084,8 +1124,15 @@ def tears_in_the_patch(unit, across=3):
   them. The test that caught it asserts both halves -- a sound design
   hatches nothing, a torn one hatches more than a single cell shows.
 
-  IT COSTS WHAT ONE CELL COSTS, near enough, because `plane_coverage`
-  already lays this patch to measure its single cell.
+  WHAT IT COSTS, and the earlier claim here that it was free is no
+  longer true: it lays its OWN patches now, one per radius it tries,
+  where it used to borrow the one `plane_coverage` lays. Measured
+  2026-09-07 on designs torn by a per-edge rotate, which is the only
+  case that reaches it: 9.5 ms on `laves 3.3.4.3.4`, 138 ms on
+  `hex-slice 3`, 133 ms on `chavey H`. It is asked ONCE PER LANDING
+  and only where the coverage figure has already said the design is
+  torn, against a topology build of 0.75 to 19 seconds, so the growth
+  is affordable exactly where it is needed.
   """
   import shapely
   from shapely.geometry import Polygon
@@ -1106,21 +1153,45 @@ def tears_in_the_patch(unit, across=3):
         break
     if second is None:
       return None
-    patch = unit.get_local_patch(r=3, include_0=True)
-    covered = shapely.union_all(list(patch.geometry))
-    centre = covered.centroid
-    half = across // 2
-    cells = []
-    for i in range(-half, half + 1):
-      for j in range(-half, half + 1):
-        ox = centre.x - (first[0] + second[0]) / 2 + i * first[0] + j * second[0]
-        oy = centre.y - (first[1] + second[1]) / 2 + i * first[1] + j * second[1]
-        cells.append(Polygon([
-          (ox, oy),
-          (ox + first[0], oy + first[1]),
-          (ox + first[0] + second[0], oy + first[1] + second[1]),
-          (ox + second[0], oy + second[1])]))
-    block = shapely.union_all(cells)
+    # THE RADIUS IS ASKED FOR, NOT CHOSEN. The block must lie inside
+    # the patch, or its corners hang over ground that has no tiles at
+    # all and get hatched as damage -- 144,337 units of it on a sound
+    # `hex-slice 3` when the radius was 2. A radius picked by
+    # measuring a few designs is a number tuned rather than derived,
+    # and it was wrong again at 3: `chavey H` needs 5 while
+    # `hex-slice 3` needs 3 THOUGH THE TWO SHARE A LATTICE, an
+    # identical cell and an identical block, so nothing about the
+    # geometry here predicts it -- how far `get_local_patch` reaches
+    # is the tileable's own business.
+    # SO THE PATCH IS ASKED WHETHER IT HOLDS THE BLOCK, and grows
+    # until it does. The test is against the patch's OUTLINE with its
+    # holes filled: a tear makes holes INSIDE that outline, and those
+    # are the thing being measured, while ground beyond the outline is
+    # simply where the patch stopped.
+    block = None
+    covered = None
+    for radius in range(_LEAST_PATCH, _MOST_PATCH + 1):
+      patch = unit.get_local_patch(r=radius, include_0=True)
+      covered = shapely.union_all(list(patch.geometry))
+      centre = covered.centroid
+      half = across // 2
+      cells = []
+      for i in range(-half, half + 1):
+        for j in range(-half, half + 1):
+          ox = (centre.x - (first[0] + second[0]) / 2
+                + i * first[0] + j * second[0])
+          oy = (centre.y - (first[1] + second[1]) / 2
+                + i * first[1] + j * second[1])
+          cells.append(Polygon([
+            (ox, oy),
+            (ox + first[0], oy + first[1]),
+            (ox + first[0] + second[0], oy + first[1] + second[1]),
+            (ox + second[0], oy + second[1])]))
+      block = shapely.union_all(cells)
+      if block.within(_outline_of(covered)):
+        break
+    if block is None or covered is None:
+      return None
     return block.difference(covered)
   except Exception:                                   # noqa: BLE001
     # A DESIGN THIS CANNOT BE ASKED OF DRAWS NO HATCH, which is the
