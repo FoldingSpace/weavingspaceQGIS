@@ -58194,6 +58194,33 @@ def test_the_zigzag_ghost_crests_where_the_library_does():
     f"puts at screen y {-library_first:+.2f}: the picture bulges to the "
     f"other side of the edge from the wave the map gets")
 
+  # AND THE PITCH, which is a third claim and the one neither axis
+  # above could see: both of them read a single sample of the wave.
+  # The library's sine crests at the ODD multiples of length/(2n) and
+  # crosses zero at the even ones, so a picture with a full-amplitude
+  # point at every multiple draws 2n-1 lobes at twice the frequency --
+  # and at the default n=2 its trailing lobe bulges to the wrong side
+  # of the edge, which is the first axis passing while the wave is
+  # wrong. Compared as POSITIONS and SIGNS along the edge.
+  ghost_lobes = [(round(p.x(), 3), 1 if p.y() < 0 else -1)
+                 for p in points if abs(p.y()) > 1.0]
+  library_lobes = [(round(x, 3), 1 if y > 0 else -1)
+                   for x, y in line.coords if abs(y) > 1.0]
+  assert len(library_lobes) == n, (
+    f"PREMISE: the library drew {len(library_lobes)} lobes for n={n}, so "
+    "this comparison is not about the pitch at all")
+  assert len(ghost_lobes) == len(library_lobes), (
+    f"the ghost draws {len(ghost_lobes)} lobes where the library draws "
+    f"{len(library_lobes)} for n={n}: {ghost_lobes} against {library_lobes}")
+  for (ghost_at, ghost_side), (library_at, library_side) in zip(
+      ghost_lobes, library_lobes):
+    assert abs(ghost_at - library_at) < 0.6, (
+      f"a ghost lobe sits at {ghost_at:.1f}px along a 100px edge where "
+      f"the library's sits at {library_at:.1f}px")
+    assert ghost_side == library_side, (
+      f"a ghost lobe at {ghost_at:.1f}px is on the other side of the "
+      "edge from the library's")
+
 
 def test_a_drag_delivered_in_many_moves_records_one_position():
   """A gesture is one position however many move events carried it.

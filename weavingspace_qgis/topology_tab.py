@@ -1261,15 +1261,22 @@ class TopologyView(QWidget):
     # (see `handles`): the screen's right of the edge.
     normal = (along[1], -along[0])
 
-    # THE PEAKS, at `length / (2n)` and every `length / n` after it,
-    # which is what puts the first one under the handle.
+    # THE PEAKS, AT THE ODD MULTIPLES OF `length / (2n)`, which is
+    # where the library's sine actually crests: `zigzag_between_points`
+    # is a sine over the edge, so its EVEN multiples are the zero
+    # CROSSINGS. Drawing a full-amplitude point at every multiple --
+    # which this did until 2026-09-07 -- gives 2n-1 lobes at twice the
+    # pitch, and at the default n=2 the trailing lobe bulges to the
+    # wrong side of the edge entirely. Measured against the library at
+    # h=0.4: the ghost drew (.25,+.2)(.50,-.2)(.75,+.2) where the map
+    # gets (.25,+.2)(.50,0)(.75,-.2). There are `count` peaks, one per
+    # zigzag, and the polyline crosses the baseline between them by
+    # construction.
     points = [start]
     step = reach / (2.0 * count)
-    for index in range(2 * count):
-      at = step * (index + 1)
+    for index in range(count):
+      at = step * (2 * index + 1)
       side = 1 if index % 2 == 0 else -1
-      if index == 2 * count - 1:
-        break                   # the last peak is the edge's own end
       points.append(QPointF(
         start.x() + along[0] * at + normal[0] * rise * side,
         start.y() + along[1] * at + normal[1] * rise * side))

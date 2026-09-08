@@ -2720,6 +2720,17 @@ MUTATIONS = [
        test="test_a_zigzag_too_deep_is_clamped_rather_than_dropped",
        why="the amplitude somebody typed surviving a replay, so a "
            "design that regains room draws the full wave again"),
+  dict(name="the-ghost-crests-at-the-librarys-pitch", file=TOPOLOGY_TAB,
+       # Putting a peak at EVERY multiple of length/(2n) is the state
+       # the ghost shipped in: 2n-1 lobes at twice the pitch, and at
+       # the default n=2 the trailing one on the wrong side. It is a
+       # different axis from the crest's DEPTH, which the same test
+       # already guards and which this mutation leaves correct.
+       old="""      at = step * (2 * index + 1)""",
+       new="""      at = step * (index + 1)""",
+       test="test_the_zigzag_ghost_crests_where_the_library_does",
+       why="the ghosted wave having the shape and the count of the "
+           "wave the map receives, not twice its frequency"),
   dict(name="the-change-list-converts-the-amplitude", file=TOPOLOGY_TAB,
        # Printing the record raw is the state the list shipped in, and
        # it is the sixth readout of a quantity five others convert.
