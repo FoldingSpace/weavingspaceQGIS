@@ -1074,6 +1074,11 @@
   "excerpt": "Adds the region boundaries as outlines on top of the pattern",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "5c3b2c5d3ff7ceb4": {
+  "approved": "2026-09-08",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "5cb6ad1fc728afbc": {
   "approved": "2026-08-15",
   "excerpt": "Those bounds leave nothing between them to divide into class",

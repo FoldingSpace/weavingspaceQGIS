@@ -54986,6 +54986,11 @@ def test_the_help_tab_names_real_controls():
     # the word the text introduces for a kind of shape in the
     # pattern; a term being defined, not a control being pointed at
     "element": "a defined term of art",
+    # the ribbons a weave's elements ride on. The paragraph DEFINES
+    # the word and then names the Strands box in plain text below
+    # it, so these italics mark a term rather than point at a
+    # control -- the same shape as "element" above.
+    "strands": "a defined term of art",
     # the italicised journal name inside the citation
     "Cartographic Perspectives, 108": "a citation",
   }
@@ -73657,6 +73662,15 @@ def test_no_control_is_dead():
         f"{exempt} is exempt from this walk because {covering} covers "\
         f"it, but no such test exists any more"
 
+  # What to type into a line edit so that it MOVES. The default pair
+  # is the over-and-under box's, and it was the only pair until the
+  # strands box arrived; a strands code is validated, so a value
+  # written for another control is refused and the walk then measures
+  # the refusal instead of the connection.
+  LINE_EDIT_NUDGES = {
+    "opt_strands": ("ab|dc", "ac|bd"),
+  }
+
   def fingerprint(dlg):
     """Everything a user could notice about the current design.
 
@@ -73712,7 +73726,15 @@ def test_no_control_is_dead():
       widget.setChecked(not widget.isChecked())
       return True
     if isinstance(widget, QLineEdit):
-      widget.setText("1,2,2,1" if widget.text() != "1,2,2,1" else "2,1")
+      # A LINE EDIT'S NUDGE IS CONTROL-SPECIFIC, because a value one
+      # box takes another correctly REFUSES. This walk drove every
+      # line edit with the over-and-under box's own "1,2,2,1", which
+      # the strands box validates and rejects, so a control that
+      # works read as dead. Anything added here must be legal for the
+      # control it names, or this walk goes on measuring the refusal
+      # rather than the connection.
+      options = LINE_EDIT_NUDGES.get(name, ("1,2,2,1", "2,1"))
+      widget.setText(next(o for o in options if o != widget.text()))
       return True
     return False
 

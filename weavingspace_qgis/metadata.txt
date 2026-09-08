@@ -161,6 +161,43 @@ changelog=0.24.4 Saving a map is now something you do rather than
     the design's structure out of the file. Choosing an element count
     no weave family has now says that your design is a tiling, rather
     than moving the tiling-or-weave switch without a word.
+    Typing a weave's strands: a Strands box beside the design takes a
+    code like ab-|cd, where the bar separates directions, brackets
+    combine labels into one strand sliced lengthwise, and a hyphen
+    leaves a deliberate gap. The letters you type are the elements
+    your map will carry, so the element count follows the code rather
+    than the other way round, and a code the plugin cannot use says
+    why instead of drawing something else. Codes run to twelve
+    elements.
+    Dragging an edit: dragging a handle on the
+    Topology tab now previews only the change that will be
+    recorded. Where the design cannot take the move any further the
+    number holds and the tile outlines turn amber; where the
+    previewed design would no longer tile they turn red and dotted;
+    and a sentence across the foot of the drawing says which it is
+    and why. Letting go settles the change toward where you left the
+    pointer, so what you end up with no longer depends on how fast
+    you moved the mouse.
+    Rotating and scaling an edge: both moved each edge on its own,
+    which pulled the tiling apart, so the result usually could not be
+    edited again. They now move each shared vertex once, and the
+    design goes on tiling. Where a design's own symmetry leaves the
+    move nowhere to go, it says so rather than tearing the pattern.
+    The zigzag: the handle now stands where the wave's crest actually
+    falls, which is half as far out as it stood before, so the
+    drawing and the map agree about the depth. The count runs in even
+    steps now. Every count is one drag along the edge away, and the
+    Amplitude box reads the crest's distance from the edge.
+    Pushing a vertex: the ground now follows the pointer, rather than
+    moving by a gain you could not see.
+    Duals: taking the dual of a dual now works, each level keeps its
+    own edits, and the way back to an earlier geometry is that
+    geometry's own group in the chooser.
+    Files and groups: a map opened from a file could be
+    written back under table names worked out from the controls
+    rather than from the file's own record. Save As onto a new file
+    left behind the copy of the data a sender had included. Asking
+    for a new group kept the output file of the map before it.
     0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.
