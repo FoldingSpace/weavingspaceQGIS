@@ -417,18 +417,18 @@ def build(unit, weave=None):
   """
   try:
     plain = _topology_class()(unit, True)
-    return (plain, "") if weave is None else (plain, "", unit, {})
+    return (plain, "") if weave is None else (plain, "", unit, {}, None)
   except Exception as exc:                            # noqa: BLE001
     reason = _why_not(exc, unit)
   if weave is None:
     return None, reason
-  topology, filled, kinds, note = weave_topology(
+  topology, filled, kinds, glue, note = weave_topology(
     weave.get("spec"), weave.get("spacing"), weave.get("aspect"),
     crs=None, strands=weave.get("strands"),
-    reading=weave.get("reading", ASPECT_AS_HOLES))
+    reading=weave.get("reading", ASPECT_LIKE_A_DROP))
   if topology is None:
-    return None, note or reason, None, kinds
-  return topology, "", filled, kinds
+    return None, note or reason, None, kinds, glue
+  return topology, "", filled, kinds, glue
 
 
 def classes(topology) -> dict:
@@ -441,12 +441,53 @@ def classes(topology) -> dict:
     {"edge": "ab", "vertex": "AB"} -- each a string of the distinct
     transitivity-class labels, in order, which is the form the
     library's own selector takes.
+
+  IT CANNOT BE SPLIT BACK PAST TWENTY-SIX CLASSES, and that is a
+  property of the SELECTOR rather than a defect here: the library
+  labels `aa` after `z`, so a joined string stops having one character
+  per class. Anything that wants the labels as labels asks
+  `class_labels` instead; this stays as it is because a selector is
+  what the library takes.
   """
   edges = sorted({e.label for e in topology.edges.values()
                   if getattr(e, "label", None)})
   points = sorted({v.label for v in topology.points.values()
                    if getattr(v, "label", None)})
   return {"edge": "".join(edges), "vertex": "".join(points)}
+
+
+def class_labels(topology, glue=None) -> dict:
+  """The class labels as labels, collapsed by a gluing where given.
+
+  Args:
+    topology: a built Topology.
+    glue: the map `glue_the_aspect_holes` returned, or None to take the
+      classes as the library assigned them.
+
+  Returns:
+    `{"edge": [...], "vertex": [...]}`, each a sorted list of the
+    distinct labels, one entry per class.
+
+  A LIST RATHER THAN A JOINED STRING, because past twenty-six classes
+  the library issues `aa` after `z` and a string cannot be split back
+  into labels. A scaffolded weave passes that at once -- `twill weave
+  a|b-` has fifty-two edge classes at aspect 0.75 -- so what was a
+  latent defect the moment something built on the scaffolding is live
+  now that something does.
+
+  AND THE GLUING COLLAPSES THEM HERE, which is what makes the reading
+  of a weave's daylight visible to somebody choosing a class: under
+  `ASPECT_LIKE_AN_INSET` several of the library's labels name one class
+  and the chooser should offer one entry, not several.
+  """
+  edges = sorted({e.label for e in topology.edges.values()
+                  if getattr(e, "label", None)})
+  points = sorted({v.label for v in topology.points.values()
+                   if getattr(v, "label", None)})
+  if glue:
+    edges = sorted({glue["edges"].get(label, label) for label in edges})
+    points = sorted({glue["points"].get(label, label) for label in points})
+  return {"edge": edges, "vertex": points}
 
 
 def _move_edges_vertex_consistent(topology, selector: str, displacement_of):
@@ -1169,9 +1210,15 @@ def _outline_of(covered):
 # and "opened by the hyphen" is itself ambiguous between the band a
 # hyphen opens at full width and the extra it opens at a given width.
 # The discussion is docs/process/the-topology-of-a-weave-and-its-holes.md.
-ASPECT_AS_HOLES = "holes"
-ASPECT_AS_STYLING = "styling"
-ASPECT_READINGS = (ASPECT_AS_HOLES, ASPECT_AS_STYLING)
+# NAMED FOR WHAT THE GAP IS BEING LIKENED TO, not for what it becomes.
+# The decision is which of the other two absences a strand-width gap
+# resembles: a dropped strand, which every reading counts, or an inset,
+# which no reading counts. Calling the two readings "holes" and
+# "styling" named the consequence and hid the comparison, which is the
+# whole of the question (maintainer's correction, 2026-09-08).
+ASPECT_LIKE_A_DROP = "like-a-drop"
+ASPECT_LIKE_AN_INSET = "like-an-inset"
+ASPECT_READINGS = (ASPECT_LIKE_A_DROP, ASPECT_LIKE_AN_INSET)
 # JUST BELOW ONE RATHER THAN AT IT: at exactly 1.0 the library's
 # assembly dissolves adjacent pieces that share a label, so a twill's
 # sixteen tiles become two and the design stops being the same design.
@@ -1279,7 +1326,7 @@ def _snapped_pieces(geometry, floor: float = 1.0) -> list:
 
 
 def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
-                     strands=None, reading: str = ASPECT_AS_HOLES):
+                     strands=None, reading: str = ASPECT_LIKE_A_DROP):
   """A gap-free stand-in for a weave, and what each of its tiles is.
 
   Args:
@@ -1288,9 +1335,9 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
     aspect: the strand width the USER chose, as a fraction of spacing.
     crs: passed to `catalog.make_unit`; None for a bare unit.
     strands: a typed strands code overriding the entry's own, or None.
-    reading: `ASPECT_AS_HOLES`, where the daylight a narrow strand
+    reading: `ASPECT_LIKE_A_DROP`, where the daylight a narrow strand
       leaves is filled and kept as part of the structure, or
-      `ASPECT_AS_STYLING`, where the strand width is neutralised by
+      `ASPECT_LIKE_AN_INSET`, where the strand width is neutralised by
       rebuilding at full width and only a hyphen's ground is kept.
 
   Returns:
@@ -1304,7 +1351,7 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
   the reading changes is which holes exist to be filled, which is why
   it is applied by rebuilding rather than by tagging.
 
-  UNDER `ASPECT_AS_STYLING` THE GEOMETRY IS NOT THE DRAWING'S. It is
+  UNDER `ASPECT_LIKE_AN_INSET` THE GEOMETRY IS NOT THE DRAWING'S. It is
   the same weave at full width, so an edit made against it is aimed at
   a STRAND and carried back to the drawn pieces by name rather than by
   position: the two sets of pieces do not correspond geometrically,
@@ -1367,7 +1414,7 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
 
 
 def weave_topology(spec, spacing: float, aspect: float, crs=None,
-                   strands=None, reading: str = ASPECT_AS_HOLES):
+                   strands=None, reading: str = ASPECT_LIKE_A_DROP):
   """The topology of a weave under one reading of its daylight.
 
   Args:
@@ -1380,9 +1427,12 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
       `scaffolded_weave`.
 
   Returns:
-    `(topology, unit, kinds, note)`, the topology being None where one
-    could not be built and `note` then saying why in the terms of a
-    control rather than of the library.
+    `(topology, unit, kinds, glue, note)`. The topology is None where
+    one could not be built and `note` then says why in the terms of a
+    control rather than of the library. `glue` is None under
+    `ASPECT_LIKE_A_DROP` and otherwise carries the label maps that
+    collapse each strand-width hole away, which is what makes the two
+    readings differ at all.
 
   THE FILLER IS DROPPED BY THE CALLER, not here: an edit is applied to
   the scaffolded unit and the strands are recovered afterwards by
@@ -1391,12 +1441,20 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
   filled, kinds, note = scaffolded_weave(
     spec, spacing, aspect, crs=crs, strands=strands, reading=reading)
   if filled is None:
-    return None, None, kinds, note
+    return None, None, kinds, None, note
   try:
     topology = _topology_class()(filled, True)
   except Exception as exc:                            # noqa: BLE001
-    return None, filled, kinds, _why_not(exc, filled)
-  return topology, filled, kinds, ""
+    return None, filled, kinds, None, _why_not(exc, filled)
+  # THE READING IS APPLIED HERE OR IT IS APPLIED NOWHERE. Both readings
+  # scaffold identically, since the difference is a quotient of the
+  # structure rather than a change to the geometry, so a caller that
+  # merely PASSED a reading and never glued would get the same answer
+  # for both and no sign of it. The one entry point that names the
+  # reading is the one that has to honour it.
+  glue = (glue_the_aspect_holes(topology, kinds)
+          if reading == ASPECT_LIKE_AN_INSET else None)
+  return topology, filled, kinds, glue, ""
 
 
 def _find(parent: dict, label: str) -> str:

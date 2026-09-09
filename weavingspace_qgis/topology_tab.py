@@ -2429,6 +2429,11 @@ class TopologyPanel(QWidget):
     """
     super().__init__(parent)
     self._topology = None
+    # THE GLUING THAT CAME WITH THIS TOPOLOGY, or None where the
+    # reading keeps every class the library assigned. It is held
+    # beside the topology rather than derived, since only the build
+    # knows which reading it was made under.
+    self._glue = None
     self._unit = None
     self._edits = []
     # One per edit, as the replay reported them: whether each was
@@ -2525,14 +2530,21 @@ class TopologyPanel(QWidget):
     # It is shown for every design and only bites on a weave, since
     # hiding it would make the tab's shape depend on the family and a
     # person would have to discover it exists.
+    # THE OPTIONS NAME WHAT THE GAP IS BEING LIKENED TO. A dropped
+    # strand's ground counts under every reading and an inset's counts
+    # under none, so those two are the fixed points somebody is
+    # choosing between; wording the choice as "holes" against "not
+    # there" named the consequence and hid the comparison, which is the
+    # question itself (maintainer's correction, 2026-09-08).
     self.aspect_reading = QComboBox()
-    self.aspect_reading.addItem("Holes in the cloth", "holes")
-    self.aspect_reading.addItem("Not there at all", "styling")
+    self.aspect_reading.addItem("Count, like a dropped strand", "like-a-drop")
+    self.aspect_reading.addItem("Ignore, like an inset", "like-an-inset")
     self.aspect_reading.setToolTip(
-      "Whether a weave's gaps from strand width count as holes.")
+      "Whether strand-width gaps count in the structure, like a dropped "
+      "strand.")
     self.aspect_reading.currentIndexChanged.connect(
       self._on_aspect_reading_chosen)
-    grid.addWidget(QLabel("Strand-width gaps"), 0, 0)
+    grid.addWidget(QLabel("Gaps from strand width"), 0, 0)
     grid.addWidget(self.aspect_reading, 0, 1)
 
     self.class_combo = QComboBox()
@@ -2844,7 +2856,8 @@ class TopologyPanel(QWidget):
       "may be busy with other work; the tab will fill in if the work "
       "begins.")
 
-  def set_unit(self, unit, topology, message: str = "", ghost=None):
+  def set_unit(self, unit, topology, message: str = "", ghost=None,
+               glue=None):
     """Show a new design's topology.
 
     Args:
@@ -2860,6 +2873,10 @@ class TopologyPanel(QWidget):
       ghost: the topology the edits were made FROM, drawn underneath as
         a wireframe so the change is visible as a change, or None where
         nothing has been edited and there is nothing to compare with.
+      glue: the label maps a reading of a weave's daylight called for,
+        or None where the classes stand as the library assigned them.
+        It decides what the class chooser OFFERS, since under a gluing
+        several of the library's labels name one class.
 
     Returns:
       None. A landing that arrives while a DRAG is in progress is held
@@ -2891,6 +2908,7 @@ class TopologyPanel(QWidget):
     self._landing_held = None
     self._unit = unit
     self._topology = topology
+    self._glue = glue
     # WHERE THE TILES NO LONGER MEET, computed once here rather than at
     # every repaint: 0.3 ms is cheap against a build and not against a
     # hover. None where the design is sound, which is the ordinary case
@@ -3054,9 +3072,13 @@ class TopologyPanel(QWidget):
     # swallowed along with the rest of the handler.
     groups = {}
     if self._topology is not None:
-      groups = edits_module.classes(self._topology)
+      # THE LABELS AS LABELS, and collapsed by whatever gluing the
+      # reading called for: past twenty-six classes the library issues
+      # `aa` after `z`, which a joined string cannot be split back
+      # into, and a scaffolded weave passes that immediately.
+      groups = edits_module.class_labels(self._topology, self._glue)
       for target in ("vertex", "edge"):
-        for label in groups.get(target, ""):
+        for label in groups.get(target, []):
           self.class_combo.addItem(f"{target} {label}", (target, label))
         if groups.get(target):
           self.class_combo.addItem(f"every {target}",
@@ -3069,7 +3091,7 @@ class TopologyPanel(QWidget):
     self.class_list.blockSignals(True)
     self.class_list.clear()
     for target in ("vertex", "edge"):
-      for label in groups.get(target, ""):
+      for label in groups.get(target, []):
         item = QListWidgetItem(f"{target} {label}")
         item.setData(Qt.ItemDataRole.UserRole, (target, label))
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
@@ -3385,11 +3407,12 @@ class TopologyPanel(QWidget):
     """Which reading of a weave's daylight the tab is showing.
 
     Returns:
-      "holes" where the daylight a strand width opens is part of the
-      structure, or "styling" where it is glued away.
+      "like-a-drop" where the daylight a strand width opens counts in
+      the structure as a dropped strand's ground does, or
+      "like-an-inset" where it is glued away as an inset's is.
     """
     data = self.aspect_reading.currentData()
-    return data if data else "holes"
+    return data if data else "like-a-drop"
 
   def _on_class_chosen(self):
     """Highlight whatever class the chooser now names, and re-offer
@@ -3539,8 +3562,8 @@ class TopologyPanel(QWidget):
     """
     if self._topology is None:
       return ""
-    groups = edits_module.classes(self._topology)
-    return groups.get(target, "")
+    groups = edits_module.class_labels(self._topology, self._glue)
+    return groups.get(target, [])
 
   def _on_class_ticked(self, item) -> None:
     """Follow a tick in the list into the selection.

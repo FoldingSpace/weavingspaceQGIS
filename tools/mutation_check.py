@@ -2666,7 +2666,8 @@ MUTATIONS = [
                        or built.get("topology"),
                        built.get("why", ""),
                        ghost=built.get("topology")
-                       if built.get("edited") is not None else None)""",
+                       if built.get("edited") is not None else None,
+                       glue=built.get("glue"))""",
        new="""        panel.set_unit(built.get("unit"), built.get("topology"),
                        built.get("why", ""))""",
        test="test_every_way_of_editing_the_topology_moves_the_drawing",

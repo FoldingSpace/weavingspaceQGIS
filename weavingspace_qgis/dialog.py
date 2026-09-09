@@ -24307,14 +24307,15 @@ class WeavingSpaceDialog(QDialog):
         "strands": terms.get("strands"),
         "reading": (panel.aspect_reading_in_force()
                     if hasattr(panel, "aspect_reading_in_force")
-                    else topology_edits.ASPECT_AS_HOLES),
+                    else topology_edits.ASPECT_LIKE_A_DROP),
       }
 
     def work(task):
       """The expensive half, on the worker thread."""
       answer = topology_edits.build(unit, weave=weave_terms)
-      if len(answer) == 4:
-        topology, why, scaffolded, kinds = answer
+      if len(answer) > 2:
+        topology, why, scaffolded, kinds, glue = answer
+        built["glue"] = glue
         # THE SCAFFOLDED UNIT IS WHAT THE TOPOLOGY IS OF, so it is what
         # the tab must draw and hit-test against; the strands are
         # recovered from `kinds` when an edit is carried back, which is
@@ -24324,6 +24325,7 @@ class WeavingSpaceDialog(QDialog):
       else:
         topology, why = answer
         scaffolded, built["kinds"], built["scaffolded"] = unit, {}, False
+        built["glue"] = None
       built["topology"] = topology
       built["why"] = why
       built["unit"] = scaffolded if scaffolded is not None else unit
@@ -24471,7 +24473,8 @@ class WeavingSpaceDialog(QDialog):
                        or built.get("topology"),
                        built.get("why", ""),
                        ghost=built.get("topology")
-                       if built.get("edited") is not None else None)
+                       if built.get("edited") is not None else None,
+                       glue=built.get("glue"))
         panel.set_marks(built.get("marks") or [])
         panel.report(built.get("refusals") or [])
         # THE DUAL OF WHAT WE WILL WRITE, kept beside the unit it
