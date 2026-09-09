@@ -412,17 +412,18 @@ combinations, which is also where the deprioritised custom weave type
 and its matrix entry would live, and where the cap above is properly
 answered.
 
-**TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET.** An inset takes the
-Topology tab away outright, which is a large loss: insetting is how a
-tiled map is made to read as separate elements, so the two things
-somebody most wants to combine are the two the plugin will not. It is
-buildable because `_build_unit` applies the insets LAST and every step
-before them preserves the tiling, so the structure is one call back
-rather than gone: build the topology from the un-inset unit, replay
-the edits there, inset the result. The three rulings settling what is
-drawn, what is said and what the file holds are in CLAUDE.md; the
-measurements are C-346 and docs/TOPOLOGY.md. WHAT IS OWED BEFORE ANY
-CODE, in this order:
+**TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET. THE PRINCIPLE IS
+RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
+that the gap be written here rather than inferred from a rule reading
+as though it were in force). `can_build` refuses any gapped design, so
+TODAY an inset takes the Topology tab away outright, which is a large
+loss: insetting is how a tiled map is made to read as separate
+elements, so the two things somebody most wants to combine are the two
+the plugin will not. It is buildable, `_build_unit` applying the
+insets LAST and every step before them preserving the tiling: build
+the topology from the un-inset unit, replay the edits there, inset the
+result. The three rulings are in CLAUDE.md, the measurements C-346 and
+docs/TOPOLOGY.md. WHAT IS OWED BEFORE ANY CODE, in this order:
 
 - A DIFFERENTIAL PROVING THE TOPOLOGY IS THE SAME AT EVERY INSET
   VALUE, class labels included, since the whole design rests on the
@@ -443,6 +444,37 @@ CODE, in this order:
 WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
 rather than a transform applied after, so there is no un-thinned unit
 to edit and thin later. That is the R-40 boundary, measured.
+
+**ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? A TOGGLE, AND A
+DECISION FOR THE MAINTAINER AND DAVID.** (Maintainer's question,
+2026-09-08, with the consequences measured before it is put.) A weave
+read as strands alone has ONE kind of thing where a tiling has two,
+edges and vertices, and the candidate second kind is the APERTURE, a
+hole through the cloth. Whether the daylight a narrow strand opens
+counts as one is a principle rather than a fact, and the maintainer's
+proposal is a TOGGLE. What the measurement says about the choice
+(`tools/probes/the_apertures_a_weave_leaves.py`, six weaves at five
+strand widths):
+
+- THE DISCRIMINATOR IS NOT A MATTER OF TASTE: an aperture the CODE
+  left open survives at a strand width of 0.999, and one the DRAWING
+  opened closes. `twill weave ab-|cd-` holds exactly one aperture in
+  one class at every width including full, and it is where a dropped
+  warp crosses a dropped weft.
+- SO THE TOGGLE DECIDES LESS THAN IT LOOKS. The dropped-pair hole is
+  present under BOTH readings, since it is there in the full-width
+  weave too; all that is at stake is `twill weave a|b`'s four
+  apertures, which appear between widths 0.9 and 0.75.
+- AND THE COST OF COUNTING THEM IS ONE CLASS APPEARING AS A SLIDER
+  MOVES, not the sixfold multiplication part one died of.
+- A DROPPED PAIR DOES NOT ALWAYS MAKE A HOLE, which refines the
+  premise: `twill weave ab-|cd-` encloses one and `plain weave
+  ab-|cd-` encloses none, the twill's longer floats bridging across
+  where the plain weave's alternation leaves an open channel.
+
+Nothing is built and nothing should be until the maintainer and David
+have the table above. The discussion is
+docs/process/the-topology-of-a-weave-and-its-holes.md.
 
 **THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
 DEFERRED BACK HERE on 2026-09-07: it wants a before/after put to the

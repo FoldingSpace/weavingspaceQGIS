@@ -170,6 +170,21 @@ is a nearest-site partition with every strand grown at the same rate
 
 ![A plain weave's daylight cut into typed tiles at four aspects, from tools/probes/holes_made_of_typed_tiles.py.](images/holes-as-tiles/typed-plain-weave-a_b.png)
 
+The cut buys the invariance it was written for, and rather less
+besides. On `plain weave a|b` the typed tiling gives thirty edge classes
+and twenty vertex classes at all four aspects, with a gap and an overlap
+of zero; on `twill weave a|b` it gives a hundred and ninety-five and a
+hundred and thirty, steady from aspect 0.9 to 0.5 and refusing at 0.25.
+Yet on the two weaves that carry a dropped strand it refuses at every
+aspect, and the reason is instructive rather than incidental: the two
+cuts are each canonical and they are not disjoint. The band a hyphen
+leaves and the daylight attributed to the strands beside it share
+ground, by 0.19 of a cell on `twill weave a|b-` at aspect 0.9 and about
+0.11 on `plain weave ab-|cd-`, so what reaches the constructor is not a
+partition at all. That the failure falls precisely on the weaves with
+dropped strands is the awkward part, the dropped strand being the very
+distinction typing the cut was written to respect.
+
 ## What to do with the kinds
 
 Once every hole tile carries its kind, an edge of the resulting
@@ -182,11 +197,31 @@ the maintainer's own framing of what a weave's structure ought to ignore
 
 ![A plain weave at four aspects with its strands joined across the daylight, from tools/probes/a_weave_topology_that_ignores_its_gaps.py.](images/holes-as-tiles/plain-contracted.png)
 
+It gives an aspect-invariant answer, which is what it was for: `plain
+weave a|b` comes back as four strands with six adjacent pairs and every
+degree three, at all four aspects, and `twill weave a|b` as sixteen
+strands with thirty-five pairs, likewise unmoved even at 0.25 where the
+daylight falls into twenty-five components rather than sixteen. Yet the
+distinction the construction exists to draw does not bite. Run twice
+over each hyphen weave, once respecting the hyphen and once joining
+across every gap alike, it returns the same graph both ways: on `twill
+weave a|b-` eight strands and thirteen pairs either way, on `plain
+weave ab-|cd-` sixteen and thirty-one, and the count of pairs the
+hyphen withholds is zero in both. The strands a dropped strand
+separates are, on these weaves, not adjacent for other reasons anyway,
+so a rule written to refuse them refuses nothing.
+
 The second absorbs the incidental daylight into the strand it replaces,
 so the filler disappears rather than being contracted over
 (`tools/probes/absorbing_the_incidental_gaps.py`).
 
 ![A plain weave whose incidental daylight has been absorbed into the strands, at four aspects. From tools/probes/absorbing_the_incidental_gaps.py.](images/holes-as-tiles/absorbed-plain-weave-a_b.png)
+
+It gives the smallest structure of anything in this part, eleven edge
+classes and seven vertex classes on `plain weave a|b`, steady at every
+aspect. It also survives on one weave of the four tried
+(`tools/probes/does_a_weave_topology_stay_small.py`), for which see the
+comparison two sections below.
 
 ## Attributing the daylight to what it replaces
 
@@ -239,7 +274,7 @@ construction here survives, and each row names the probe it came from.
 |---|---|---|
 | a tiling, for scale (`laves 3.3.4.3.4`) | 2 edge, 2 vertex | not applicable |
 | holes kept as tiles, cut as the difference gives them | 10 edge, 7 vertex | invariant here, moves on a twill |
-| holes kept as tiles, cut by kind | 30 edge, 20 vertex | invariant |
+| holes kept as tiles, cut by kind | 30 edge, 20 vertex | invariant, and refused on both weaves with a dropped strand |
 | daylight absorbed, then classes taken | 11 edge, 7 vertex | invariant, and three weaves of four refuse the step |
 | relations between strands | 1 alongside, 1 crossing | invariant |
 | strand classes from the interlacement | 1 class of 4 strands | the aspect is not an input |
@@ -452,10 +487,42 @@ row and column and the geometry by which line a piece sits on, and
 nothing here shows that loom row zero is the leftmost line. A
 disagreement in shape would be a disagreement whatever the naming, which
 is what makes the test worth running at all; even so, an agreement in
-shape is weaker than an agreement in membership, and establishing the
-membership is the obvious next measurement. Five weaves, moreover, is
-five weaves. It is the biaxial families in the catalogue, with and
-without a dropped strand, and it is not the whole catalogue.
+shape is weaker than an agreement in membership, which the next section
+takes up. Five weaves, moreover, is five weaves. It is the biaxial
+families in the catalogue, with and without a dropped strand, and it is
+not the whole catalogue.
+
+## The membership question, and the handle that answers it
+
+Asking which drawn line is which loom row looks like the obvious next
+measurement, and the first attempt at it fails for a reason worth
+recording. Within any one direction every strand of these five weaves
+carries the same float signature, so ordering the strands by signature
+decides nothing and the probe reports the question as undecidable
+rather than answering it, which is the right behaviour: an instrument
+that agreed with itself here would be reporting its own construction.
+
+The quantity that does vary between neighbours is the phase, which is
+what separates a twill from a basket in the first place, and it can be
+read off the drawing without consulting the code. A piece is a float,
+so where a strand's pieces begin along its own axis is where its floats
+begin, and the offset from one strand's starts to the next one's is the
+same thing the loom reports as a phase step. Read both ways the
+sequences agree in shape on all five weaves. On `plain weave a|b` and
+on the basket they are identical; on `twill weave a|b` the drawn
+sequence is the loom's negated modulo the repeat, which is a direction
+convention nothing had fixed in advance; and on the two weaves with a
+dropped strand the pattern matches while the values do not, `(1, 0, 1)`
+against `(2, 0, 2)` on `twill weave a|b-`, which we have not run down.
+
+What that establishes is worth stating precisely, being less than a
+full correspondence and a good deal more than nothing. The phase
+invariant survives the projection: whether the steps are constant or
+blocked, and where the zeros fall, is recoverable from the polygons
+alone, and that shape is exactly what tells a twill from a basket. What
+is not established is the absolute correspondence between a loom row
+and a drawn line, and on the hyphen weaves there is a residual we
+cannot yet account for.
 
 ## What the join buys
 
@@ -647,9 +714,11 @@ under `tools/probes/`. Everything in part four about operations is
 measured and not built: the admissibility condition is stated and its
 ingredients exist, and nothing yet enforces it, since making an edit aim
 at a strand class is a change to the Topology tab and the maintainer's
-to schedule. Three things are not measured at all, and the list is short
-enough to be worth having: the membership half of the join, triaxial
-weaves, and any weave outside the five in part three's table.
+to schedule. Three things remain open, and the list is short enough to
+be worth having: the correspondence between a loom row and a drawn
+line, of which part three establishes the phase and not the absolute
+matching; triaxial weaves, which are not measured here at all; and any
+weave outside the five in part three's table.
 
 ## Two smaller things that are unfinished
 

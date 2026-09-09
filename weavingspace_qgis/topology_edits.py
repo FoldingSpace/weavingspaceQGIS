@@ -1136,6 +1136,335 @@ def _outline_of(covered):
   return shapely.union_all(filled) if filled else covered
 
 
+# THE TWO READINGS OF A WEAVE'S DAYLIGHT, and the switch between them
+# (maintainer's instruction, 2026-09-08). A weave below full width has
+# empty ground from three causes -- the strand width, a hyphen in the
+# strands code, and any inset -- and which of them a STRUCTURE may see
+# is a principle rather than a fact. Each cause removes cloth
+# monotonically, so a reading is applied by REBUILDING with the causes
+# it disregards set to their neutral values, never by labelling a
+# region with the cause that opened it: one aperture mixes provenance,
+# and "opened by the hyphen" is itself ambiguous between the band a
+# hyphen opens at full width and the extra it opens at a given width.
+# The discussion is docs/process/the-topology-of-a-weave-and-its-holes.md.
+ASPECT_AS_HOLES = "holes"
+ASPECT_AS_STYLING = "styling"
+ASPECT_READINGS = (ASPECT_AS_HOLES, ASPECT_AS_STYLING)
+# JUST BELOW ONE RATHER THAN AT IT: at exactly 1.0 the library's
+# assembly dissolves adjacent pieces that share a label, so a twill's
+# sixteen tiles become two and the design stops being the same design.
+# Measured in the report; 0.999 keeps every piece and leaves a
+# millionth of a cell of daylight, which the scaffolding fills.
+FULL_WIDTH = 0.999
+
+
+def _pieces_of(geometry, floor: float = 1.0) -> list:
+  """A geometry's polygonal parts, slivers under `floor` dropped.
+
+  Args:
+    geometry: any shapely geometry, or None.
+    floor: the smallest area to keep, in squared map units.
+
+  Returns:
+    A list of Polygons.
+
+  EVERY FILLER PIECE IS TAKEN SEPARATELY because
+  `_setup_regularised_prototile` dissolves tiles by `tile_id` and
+  `Topology` reads corners through `shape.exterior`, which a
+  MultiPolygon has not: a merged filler left two weaves of three
+  refusing and read as a fact about weaves (C-347).
+  """
+  import shapely  # noqa: F401
+  if geometry is None or geometry.is_empty:
+    return []
+  return [g for g in getattr(geometry, "geoms", [geometry])
+          if g.geom_type == "Polygon" and not g.is_empty and g.area > floor]
+
+
+def _closed_up(strands: list, gap: float) -> list:
+  """Grow every strand piece until the pieces abut, without merging them.
+
+  Args:
+    strands: the strand polygons.
+    gap: the residual daylight to close, as a fraction of a cell.
+
+  Returns:
+    A new list of polygons, one per input, each grown by half the
+    hairline that separated it from its neighbours.
+
+  ABUT, NOT MERGE, which is the whole difficulty. Unioning a piece
+  with the daylight beside it was tried and it FUSED same-direction
+  neighbours -- a plain weave's four strands became two, which is the
+  library's own behaviour at an aspect of exactly 1.0 arriving by
+  another door and losing the very pieces the structure is about. A
+  mitred buffer grows each piece in place, so they meet and stay
+  distinct; the corners overlap by the square of the buffer, which is
+  a millionth of a cell at the widths this is used at and is checked
+  by the caller rather than assumed.
+  """
+  if gap <= 0:
+    return list(strands)
+  return [strand.buffer(gap / 2.0, join_style="mitre", cap_style="square")
+          for strand in strands]
+
+
+def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
+                     strands=None, reading: str = ASPECT_AS_HOLES):
+  """A gap-free stand-in for a weave, and what each of its tiles is.
+
+  Args:
+    spec: the catalogue entry for the weave.
+    spacing: the strand-to-strand distance the design is built at.
+    aspect: the strand width the USER chose, as a fraction of spacing.
+    crs: passed to `catalog.make_unit`; None for a bare unit.
+    strands: a typed strands code overriding the entry's own, or None.
+    reading: `ASPECT_AS_HOLES`, where the daylight a narrow strand
+      leaves is filled and kept as part of the structure, or
+      `ASPECT_AS_STYLING`, where the strand width is neutralised by
+      rebuilding at full width and only a hyphen's ground is kept.
+
+  Returns:
+    `(unit, kinds, note)`. `unit` is a Tileable covering the plane, or
+    None where one could not be made; `kinds` maps every tile_id to
+    "strand", "aspect" or "dropped"; `note` is empty on success and
+    otherwise says what refused, in the terms of a control.
+
+  WHY BOTH READINGS STILL FILL. `Topology` needs a gap-free tiling, so
+  a hole cannot BE a hole in the structure: it has to be a tile. What
+  the reading changes is which holes exist to be filled, which is why
+  it is applied by rebuilding rather than by tagging.
+
+  UNDER `ASPECT_AS_STYLING` THE GEOMETRY IS NOT THE DRAWING'S. It is
+  the same weave at full width, so an edit made against it is aimed at
+  a STRAND and carried back to the drawn pieces by name rather than by
+  position: the two sets of pieces do not correspond geometrically,
+  measured as a bijection on the plain weaves alone and on neither
+  twill nor the basket, where several thin pieces fall inside one
+  full-width piece.
+  """
+  import shapely
+  import geopandas as gpd
+  from . import catalog
+  if reading not in ASPECT_READINGS:
+    return None, {}, f"unknown reading {reading!r}"
+  # BOTH READINGS SCAFFOLD THE DESIGN AS DRAWN. Reading B used to
+  # rebuild at full width, which fought the library twice over: at
+  # exactly 1.0 it fuses same-label pieces, just below it leaves a
+  # hairline that upstream's cleaner reduces below four corners, and
+  # closing the hairline by growing the strands fuses them again. The
+  # maintainer's construction (2026-09-08) does it in the STRUCTURE
+  # instead, gluing each aspect hole's opposite sides and identifying
+  # its four corners, so no geometry moves and none of that arises.
+  built_at = aspect
+  try:
+    unit = catalog.make_unit(spec, spacing=spacing, crs=crs,
+                             aspect=built_at, strands=strands)
+  except Exception as exc:                            # noqa: BLE001
+    return None, {}, f"the weave could not be built: {exc}"
+  strand_tiles = [(g, str(i)) for g, i in
+                  zip(unit.tiles.geometry, unit.tiles["tile_id"])
+                  if g.geom_type == "Polygon"]
+  if not strand_tiles:
+    return None, {}, "the weave has no strands to build from"
+  kinds = {}
+  geometries, ids = [], []
+  for geometry, tile_id in strand_tiles:
+    geometries.append(geometry)
+    ids.append(tile_id)
+    kinds[tile_id] = "strand"
+  daylight = daylight_by_kind(unit, spec, spacing, built_at)
+  filler = [("dropped", piece)
+            for piece in _pieces_of(daylight["conscious"])]
+  filler += [("aspect", piece) for piece in _pieces_of(daylight["width"])]
+  for index, (kind, piece) in enumerate(filler):
+    tile_id = f"{'d' if kind == 'dropped' else 'w'}{index}"
+    geometries.append(piece)
+    ids.append(tile_id)
+    kinds[tile_id] = kind
+  frame = gpd.GeoDataFrame({"tile_id": ids}, geometry=geometries,
+                           crs=unit.tiles.crs)
+  filled = _shallow_copy_with_tiles(unit, frame)
+  if filled is None:
+    return None, kinds, "the library would not rebuild the unit from " \
+                        "the scaffolded tiles"
+  gap, overlap, _left = plane_coverage(filled)
+  if gap > 1e-6 or overlap > 1e-6:
+    return None, kinds, (f"the scaffolding leaves a gap of {gap:.6f} and an "
+                         f"overlap of {overlap:.6f} of a cell, so it is not "
+                         f"a tiling")
+  return filled, kinds, ""
+
+
+def weave_topology(spec, spacing: float, aspect: float, crs=None,
+                   strands=None, reading: str = ASPECT_AS_HOLES):
+  """The topology of a weave under one reading of its daylight.
+
+  Args:
+    spec: the catalogue entry for the weave.
+    spacing: the strand-to-strand distance.
+    aspect: the strand width the user chose.
+    crs: passed through to the unit's construction.
+    strands: a typed strands code, or None for the entry's own.
+    reading: which daylight the structure may see; see
+      `scaffolded_weave`.
+
+  Returns:
+    `(topology, unit, kinds, note)`, the topology being None where one
+    could not be built and `note` then saying why in the terms of a
+    control rather than of the library.
+
+  THE FILLER IS DROPPED BY THE CALLER, not here: an edit is applied to
+  the scaffolded unit and the strands are recovered afterwards by
+  asking `kinds`, which is the shape ruling 1 of C-347 sets out.
+  """
+  filled, kinds, note = scaffolded_weave(
+    spec, spacing, aspect, crs=crs, strands=strands, reading=reading)
+  if filled is None:
+    return None, None, kinds, note
+  try:
+    topology = _topology_class()(filled, True)
+  except Exception as exc:                            # noqa: BLE001
+    return None, filled, kinds, _why_not(exc, filled)
+  return topology, filled, kinds, ""
+
+
+def _find(parent: dict, label: str) -> str:
+  """The representative of a label's class, with the path shortened.
+
+  Args:
+    parent: the union-find map, mutated in place.
+    label: the label to look up.
+
+  Returns:
+    The class representative.
+  """
+  root = label
+  while parent.get(root, root) != root:
+    root = parent[root]
+  while parent.get(label, label) != label:
+    parent[label], label = root, parent[label]
+  return root
+
+
+def _union(parent: dict, one: str, two: str) -> None:
+  """Put two labels in one class.
+
+  Args:
+    parent: the union-find map, mutated in place.
+    one, two: the labels to join.
+
+  Returns:
+    None.
+  """
+  a, b = _find(parent, one), _find(parent, two)
+  if a != b:
+    parent[max(a, b)] = min(a, b)
+
+
+def glue_the_aspect_holes(topology, kinds: dict) -> dict:
+  """Treat each aspect hole as if its opposite sides touched.
+
+  Args:
+    topology: a `Topology` built from a scaffolded weave.
+    kinds: the map `scaffolded_weave` returned, tile_id to kind.
+
+  Returns:
+    A dict with `edges` and `points`, each mapping a label to the class
+    it belongs to once the gluing is done, and `before`/`after` counts.
+
+  THE MAINTAINER'S CONSTRUCTION (2026-09-08). A rectangular hole the
+  strand width opened should be read as though the strands on opposite
+  sides of it were touching, which is two adjacencies rather than four
+  independent edges, and its four corners are then one point. So the
+  hole is quotiented out of the STRUCTURE while the drawing keeps it.
+
+  NOTHING GEOMETRIC HAPPENS HERE, and that is the point. Neutralising
+  the strand width by rebuilding the design at full width was tried
+  first and fails three ways: the library fuses same-label pieces at
+  exactly 1.0, leaves a hairline just below it that upstream's cleaner
+  cannot make a polygon of, and fuses them again if the hairline is
+  closed by growing the strands. A quotient touches none of that.
+
+  A HOLE THAT IS NOT FOUR-SIDED IS LEFT ALONE, since "opposite sides"
+  names nothing there, and a dropped strand's ground is never glued
+  under either reading: a hyphen is a strand somebody left out, and
+  what it opens is a hole in both readings.
+  """
+  by_id = {}
+  for tile in topology.tiles:
+    by_id.setdefault(getattr(tile, "base_ID", None), []).append(tile)
+  edge_parent, point_parent = {}, {}
+  # COUNTED BY BASE TILE, not by tile: `topology.tiles` holds every
+  # copy in the patch, so a design with nine holes reported eighty-one
+  # of them glued. The union operations are idempotent, so only the
+  # count was wrong, which is exactly the kind of figure somebody
+  # quotes later.
+  glued = set()
+  for tile in topology.tiles:
+    if kinds.get(_tile_id_of(tile, topology)) != "aspect":
+      continue
+    edges = [topology.edges[e] for e in getattr(tile, "edges", [])
+             if e in topology.edges]
+    labels = [getattr(e, "label", "") for e in edges]
+    if len(labels) != 4 or not all(labels):
+      continue
+    _union(edge_parent, labels[0], labels[2])
+    _union(edge_parent, labels[1], labels[3])
+    corners = [topology.points[c] for c in getattr(tile, "corners", [])
+               if c in topology.points]
+    names = [getattr(v, "label", "") for v in corners if getattr(v, "label", "")]
+    for other in names[1:]:
+      _union(point_parent, names[0], other)
+    glued.add(getattr(tile, "base_ID", id(tile)))
+  edges_before = {getattr(e, "label", "") for e in topology.edges.values()
+                  if getattr(e, "label", "")}
+  points_before = {getattr(v, "label", "") for v in topology.points.values()
+                   if getattr(v, "label", "")}
+  edge_map = {label: _find(edge_parent, label) for label in edges_before}
+  point_map = {label: _find(point_parent, label) for label in points_before}
+  return {"edges": edge_map, "points": point_map, "glued": len(glued),
+          "before": (len(edges_before), len(points_before)),
+          "after": (len(set(edge_map.values())),
+                    len(set(point_map.values())))}
+
+
+def _tile_id_of(tile, topology) -> str:
+  """The scaffolded unit's own id for a topology tile.
+
+  Args:
+    tile: a `Tile` from the topology.
+    topology: the topology it belongs to.
+
+  Returns:
+    The `tile_id` string, or "" where it cannot be recovered.
+
+  THE TOPOLOGY KEEPS THE UNIT'S ORDER for its base tiles, so the id is
+  read off the frame by position rather than matched by geometry,
+  which would be a second definition of the same correspondence.
+  """
+  index = getattr(tile, "base_ID", None)
+  frame = getattr(getattr(topology, "tileable", None), "tiles", None)
+  if index is None or frame is None or index >= len(frame):
+    return ""
+  return str(frame["tile_id"].iloc[index])
+
+
+def strands_of(unit, kinds: dict):
+  """The tiles of a scaffolded unit that are cloth rather than filler.
+
+  Args:
+    unit: a unit from `scaffolded_weave`, possibly after an edit.
+    kinds: the map that call returned.
+
+  Returns:
+    A GeoDataFrame of the strand tiles alone, which is the design a
+    person sees once the scaffolding is dropped.
+  """
+  keep = [tile_id in kinds and kinds[tile_id] == "strand"
+          for tile_id in unit.tiles["tile_id"].astype(str)]
+  return unit.tiles[keep]
+
+
 def _one_tile_per_piece_of_ground(tiles):
   """Drop tiles the patch hands back twice.
 

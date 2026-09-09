@@ -71,7 +71,10 @@ from weavingspace import weave_matrices  # noqa: E402
 from weavingspace._loom import Loom  # noqa: E402
 
 SPACING = 1000.0
-ASPECTS = (0.9, 0.75, 0.5, 0.25)
+# 0.999 is the FULL-WIDTH reading approach B would build from,
+# just below 1.0 because at exactly one the library fuses pieces
+# that share a label and the design stops being the same design.
+ASPECTS = (0.999, 0.9, 0.75, 0.5, 0.25)
 WEAVES = ("plain weave a|b", "twill weave a|b", "basket weave ab|cd",
           "twill weave a|b-", "plain weave ab-|cd-")
 IMAGES = os.path.join(HERE, "docs", "process", "images", "holes-as-tiles")
@@ -254,10 +257,10 @@ def pieces_from_the_drawing(name: str, aspect: float) -> dict:
       # Narrow in x, so the ribbon runs along y: a warp-like strand
       # named by the x line its centre sits on.
       found.append({"axis": "x", "line": (x0 + x1) / 2.0,
-                    "along": y1 - y0, "tile_id": tile_id})
+                    "along": y1 - y0, "start": y0, "tile_id": tile_id})
     elif across_y:
       found.append({"axis": "y", "line": (y0 + y1) / 2.0,
-                    "along": x1 - x0, "tile_id": tile_id})
+                    "along": x1 - x0, "start": x0, "tile_id": tile_id})
     else:
       ambiguous.append((tile_id, x1 - x0, y1 - y0))
   lines = {axis: _lines([p["line"] for p in found if p["axis"] == axis])
@@ -273,10 +276,10 @@ def pieces_from_the_drawing(name: str, aspect: float) -> dict:
     on_y = any(abs(c - cy) < LINE_TOLERANCE for c in lines["y"])
     if on_x and not on_y:
       found.append({"axis": "x", "line": cx, "along": tall,
-                    "tile_id": tile_id})
+                    "start": cy - tall / 2.0, "tile_id": tile_id})
     elif on_y and not on_x:
       found.append({"axis": "y", "line": cy, "along": wide,
-                    "tile_id": tile_id})
+                    "start": cx - wide / 2.0, "tile_id": tile_id})
     else:
       ambiguous.append((tile_id, wide, tall))
   for piece in found:
@@ -360,6 +363,192 @@ def classes_from_each_side(spec: dict, drawing: dict) -> dict:
   }
 
 
+def phase_from_the_code(spec: dict) -> dict:
+  """The cyclic shift between neighbouring strands, read from the loom.
+
+  Args:
+    spec: the catalogue entry.
+
+  Returns:
+    A dict keyed by axis whose values are the shift carrying each
+    strand's over-and-under sequence onto its neighbour's, or None
+    where no shift does.
+
+  THIS IS THE READING THAT SEPARATES A TWILL FROM A BASKET, both of
+  which ride over two and under two: a twill steps by a constant and a
+  basket repeats in blocks. It is also the only per-strand quantity
+  that VARIES between neighbours on the weaves measured here, which is
+  what makes it the usable handle on the membership question, where
+  the float signature is the same for every strand of a direction and
+  so decides nothing.
+  """
+  loom = loom_for(spec)
+  rides = {}
+  for site, order in zip(loom.indices, loom.orderings):
+    if not isinstance(order, tuple) or len(order) < 2:
+      continue
+    row, column = site[0], site[1]
+    rides.setdefault(("axis0", row), {})[column] = (order[-1] == 0)
+    rides.setdefault(("axis1", column), {})[row] = (order[-1] == 1)
+  out = {}
+  for axis in ("axis0", "axis1"):
+    keys = sorted(k for k in rides if k[0] == axis)
+    runs = [[rides[k][c] for c in sorted(rides[k])] for k in keys]
+    steps = []
+    for one, two in zip(runs, runs[1:]):
+      found = None
+      if len(one) == len(two) and one:
+        for shift in range(len(one)):
+          if one[shift:] + one[:shift] == two:
+            found = shift
+            break
+      steps.append(found)
+    out[axis] = steps
+  return out
+
+
+def phase_from_the_drawing(drawing: dict, period: int) -> dict:
+  """The same shift, read from where the drawn pieces start.
+
+  Args:
+    drawing: a `pieces_from_the_drawing` result.
+    period: the loom's repeat length along a strand, in cells.
+
+  Returns:
+    A dict keyed by drawn axis whose values are the shift carrying one
+    strand's set of piece-start positions onto its neighbour's.
+
+  A PIECE IS A FLOAT, so where a strand's pieces BEGIN along its own
+  axis is where its floats begin, and the offset between one strand's
+  starts and the next one's is the same quantity the loom reports as a
+  phase step. Nothing of the code is consulted: the starts are read
+  off the polygons in cell units and taken modulo the repeat.
+  """
+  starts = {}
+  for piece in drawing["pieces"]:
+    key = (piece["axis"], piece["strand"])
+    starts.setdefault(key, []).append(
+      int(round(piece["start"] / SPACING)) % period)
+  out = {}
+  for axis in ("x", "y"):
+    keys = sorted(k for k in starts if k[0] == axis)
+    sets = [frozenset(starts[k]) for k in keys]
+    steps = []
+    for one, two in zip(sets, sets[1:]):
+      found = None
+      for shift in range(period):
+        if frozenset((v + shift) % period for v in one) == two:
+          found = shift
+          break
+      steps.append(found)
+    out[axis] = steps
+  return out
+
+
+def compare_phase(code_steps, drawn_steps, period: int) -> str:
+  """Say how a drawn phase sequence stands to the loom's own.
+
+  Args:
+    code_steps: the loom's shifts between neighbouring strands.
+    drawn_steps: the same read off the polygons.
+    period: the repeat length in cells.
+
+  Returns:
+    One of "identical", "negated" (the drawing's axis running the
+    other way against the loom's index), "same shape" (the pattern of
+    equal and unequal steps agrees while the values do not), or
+    "differs".
+
+  THE SHAPE IS THE PART THAT CARRIES THE DISCRIMINATION. A twill steps
+  by a constant and a basket repeats in blocks, so whether the steps
+  are all equal, and where the zeros fall, is what tells the two
+  apart; the value itself additionally fixes a direction convention,
+  which nothing here pins down in advance.
+  """
+  if code_steps == drawn_steps:
+    return "identical"
+  if drawn_steps == [None if v is None else (-v) % period for v in code_steps]:
+    return "negated"
+  def shape(steps):
+    order, seen = [], {}
+    for v in steps:
+      seen.setdefault(v, len(seen))
+      order.append(seen[v])
+    return order
+  if shape(code_steps) == shape(drawn_steps):
+    return "same shape"
+  return "differs"
+
+
+def membership(spec: dict, drawing: dict) -> dict:
+  """Ask whether the two sides order their strands the same way.
+
+  Args:
+    spec: the catalogue entry.
+    drawing: a `pieces_from_the_drawing` result.
+
+  Returns:
+    A dict per direction saying whether the drawn order of strand
+    signatures is a rotation of the loom's order, whether it is a
+    rotation of the REVERSED loom order, and whether the question is
+    decidable at all.
+
+  WHY A ROTATION IS THE MOST THAT CAN BE ASKED. The unit is one repeat
+  of something periodic and has no distinguished origin, so loom row
+  zero need not be the leftmost drawn line; what the two sides can be
+  held to is the CYCLIC order of their strands. A reflection is
+  allowed for as well, since nothing fixes which way a drawn axis runs
+  against a loom index.
+
+  AND WHERE EVERY STRAND IS ALIKE THE QUESTION HAS NO CONTENT. A plain
+  weave's strands all carry the same signature, so every rotation
+  matches and the answer is reported as UNDECIDABLE rather than as a
+  success, which would otherwise be the instrument agreeing with
+  itself. It bites on a weave whose strands differ, which is what a
+  dropped strand produces.
+  """
+  code = floats_from_the_code(spec)
+  drawn = {}
+  for piece in drawing["pieces"]:
+    drawn.setdefault((piece["axis"], piece["strand"]), []).append(
+      round(piece["along"] / SPACING, 3))
+  out = {}
+  for loom_axis, draw_axis in (("axis0", "y"), ("axis1", "x")):
+    loom_keys = sorted(k for k in code if k[0] == loom_axis and code[k])
+    loom_order = [tuple(code[k]) for k in loom_keys]
+    draw_keys = sorted(k for k in drawn if k[0] == draw_axis)
+    draw_order = [tuple(sorted(drawn[k], reverse=True)) for k in draw_keys]
+    if not loom_order or len(loom_order) != len(draw_order):
+      out[loom_axis] = {"decidable": False, "why": "different lengths",
+                        "loom": len(loom_order), "drawn": len(draw_order)}
+      continue
+    # THE TWO SIDES MEASURE IN DIFFERENT UNITS: the loom counts
+    # crossings and the drawing measures map units, so the signatures
+    # are compared by their ORDER of magnitude within each side rather
+    # than by value. Ranking each side's distinct signatures and
+    # comparing the rank sequences is what makes them commensurable.
+    def ranked(order):
+      distinct = sorted(set(order), key=lambda t: (-sum(t), t))
+      return [distinct.index(v) for v in order]
+    loom_ranks, draw_ranks = ranked(loom_order), ranked(draw_order)
+    n = len(loom_ranks)
+    rotations = [i for i in range(n)
+                 if loom_ranks[i:] + loom_ranks[:i] == draw_ranks]
+    back = list(reversed(loom_ranks))
+    reflected = [i for i in range(n)
+                 if back[i:] + back[:i] == draw_ranks]
+    out[loom_axis] = {
+      "decidable": len(set(loom_ranks)) > 1,
+      "strands": n,
+      "loom_ranks": loom_ranks,
+      "drawn_ranks": draw_ranks,
+      "rotations": rotations,
+      "reflected": reflected,
+      "matches": bool(rotations or reflected),
+    }
+  return out
+
+
 def read(name: str, aspect: float) -> dict:
   """Compare the code's floats with the drawing's pieces at one aspect.
 
@@ -392,6 +581,13 @@ def read(name: str, aspect: float) -> dict:
     "pieces_per_strand": sorted(ratios),
     "room": room_to_move(drawing),
     "classes": classes_from_each_side(spec, drawing),
+    "membership": membership(spec, drawing),
+    "period": max(max(s[0] for s in loom_for(spec).indices),
+                  max(s[1] for s in loom_for(spec).indices)) + 1,
+    "code_phase": phase_from_the_code(spec),
+    "drawn_phase": phase_from_the_drawing(
+      drawing, max(max(s[0] for s in loom_for(spec).indices),
+                   max(s[1] for s in loom_for(spec).indices)) + 1),
   }
 
 
@@ -516,6 +712,23 @@ def main() -> None:
             f"{klass['code_shape']}   drawing {klass['drawing_classes']} "
             f"{klass['drawing_shape']}   "
             f"{'AGREE' if klass['same_shape'] else 'DISAGREE'}")
+      period = row["period"]
+      print(f"        phase axis0: code {row['code_phase']['axis0']} "
+            f"drawn {row['drawn_phase']['y']}  "
+            f"{compare_phase(row['code_phase']['axis0'], row['drawn_phase']['y'], period).upper()}")
+      print(f"        phase axis1: code {row['code_phase']['axis1']} "
+            f"drawn {row['drawn_phase']['x']}  "
+            f"{compare_phase(row['code_phase']['axis1'], row['drawn_phase']['x'], period).upper()}")
+      for axis, found in row["membership"].items():
+        if not found.get("decidable"):
+          print(f"        membership {axis}: UNDECIDABLE "
+                f"({found.get('why', 'every strand alike')})")
+          continue
+        print(f"        membership {axis}: loom {found['loom_ranks']} "
+              f"drawn {found['drawn_ranks']}  "
+              f"{'MATCHES' if found['matches'] else 'DISAGREES'}"
+              f"  rotations {found['rotations']} "
+              f"reflected {found['reflected']}")
     if shapes:
       print(f"  the drawing's classes across aspects: "
             f"{'INVARIANT' if len(set(shapes)) == 1 else 'MOVE'}")
