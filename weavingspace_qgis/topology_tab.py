@@ -2410,6 +2410,11 @@ class TopologyPanel(QWidget):
   """
 
   edits_changed = pyqtSignal()
+  # A WEAVE'S DAYLIGHT CAN BE READ TWO WAYS and the choice changes the
+  # structure rather than the drawing, so the tab has to rebuild when
+  # it moves; the dialog listens for this exactly as it listens for an
+  # edit. (Maintainer's instruction, 2026-09-08.)
+  aspect_reading_changed = pyqtSignal(str)
   # THE BUTTON ASKS THE DIALOG TO GENERATE THE DUAL (ruling 1 of
   # 2026-09-05): the panel knows whether a dual is on offer, and the
   # dialog is what can land a map in a group. One signal, like the
@@ -2513,11 +2518,28 @@ class TopologyPanel(QWidget):
 
     change = QGroupBox("Change")
     grid = QGridLayout(change)
+    # THE READING SITS ABOVE THE CLASS because it decides what the
+    # classes ARE: a weave's daylight counted as holes gives one set
+    # and glued away gives another, and somebody choosing a class
+    # should have already chosen which structure they are choosing in.
+    # It is shown for every design and only bites on a weave, since
+    # hiding it would make the tab's shape depend on the family and a
+    # person would have to discover it exists.
+    self.aspect_reading = QComboBox()
+    self.aspect_reading.addItem("Holes in the cloth", "holes")
+    self.aspect_reading.addItem("Not there at all", "styling")
+    self.aspect_reading.setToolTip(
+      "Whether a weave's gaps from strand width count as holes.")
+    self.aspect_reading.currentIndexChanged.connect(
+      self._on_aspect_reading_chosen)
+    grid.addWidget(QLabel("Strand-width gaps"), 0, 0)
+    grid.addWidget(self.aspect_reading, 0, 1)
+
     self.class_combo = QComboBox()
     self.class_combo.setToolTip("Which class of edge or vertex to move.")
     self.class_combo.currentIndexChanged.connect(self._on_class_chosen)
-    grid.addWidget(QLabel("Class"), 0, 0)
-    grid.addWidget(self.class_combo, 0, 1)
+    grid.addWidget(QLabel("Class"), 1, 0)
+    grid.addWidget(self.class_combo, 1, 1)
 
     # THE LIST THAT CONFIRMS WHAT IS SELECTED. (Maintainer's decision,
     # 2026-09-01: click to select, a list to confirm, each following
@@ -2539,7 +2561,7 @@ class TopologyPanel(QWidget):
       QAbstractItemView.SelectionMode.NoSelection)
     self.class_list.setMaximumHeight(110)
     self.class_list.itemChanged.connect(self._on_class_ticked)
-    grid.addWidget(self.class_list, 1, 0, 1, 2)
+    grid.addWidget(self.class_list, 2, 0, 1, 2)
 
     # WHAT THE DESIGN'S SYMMETRY IS, in words, beside the classes it
     # explains. `D4` is dihedral of order four -- four rotations and
@@ -2551,15 +2573,15 @@ class TopologyPanel(QWidget):
     self.symmetry_note.setToolTip(
       "The symmetry group of each tile, and how many symmetries the "
       "whole design has.")
-    grid.addWidget(self.symmetry_note, 2, 0, 1, 2)
+    grid.addWidget(self.symmetry_note, 3, 0, 1, 2)
 
     self.how_combo = QComboBox()
     for key, spec in MANIPULATION_ORDER():
       self.how_combo.addItem(spec["label"], key)
     self.how_combo.setToolTip("What to do to the chosen class.")
     self.how_combo.currentIndexChanged.connect(self._rebuild_arguments)
-    grid.addWidget(QLabel("Do"), 3, 0)
-    grid.addWidget(self.how_combo, 3, 1)
+    grid.addWidget(QLabel("Do"), 4, 0)
+    grid.addWidget(self.how_combo, 4, 1)
 
     self._argument_rows = []
     # WHAT THE BOXES SAID, so a rebuild does not silently hand back
@@ -3341,6 +3363,33 @@ class TopologyPanel(QWidget):
         "short to place that many apart on the drawing, so the handle "
         "has stopped moving with the count -- this box is where the "
         "count is.")
+
+  def _on_aspect_reading_chosen(self, _index: int = 0) -> None:
+    """Somebody changed how a weave's strand-width gaps are read.
+
+    Returns:
+      None. The choice is announced so the dialog can rebuild the
+      topology, since it decides what the classes ARE rather than how
+      they are drawn.
+
+    THE SELECTION IS DROPPED, deliberately. A class named under one
+    reading need not exist under the other, so keeping it would leave
+    the tab pointing at something the new structure may not have; the
+    shelf's own alphabet check reports what an edit now aims at, and
+    this is the same shape one control earlier.
+    """
+    self._selection = (None, [])
+    self.aspect_reading_changed.emit(self.aspect_reading_in_force())
+
+  def aspect_reading_in_force(self) -> str:
+    """Which reading of a weave's daylight the tab is showing.
+
+    Returns:
+      "holes" where the daylight a strand width opens is part of the
+      structure, or "styling" where it is glued away.
+    """
+    data = self.aspect_reading.currentData()
+    return data if data else "holes"
 
   def _on_class_chosen(self):
     """Highlight whatever class the chooser now names, and re-offer

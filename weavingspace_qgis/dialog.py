@@ -3507,6 +3507,8 @@ class WeavingSpaceDialog(QDialog):
     self.topology_panel = TopologyPanel()
     self.topology_panel.edits_changed.connect(self._on_topology_edited)
     self.topology_panel.dual_requested.connect(self._generate_the_dual)
+    self.topology_panel.aspect_reading_changed.connect(
+      self._on_aspect_reading_changed)
     # WHICH GROUP THE DUAL WAS ASKED FOR FROM, a LABEL for naming the
     # new group and never an identity; set by the button, read once by
     # `_a_name_for_a_new_group`, and cleared there.
@@ -24287,13 +24289,44 @@ class WeavingSpaceDialog(QDialog):
                                self._element_count(),
                                self._dual_depth()), [])
     result_crs = getattr(self._unit, "crs", None)
+    # WHAT A WEAVE WOULD HAVE TO BE REBUILT FROM, read on the MAIN
+    # THREAD and handed over, since the worker may not touch the
+    # controls. It is None for a tiling and for anything that already
+    # tiles, and `topology_edits.build` tries the design plainly first
+    # whatever is passed, so a weave at full width is not scaffolded.
+    # The reading comes from the tab because it decides what the
+    # classes are, and the tab is where somebody chooses among them.
+    weave_terms = None
+    spec_now = self._current_spec()
+    if spec_now is not None and spec_now.get("type") == "weave":
+      terms = self._unit_kwargs()
+      weave_terms = {
+        "spec": spec_now,
+        "spacing": terms.get("spacing"),
+        "aspect": terms.get("aspect"),
+        "strands": terms.get("strands"),
+        "reading": (panel.aspect_reading_in_force()
+                    if hasattr(panel, "aspect_reading_in_force")
+                    else topology_edits.ASPECT_AS_HOLES),
+      }
 
     def work(task):
       """The expensive half, on the worker thread."""
-      topology, why = topology_edits.build(unit)
+      answer = topology_edits.build(unit, weave=weave_terms)
+      if len(answer) == 4:
+        topology, why, scaffolded, kinds = answer
+        # THE SCAFFOLDED UNIT IS WHAT THE TOPOLOGY IS OF, so it is what
+        # the tab must draw and hit-test against; the strands are
+        # recovered from `kinds` when an edit is carried back, which is
+        # ruling 1 of C-347.
+        built["kinds"] = kinds
+        built["scaffolded"] = scaffolded is not None and scaffolded is not unit
+      else:
+        topology, why = answer
+        scaffolded, built["kinds"], built["scaffolded"] = unit, {}, False
       built["topology"] = topology
       built["why"] = why
-      built["unit"] = unit
+      built["unit"] = scaffolded if scaffolded is not None else unit
       # THE EDITS ARE REPLAYED HERE, where the topology already exists
       # and the thread is not the one drawing the window. Replaying on
       # the main thread would put a 0.75-4.4s build plus a rebuild per
@@ -24997,6 +25030,23 @@ class WeavingSpaceDialog(QDialog):
                                self._dual_depth()),
       hashlib.sha256(options.encode()).hexdigest()[:8],
       hashlib.sha256(made.encode()).hexdigest()[:8]))
+
+  def _on_aspect_reading_changed(self, _reading: str = "") -> None:
+    """Somebody changed how a weave's strand-width gaps are read.
+
+    Returns:
+      None. A fresh topology is queued, because the reading decides
+      what the structure IS rather than how it is drawn: the same
+      plain weave gives ten edge classes and seven vertex classes with
+      its daylight kept as holes and six and three with the holes
+      glued away.
+
+    NOTHING IS RE-TILED. The map's geometry does not move, so this is
+    not a term of `_geometry_signature` and pressing Generate is not
+    wanted; only the topology is rebuilt, through the same door a
+    design change uses.
+    """
+    self._queue_topology(even_if_unasked=True)
 
   def _on_topology_edited(self) -> None:
     """The topology tab's record changed; keep the design in step.

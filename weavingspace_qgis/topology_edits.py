@@ -389,14 +389,26 @@ def _topology_class():
   return Topology
 
 
-def build(unit):
+def build(unit, weave=None):
   """The topology of a unit, or None where it has gaps.
 
   Args:
     unit: the Tileable, before modifiers.
+    weave: None for a design that tiles as it stands, or a dict of the
+      terms a weave has to be rebuilt from -- `spec`, `spacing`,
+      `aspect`, `strands` and `reading` -- which lets a design with
+      daylight be scaffolded into one that tiles.
 
   Returns:
-    (topology, "") or (None, reason).
+    `(topology, reason)` where the topology is None on a refusal, and
+    for a scaffolded weave `(topology, reason, unit, kinds)`, the unit
+    being the scaffolded stand-in and `kinds` saying which of its tiles
+    are cloth. Callers that pass no `weave` get the pair they always
+    got.
+
+  A WEAVE IS TRIED PLAINLY FIRST. At an aspect of 1.0 a weave already
+  tiles, and scaffolding one that needs no scaffolding would put filler
+  tiles into a design that has no daylight to fill.
 
   MEASURED COST, 2026-08-30: 0.75s on laves 3.3.4.3.4 and 2.1-4.4s on
   hex-slice 6 and square-colouring 5. That is why the caller builds
@@ -404,9 +416,19 @@ def build(unit):
   experimental box.
   """
   try:
-    return _topology_class()(unit, True), ""
+    plain = _topology_class()(unit, True)
+    return (plain, "") if weave is None else (plain, "", unit, {})
   except Exception as exc:                            # noqa: BLE001
-    return None, _why_not(exc, unit)
+    reason = _why_not(exc, unit)
+  if weave is None:
+    return None, reason
+  topology, filled, kinds, note = weave_topology(
+    weave.get("spec"), weave.get("spacing"), weave.get("aspect"),
+    crs=None, strands=weave.get("strands"),
+    reading=weave.get("reading", ASPECT_AS_HOLES))
+  if topology is None:
+    return None, note or reason, None, kinds
+  return topology, "", filled, kinds
 
 
 def classes(topology) -> dict:
@@ -1208,6 +1230,54 @@ def _closed_up(strands: list, gap: float) -> list:
           for strand in strands]
 
 
+def _snapped_pieces(geometry, floor: float = 1.0) -> list:
+  """Filler pieces already snapped to the grid the library snaps to.
+
+  Args:
+    geometry: the daylight to cut into filler.
+    floor: the smallest piece to keep, in squared map units.
+
+  Returns:
+    A list of Polygons, each of which survives `tiling_utils.gridify`
+    unchanged, with anything that gridding splits handed back as
+    separate pieces.
+
+  A WORKAROUND FOR UPSTREAM, AT THE NARROWEST POINT. `get_clean_polygon`
+  ends in `gridify`, which is `shapely.set_precision` at 1e-06, and a
+  polygon that pinches at that scale comes back as a MULTIPOLYGON;
+  `get_corners` then asks the result for `.exterior`, which a
+  MultiPolygon has not, and the build raises. Measured 2026-09-08 on
+  the three cube weaves at aspect 0.75: 3, 11 and 13 filler pieces of
+  68, 65 and 21 stop being a single polygon under the library's own
+  gridify.
+
+  IT CORRECTS THE INPUT RATHER THAN REPLACING THE BEHAVIOUR, which is
+  this project's rule for somebody else's defect: the filler is ours to
+  shape, gridding it here makes the library's own gridding idempotent
+  on it, and every piece the grid splits becomes its own tile, which
+  the scaffolding wants anyway since `_setup_regularised_prototile`
+  dissolves by `tile_id`.
+
+  WHEN IT CAN GO: when `get_clean_polygon` returns the largest part, or
+  `get_corners` takes a MultiPolygon. `test_upstream_still_splits_a_
+  pinched_polygon_when_gridding` asserts the defect with the plugin out
+  of the way, so its failure is the news that this can be deleted.
+  """
+  import weavingspace.tiling_utils as tiling_utils
+  out = []
+  for piece in _pieces_of(geometry, floor):
+    try:
+      snapped = tiling_utils.gridify(piece)
+    except Exception:                                 # noqa: BLE001
+      # A PIECE THE GRID WILL NOT TAKE AT ALL is dropped rather than
+      # passed on: handing it over is the raise this exists to avoid,
+      # and the caller's coverage check is what notices if dropping it
+      # leaves a gap.
+      continue
+    out.extend(_pieces_of(snapped, floor))
+  return out
+
+
 def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
                      strands=None, reading: str = ASPECT_AS_HOLES):
   """A gap-free stand-in for a weave, and what each of its tiles is.
@@ -1274,8 +1344,9 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
     kinds[tile_id] = "strand"
   daylight = daylight_by_kind(unit, spec, spacing, built_at)
   filler = [("dropped", piece)
-            for piece in _pieces_of(daylight["conscious"])]
-  filler += [("aspect", piece) for piece in _pieces_of(daylight["width"])]
+            for piece in _snapped_pieces(daylight["conscious"])]
+  filler += [("aspect", piece)
+             for piece in _snapped_pieces(daylight["width"])]
   for index, (kind, piece) in enumerate(filler):
     tile_id = f"{'d' if kind == 'dropped' else 'w'}{index}"
     geometries.append(piece)
