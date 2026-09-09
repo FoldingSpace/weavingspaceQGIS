@@ -654,12 +654,45 @@ def move_as_applied(topology, selector, how, ready):
   return topology.transform_geometry(True, True, selector, how, **ready)
 
 
-def apply(topology, edits):
+def _expanded(selector: str, glue, target: str = "") -> str:
+  """Every library label a glued class stands for.
+
+  Args:
+    selector: the labels an edit was aimed at, as the library takes
+      them.
+    glue: the map `glue_the_aspect_holes` returned, or None.
+    target: "edge" or "vertex", saying which of the two maps to read.
+
+  Returns:
+    The selector, widened to every label whose class is one the
+    selector names. Without a gluing it is returned unchanged.
+
+  THIS IS WHAT MAKES AN EDIT CROSS A HOLE. Under the reading that glues
+  a strand-width gap away, the two strands facing each other across it
+  share one class, so an edit aimed at that class has to move both of
+  their facing edges; aimed at the library's own label it would move
+  one and leave the other, and the hole the gluing said was not there
+  would open or close as a result.
+  """
+  if not glue or not selector:
+    return selector
+  which = glue.get("points" if target == "vertex" else "edges", {})
+  wanted = {which.get(label, label) for label in selector}
+  return "".join(sorted(label for label, klass in which.items()
+                        if klass in wanted)) or selector
+
+
+def apply(topology, edits, glue=None):
   """Replay an edit list onto a topology, returning what to draw.
 
   Args:
     topology: a freshly built Topology for the current unit.
     edits: the record, oldest first.
+    glue: the label maps a reading of a weave's daylight called for, or
+      None where the classes stand as the library assigned them. Where
+      one is given, an edit aimed at a glued class is applied to EVERY
+      library label that class stands for, which is what makes an edit
+      reach both sides of a hole.
 
 
   Returns:
@@ -726,6 +759,12 @@ def apply(topology, edits):
                     "sound": None})
       continue
     selector = edit.get("classes") or ""
+    # A GLUED CLASS STANDS FOR SEVERAL OF THE LIBRARY'S LABELS, and
+    # unless it is expanded the edit reaches one side of a hole and not
+    # the other -- which is precisely the adjacency the gluing was
+    # asserting. The library's own selector is a string of labels, so
+    # the expansion is a string too.
+    selector = _expanded(selector, glue, edit.get("target"))
     # NOTHING HERE ASKS WHETHER THE DESIGN STILL HAS A REBUILDABLE
     # TOPOLOGY, and that is the point of chaining: the object carries
     # its own classes forward, so an edit after one that opened gaps is
