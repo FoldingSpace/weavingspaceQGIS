@@ -40,12 +40,24 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 faulthandler.register(signal.SIGUSR1)
 
 import shapely  # noqa: E402
+import matplotlib  # noqa: E402
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.patches import Polygon as MplPolygon  # noqa: E402
 
 from weavingspace_qgis import catalog, topology_edits as te  # noqa: E402
 
 SPACING = 1000.0
 ASPECT = 0.75
 WEAVES = ("plain weave a|b", "twill weave a|b", "twill weave a|b-")
+# THE TWILL IS WHAT THE FIGURE DRAWS because it is the case that can
+# discriminate: a plain weave's four pieces all move under either
+# reading, so a picture of one shows the same thing twice.
+FIGURE_WEAVE = "twill weave a|b"
+IMAGES = os.path.join(HERE, "docs", "process", "images", "holes-as-tiles")
+MOVED = "#dd8452"
+STILL = "#4c72b0"
+FILLER = "#e4e4e4"
 
 
 def spec_for(name: str) -> dict:
@@ -155,6 +167,189 @@ def read(name: str, reading: str) -> dict:
   }
 
 
+def _pieces_and_movement(name: str, reading: str):
+  """One weave's strand pieces before and after an edit, and which moved.
+
+  Args:
+    name: the catalogue key.
+    reading: which reading of the daylight to build under.
+
+  Returns:
+    `(before, after, moved, filler, note)` -- the strand polygons as
+    built and as edited, a list of booleans one per piece, the filler
+    polygons for context, and any refusal.
+
+  THE PIECES ARE PAIRED BY POSITION, which the library's own order
+  makes safe: `apply` transforms the tiles it was given and hands back
+  a frame of the same length in the same order. The lengths are
+  checked rather than assumed, since a pairing that slipped by one
+  would colour the wrong pieces and look like a result.
+  """
+  spec = spec_for(name)
+  topology, unit, kinds, glue, note = te.weave_topology(
+    spec, SPACING, ASPECT, reading=reading)
+  if topology is None:
+    return [], [], [], [], note
+  labels = te.class_labels(topology, glue)
+  selector = (labels.get("edge") or [""])[0]
+  edit = {"how": "zigzag_edge", "target": "edge", "classes": selector,
+          "args": {"n": 2, "h": 0.15}}
+  edited, _refusals, _state = te.apply(topology, [edit], glue=glue)
+  def pieces(of_unit):
+    return [(g, tile_id) for g, tile_id in
+            zip(of_unit.tiles.geometry, of_unit.tiles["tile_id"].astype(str))
+            if g.geom_type == "Polygon"]
+  before_all = pieces(unit)
+  after_all = pieces(edited) if edited is not None else before_all
+  if len(before_all) != len(after_all):
+    return [], [], [], [], "the edit changed how many tiles there are"
+  before = [g for g, tile_id in before_all if kinds.get(tile_id) == "strand"]
+  after = [g for (g, tile_id), (_b, _i) in zip(after_all, before_all)
+           if kinds.get(tile_id) == "strand"]
+  filler = [g for g, tile_id in before_all if kinds.get(tile_id) != "strand"]
+  moved = [one.symmetric_difference(two).area > one.area / 1e4
+           for one, two in zip(before, after)]
+  return before, after, moved, filler, ""
+
+
+def figure(path: str) -> None:
+  """Draw what one edit reaches under each reading.
+
+  Args:
+    path: where to write the PNG.
+
+  Returns:
+    None; the PNG is written.
+  """
+  os.makedirs(IMAGES, exist_ok=True)
+  figure_, axes = plt.subplots(1, 2, figsize=(11.5, 6.0))
+  titles = {te.ASPECT_LIKE_A_DROP:
+            "gaps count, like a dropped strand",
+            te.ASPECT_LIKE_AN_INSET:
+            "gaps ignored, like an inset"}
+  for axis, reading in zip(axes, te.ASPECT_READINGS):
+    before, after, moved, filler, note = _pieces_and_movement(
+      FIGURE_WEAVE, reading)
+    for piece in filler:
+      axis.add_patch(MplPolygon(list(piece.exterior.coords), closed=True,
+                                facecolor=FILLER, edgecolor="none"))
+    for piece, did in zip(after, moved):
+      for part in getattr(piece, "geoms", [piece]):
+        if part.geom_type != "Polygon":
+          continue
+        axis.add_patch(MplPolygon(
+          list(part.exterior.coords), closed=True,
+          facecolor=MOVED if did else STILL, edgecolor="#20304a",
+          linewidth=0.5))
+    for piece in before:
+      axis.add_patch(MplPolygon(list(piece.exterior.coords), closed=True,
+                                facecolor="none", edgecolor="#7a7a7a",
+                                linewidth=0.7, linestyle=(0, (3, 2))))
+    axis.set_aspect("equal")
+    axis.axis("off")
+    axis.relim()
+    axis.autoscale()
+    axis.set_title(f"{titles[reading]}\n"
+                   f"{sum(moved)} of {len(moved)} strand pieces moved",
+                   fontsize=10, pad=8)
+  figure_.suptitle(
+    f"{FIGURE_WEAVE} at aspect {ASPECT}: the SAME edit, aimed at the first "
+    f"edge class.\nDashed is where each piece was. Orange moved, blue did "
+    f"not, grey is the filler.", fontsize=10)
+  figure_.tight_layout(rect=(0, 0, 1, 0.86))
+  figure_.savefig(path, dpi=140)
+  plt.close(figure_)
+
+
+CLASS_INK = ("#c44e52", "#4c72b0", "#55a868", "#8172b2", "#dd8452",
+             "#937860", "#da8bc3", "#8c8c8c", "#ccb974", "#64b5cd")
+
+
+def labelled_figure(path: str) -> None:
+  """Draw every edge class, named, under each reading of the daylight.
+
+  Args:
+    path: where to write the PNG.
+
+  Returns:
+    None; the PNG is written.
+
+  WHAT IT IS FOR. The earlier figure shows which ribbons an edit
+  reaches and not WHY, so a reader has to take the classes on trust.
+  Here every edge of the structure is drawn in its class's own colour
+  with the class named on it, so the gluing can be seen doing its
+  work: four edges round a hole carry four names on the left and the
+  facing pairs carry one name each on the right.
+
+  ONE FUNDAMENTAL CELL'S WORTH IS DRAWN. `topology.edges` holds every
+  edge of the patch of repeats the constructor lays, so drawing them
+  all would stack a dozen copies of each label on top of each other;
+  the window is centred on the unit and sized from it.
+  """
+  os.makedirs(IMAGES, exist_ok=True)
+  figure_, axes = plt.subplots(1, 2, figsize=(14.0, 7.4))
+  for axis, reading in zip(axes, te.ASPECT_READINGS):
+    topology, unit, kinds, glue, note = te.weave_topology(
+      spec_for(FIGURE_WEAVE), SPACING, ASPECT, reading=reading)
+    if topology is None:
+      axis.set_title(note[:60], fontsize=9)
+      continue
+    names = te.class_labels(topology, glue)
+    order = names.get("edge") or []
+    ink = {name: CLASS_INK[i % len(CLASS_INK)]
+           for i, name in enumerate(order)}
+    for geometry, tile_id in zip(unit.tiles.geometry,
+                                 unit.tiles["tile_id"].astype(str)):
+      if geometry.geom_type != "Polygon":
+        continue
+      axis.add_patch(MplPolygon(
+        list(geometry.exterior.coords), closed=True,
+        facecolor="#eef1f6" if kinds.get(tile_id) == "strand" else "#f6f2e8",
+        edgecolor="#d0d0d0", linewidth=0.5, zorder=1))
+    middle = shapely.union_all(
+      [g for g in unit.tiles.geometry if g.geom_type == "Polygon"])
+    centre = middle.centroid
+    # A WINDOW OF ABOUT TWO CELLS, not the whole unit: drawn whole, a
+    # twill puts three hundred labels in the frame and none of them can
+    # be read, which is a diagram of the fact that there are a lot of
+    # edges rather than of what the classes are.
+    half = 1.15 * SPACING
+    drawn = 0
+    for edge in topology.edges.values():
+      label = getattr(edge, "label", "")
+      if not label:
+        continue
+      klass = glue["edges"].get(label, label) if glue else label
+      line = edge.get_geometry()
+      point = line.interpolate(0.5, normalized=True)
+      if (abs(point.x - centre.x) > half or abs(point.y - centre.y) > half):
+        continue
+      colour = ink.get(klass, "#333333")
+      axis.plot(*line.xy, color=colour, linewidth=3.0, solid_capstyle="round",
+                zorder=3)
+      axis.text(point.x, point.y, klass, fontsize=12, color=colour,
+                ha="center", va="center", zorder=4, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.18", facecolor="white",
+                          edgecolor="none", alpha=0.9))
+      drawn += 1
+    axis.set_xlim(centre.x - half * 1.06, centre.x + half * 1.06)
+    axis.set_ylim(centre.y - half * 1.06, centre.y + half * 1.06)
+    axis.set_aspect("equal")
+    axis.axis("off")
+    axis.set_title(
+      f"{'gaps count, like a dropped strand' if reading == te.ASPECT_LIKE_A_DROP else 'gaps ignored, like an inset'}\n"
+      f"{len(order)} edge class(es): {', '.join(order)}",
+      fontsize=10, pad=8)
+  figure_.suptitle(
+    f"{FIGURE_WEAVE} at aspect {ASPECT}, two cells of it: every edge "
+    f"named by its class.\nPale blue is ribbon. Cream is the filler that "
+    f"plugs a gap. Round a cream square, the four edges carry four names "
+    f"on the left and two on the right.", fontsize=10)
+  figure_.tight_layout(rect=(0, 0, 1, 0.88))
+  figure_.savefig(path, dpi=140)
+  plt.close(figure_)
+
+
 def main() -> None:
   """Report, per weave, what an edit does under each reading."""
   for name in WEAVES:
@@ -171,6 +366,9 @@ def main() -> None:
             f"{row['strands_touched']} of {row['strand_count']} "
             f"strand piece(s)"
             + (f"  [{row['note'][:40]}]" if row["note"] else ""))
+  figure(os.path.join(IMAGES, "what-an-edit-reaches.png"))
+  labelled_figure(os.path.join(IMAGES, "the-edge-classes-named.png"))
+  print(f"\nfigure written to {IMAGES}")
 
 
 if __name__ == "__main__":
