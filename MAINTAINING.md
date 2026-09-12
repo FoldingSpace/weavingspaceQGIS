@@ -612,11 +612,26 @@ both readings and three strand widths, with no refined class holding
 edges of two directions
 (`tools/probes/warp_and_weft_kept_apart.py`; C-354).
 
-**THE ORDER IS REFINE, THEN GLUE**, and they compose because the sides
-of an aspect hole face each other along ONE direction, so a gluing
-never crosses the split. The strand directions come off the tiles
-themselves -- a strand piece is longer along its own axis -- so a
+**THE ORDER IS REFINE, THEN GLUE**, and no gluing ever unions two
+classes of different direction, measured on both weaves: an aspect
+hole's opposite sides are parallel. The strand directions come off the
+tiles themselves -- a strand piece is longer along its own axis -- so a
 rotated or triaxial family needs no case of its own.
+
+**BUT AN EDGE'S DIRECTION IS NOT THE STRAND FAMILY THAT OWNS IT**, and
+that is the thing to know before promising anybody what an edit
+reaches. A horizontal edge is the flank of a weft OR the END CAP of a
+warp. The quotient declares an aspect hole's opposite sides one side,
+and on `twill weave a|b` at aspect 0.75 that unions a class of 64 weft
+flanks with one of 69 warp end caps: one class, one direction, two
+families. So an edit aimed at a refined class moves 4 of 16 pieces in
+one direction under the counting reading and 8 of 16 in both under the
+glued one. Identifying those sides is what the quotient MEANS, so this
+is a property of the composition rather than a fault in either switch.
+Where every strand edge abuts filler the two questions coincide, which
+is why `plain weave a|b` answers one direction under both readings and
+is what the suite asserts
+(`tools/probes/an_edit_aimed_at_one_strand_family.py`).
 
 **WHAT THE TAB SHOWS.** The `Gaps from strand width` chooser sits above
 the class controls, since the reading decides what the classes ARE

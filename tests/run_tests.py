@@ -91958,16 +91958,36 @@ def test_a_weaves_classes_can_be_kept_to_one_strand_family():
   maintainer's ask of 2026-09-11 was to build the choice as a control
   (C-353).
 
-  THREE THINGS ARE ASSERTED AND THEY FAIL DIFFERENTLY. That the
+  FOUR THINGS ARE ASSERTED AND THEY FAIL DIFFERENTLY. That the
   refinement is a REFINEMENT -- every class kept apart sits inside one
   of the library's -- which is what makes it a second reading of the
   same structure rather than a different structure. That no class kept
   apart holds edges of two directions, asked of the DRAWN edges rather
   than of the transforms the refinement was taken from, so the
   construction and the geometry are two descriptions being compared.
-  And that the two switches COMPOSE, since the aspect-gap reading is an
+  That the two switches COMPOSE, since the aspect-gap reading is an
   independent question and either answer to it must survive either
-  answer to this one.
+  answer to this one. And that an EDIT aimed at a refined class moves
+  the cloth of one direction and leaves the other, which is the claim
+  anybody cares about and is NOT implied by the class counts: the
+  labels could split perfectly while the edit went on reaching both.
+
+  THAT LAST ONE HAS A MEASURED LIMIT, and it is here in words because
+  the suite cannot afford the weave that shows it. An edge's own
+  direction is not the strand family it belongs to: a horizontal edge
+  is the flank of a weft OR the END CAP of a warp. The gluing declares
+  an aspect hole's opposite sides one side, and on `twill weave a|b` at
+  aspect 0.75 that unions a class of 64 weft flanks with a class of 69
+  warp end caps -- both horizontal, both one class now, owned by
+  strands of different families. So under the GLUED reading on that
+  twill an edit aimed at one refined class moves 8 of 16 pieces in both
+  directions, where the counting reading moves 4 of 16 in one. The
+  mixing is the quotient's own doing rather than the refinement's, and
+  it is not a defect in either: identifying those two sides is what the
+  quotient MEANS. The plain weave is asserted below because every one
+  of its strand edges abuts filler, so the two questions coincide there
+  and the assertion can be exact
+  (`tools/probes/an_edit_aimed_at_one_strand_family.py`).
 
   THE PREMISE IS ASSERTED FIRST, because a design whose classes were
   already on one direction each would pass every line below without
@@ -92047,6 +92067,77 @@ def test_a_weaves_classes_can_be_kept_to_one_strand_family():
       f"under {reading} keeping warp and weft apart left " \
       f"{len(set(apart.values()))} classes against " \
       f"{len(set(together.values()))}, so nothing was split"
+
+  from weavingspace_qgis import topology_edits as edits_module
+
+  def moved_by_an_edit(reading, families):
+    """Aim one edit at the first class and say which cloth moved.
+
+    Args:
+      reading: which reading of the aspect gaps to build under.
+      families: whether one class may hold both strand directions.
+
+    Returns:
+      (pieces_moved, pieces_total, directions), the directions being
+      the distinct angles the MOVED pieces run in.
+
+    EACH PIECE IS COMPARED WITH ITS OWN EDITED SELF. Taking the
+    symmetric difference of all the cloth and attributing each patch to
+    whatever lies within a map unit of it reports two directions
+    whatever happens, since a corner is that close to a warp and to a
+    weft alike -- the first version of the probe behind this said so
+    while the moved area was halving exactly.
+    """
+    spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+    topology, unit, kinds, glue, _note = edits_module.weave_topology(
+      spec, 1000.0, 0.75, reading=reading, families=families)
+    wanted = edits_module.class_labels(topology, glue)["edge"]
+    edit = {"how": "zigzag_edge", "target": "edge", "classes": wanted[0],
+            "args": {"n": 2, "h": 0.15}}
+    edited, _refusals, _state = edits_module.apply(
+      topology, [edit], glue=glue)
+    assert edited is not None, \
+      f"the edit produced nothing under {reading}/{families}"
+    was = list(zip(unit.tiles.geometry, unit.tiles["tile_id"].astype(str)))
+    now = list(zip(edited.tiles.geometry,
+                   edited.tiles["tile_id"].astype(str)))
+    assert [i for _g, i in was] == [i for _g, i in now], \
+      "the edit changed the tile order, so no piece can be compared " \
+      "with itself"
+    cell = unit.prototile.geometry[0].area
+    total, moved, directions = 0, 0, []
+    for (old, tile_id), (new, _same) in zip(was, now):
+      if kinds.get(tile_id) != "strand" or old.geom_type != "Polygon":
+        continue
+      total += 1
+      if old.symmetric_difference(new).area <= cell / 1e6:
+        continue
+      moved += 1
+      axis = edits_module._long_axis(old)
+      angle = edits_module._as_direction(axis[0], axis[1])
+      if not any(edits_module._same_direction(angle, other)
+                 for other in directions):
+        directions.append(angle)
+    return moved, total, directions
+
+  for reading in topology_edits.ASPECT_READINGS:
+    loose, total, both_ways = moved_by_an_edit(
+      reading, topology_edits.WARP_AND_WEFT_TOGETHER)
+    assert len(both_ways) == 2, \
+      f"under {reading} an edit aimed at the library's own first class " \
+      f"moved cloth running in {len(both_ways)} direction(s), so this " \
+      f"weave cannot show the refinement changing what an edit reaches"
+    tight, _total, one_way = moved_by_an_edit(
+      reading, topology_edits.WARP_AND_WEFT_APART)
+    assert len(one_way) == 1, \
+      f"under {reading} an edit aimed at a class kept to one strand " \
+      f"family still moved cloth running in {len(one_way)} directions " \
+      f"{one_way}, so the split renamed the classes without narrowing " \
+      f"what an edit reaches"
+    assert 0 < tight < loose, \
+      f"under {reading} the edit moved {tight} of {total} pieces kept " \
+      f"apart against {loose} together, and it must move fewer than " \
+      f"all of them and more than none"
 
 
 def test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is():

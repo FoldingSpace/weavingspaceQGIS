@@ -2127,7 +2127,14 @@ Confirmed with the user via an explicit design review:
   and asks as its control that the whole pool reproduce those classes
   before it splits anything. THE LABELS ARE REWRITTEN RATHER THAN
   MAPPED, since a merge travels as a map and a split cannot, and
-  everything downstream already reads `edge.label`. (C-354.)
+  everything downstream already reads `edge.label`. AND AN EDGE'S OWN
+  DIRECTION IS NOT THE STRAND FAMILY THAT OWNS IT: a horizontal edge is
+  a weft's flank or a warp's END CAP, so the quotient, which declares an
+  aspect hole's opposite sides one side, can union 64 weft flanks with
+  69 warp end caps -- one class, one direction, two families. An edit
+  aimed at a refined class therefore reaches one family under the
+  counting reading and both under the glued one on a twill. That is the
+  quotient's meaning rather than a defect in either switch. (C-354.)
 - **A STRANDS CODE IS SOMETHING YOU TYPE, AND THE CODE SETS THE
   ELEMENT COUNT.** (Maintainer's ruling, 2026-09-08.) The catalogue's
   77 weave entries carried their codes baked in while the guide taught

@@ -1182,7 +1182,18 @@ whole pool do not reproduce the classes on screen nothing is split and
 the reason is said. The labels are then REWRITTEN rather than mapped,
 which is what lets an edit be aimed at a warp without moving the wefts
 it is mirrored onto, since a merge travels as a map from label to class
-and a split cannot. Measured on four weaves at aspects 0.9, 0.75 and
+and a split cannot. AN EDGE'S DIRECTION IS NOT THE STRAND FAMILY THAT
+OWNS IT, though, which bounds that promise: a horizontal edge is a
+weft's flank or a warp's END CAP, and the quotient's identification of
+an aspect hole's opposite sides unions 64 of the first with 69 of the
+second on `twill weave a|b` at 0.75 -- one class, one direction, two
+families. Measured, an edit aimed at a refined class moves 4 of 16
+pieces in one direction under the counting reading and 8 of 16 in both
+under the glued one; on `plain weave a|b`, where every strand edge
+abuts filler, it is 2 of 4 in one direction under both. No gluing
+unions classes of different direction, so the mixing is the quotient's
+own meaning rather than a fault in either switch
+(`tools/probes/an_edit_aimed_at_one_strand_family.py`). Measured on four weaves at aspects 0.9, 0.75 and
 0.5, invariant across the widths, with no refined class holding edges
 of two directions when the DRAWN edges are asked rather than the
 construction they came from. AND IT IS NOT A UNIFORM DOUBLING: `twill
@@ -1204,6 +1215,7 @@ The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 `tools/probes/does_an_edit_cross_a_weaves_gap.py`,
 `tools/probes/classes_that_stay_on_one_strand_family.py`,
 `tools/probes/warp_and_weft_kept_apart.py`,
+`tools/probes/an_edit_aimed_at_one_strand_family.py`,
 `tools/probes/the_apertures_a_weave_leaves.py` and
 `tools/probes/what_a_quotient_does_to_a_hole.py`. The full
 record, the dead ends and what weaving asks of an edit are in

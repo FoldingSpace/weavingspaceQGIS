@@ -941,9 +941,28 @@ library's selector would have to express. It cannot express a split;
 what it can do is take whatever labels the classes carry. So the
 refinement rewrites the labels rather than mapping them, and the
 chooser, the drawing, the replay and the gluing all learn about the new
-classes at once. The refinement runs before the gluing. The two compose
-without argument, because the sides of an aspect hole face each other
-along a single direction, so gluing never crosses the split.
+classes at once. The refinement runs before the gluing, and no gluing ever
+unions two classes of different direction, since an aspect hole's
+opposite sides are parallel.
+
+What an edit then reaches is a further question, and measuring it
+corrected something we had asserted. An edge's direction is not the
+strand family that owns it. A horizontal edge is the flank of a weft,
+or it is the END CAP of a warp. The quotient declares an aspect hole's
+opposite sides one side, which on the twill unions a class of 64 weft
+flanks with a class of 69 warp end caps: one class, running in one
+direction, owned by strands of two families. So an edit aimed at a
+refined class moves four of the twill's sixteen pieces in one direction
+under the counting reading, and eight in both under the glued one. On
+the plain weave it is two of four in one direction under either
+reading, because every strand edge there abuts filler and the two
+questions coincide. Identifying those two sides is what the quotient
+MEANS, so this is a property of putting the two switches together
+rather than a fault in either. If you want an edit that is guaranteed
+to stay on one family under the glued reading, the refinement would
+have to be by the strand an edge belongs to rather than by the
+direction the edge runs in, and that is a decision rather than a
+repair.
 
 A test now guards it on the plain weave under both readings, asserting
 three separate things: that the split is a refinement rather than a

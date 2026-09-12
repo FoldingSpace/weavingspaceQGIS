@@ -11785,6 +11785,25 @@ refinement of the classes on screen, and a refinement that is not one
 would quietly move an edit onto edges nobody chose. Three weaves at
 three widths pass it.
 
+AND AN EDGE'S DIRECTION IS NOT THE STRAND FAMILY THAT OWNS IT, which is
+the correction the edit measurement forced and which had been asserted
+the other way in four documents for an afternoon. A horizontal edge is
+the flank of a weft OR the END CAP of a warp. The quotient declares an
+aspect hole's opposite sides one side, and on `twill weave a|b` at 0.75
+that unions a class of 64 weft flanks with one of 69 warp end caps: one
+class, one direction, two families. So an edit aimed at a refined class
+moves 4 of 16 pieces in one direction under the counting reading and 8
+of 16 in both under the glued one, while `plain weave a|b` gives 2 of 4
+in one direction under both, every strand edge there abutting filler.
+No gluing unions classes of different direction, checked separately, so
+the mixing is the quotient's own meaning rather than a fault. THE FIRST
+INSTRUMENT COULD NOT SEE ANY OF THIS: it took the symmetric difference
+of all the cloth and attributed each patch to whatever lay within a map
+unit, and a corner is that close to a warp and a weft alike, so every
+row read "two directions" while the moved AREA halved exactly, 0.0023
+of a cell to 0.0012. Comparing each piece with its own edited self
+needs no such tolerance.
+
 AND THE LABELS ARE REWRITTEN RATHER THAN MAPPED, which is what answers
 C-353's "not built" paragraph. A gluing is a MERGE and travels as a map
 from label to class; a refinement is a SPLIT and no map from the
