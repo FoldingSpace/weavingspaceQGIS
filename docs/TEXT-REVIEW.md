@@ -508,33 +508,33 @@ changelog=0.24.4 Saving a map is now something you do rather than
 
 **`weavingspace_qgis/topology_edits.py:1476`** — in `scaffolded_weave`
 
-<!-- id:cbda5205b1d98411 -->
-> the weave could not be built: {}
+<!-- id:adfb9aa2dd1d5e41 -->
+> This weave could not be built: {}
 
 **`weavingspace_qgis/topology_edits.py:1481`** — in `scaffolded_weave`
 
-<!-- id:ff426542b4059199 -->
-> the weave has no strands to build from
+<!-- id:16b9fcaed8d5907d -->
+> This weave has no strands to build from, so there is nothing here to edit.
 
-**`weavingspace_qgis/topology_edits.py:1502`** — in `scaffolded_weave`
+**`weavingspace_qgis/topology_edits.py:1503`** — in `scaffolded_weave`
 
-<!-- id:bdbc3badfba1456d -->
-> the library would not rebuild the unit from the scaffolded tiles
+<!-- id:1719e479f4283aab -->
+> Our library would not rebuild the design once its gaps were filled, so there is nothing here to edit.
 
-**`weavingspace_qgis/topology_edits.py:1506`** — in `scaffolded_weave`
+**`weavingspace_qgis/topology_edits.py:1508`** — in `scaffolded_weave`
 
-<!-- id:88b067bf51d58913 -->
-> the scaffolding leaves a gap of {} and an overlap of {} of a cell, so it is not a tiling
+<!-- id:152240551f8d6dc8 -->
+> Filling this weave's gaps left a gap of {} and an overlap of {} of a cell, so the result does not tile and cannot carry a structure.
 
-**`weavingspace_qgis/topology_edits.py:2006`** — in `keep_warp_and_weft_apart`
+**`weavingspace_qgis/topology_edits.py:2009`** — in `keep_warp_and_weft_apart`
 
-<!-- id:7c0c933741e6d58a -->
-> this design has no second strand direction to keep apart
+<!-- id:c0c49622834c9db9 -->
+> This design has no second strand direction to keep apart from the first.
 
-**`weavingspace_qgis/topology_edits.py:2025`** — in `keep_warp_and_weft_apart`
+**`weavingspace_qgis/topology_edits.py:2028`** — in `keep_warp_and_weft_apart`
 
-<!-- id:4605e789ba14d173 -->
-> this design's symmetries do not reproduce its own classes, so warp and weft cannot be told apart here
+<!-- id:942208847bb50a91 -->
+> Warp and weft could not be told apart on this design, so its classes are unchanged.
 
 **`weavingspace_qgis/topology_tab.py:2545`** — in `__init__`
 
@@ -546,17 +546,17 @@ changelog=0.24.4 Saving a map is now something you do rather than
 <!-- id:6aadb07fc44d2232 -->
 > Whether strand-width gaps count in the structure, like a dropped strand.
 
-**`weavingspace_qgis/topology_tab.py:2567`** — in `__init__`
+**`weavingspace_qgis/topology_tab.py:2572`** — in `__init__`
 
-<!-- id:5a710d36b233652f -->
-> Together, as the drawing's symmetry has them
+<!-- id:cc36fe60d10b0735 -->
+> Together, where a mirror swaps warp for weft
 
-**`weavingspace_qgis/topology_tab.py:2569`** — in `__init__`
+**`weavingspace_qgis/topology_tab.py:2574`** — in `__init__`
 
-<!-- id:cedc882f5164269d -->
-> Apart, as a cloth has them
+<!-- id:6a3d281926aea30f -->
+> Apart, as a loom keeps them
 
-**`weavingspace_qgis/topology_tab.py:2571`** — in `__init__`
+**`weavingspace_qgis/topology_tab.py:2576`** — in `__init__`
 
-<!-- id:d8ec2c7140e5bd6e -->
-> Whether one class may hold both warp and weft edges, as the drawing does.
+<!-- id:a5a0cedaeb24f97a -->
+> Whether a mirror swapping warp for weft may put both in one class.

@@ -2563,16 +2563,20 @@ class TopologyPanel(QWidget):
     # a cloth has none, warp and weft differing physically whatever the
     # picture does. So the choice is between the picture's symmetry and
     # the cloth's, which is the question itself.
+    # THE LABEL NAMES WHAT IS DECIDED, as `Gaps from strand width`
+    # does, and the OPTIONS name the symmetry at stake. A label saying
+    # "considered separately" was weighed and refused: it states one of
+    # the two answers, so it contradicts the chooser whenever the other
+    # is picked, and it would widen the label column four rows share.
     self.strand_families = QComboBox()
-    self.strand_families.addItem("Together, as the drawing's symmetry has "
-                                 "them", "together")
-    self.strand_families.addItem("Apart, as a cloth has them", "apart")
+    self.strand_families.addItem("Together, where a mirror swaps warp for "
+                                 "weft", "together")
+    self.strand_families.addItem("Apart, as a loom keeps them", "apart")
     self.strand_families.setToolTip(
-      "Whether one class may hold both warp and weft edges, as the drawing "
-      "does.")
+      "Whether a mirror swapping warp for weft may put both in one class.")
     self.strand_families.currentIndexChanged.connect(
       self._on_strand_families_chosen)
-    grid.addWidget(QLabel("Warp and weft"), 1, 0)
+    grid.addWidget(QLabel("Warp and weft classes"), 1, 0)
     grid.addWidget(self.strand_families, 1, 1)
 
     self.class_combo = QComboBox()

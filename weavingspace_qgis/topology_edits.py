@@ -1473,12 +1473,13 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
     unit = catalog.make_unit(spec, spacing=spacing, crs=crs,
                              aspect=built_at, strands=strands)
   except Exception as exc:                            # noqa: BLE001
-    return None, {}, f"the weave could not be built: {exc}"
+    return None, {}, f"This weave could not be built: {exc}"
   strand_tiles = [(g, str(i)) for g, i in
                   zip(unit.tiles.geometry, unit.tiles["tile_id"])
                   if g.geom_type == "Polygon"]
   if not strand_tiles:
-    return None, {}, "the weave has no strands to build from"
+    return None, {}, ("This weave has no strands to build from, so "
+                      "there is nothing here to edit.")
   kinds = {}
   geometries, ids = [], []
   for geometry, tile_id in strand_tiles:
@@ -1499,13 +1500,15 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
                            crs=unit.tiles.crs)
   filled = _shallow_copy_with_tiles(unit, frame)
   if filled is None:
-    return None, kinds, "the library would not rebuild the unit from " \
-                        "the scaffolded tiles"
+    return None, kinds, ("Our library would not rebuild the design "
+                         "once its gaps were filled, so there is "
+                         "nothing here to edit.")
   gap, overlap, _left = plane_coverage(filled)
   if gap > 1e-6 or overlap > 1e-6:
-    return None, kinds, (f"the scaffolding leaves a gap of {gap:.6f} and an "
-                         f"overlap of {overlap:.6f} of a cell, so it is not "
-                         f"a tiling")
+    return None, kinds, (f"Filling this weave's gaps left a gap of "
+                         f"{gap:.6f} and an overlap of {overlap:.6f} of a "
+                         f"cell, so the result does not tile and cannot "
+                         f"carry a structure.")
   return filled, kinds, ""
 
 
@@ -2003,8 +2006,8 @@ def keep_warp_and_weft_apart(topology, kinds: dict = None) -> dict:
   before = (len(class_labels(topology)["edge"]),
             len(class_labels(topology)["vertex"]))
   if len(directions) < 2:
-    return {"note": "this design has no second strand direction to keep "
-                    "apart", "directions": directions,
+    return {"note": "This design has no second strand direction to keep "
+                    "apart from the first.", "directions": directions,
             "before": before, "after": before}
   edges = [edge for edge in topology.edges.values()
            if getattr(edge, "label", None)]
@@ -2022,8 +2025,8 @@ def keep_warp_and_weft_apart(topology, kinds: dict = None) -> dict:
       != _partition_of(library_edges)
       or _partition_of(_orbits(vertex_places, pool))
       != _partition_of(library_points)):
-    return {"note": "this design's symmetries do not reproduce its own "
-                    "classes, so warp and weft cannot be told apart here",
+    return {"note": "Warp and weft could not be told apart on this "
+                    "design, so its classes are unchanged.",
             "directions": directions, "before": before, "after": before}
   kept = [matrix for matrix in pool
           if _carries_every_direction(matrix, directions)]
