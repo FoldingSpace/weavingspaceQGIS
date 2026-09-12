@@ -1500,7 +1500,7 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
                            crs=unit.tiles.crs)
   filled = _shallow_copy_with_tiles(unit, frame)
   if filled is None:
-    return None, kinds, ("Our library would not rebuild the design "
+    return None, kinds, ("The WeavingSpace library would not rebuild the design "
                          "once its gaps were filled, so there is "
                          "nothing here to edit.")
   gap, overlap, _left = plane_coverage(filled)

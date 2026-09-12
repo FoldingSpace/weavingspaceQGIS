@@ -299,6 +299,11 @@
   "excerpt": "A {} weave runs strands in two directions, so a third would ",
   "where": "weavingspace_qgis/catalog.py"
  },
+ "152240551f8d6dc8": {
+  "approved": "2026-09-12",
+  "excerpt": "Filling this weave's gaps left a gap of {} and an overlap of",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "159bf633920001de": {
   "approved": "2026-08-09",
   "excerpt": "Keeps whole units that touch the region, letting the pattern",
@@ -308,6 +313,11 @@
   "approved": "2026-08-13",
   "excerpt": "A tiles inset of {}% has removed {} of this design's {} elem",
   "where": "weavingspace_qgis/bridge.py"
+ },
+ "16b9fcaed8d5907d": {
+  "approved": "2026-09-12",
+  "excerpt": "This weave has no strands to build from, so there is nothing",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "1741d72d930583e4": {
   "approved": "2026-08-08",
@@ -549,6 +559,11 @@
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
  },
+ "337dd9cd694e744d": {
+  "approved": "2026-09-12",
+  "excerpt": "Count, like a hole made by a 'missing' strand",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "342d8f97c901d8e4": {
   "approved": "2026-08-08",
   "excerpt": "<figure>\n  <img src=\"img/paper-fig1-auckland-deprivation.png",
@@ -648,6 +663,11 @@
   "approved": "2026-08-29",
   "excerpt": "Somebody else has changed this file since the map was opened",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "3b4c5861b4e9b3ca": {
+  "approved": "2026-09-12",
+  "excerpt": "The WeavingSpace library would not rebuild the design once i",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "3b8726b210fd02dc": {
   "approved": "2026-08-17",
@@ -1284,6 +1304,11 @@
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
  },
+ "6ad08823a4128aec": {
+  "approved": "2026-09-12",
+  "excerpt": "Together, where a mirror swaps warp for weft (symmetry group",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "6aed089cfd06b1e2": {
   "approved": "2026-08-27",
   "excerpt": "Choose a file in the box beside Save first.",
@@ -1494,6 +1519,11 @@
   "excerpt": "region (from the saved map)",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "80242e4fcdaf17f5": {
+  "approved": "2026-09-12",
+  "excerpt": "Apart, as a loom keeps them (direction-preserving subgroup)",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "807759666588f171": {
   "approved": "2026-08-09",
   "excerpt": "Number of classes; categorized rows show how many categories",
@@ -1523,6 +1553,11 @@
   "approved": "2026-08-09",
   "excerpt": "The region layer was removed from the project, so there is n",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "83850d30642cafc8": {
+  "approved": "2026-09-12",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
  },
  "851a11ef81be0b47": {
   "approved": "2026-08-15",
@@ -1698,6 +1733,11 @@
   "approved": "2026-08-31",
   "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
   "where": "weavingspace_qgis/metadata.txt"
+ },
+ "942208847bb50a91": {
+  "approved": "2026-09-12",
+  "excerpt": "Warp and weft could not be told apart on this design, so its",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "9429cfb4275d4bef": {
   "approved": "2026-08-08",
@@ -1919,6 +1959,11 @@
   "excerpt": "Number of classes for this element's Quant symbology; catego",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "a5a0cedaeb24f97a": {
+  "approved": "2026-09-12",
+  "excerpt": "Whether a mirror swapping warp for weft may put both in one ",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "a6a53315fb6e79c5": {
   "approved": "2026-08-31",
   "excerpt": "<div class=\"obtain\">\n  <p><a href=\"https://github.com/Foldin",
@@ -1993,6 +2038,11 @@
   "approved": "2026-08-08",
   "excerpt": "Pick a design to preview it.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "adfb9aa2dd1d5e41": {
+  "approved": "2026-09-12",
+  "excerpt": "This weave could not be built: {}",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "ae218570e34ec102": {
   "approved": "2026-08-08",
@@ -2073,6 +2123,11 @@
   "approved": "2026-08-29",
   "excerpt": "There is nothing at {}, so there is no map to open. Check wh",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "b6de67c10ee51b8f": {
+  "approved": "2026-09-12",
+  "excerpt": "Whether strand-width gaps count in the structure, like a hol",
+  "where": "weavingspace_qgis/topology_tab.py"
  },
  "b82031d17558e246": {
   "approved": "2026-08-08",
@@ -2183,6 +2238,11 @@
   "approved": "2026-08-19",
   "excerpt": "Where the ladder starts; values below are not drawn",
   "where": "weavingspace_qgis/category_editor.py"
+ },
+ "c0c49622834c9db9": {
+  "approved": "2026-09-12",
+  "excerpt": "This design has no second strand direction to keep apart fro",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "c0cbfcfe8f73d116": {
   "approved": "2026-08-09",

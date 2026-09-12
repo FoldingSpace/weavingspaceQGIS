@@ -2544,11 +2544,12 @@ class TopologyPanel(QWidget):
     # there" named the consequence and hid the comparison, which is the
     # question itself (maintainer's correction, 2026-09-08).
     self.aspect_reading = QComboBox()
-    self.aspect_reading.addItem("Count, like a dropped strand", "like-a-drop")
+    self.aspect_reading.addItem("Count, like a hole made by a 'missing' strand",
+                                "like-a-drop")
     self.aspect_reading.addItem("Ignore, like an inset", "like-an-inset")
     self.aspect_reading.setToolTip(
-      "Whether strand-width gaps count in the structure, like a dropped "
-      "strand.")
+      "Whether strand-width gaps count in the structure, like a hole made "
+      "by a 'missing' strand.")
     self.aspect_reading.currentIndexChanged.connect(
       self._on_aspect_reading_chosen)
     grid.addWidget(QLabel("Gaps from strand width"), 0, 0)
