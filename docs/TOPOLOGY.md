@@ -1132,14 +1132,54 @@ moves with the aspect. Changing the over and under, re-phasing, or
 dropping a strand are not edits of this kind at all: they compose a
 different cloth, and belong with the strands code.
 
+AND BOTH READINGS ARE BUILT, THE SECOND AS A QUOTIENT. A weave's
+ground is empty from three causes and which of them a structure may
+see is a principle rather than a fact, so the reading is applied by
+REBUILDING with the causes it disregards set to their neutral values,
+never by labelling a region with what opened it -- one aperture mixes
+provenance, and "opened by the hyphen" is itself ambiguous between the
+band a hyphen opens at full width and the extra it opens at a given
+width. An INSET is neutralised on its own evidence: with a 6% tile
+inset a whole patch is ONE connected region, so an inset does not add
+holes, it dissolves them. The ASPECT gap is quotiented instead of
+rebuilt away, a rectangular hole read as though the strands facing
+across it touched, since rebuilding at full width fuses same-label
+pieces at 1.0, leaves a hairline of 0.00028 square units at 0.999 that
+`get_clean_polygon` reduces below four corners, and fuses them again if
+the hairline is closed by growing the strands. Measured at aspects 0.9,
+0.75 and 0.5 and invariant across them: `plain weave a|b` 10 edge and 7
+vertex classes counting against 6 and 3 glued, `twill weave a|b` 6 and
+4 against 4 and 1, `twill weave a|b-` 52 and 30 against 37 and 11,
+`plain weave ab-|cd-` 204 and 136 against 136 and 34. AND AN EDIT
+CROSSES THE GAP, measured: a zigzag aimed at the first edge class of
+`twill weave a|b` at aspect 0.75 moves 8 of 16 ribbon pieces unglued
+and 16 of 16 glued, the class widening from one library label to two,
+with the unglued arm as the control. (C-352.)
+AND A SECOND, INDEPENDENT SWITCH KEEPS A CLASS ON ONE STRAND FAMILY.
+The library's classes are orbits under the design's FULL symmetry
+group, which for a weave admits a mirror carrying warps onto wefts, so
+a class holds 81 vertical edges against 80 horizontal on one twill
+class -- a symmetry of the picture rather than of the cloth. Orbits
+under the direction-preserving subgroup refine them and cost exactly a
+factor of two on three weaves, both readings and three widths, with
+copies under the lattice never disagreeing. What is measured is a
+PROXY by edge orientation; computing the subgroup means reading
+`tile_matching_transforms` and keeping the transforms that carry a
+direction to itself, and triaxially the splitting could be sixfold.
+(C-353.)
+
 The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 `tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`,
 `tools/probes/the_topology_of_a_thin_weave.py`,
 `tools/probes/a_weave_topology_that_ignores_its_gaps.py`,
 `tools/probes/what_the_daylight_replaces.py`,
 `tools/probes/the_weave_as_an_interlacement.py`,
-`tools/probes/three_kinds_of_absence.py` and
-`tools/probes/the_join_between_a_weave_and_its_drawing.py`. The full
+`tools/probes/three_kinds_of_absence.py`,
+`tools/probes/the_join_between_a_weave_and_its_drawing.py`,
+`tools/probes/does_an_edit_cross_a_weaves_gap.py`,
+`tools/probes/classes_that_stay_on_one_strand_family.py`,
+`tools/probes/the_apertures_a_weave_leaves.py` and
+`tools/probes/what_a_quotient_does_to_a_hole.py`. The full
 record, the dead ends and what weaving asks of an edit are in
 docs/process/weaving-and-topology.md; the rulings are C-347.
 

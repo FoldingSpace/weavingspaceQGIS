@@ -2085,6 +2085,42 @@ Confirmed with the user via an explicit design review:
   a refusal our own code composes is a sentence rather than a
   diagnosis. The record is docs/process/weaving-and-topology.md.
   (C-347.)
+- **A WEAVE'S ASPECT GAPS ARE READ TWO WAYS, AND THE READING IS A
+  QUOTIENT RATHER THAN A REBUILD: THE RULINGS OF 2026-09-11.**
+  (Maintainer's construction and two corrections while it was built.)
+  A weave's ground is empty from three causes and which a STRUCTURE may
+  see is a principle, not a fact. (1) THE READING IS APPLIED BY
+  REBUILDING WITH THE CAUSES IT DISREGARDS SET TO THEIR NEUTRAL VALUES,
+  never by labelling a region with the cause that opened it: one
+  aperture mixes provenance, and "opened by the hyphen" is itself
+  ambiguous between the band a hyphen opens at full width and the extra
+  it opens at a given width. AN INSET IS NEUTRALISED ON ITS OWN
+  EVIDENCE -- it opens a channel between every pair of tiles and joins
+  every hole to every other, so it does not add holes, it DISSOLVES
+  them. (2) THE ASPECT GAP IS QUOTIENTED, NOT REBUILT AWAY: a
+  rectangular hole is read as though the strands facing across it
+  touched, two adjacencies rather than four edges, its four corners one
+  point. Rebuilding at full width fails three ways, each measured --
+  1.0 fuses same-label pieces, 0.999 leaves a hairline upstream's
+  cleaner reduces below four corners, and closing the hairline fuses
+  them again -- and the piece correspondence is a bijection on the
+  plain weaves alone. The general rule is that two sides glue where
+  their strands share a DIRECTION, so a triaxial triangle glues none.
+  (3) A GLUED CLASS IS EXPANDED BEFORE AN EDIT IS APPLIED, or the edit
+  reaches one side of a hole and leaves the other: measured at 8 of 16
+  ribbon pieces moved against 16 of 16 on `twill weave a|b`. (C-352.)
+- **AND CLASSES MAY BE KEPT ON ONE STRAND FAMILY, WHICH IS A SECOND
+  AND INDEPENDENT SWITCH.** The library takes orbits under the design's
+  FULL symmetry group, which for a weave admits a mirror carrying warps
+  onto wefts, so a class holds edges of both directions -- 81 vertical
+  against 80 horizontal on one twill class. A CLOTH HAS NO SUCH
+  SYMMETRY, warp and weft differing physically whatever the drawing
+  does, so it is a symmetry of the picture rather than of the weave.
+  Orbits under the direction-preserving subgroup refine the library's
+  and cost exactly a factor of two on every weave, reading and width
+  measured. It applies under either answer to the aspect question, so
+  the two are separate controls; unlike that one it has an argument
+  pointing only one way. (C-353.)
 - **A STRANDS CODE IS SOMETHING YOU TYPE, AND THE CODE SETS THE
   ELEMENT COUNT.** (Maintainer's ruling, 2026-09-08.) The catalogue's
   77 weave entries carried their codes baked in while the guide taught

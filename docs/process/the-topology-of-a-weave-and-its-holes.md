@@ -7,21 +7,23 @@ whoever picks the question up next, and it is organised roughly as the
 investigation went rather than as a tidy result, because the wrong
 turnings are most of what it has to teach.
 
-The short version is in four parts. A thin weave can be given a
-structure by treating the daylight between its strands as tiles, and
-that works, but the structure so obtained belongs to the weave and to
-our cutting of the holes together, and no amount of care about the
-cutting recovers the one thing a weave is about. The second part is that
-this was the wrong place to look: the rendered design is a projection,
-and the over-and-under is exactly what a projection discards. The third
-is that the two halves can be joined after all, which we had thought was
-the open problem and which turns out to be measurable: every drawn piece
-can be attributed to the strand it belongs to, and the classes the
-geometry then falls into are the same partition the code gives, at every
-strand width tried. The fourth takes the three ways a weave's ground can
-be empty, which are not the same kind of thing as each other, and says
-what an edit on a weave would have to preserve to be the analogue of an
-edit on a tiling.
+The short version is in six parts. A thin weave can be given a structure
+by treating the daylight between its strands as tiles, and that works,
+but the structure so obtained belongs to the weave and to our cutting of
+the holes together, and no amount of care about the cutting recovers the
+one thing a weave is about. The second part is that this was the wrong
+place to look: the rendered design is a projection, and the
+over-and-under is exactly what a projection discards. The third is that
+the two halves can be joined after all, which we had thought was the
+open problem and which turns out to be measurable: every drawn piece can
+be attributed to the strand it belongs to, and the classes the geometry
+then falls into are the same partition the code gives, at every strand
+width tried. The fourth takes the three ways a weave's ground can be
+empty, which are not the same kind of thing as each other, and says what
+an edit on a weave would have to preserve to be the analogue of an edit
+on a tiling. The fifth is the record of building both readings, and of
+the two corrections the maintainer made to the design while it was being
+built. The sixth says where all of that leaves us.
 
 Every figure and every number below names the probe that produced it,
 and each was re-run against the code as it stands rather than quoted
@@ -170,20 +172,35 @@ is a nearest-site partition with every strand grown at the same rate
 
 ![A plain weave's daylight cut into typed tiles at four aspects, from tools/probes/holes_made_of_typed_tiles.py.](images/holes-as-tiles/typed-plain-weave-a_b.png)
 
-The cut buys the invariance it was written for, and rather less
-besides. On `plain weave a|b` the typed tiling gives thirty edge classes
-and twenty vertex classes at all four aspects, with a gap and an overlap
-of zero; on `twill weave a|b` it gives a hundred and ninety-five and a
-hundred and thirty, steady from aspect 0.9 to 0.5 and refusing at 0.25.
-Yet on the two weaves that carry a dropped strand it refuses at every
-aspect, and the reason is instructive rather than incidental: the two
-cuts are each canonical and they are not disjoint. The band a hyphen
-leaves and the daylight attributed to the strands beside it share
-ground, by 0.19 of a cell on `twill weave a|b-` at aspect 0.9 and about
-0.11 on `plain weave ab-|cd-`, so what reaches the constructor is not a
-partition at all. That the failure falls precisely on the weaves with
-dropped strands is the awkward part, the dropped strand being the very
-distinction typing the cut was written to respect.
+The cut buys the invariance it was written for. On `plain weave a|b` the
+typed tiling gives thirty edge classes and twenty vertex classes at all
+four aspects, with a gap and an overlap of zero; on `twill weave a|b`, a
+hundred and ninety-five and a hundred and thirty, steady from aspect 0.9
+to 0.5 and refusing at 0.25; on `twill weave a|b-`, a hundred and
+forty-seven and ninety-eight, and on `plain weave ab-|cd-`, three
+hundred and thirty-six and two hundred and twenty-four.
+
+It is worth saying that the last two of those refused outright until the
+day this note was written, and that we recorded the refusal as a fact
+about weaves with dropped strands before looking into it. The two kinds
+of daylight were being measured in different frames. `daylight_by_kind`
+took the width daylight from `plane_coverage`, which measures one
+fundamental cell, and the conscious gap from a difference of tile
+geometry, which overhangs the cell because a weave's strand pieces are
+longer along their axis than the cell is. The two then summed to 0.246
+of a cell against a gap of 0.055, so filling both handed the constructor
+a design overlapping its own translates. Every pairwise intersection
+inside the unit was zero, which is what said the fault was the frame
+rather than the cutting: the pieces are disjoint where they lie and
+double-covered once tiled. Clipping the conscious region to the design's
+own gap makes the two partition it exactly, on five weaves at four
+aspects each, and the refusals go with it (C-351).
+
+TWO THINGS ARE WORTH TAKING FROM THAT beyond the repair. A function
+returning two halves of one quantity has to measure both over the same
+ground, and nothing here was red, because no product code called it yet.
+And a refusal our own code composes reads exactly like a finding, which
+this project has now paid for twice in one investigation.
 
 ## What to do with the kinds
 
@@ -205,11 +222,11 @@ daylight falls into twenty-five components rather than sixteen. Yet the
 distinction the construction exists to draw does not bite. Run twice
 over each hyphen weave, once respecting the hyphen and once joining
 across every gap alike, it returns the same graph both ways: on `twill
-weave a|b-` eight strands and thirteen pairs either way, on `plain
-weave ab-|cd-` sixteen and thirty-one, and the count of pairs the
-hyphen withholds is zero in both. The strands a dropped strand
-separates are, on these weaves, not adjacent for other reasons anyway,
-so a rule written to refuse them refuses nothing.
+weave a|b-` eight strands and thirteen pairs either way, on `plain weave
+ab-|cd-` sixteen and thirty-one, and the count of pairs the hyphen
+withholds is zero in both. The strands a dropped strand separates are,
+on these weaves, not adjacent for other reasons anyway, so a rule
+written to refuse them refuses nothing.
 
 The second absorbs the incidental daylight into the strand it replaces,
 so the filler disappears rather than being contracted over
@@ -498,31 +515,31 @@ Asking which drawn line is which loom row looks like the obvious next
 measurement, and the first attempt at it fails for a reason worth
 recording. Within any one direction every strand of these five weaves
 carries the same float signature, so ordering the strands by signature
-decides nothing and the probe reports the question as undecidable
-rather than answering it, which is the right behaviour: an instrument
-that agreed with itself here would be reporting its own construction.
+decides nothing and the probe reports the question as undecidable rather
+than answering it, which is the right behaviour: an instrument that
+agreed with itself here would be reporting its own construction.
 
 The quantity that does vary between neighbours is the phase, which is
 what separates a twill from a basket in the first place, and it can be
-read off the drawing without consulting the code. A piece is a float,
-so where a strand's pieces begin along its own axis is where its floats
+read off the drawing without consulting the code. A piece is a float, so
+where a strand's pieces begin along its own axis is where its floats
 begin, and the offset from one strand's starts to the next one's is the
 same thing the loom reports as a phase step. Read both ways the
-sequences agree in shape on all five weaves. On `plain weave a|b` and
-on the basket they are identical; on `twill weave a|b` the drawn
-sequence is the loom's negated modulo the repeat, which is a direction
-convention nothing had fixed in advance; and on the two weaves with a
-dropped strand the pattern matches while the values do not, `(1, 0, 1)`
-against `(2, 0, 2)` on `twill weave a|b-`, which we have not run down.
+sequences agree in shape on all five weaves. On `plain weave a|b` and on
+the basket they are identical; on `twill weave a|b` the drawn sequence
+is the loom's negated modulo the repeat, which is a direction convention
+nothing had fixed in advance; and on the two weaves with a dropped
+strand the pattern matches while the values do not, `(1, 0, 1)` against
+`(2, 0, 2)` on `twill weave a|b-`, which we have not run down.
 
-What that establishes is worth stating precisely, being less than a
-full correspondence and a good deal more than nothing. The phase
-invariant survives the projection: whether the steps are constant or
-blocked, and where the zeros fall, is recoverable from the polygons
-alone, and that shape is exactly what tells a twill from a basket. What
-is not established is the absolute correspondence between a loom row
-and a drawn line, and on the hyphen weaves there is a residual we
-cannot yet account for.
+What that establishes is worth stating precisely, being less than a full
+correspondence and a good deal more than nothing. The phase invariant
+survives the projection: whether the steps are constant or blocked, and
+where the zeros fall, is recoverable from the polygons alone, and that
+shape is exactly what tells a twill from a basket. What is not
+established is the absolute correspondence between a loom row and a
+drawn line, and on the hyphen weaves there is a residual we cannot yet
+account for.
 
 ## What the join buys
 
@@ -689,7 +706,210 @@ with the handles on the Topology tab, where somebody is moving a design
 they already have. The line between the two is not a matter of how large
 the change is. It is whether the thing that comes out is the same cloth.
 
-# Part five: where this leaves us
+# Part five: building both readings
+
+Parts three and four leave a design rather than a thing. What follows is
+the record of building it, and of the two corrections the maintainer
+made to the design while it was being built, each of which was better
+than what it replaced.
+
+## The reading is applied by rebuilding, not by labelling a region
+
+The first correction came from a mark-up of the drawing. One aperture in
+a weave with a dropped strand is not of one provenance: part of it would
+be there with every strand threaded, and part only because one is
+missing. Labelling apertures by cause therefore forces a combination per
+aperture, and there are three causes, so eight combinations. Worse,
+"opened by the hyphen" is itself ambiguous between the band a hyphen
+opens at full width and the extra it opens at a given strand width, and
+choosing between those is another arbitrary decision of exactly the kind
+part one died on.
+
+The way out is to decide per CAUSE and evaluate by rebuilding. Each of
+the three removes cloth monotonically, so instead of asking what opened
+a given patch of ground, set the causes ruled non-consequential to their
+neutral values, rebuild the design, and take the holes of that. Three
+independent decisions, three rebuilds, no region-labelling and no
+marginal-effect ambiguity anywhere.
+
+![plain weave ab-|cd- with each set of decisions rebuilt: everything on, the drop counting alone, the aspect counting alone, and all three including an inset. From a scratch probe.](images/holes-as-tiles/holes-by-rebuilding.png)
+
+Two things fall out of that picture. The second and third panels are
+each clean and regular, which is what says both readings are workable
+rather than one being a concession. And the fourth is the argument about
+insets that the earlier parts of this note were missing: with a six per
+cent tile inset the whole patch is one connected region, because an
+inset opens a channel between every pair of tiles and joins every hole
+to every other. An inset does not add holes. It dissolves them, and that
+is a mechanism for neutralising it rather than a convention about the
+order of a pipeline.
+
+## A quotient, not a rebuild
+
+The second correction is the one the implementation rests on. Applying
+the reading that ignores aspect gaps by REBUILDING at full width fights
+the library three times over, and each was measured rather than guessed.
+At exactly 1.0 the assembly fuses same-label pieces, so a twill's
+sixteen tiles become two. Just below it, at 0.999, the residual daylight
+is a hairline of 0.00028 square units on `twill weave a|b-`, which
+upstream's `get_clean_polygon` reduces below four corners and raises on.
+And closing that hairline by growing the strands fuses them again, a
+plain weave's four pieces becoming two. The correspondence between a
+thin weave's pieces and a full-width weave's is a bijection on the plain
+weaves alone and on neither twill nor the basket, so an edit could not
+have been carried back by geometry either. The maintainer's construction
+does it in the STRUCTURE instead. A rectangular aspect hole is read as
+though the strands on opposite sides of it were touching, which is two
+adjacencies rather than four independent edges, and its four corners are
+then one point. Nothing moves, so none of the three failures above can
+arise.
+
+![What a quotient does to a hole: as a tile, the gluing, what it says, and the triaxial case. From tools/probes/what_a_quotient_does_to_a_hole.py.](images/holes-as-tiles/what-a-quotient-does.png)
+
+The triaxial generalisation is worth stating even though it is not yet
+measured. "Opposite" is an accident of the rectangle. The structural
+rule is that two sides of a hole glue where their strands belong to the
+same family, which in a rectangle is the opposite pair and in a
+triangular triaxial aperture is no pair at all, the three sides
+belonging to three directions that already cross each other elsewhere. A
+hexagonal triaxial aperture would have same-family pairs again.
+
+## What the two readings give
+
+Both readings scaffold the design as drawn. The difference is that one
+keeps the aspect daylight as tiles of the structure and the other glues
+each such hole away afterwards, so a caller that merely passed a reading
+without gluing would get the same answer for both, with nothing to say
+so. `weave_topology` therefore applies the gluing itself.
+
+| Weave | aspect gaps count | aspect gaps ignored |
+|---|---|---|
+| plain weave, `a` and `b` | 10 edge, 7 vertex | 6 edge, 3 vertex |
+| twill weave, `a` and `b` | 6 edge, 4 vertex | 4 edge, 1 vertex |
+| twill weave, `a` and `b-` | 52 edge, 30 vertex | 37 edge, 11 vertex |
+| plain weave, `ab-` and `cd-` | 204 edge, 136 vertex | 136 edge, 34 vertex |
+
+Both hold still from aspect 0.9 to 0.5 on every weave. At 0.25 the
+daylight of a twill fragments into twenty-five pieces rather than
+sixteen and both readings move with it, which is a fact about the
+filling rather than about either reading.
+
+## Does an edit actually cross the gap?
+
+That the classes differ does not establish that anything useful follows.
+The question the whole construction has to answer is whether an edit
+aimed at a glued class reaches the strands on BOTH sides of the hole,
+since that adjacency is the entire content of gluing it. One piece had
+to be built for that. Under the glued reading a class stands for several
+of the library's own labels, and the library selects edges by label;
+unless the class is expanded first, an edit reaches one side of a hole
+and leaves the other, which would make the gluing's assertion false at
+the moment it mattered.
+
+![The same zigzag under each reading, with every edge named by its class. From tools/probes/does_an_edit_cross_a_weaves_gap.py.](images/holes-as-tiles/what-an-edit-reaches.png)
+
+Measured on `twill weave a|b` at aspect 0.75, aiming a zigzag at the
+first edge class moves eight of sixteen ribbon pieces under the unglued
+reading and sixteen of sixteen under the glued one, the class having
+widened from one library label to two. The control is the unglued arm,
+which moves strictly fewer pieces of the same design under the same
+edit.
+
+TWO WRONG INSTRUMENTS PRECEDED THAT NUMBER and both read as answers.
+Ground moved doubles under the gluing, which one strand moved twice as
+far would also do. Then counting the strands touched came back "a, b"
+for both readings on every weave, because `tile_id` on a strand is the
+ELEMENT letter and a plain weave's four pieces share two of them: an
+instrument aggregating over the distinction under test, which this
+project has a lesson about and which was walked into anyway.
+
+The plain weave cannot discriminate here, its four pieces moving either
+way. And on `twill weave a|b-` the first of fifty-two classes moves no
+cloth at all, being a class of the scaffolding rather than of any
+ribbon, which is a real consequence of the counting reading: most of the
+classes it offers are filler, and nothing yet says which touch yarn.
+
+## Classes that stay on one strand family
+
+The drawing above raises a question the maintainer put next. Under
+either reading a class jumps between the vertical sides of some holes
+and the horizontal sides of others. That is not the gluing's doing: it
+is there unglued too, where class `a` holds 81 vertical edges and 80
+horizontal ones on a twill. The cause is that the library takes orbits
+under the design's FULL symmetry group, and a weave's geometry admits a
+mirror along its diagonal carrying warps onto wefts. A cloth has no such
+symmetry. Warp and weft differ physically whatever the drawing does, one
+held under tension and one carried across, so the swap is a symmetry of
+the picture rather than of the weave. That is this note's own thesis
+arriving somewhere new.
+
+What is wanted is orbits under the DIRECTION-PRESERVING SUBGROUP. Every
+symmetry either fixes the two strand families or swaps them, which is a
+homomorphism onto a group of order two; its kernel is normal, of index
+one or two, and its orbits refine the library's. A class splits in two
+exactly where no swapping element lies in the stabiliser of any of its
+edges.
+
+| Weave | aspect gaps count | count, strandwise | gaps ignored | ignored, strandwise |
+|---|---|---|---|---|
+| plain weave, `a` and `b` | 10 | 20 | 6 | 12 |
+| twill weave, `a` and `b` | 6 | 12 | 4 | 8 |
+| basket weave, `ab` and `cd` | 31 | 62 | 19 | 38 |
+
+Every class splits, on three weaves, both readings and three strand
+widths, with no exception. Copies under the lattice never disagree on
+their refined label, and the counts do not move with the strand width
+(`tools/probes/classes_that_stay_on_one_strand_family.py`). What is
+measured there is a PROXY: the refinement is taken by each edge's own
+orientation, which agrees with the subgroup's orbits while the index is
+two and the only direction-mixing is the swap. Computing the subgroup
+properly means reading `tile_matching_transforms` and keeping the
+transforms that carry a direction to itself, and that is what should be
+built on. Triaxially the map lands in a group of order six rather than
+two, so a class could split six ways.
+
+## Two switches, not one
+
+The last correction is that these are independent questions. Whether an
+aspect gap counts is one; whether a class may hold edges of both strand
+families is another, and it applies under either answer to the first.
+
+![Two independent switches over two weaves: the middle pair asks whether aspect gaps count, and each wing is that column's own strandwise refinement. From tools/probes/does_an_edit_cross_a_weaves_gap.py.](images/holes-as-tiles/what-an-edit-reaches-wide.png)
+
+The two are not equally open, though. The aspect question is a research
+decision with defensible answers on both sides, which is why the tab
+carries a control for it. The strandwise question has an argument that
+points one way only, since the warp-weft swap is never a symmetry of
+cloth, so it may belong as how a weave's classes are always computed
+rather than as a thing anybody chooses.
+
+## What is built, and what is not
+
+Built: `scaffolded_weave`, `weave_topology` and `glue_the_aspect_holes`
+in `topology_edits.py`; the selector expansion that carries an edit
+across a glued hole; `class_labels`, which returns labels as labels
+rather than joined into a string; and a chooser on the Topology tab
+reading "Count, like a dropped strand" against "Ignore, like an inset",
+which queues a fresh topology and drops the selection when it moves.
+
+Not built: the strandwise refinement as something an edit can be aimed
+at, since the library's selector takes labels alone and cannot express
+"these edges, not those" where the difference is direction. Nor is any
+of it guarded by a test yet, and the tab has been wired rather than
+driven.
+
+TWO SMALLER THINGS SURFACED WHILE BUILDING IT. The cube weaves refused
+the scaffolding at `get_clean_polygon`, which ends in `set_precision` at
+a millionth and hands back a MultiPolygon that `get_corners` asks for
+`.exterior`; snapping our own filler to the same grid first clears that
+raise on two of the three, and what remains is the library moving
+corners in its own regularising step, with our scaffolding measured as
+an exact partition going in. And the two-letter class label the roadmap
+had filed as latent became live the moment anything built on the
+scaffolding, since a weave passes twenty-six classes at once and the
+selector's joined string cannot be split back past `z`.
+
+# Part six: where this leaves us
 
 ## Which structure, for which question
 
@@ -715,10 +935,10 @@ measured and not built: the admissibility condition is stated and its
 ingredients exist, and nothing yet enforces it, since making an edit aim
 at a strand class is a change to the Topology tab and the maintainer's
 to schedule. Three things remain open, and the list is short enough to
-be worth having: the correspondence between a loom row and a drawn
-line, of which part three establishes the phase and not the absolute
-matching; triaxial weaves, which are not measured here at all; and any
-weave outside the five in part three's table.
+be worth having: the correspondence between a loom row and a drawn line,
+of which part three establishes the phase and not the absolute matching;
+triaxial weaves, which are not measured here at all; and any weave
+outside the five in part three's table.
 
 ## Two smaller things that are unfinished
 

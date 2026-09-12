@@ -386,6 +386,8 @@ quote them, do not renumber them.
 - **C-349** — an instrument that aggregates over the distinction under test  <sub>minted</sub>
 - **C-350** — measuring a representation for what it was built to discard  <sub>minted</sub>
 - **C-351** — the two kinds of daylight were measured in different frames  <sub>minted</sub>
+- **C-352** — two readings of a weave's aspect gaps, and a quotient rather than a rebuild  <sub>minted</sub>
+- **C-353** — edge classes that stay on one strand family  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11614,3 +11616,128 @@ pass it trivially, and was watched failing with the fix removed:
 gap is 0.0550". Catalogue entry
 `the-two-kinds-of-daylight-are-in-one-frame`.
 
+### C-352 — two readings of a weave's aspect gaps, and a quotient rather than a rebuild
+
+Settled and built 2026-09-11, the maintainer's construction with two
+corrections made while it was being built. The discussion, with
+figures, is docs/process/the-topology-of-a-weave-and-its-holes.md,
+part five.
+
+THE FIRST CORRECTION came from a mark-up of a drawing. An aperture in
+`plain weave ab-|cd-` at aspect 0.75 mixes provenance: part of it is
+there with every strand threaded, and part only because one is
+missing. Labelling apertures by cause therefore needs a combination
+per aperture, three causes giving eight; and "opened by the hyphen" is
+itself ambiguous between the band the hyphen opens AT FULL WIDTH and
+the marginal extra it opens at a given width, which is another
+arbitrary choice of the kind part one of that report died on. The way
+out is to decide per CAUSE and evaluate by rebuilding, each cause
+being a monotone removal of cloth. Three decisions, three rebuilds, no
+region-labelling.
+
+AND THE INSET IS NEUTRALISED ON ITS OWN EVIDENCE rather than by
+convention. Drawn with a 6% tile inset, a whole patch becomes ONE
+connected region: an inset opens a channel between every pair of tiles
+and joins every hole to every other. It does not add holes. It
+destroys the aperture structure, which is a far stronger reason to
+keep it out of a structure than "it is applied last".
+
+THE SECOND CORRECTION is what the implementation rests on. Applying
+the ignore-the-aspect reading by REBUILDING at full width fights the
+library three times, each measured: at exactly 1.0 the assembly fuses
+same-label pieces and a twill's sixteen tiles become two; at 0.999 the
+residual daylight is a hairline of 0.00028 square units on `twill
+weave a|b-`, which `tiling_utils.get_clean_polygon` reduces below four
+corners and raises on; and closing the hairline by growing the strands
+fuses them again, a plain weave's four pieces becoming two. The
+correspondence between a thin weave's pieces and a full-width weave's
+was measured as a bijection on the two PLAIN weaves and on neither
+twill nor the basket, so an edit could not have been carried back by
+geometry either.
+
+The quotient touches no geometry. A rectangular aspect hole is read as
+though the strands facing each other across it were touching: its
+opposite sides are one side, its four corners one point. The general
+statement, since "opposite" is an accident of the rectangle, is that
+two sides glue where their strands share a DIRECTION -- so a triaxial
+triangular aperture glues no pair, its three sides belonging to three
+families that already cross elsewhere, and a hexagonal one glues like
+a rectangle. The triaxial case is reasoned rather than measured; the
+cube weaves still refuse the scaffolding.
+
+WHAT THE TWO READINGS GIVE, measured at aspects 0.9, 0.75 and 0.5 and
+invariant across them: `plain weave a|b` 10 edge and 7 vertex classes
+counting, 6 and 3 glued; `twill weave a|b` 6 and 4 against 4 and 1;
+`twill weave a|b-` 52 and 30 against 37 and 11; `plain weave ab-|cd-`
+204 and 136 against 136 and 34.
+
+AND A GLUED CLASS HAS TO BE EXPANDED BEFORE AN EDIT IS APPLIED. The
+library selects edges by label and a glued class stands for several
+labels, so without the expansion an edit reaches one side of a hole
+and leaves the other -- which would make the gluing's own assertion
+false exactly where it matters. Measured on `twill weave a|b` at
+aspect 0.75: a zigzag aimed at the first edge class moves 8 of 16
+ribbon pieces unglued and 16 of 16 glued, the class widening from one
+library label to two, with the unglued arm as the control.
+
+TWO INSTRUMENTS GAVE WRONG ANSWERS FIRST and both read as results.
+Ground moved doubles under the gluing, which one strand moved twice as
+far also does. Then counting the strands touched answered "a, b" for
+both readings on every weave, because `tile_id` on a strand is the
+ELEMENT letter and a plain weave's four pieces share two of them --
+an instrument aggregating over the distinction under test (C-349),
+walked into in the session that had just written that lesson down.
+
+### C-353 — edge classes that stay on one strand family
+
+Raised by the maintainer 2026-09-11 from the drawing itself: under
+both readings a class appears on the vertical sides of some holes and
+the horizontal sides of others.
+
+It is not the gluing's doing. Unglued, `twill weave a|b` class `a`
+holds 81 vertical edges and 80 horizontal ones. The cause is that the
+library takes edge classes as orbits under the design's FULL symmetry
+group G, and a weave's geometry admits a mirror along its diagonal
+carrying warps onto wefts.
+
+A CLOTH HAS NO SUCH SYMMETRY. Warp and weft differ physically whatever
+the drawing does, one held under tension on the loom and one carried
+across, so the swap is a symmetry of the PICTURE rather than of the
+weave. That is the weave report's own thesis arriving in a new place.
+
+THE REFINEMENT IS ORBITS UNDER THE DIRECTION-PRESERVING SUBGROUP.
+Every element of G either fixes the two strand families or swaps them,
+which is a homomorphism onto a group of order two; its kernel H is
+normal, of index one or two, and H-orbits refine G-orbits. A G-orbit
+splits in two exactly where no swapping element lies in the stabiliser
+of any of its edges, and because H is normal the quotient acts on the
+H-orbits and pairs them, which is why the splitting is uniform rather
+than ragged.
+
+MEASURED, on three weaves, both readings and three strand widths, the
+refinement costs exactly a factor of two every time, with no class
+staying single: `plain weave a|b` 10 to 20 counting and 6 to 12 glued,
+`twill weave a|b` 6 to 12 and 4 to 8, `basket weave ab|cd` 31 to 62
+and 19 to 38. Copies under the lattice never disagree on their refined
+label, and the counts do not move with the strand width
+(`tools/probes/classes_that_stay_on_one_strand_family.py`).
+
+WHAT IS MEASURED IS A PROXY and the probe's docstring says so: the
+refinement is taken by each EDGE'S OWN ORIENTATION, which agrees with
+the H-orbits while the index is two and the only direction-mixing is
+the swap. Computing H properly means reading
+`tile_matching_transforms`, keeping the transforms that carry a
+direction to itself, and taking orbits under those. Triaxially the
+homomorphism lands in a group of order six rather than two, so a class
+could split six ways.
+
+IT IS A SECOND AND INDEPENDENT SWITCH, which the maintainer pointed
+out from a figure drawn with only three of the four combinations: the
+refinement applies under either answer to the aspect question. Unlike
+that question it has an argument pointing one way only, so it may
+belong as how a weave's classes are always computed rather than as
+something anybody chooses.
+
+NOT BUILT: the refinement as something an edit can be AIMED at. The
+library's selector takes labels alone and cannot express "these edges,
+not those" where the difference is direction.

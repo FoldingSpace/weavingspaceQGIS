@@ -527,6 +527,61 @@ colleague can open without the plugin at all. And anything travelling
 as a tuple comes home as a list, JSON having no tuple, so every reader
 has to put it back.
 
+### A weave reaches a topology through scaffolding, read two ways
+
+`Topology` needs a gap-free tiling and a weave below full width is not
+one, so `topology_edits.scaffolded_weave` fills the daylight and hands
+the constructor a stand-in. It returns `(unit, kinds, note)`, `kinds`
+saying of every tile whether it is `strand`, `aspect` or `dropped`, so
+the caller can recover the cloth afterwards; `weave_topology` wraps it
+and `build(unit, weave=...)` reaches it from the dialog, trying the
+design PLAINLY FIRST so a weave at full width is never scaffolded.
+
+**THE READING IS A QUOTIENT OF THE STRUCTURE, NOT A DIFFERENT
+GEOMETRY.** Both readings scaffold the design as drawn.
+`ASPECT_LIKE_A_DROP` keeps the daylight a strand's width opened as
+tiles of the structure, exactly as a hyphen's ground is kept;
+`ASPECT_LIKE_AN_INSET` calls `glue_the_aspect_holes` afterwards, which
+unions the label of each such hole's opposite edges and identifies its
+four corners. Nothing moves. Neutralising the strand width by
+REBUILDING at full width was tried and fails three ways, each measured
+and each in the library rather than here (C-352).
+
+**THE READING IS APPLIED WHERE IT IS NAMED.** `weave_topology` does the
+gluing itself, because both readings scaffold identically and a caller
+that merely passed a reading would otherwise get the same structure for
+both with nothing to say so. It returns the label maps beside the
+topology, and every consumer takes them: `class_labels` collapses the
+chooser's list, and `apply` widens an edit's selector to every library
+label the glued class stands for. Without that last one an edit reaches
+one side of a hole and leaves the other, which is the adjacency the
+gluing exists to assert.
+
+**AND `classes()` IS THE LIBRARY'S SELECTOR, NOT A LIST OF LABELS.** It
+joins them into one string, which is the form `transform_geometry`
+takes and which cannot be split back once the library issues `aa` after
+`z`. A scaffolded weave passes twenty-six classes at once, so anything
+wanting labels AS labels asks `class_labels`, which also sorts
+one-letter before two-letter as `bridge.element_order` does for element
+ids.
+
+**THE FILLER IS SNAPPED BEFORE IT IS HANDED OVER.**
+`get_clean_polygon` ends in `gridify`, which is `set_precision` at
+1e-06, and a piece pinching at that scale returns a MultiPolygon that
+`get_corners` asks for `.exterior`. The filler is ours to shape, so
+`_snapped_pieces` grids it first and lets anything the grid splits
+become its own tile, which the scaffolding wants anyway since
+`_setup_regularised_prototile` dissolves by `tile_id`. Measured on the
+three cube weaves at aspect 0.75: 3 filler pieces of 68, 11 of 65 and
+13 of 21 stop being a single polygon under the library's own gridify.
+
+**WHAT THE TAB SHOWS.** The `Gaps from strand width` chooser sits above
+the class controls, since the reading decides what the classes ARE
+rather than how they are drawn; changing it queues a fresh topology
+through `_queue_topology` and drops the selection, a class named under
+one reading need not existing under the other. It is not a term of
+`_geometry_signature`: no map geometry moves, so nothing re-tiles.
+
 ### A strands code you can type, and what follows what
 
 A weave's strands code says which elements ride in which direction --

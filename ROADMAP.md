@@ -373,28 +373,29 @@ docs/process/weaving-and-topology.md and
 docs/process/the-topology-of-a-weave-and-its-holes.md. WHAT IS OWED:
 
 - USE THE DISTINCTION: an edit travels across width daylight and never
-  through a hyphen, both kinds still being FILLED.
+  through a hyphen, both being FILLED.
 - AIM AT A STRAND OR TAKE THE GRID ANSWER BELOW, a DECISION for the
   maintainer, on which the strand half is now better informed: strand
-  classes are few and read off the DRAWING as well as the code,
-  agreeing in shape and steady across strand widths on five weaves
-  (`tools/probes/the_join_between_a_weave_and_its_drawing.py`). OWED
-  FIRST is that join's MEMBERSHIP half, only its shapes being shown.
+  classes are few and agree in shape across widths on five weaves
+  (`the_join_between_a_weave_and_its_drawing.py`). OWED FIRST is that
+  join's MEMBERSHIP half, only its shapes being shown.
 - ADMISSIBILITY NOW HAS A STATEMENT to build as a guard: the
-  INTERLACEMENT must be unchanged, C-347's empirical rule restated,
-  and a strand's room is exactly one minus the aspect, so the record
-  names a strand and the clamp lands on the way to the screen (C-342).
-- A TWO-LETTER CLASS LABEL at 36 classes, which `classes()` and `label
-  in selector` both mishandle. Not live; owed by whatever builds on it.
-- THE CUBE WEAVES ARE DIAGNOSED, two to their root: all three fail in
-  `set_precision`, which raises on some filler and splits other into a
-  multi-part `get_corners` cannot take. Snapping is not the whole
-  repair. TWO notes await a SENDING, the maintainer's act.
+  INTERLACEMENT must be unchanged, and a strand's room is one minus
+  the aspect, so the record names a strand and the clamp lands on the
+  way to the screen (C-342, C-347).
+- A TWO-LETTER CLASS LABEL at 36 classes was LIVE and is handled:
+  `class_labels` reads labels off the topology rather than splitting
+  the library's joined selector. No test guards it.
+- THE CUBE WEAVES ARE DIAGNOSED, all three failing in `set_precision`,
+  which raises on some filler and splits other into a multi-part
+  `get_corners` cannot take. A PATCH IS IN (`_snapped_pieces` snaps
+  then explodes, giving each part its own tile id) and it does not
+  reach these three. TWO notes await a SENDING, the maintainer's act.
 
 THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand following a
-PATH undulates authentically at any width, needing no filler, no
-topology and no dropping step. That wants `_weave_grid` to take a path
-rather than an orientation, so it is upstream's as much as ours.
+PATH undulates at any width, needing no filler and no dropping step.
+That wants `_weave_grid` to take a path rather than an orientation, so
+it is upstream's as much as ours.
 
 **A STRANDS CODE YOU CAN TYPE -- THE SIMPLE VERSION IS BUILT.** A
 validated box feeds `strands`, the code sets the element count and the
@@ -445,35 +446,37 @@ WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
 rather than a transform applied after, so there is no un-thinned unit
 to edit and thin later. That is the R-40 boundary, measured.
 
-**ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? A TOGGLE, AND A
-DECISION FOR THE MAINTAINER AND DAVID.** (Maintainer's question,
-2026-09-08, with the consequences measured before it is put.) A weave
-read as strands alone has ONE kind of thing where a tiling has two,
-edges and vertices, and the candidate second kind is the APERTURE, a
-hole through the cloth. Whether the daylight a narrow strand opens
-counts as one is a principle rather than a fact, and the maintainer's
-proposal is a TOGGLE. What the measurement says about the choice
-(`tools/probes/the_apertures_a_weave_leaves.py`, six weaves at five
-strand widths):
+**ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? BOTH READINGS ARE
+BUILT; THE DECISION IS THE MAINTAINER'S AND DAVID'S.** (Maintainer's
+question, 2026-09-08; both readings coded at their ask, 2026-09-11.) A
+chooser on the Topology tab, "Gaps from strand width", offers "Count,
+like a dropped strand" against "Ignore, like an inset". Counting is the
+scaffolded topology as built. Ignoring is a QUOTIENT rather than a
+rebuild: an aspect hole's opposite sides are declared one side and its
+four corners one point, which is C-352 and the maintainer's
+construction, since a full-width rebuild fuses at 1.0 and leaves a
+hairline `get_clean_polygon` destroys at 0.999. The measurements that
+put the question stand (`the_apertures_a_weave_leaves.py`): the
+dropped-pair hole survives full width, so the toggle decides less than
+it looks, and what is at stake is `twill weave a|b`'s four apertures.
+The reading changes class counts by about a third and CARRIES AN EDIT
+ACROSS THE GAP, measured at 16 of 16 ribbon pieces glued against 8
+unglued (`does_an_edit_cross_a_weaves_gap.py`). WHAT IS OWED:
 
-- THE DISCRIMINATOR IS NOT A MATTER OF TASTE: an aperture the CODE
-  left open survives at a strand width of 0.999, and one the DRAWING
-  opened closes. `twill weave ab-|cd-` holds exactly one aperture in
-  one class at every width including full, and it is where a dropped
-  warp crosses a dropped weft.
-- SO THE TOGGLE DECIDES LESS THAN IT LOOKS. The dropped-pair hole is
-  present under BOTH readings, since it is there in the full-width
-  weave too; all that is at stake is `twill weave a|b`'s four
-  apertures, which appear between widths 0.9 and 0.75.
-- AND THE COST OF COUNTING THEM IS ONE CLASS APPEARING AS A SLIDER
-  MOVES, not the sixfold multiplication part one died of.
-- A DROPPED PAIR DOES NOT ALWAYS MAKE A HOLE, which refines the
-  premise: `twill weave ab-|cd-` encloses one and `plain weave
-  ab-|cd-` encloses none, the twill's longer floats bridging across
-  where the plain weave's alternation leaves an open channel.
+- NO TEST GUARDS ANY OF IT. The readings, the quotient, the selector
+  expansion and `class_labels` are all unwatched. One catalogue entry
+  covers the two kinds of daylight and none covers these.
+- THE TAB IS WIRED AND HAS NOT BEEN DRIVEN under QGIS. The chooser,
+  the requeue on change and the glued labels are read from the code.
+- A SECOND, INDEPENDENT SWITCH IS MEASURED AND NOT BUILT (C-353): the
+  library's classes are orbits under a group whose mirror swaps warp
+  for weft, a symmetry of the picture and never of a cloth. Orbits
+  under the direction-preserving subgroup cost exactly twice on every
+  weave measured, and triaxially could cost six times. What is
+  measured is a PROXY by edge orientation; the real thing reads
+  `tile_matching_transforms`.
 
-Nothing is built and nothing should be until the maintainer and David
-have the table above. The discussion is
+The discussion, with figures, is
 docs/process/the-topology-of-a-weave-and-its-holes.md.
 
 **THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.

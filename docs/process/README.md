@@ -62,8 +62,8 @@ still there, so the day it closes we are told.
 
 **The topology of a weave, and what its holes have to do with it**
 (`the-topology-of-a-weave-and-its-holes.md`) is the long discussion,
-with figures, behind the weave record below, and it is in five parts
-because the investigation turned over twice. The first works
+with figures, behind the weave record below, and it is in six parts
+because the investigation turned over twice and was then built. The first works
 on the rendered design: a thin weave has holes by construction, filling
 them with tiles gives it a structure, and a control shows that
 structure follows how the holes were cut, the same ground cut two ways
@@ -86,9 +86,15 @@ setting applied last, an aspect gap is incidental and cannot be undone
 by rebuilding, and a dropped strand is declared by the code and is not
 a hole at all. It then says what an edit on a weave would have to
 preserve to be the analogue of an edit on a tiling, which is the
-interlacement rather than the cover. Read it before building on a
-weave's classes, or before quoting "the dual of a weave", which is not
-a definite phrase until somebody says what the holes are.
+interlacement rather than the cover. The fifth is the record of
+building both readings, where the gap turns out to be quotiented rather
+than rebuilt away, and where an edit aimed at a glued class is measured
+reaching sixteen of sixteen ribbon pieces against eight without it. The
+sixth adds a second and independent switch: the library's classes are
+orbits under a group containing a mirror that swaps warp for weft,
+which is a symmetry of the picture and never of a cloth. Read it before
+building on a weave's classes, or before quoting "the dual of a weave",
+which is not a definite phrase until somebody says what the holes are.
 
 **Editing a weave's structure** (`weaving-and-topology.md`) asks
 whether the Topology tab's refusal of every weave is a fact about
