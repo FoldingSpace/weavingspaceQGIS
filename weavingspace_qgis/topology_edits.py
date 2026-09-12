@@ -33,6 +33,7 @@ pipeline already uses.
 from __future__ import annotations
 
 import math
+import warnings
 
 # Each entry is one manipulation the tab offers:
 #   label     what the control says
@@ -1134,7 +1135,23 @@ def daylight_by_kind(unit, spec, spacing: float, aspect: float) -> dict:
   # Clipped to the design's own gap they partition it exactly, measured
   # on five weaves at four aspects each; a code with no hyphen is
   # unaffected, its conscious gap being empty either way. (C-351.)
-  conscious = ghost_ground.difference(real_ground).intersection(daylight)
+  # AND GEOS MAY REFUSE THE OVERLAY OUTRIGHT, which is not something a
+  # caller can be asked to handle. `cube weave a-b|c-d|e-f` at aspect
+  # 1.0 raises `AssertionFailedException: Should never reach here:
+  # Unable to determine overlay result geometry dimension` from this
+  # very line, on shapely 2.1.2 with GEOS 3.14.1 as QGIS 4.0.3 ships
+  # them and on the reference venv alike -- a triaxial weave whose
+  # strands meet exactly, so the ghost and the real ground differ in a
+  # set of measure zero. Every other refusal in this module arrives as
+  # a SENTENCE, and one design raising where its neighbours explain
+  # themselves is a dark tab with a traceback behind it. The honest
+  # answer where the overlay cannot be taken is that this reading found
+  # no conscious gap, which is what a caller does with an empty one
+  # anyway; the scaffolding then refuses further down, in words.
+  try:
+    conscious = ghost_ground.difference(real_ground).intersection(daylight)
+  except Exception:                                   # noqa: BLE001
+    return {"width": daylight, "conscious": empty}
   return {"width": daylight.difference(conscious.buffer(_A_WHISKER)),
           "conscious": conscious}
 
@@ -1687,8 +1704,16 @@ def _long_axis(polygon):
   the geometry rather than off the spec means a rotated family and a
   triaxial one need no special case.
   """
+  # THE WARNING IS SUPPRESSED RATHER THAN LET THROUGH, because this is
+  # asked of EVERY tile and a degenerate one is ordinary: GEOS answers
+  # `oriented_envelope` with NaN corners and numpy says so at
+  # RuntimeWarning, which on a cube weave meant three of those per
+  # build in the user's QGIS log for a tile this function then skips
+  # anyway. A warning nobody can act on is how a log stops being read.
   try:
-    corners = list(polygon.minimum_rotated_rectangle.exterior.coords)[:4]
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      corners = list(polygon.minimum_rotated_rectangle.exterior.coords)[:4]
   except Exception:                                   # noqa: BLE001
     return None
   if len(corners) < 4:
@@ -1697,6 +1722,10 @@ def _long_axis(polygon):
   for index in range(4):
     (x0, y0), (x1, y1) = corners[index], corners[(index + 1) % 4]
     span = math.hypot(x1 - x0, y1 - y0)
+    # NaN COMPARES FALSE BOTH WAYS, so a degenerate rectangle leaves
+    # `best` as None and the caller skips the tile -- which is the
+    # right answer and is written down here because it happens by the
+    # comparison rather than by a test anybody can see.
     if span > longest:
       longest, best = span, (x1 - x0, y1 - y0)
   return best

@@ -1021,6 +1021,56 @@ of which part three establishes the phase and not the absolute matching;
 triaxial weaves, which are not measured here at all; and any weave
 outside the five in part three's table.
 
+## What stacking edits does, which we had not looked at
+
+Everything above measures one edit at a time. Edits chain, though, and
+the plugin never rebuilds between them, so we went and looked at what
+accumulates. The answer splits cleanly in two, and the halves point
+opposite ways.
+
+The cloth survives everything a tiling check can ask. Six deliberately
+harsh edits on the plain weave leave every intermediate design laying
+out, the strands covering the same 0.937 of a cell they started with,
+the daylight between them open, and no strand crossing another. On that
+evidence the scaffolding route holds up under accumulation rather
+better than we expected.
+
+What does not survive is the ribbon. A strand's width along its own
+axis varies by 51.4% after a single rotate on the twill at aspect 0.5
+with its gaps glued, and by 93.8% after three stacked — a strand
+pinched almost through at one end and full width at the other. That is
+ruling 3 of the scaffolding rulings, the one saying an edit moves a
+strand's two long edges in phase, failing in practice rather than in
+principle. It is worst where the aspect is low and where the gaps are
+glued, which makes sense: both widen the class an edit reaches.
+
+The uncomfortable part is that nothing says so. `still_has_a_topology`
+answers True through all of it, because it asks whether the result is
+gap-free, and a gap-free result is exactly what the scaffolding
+guarantees. A weave makes two further promises that no tiling check can
+see, and only one of them — the daylight staying open — actually holds.
+
+So this is the argument for the admissibility condition that has been
+stated and not built. The unit an edit is aimed at ought to be a strand
+class rather than an edge class, and until it is, an edit on a weave can
+stop the cloth reading as cloth while every instrument the plugin has
+reports success. We have left the number reported rather than enforced,
+since a limit above 93.8% would catch nothing and one below it would
+turn ordinary journeys red, and a threshold nobody can act on is worse
+than a number somebody reads.
+
+One caution about how this was found, because it nearly went the other
+way. The figure we drew to look at the stacking reported two things
+that were not true: that every strand had come off its axis, and that
+the daylight had closed. Both were faults in the drawing — a colour
+chosen by rounding an angle that is only defined modulo a half turn,
+and panels each scaled to their own contents so that a step whose
+pieces moved outward was quietly zoomed. The area measurement beside
+them refuted both. It is a small thing and a general one: a picture is
+only as trustworthy as the arithmetic its colours and its axes are
+chosen by, and a visual finding is worth asking what number would move
+if it were true.
+
 ## Two smaller things that are unfinished
 
 The absorbing construction of part one works on one weave of the four

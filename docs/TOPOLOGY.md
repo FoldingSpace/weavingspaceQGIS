@@ -1221,6 +1221,52 @@ The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 record, the dead ends and what weaving asks of an edit are in
 docs/process/weaving-and-topology.md; the rulings are C-347.
 
+## Stacking edge manipulations on a weave: 2026-09-11
+
+An edit on a weave is measured one at a time everywhere above.
+`apply` chains each onto the object the last one returned and never
+rebuilds, so what ACCUMULATES is invisible to those measurements, and
+the maintainer asked that it be checked by looking rather than by
+counting.
+
+THE CLOTH SURVIVES, ON EVERYTHING A TILING CHECK ASKS. Six harsh edits
+on `plain weave a|b` -- zigzag, rotate, scale, twice over, at
+amplitudes and angles no control offers by default -- leave every step
+laying out, the cloth covering 0.932 to 0.941 of a cell against 0.937
+as built, and the interlacement unchanged. The daylight between strands
+does not close and no strand crosses another.
+
+THE RIBBON DOES NOT. A strand's width along its own axis varies by
+51.4% after a SINGLE `rotate_edge` on `twill weave a|b` at aspect 0.5
+glued, and by 93.8% after three stacked -- a strand nearly pinched
+through. Swept over four weaves, three strand widths and both readings
+of both switches; worst at low aspect and under the glued reading,
+both of which widen the class an edit reaches. `still_has_a_topology`
+answers True throughout, asking as it does whether the result is
+GAP-FREE, which is a question about a TILING and not about cloth. That
+is ruling 3 of C-347 failing in practice, and it is the measurement
+that makes the unbuilt admissibility condition necessary rather than
+tidy: the unit of aim on a weave is a STRAND class. It is reported per
+cell by `test_the_weave_structure_matrix` and gated by nothing, since a
+ceiling above 93.8% catches nothing and one below it reddens ordinary
+journeys. (C-355.)
+
+AND THE VERTEX MANIPULATIONS ARE OUTSIDE THAT PROMISE, at 34.4% and
+47.1% on a single edit: moving a vertex turns a rectangle into a
+trapezoid by construction, and ruling 3 is a promise only an
+edge-aimed edit can keep or break.
+
+AND THE PICTURE THAT FOUND IT PRODUCED TWO FAULTS OF ITS OWN FIRST,
+which is worth keeping beside the result. It reported every strand off
+its axis, a colour having been looked up by ROUNDING where an angle is
+modulo a half turn; and the daylight closing, each panel having been
+scaled to its own cloth so a step whose pieces moved outward was
+silently zoomed. The area reading refuted both. A drawing is only as
+trustworthy as the arithmetic its colours and its axes are chosen by
+(T-149). The instrument is
+`tools/probes/stacking_edge_manipulations_on_a_weave.py`, and its
+figure is `docs/process/images/holes-as-tiles/stacked-edge-edits.png`.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

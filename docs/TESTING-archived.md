@@ -179,6 +179,7 @@ quote them, do not renumber them.
 - **T-146** — A settle that did not count a deferred press  <sub>minted</sub>
 - **T-147** — Rendering a gesture finds what reading and the suite cannot  <sub>minted</sub>
 - **T-148** — A premise that pumps a fixed number of ticks is a bet on the machine  <sub>minted</sub>
+- **T-149** — A drawing is only as trustworthy as the arithmetic its colours and axes use  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7176,3 +7177,37 @@ passes wherever it was written and fails wherever the software is
 slower, which is exactly where the suite is least able to reproduce
 it. Ask of any premise what would make it false on a machine four
 times slower, and wait on the event instead.
+
+### T-149 — A drawing is only as trustworthy as the arithmetic its colours and axes use
+
+2026-09-11, on the maintainer's instruction that stacked edge
+manipulations be checked visually rather than by counting.
+
+THE DRAWING PRODUCED TWO FINDINGS AND BOTH WERE ITS OWN FAULTS.
+
+FIRST, every strand went purple after a rotate, purple being the colour
+for "on neither of the weave's directions". Read as a finding that
+meant an edit had taken every strand off its own axis. The colour was
+looked up by `round(direction, 1)` against keys of 0.0 and 90.0, and a
+direction is an angle MODULO A HALF TURN: a piece at 179.9 degrees is
+on the 0 axis and rounds to neither key. The count beside it,
+`_off_axis`, asked `_same_direction` and answered 0 every time.
+
+SECOND, the cloth appeared to close up under stacking, the daylight
+between strands vanishing by the last column. Each panel was scaled to
+its own cloth's extent, so a step whose pieces moved outward was
+silently zoomed. The cloth's AREA was 0.937 of a cell in every panel.
+
+WHAT SAVED BOTH WAS A NUMBER WITH A CONTROL BESIDE IT, computed by
+different arithmetic from the picture's. Neither reading survived
+contact with it, and neither would have been caught by looking harder.
+
+THE RULE: a figure made to be compared is drawn in ONE frame, and a
+colour that stands for a category is chosen by the same predicate the
+category is defined by -- never by rounding, never by a second
+spelling of the same test. And when a picture produces a finding, ask
+what number would move if it were true before reporting it.
+
+THE THIRD READING, the one that was real, came from the numbers all
+along: the ribbon width swing, which the picture could not have shown
+because it is a few percent at the scale the eye reads. C-355.

@@ -2085,6 +2085,21 @@ Confirmed with the user via an explicit design review:
   a refusal our own code composes is a sentence rather than a
   diagnosis. The record is docs/process/weaving-and-topology.md.
   (C-347.)
+- **AND AN EDGE-AIMED EDIT DOES NOT KEEP A WEAVE'S RIBBONS AT
+  CONSTANT WIDTH, WHICH IS WHY THE UNIT OF AIM MUST BECOME A STRAND.**
+  Ruling 3 of C-347 says an edit moves a strand's two long edges in
+  phase; measured across four weaves, three widths and both readings of
+  both switches, a SINGLE `rotate_edge` varies a strand's width by
+  51.4% along its own axis and three stacked reach 93.8% -- a strand
+  nearly pinched through. `still_has_a_topology` reports True through
+  all of it, asking as it does whether the result is GAP-FREE, which is
+  a question about a tiling. The daylight promise holds (coverage 0.932
+  to 0.941 against 0.937 as built); the ribbon promise does not. It is
+  REPORTED rather than gated, a ceiling above 93.8% catching nothing
+  and one below it reddening ordinary journeys, and it makes C-347's
+  unbuilt admissibility condition necessary rather than tidy. Vertex
+  manipulations are outside the promise, a moved vertex making a
+  trapezoid by construction. (C-355.)
 - **A WEAVE'S ASPECT GAPS ARE READ TWO WAYS, AND THE READING IS A
   QUOTIENT RATHER THAN A REBUILD: THE RULINGS OF 2026-09-11.**
   (Maintainer's construction and two corrections while it was built.)

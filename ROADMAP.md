@@ -379,18 +379,16 @@ docs/process/the-topology-of-a-weave-and-its-holes.md. WHAT IS OWED:
   classes are few and agree in shape across widths on five weaves
   (`the_join_between_a_weave_and_its_drawing.py`). OWED FIRST is that
   join's MEMBERSHIP half, only its shapes being shown.
-- ADMISSIBILITY NOW HAS A STATEMENT to build as a guard: the
-  INTERLACEMENT must be unchanged, and a strand's room is one minus
-  the aspect, so the record names a strand and the clamp lands on the
-  way to the screen (C-342, C-347).
-- A TWO-LETTER CLASS LABEL at 36 classes was LIVE and is handled:
-  `class_labels` reads labels off the topology rather than splitting
-  the library's joined selector. No test guards it.
-- THE CUBE WEAVES ARE DIAGNOSED, all three failing in `set_precision`,
-  which raises on some filler and splits other into a multi-part
-  `get_corners` cannot take. A PATCH IS IN (`_snapped_pieces` snaps
-  then explodes, giving each part its own tile id) and it does not
-  reach these three. TWO notes await a SENDING, the maintainer's act.
+- ADMISSIBILITY IS NOW MEASURED AS NECESSARY rather than tidy: an
+  edge-aimed edit varies a strand's width by 51.4% on one
+  `rotate_edge` and 93.8% on three stacked, while every check reports
+  success, `still_has_a_topology` asking about a TILING (C-347,
+  C-355). Reported per cell by the weave structure matrix.
+- A TWO-LETTER CLASS LABEL is handled by `class_labels`, which reads
+  labels off the topology rather than splitting the joined selector.
+- THE CUBE WEAVES ARE DIAGNOSED, all three failing in `set_precision`;
+  `_snapped_pieces` is the right patch and does not reach them. TWO
+  notes await a SENDING, the maintainer's act.
 
 THE LONGER-RUN GOAL IS THE GRID, not the tiles: a strand following a
 PATH undulates at any width, needing no filler and no dropping step.

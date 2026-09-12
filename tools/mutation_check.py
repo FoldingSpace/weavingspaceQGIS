@@ -2777,6 +2777,39 @@ MUTATIONS = [
        test="test_a_weaves_two_kinds_of_daylight_partition_its_gap",
        why="a hyphen weave's scaffolding covering four times the "
            "ground its gap holds, which no topology can be built on"),
+  dict(name="a-weave-build-refuses-in-words-rather-than-raising",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE STRUCTURE MATRIX'S OWN AXIS. Every refusal in this module
+       # arrives as a sentence a control can show, and a design that
+       # RAISES where its neighbours explain themselves is a dark tab
+       # with a traceback behind it. `cube weave a-b|c-d|e-f` at aspect
+       # 1.0 does exactly that from GEOS's overlay, on shapely 2.1.2
+       # with GEOS 3.14.1 as QGIS 4.0.3 ships them.
+       old="""  try:
+    conscious = ghost_ground.difference(real_ground).intersection(daylight)
+  except Exception:                                   # noqa: BLE001
+    return {"width": daylight, "conscious": empty}""",
+       new="""  conscious = ghost_ground.difference(real_ground).intersection(daylight)""",
+       test="test_the_weave_structure_matrix",
+       why="a weave that raises out of the worker thread where every "
+           "neighbouring design says why it cannot be built"),
+  dict(name="moving-the-warp-and-weft-chooser-rebuilds-the-topology",
+       file="weavingspace_qgis/dialog.py",
+       # THE TAB MATRIX'S OWN AXIS, and a different claim from the
+       # module-level one: the refinement may be built correctly and
+       # the CHOOSER still reach nothing, leaving somebody looking at
+       # the classes of a reading they have just moved away from. The
+       # anchor carries the docstring's last line, since the body it
+       # mutates is one line that appears three times in this file.
+       old="""    pressing Generate is not wanted.
+    \"\"\"
+    self._queue_topology(even_if_unasked=True)""",
+       new="""    pressing Generate is not wanted.
+    \"\"\"
+    return""",
+       test="test_the_weave_topology_tab_matrix",
+       why="a chooser that takes a click and leaves the tab describing "
+           "the structure it held before"),
   dict(name="asking-for-warp-and-weft-apart-reaches-the-refinement",
        file="weavingspace_qgis/topology_edits.py",
        # THE SWITCH AXIS. The reading is applied where it is NAMED, so

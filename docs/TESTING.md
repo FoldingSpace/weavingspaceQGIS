@@ -727,6 +727,17 @@ The accounts are T-137.
   DEPTH. Ask of any message shared by a family which member's words it
   is in, and of any drawing what it looks like DURING the act rather
   than after it. (T-147.)
+- A DRAWING IS ONLY AS TRUSTWORTHY AS THE ARITHMETIC ITS COLOURS AND
+  ITS AXES ARE CHOSEN BY, and a picture asked for a finding produces
+  its own faults first: a figure of stacked weave edits reported every
+  strand off its axis (a colour looked up by ROUNDING where the angle
+  is modulo a half turn) and the cloth's daylight closing (each panel
+  scaled to its OWN extent, so a step whose pieces moved outward was
+  silently zoomed), and the area reading beside it refuted both. Draw
+  anything meant for comparison in ONE frame, choose a category's
+  colour by the same predicate the category is defined by, and ask what
+  number would move if a visual finding were true before reporting it.
+  (T-149.)
 - AN INSTRUMENT IN THE USER'S HANDS BEATS SIX REPRODUCTIONS IN YOURS:
   a dump from the reporter's session answered in a minute (T-50). AN
   AUDIT READS EVERY STORE AFTER EVERY ACT: driving the Topology tab as

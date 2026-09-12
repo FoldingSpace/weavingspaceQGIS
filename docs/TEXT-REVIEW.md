@@ -14,32 +14,32 @@ Sentences you are happy with as they stand need no edit; `--apply` records every
 
 ## Sentences
 
-**`weavingspace_qgis/topology_edits.py:1459`** — in `scaffolded_weave`
+**`weavingspace_qgis/topology_edits.py:1476`** — in `scaffolded_weave`
 
 <!-- id:cbda5205b1d98411 -->
 > the weave could not be built: {}
 
-**`weavingspace_qgis/topology_edits.py:1464`** — in `scaffolded_weave`
+**`weavingspace_qgis/topology_edits.py:1481`** — in `scaffolded_weave`
 
 <!-- id:ff426542b4059199 -->
 > the weave has no strands to build from
 
-**`weavingspace_qgis/topology_edits.py:1485`** — in `scaffolded_weave`
+**`weavingspace_qgis/topology_edits.py:1502`** — in `scaffolded_weave`
 
 <!-- id:bdbc3badfba1456d -->
 > the library would not rebuild the unit from the scaffolded tiles
 
-**`weavingspace_qgis/topology_edits.py:1489`** — in `scaffolded_weave`
+**`weavingspace_qgis/topology_edits.py:1506`** — in `scaffolded_weave`
 
 <!-- id:88b067bf51d58913 -->
 > the scaffolding leaves a gap of {} and an overlap of {} of a cell, so it is not a tiling
 
-**`weavingspace_qgis/topology_edits.py:1977`** — in `keep_warp_and_weft_apart`
+**`weavingspace_qgis/topology_edits.py:2006`** — in `keep_warp_and_weft_apart`
 
 <!-- id:7c0c933741e6d58a -->
 > this design has no second strand direction to keep apart
 
-**`weavingspace_qgis/topology_edits.py:1996`** — in `keep_warp_and_weft_apart`
+**`weavingspace_qgis/topology_edits.py:2025`** — in `keep_warp_and_weft_apart`
 
 <!-- id:4605e789ba14d173 -->
 > this design's symmetries do not reproduce its own classes, so warp and weft cannot be told apart here

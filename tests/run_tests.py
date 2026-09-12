@@ -92140,6 +92140,694 @@ def test_a_weaves_classes_can_be_kept_to_one_strand_family():
       f"all of them and more than none"
 
 
+# The weave matrices' axes. They are module constants for the reason
+# every other matrix here has them: a test that enumerates its own grid
+# inline cannot be asked what it covers, and the no-silent-axis
+# assertions below have to count the cells a route was DRAWN for.
+WEAVE_MATRIX_WEAVES = (("plain weave a|b", 2), ("twill weave a|b", 2),
+                       ("basket weave ab|cd", 4), ("twill weave a|b-", 2))
+WEAVE_MATRIX_ASPECTS = (0.9, 0.75, 0.5)
+# THE TRIAXIAL ARM IS TWO OF THE THREE CUBE WEAVES, and the third is
+# left out on a measurement rather than by taste: `cube weave
+# abc|def|ghi` at aspect 1.0 had not answered after ten minutes here,
+# which is a design nobody should wait for inside a suite. The two kept
+# cover both shapes the arm is about -- a code with hyphens only, and
+# one mixing hyphens with pairs -- and it is the second that raised.
+WEAVE_MATRIX_TRIAXIAL = (("cube weave a--|b--|c--", 3),
+                         ("cube weave a-b|c-d|e-f", 6))
+WEAVE_MATRIX_TRIAXIAL_ASPECTS = (1.0, 0.75)
+# WHAT HAPPENS NEXT, which is an axis of its own in every matrix here:
+# one edit, or three stacked. `apply` chains each onto the object the
+# last one returned and never rebuilds, so what accumulates is not
+# something a single-edit cell can see.
+WEAVE_MATRIX_AFTERMATHS = ("one edit", "three stacked")
+# THE STACK, and the ceiling its readings are held to.
+WEAVE_MATRIX_STACK = (("zigzag_edge", {"n": 4, "h": 0.35}),
+                      ("rotate_edge", {"angle": 35.0}),
+                      ("scale_edge", {"sf": 1.6}))
+# A RIBBON OF CONSTANT WIDTH IS WHAT READS AS YARN (ruling 3 of C-347),
+# AND AN EDGE-AIMED EDIT DOES NOT KEEP IT. This began as a ceiling and
+# became a REPORT, on the measurement that decided it: swept over four
+# weaves, three strand widths and both readings of both switches, a
+# SINGLE `rotate_edge` varies a strand's width by 51.4% along its own
+# axis on `twill weave a|b` at aspect 0.5 glued, and three stacked
+# reach 93.8% -- a strand nearly pinched through. A ceiling above that
+# can catch nothing and one below it is red on ordinary journeys, and
+# this project's own rule is that a limit a healthy run can reach is
+# worse than none. So the swing is printed with every run and gated by
+# nothing, which is the same ruling as "when an attribution is a guess,
+# report rather than gate".
+#
+# WHAT IT MEANS is the roadmap's own open item rather than a defect
+# here: the unit of aim for a weave is a STRAND CLASS and not an edge
+# class, because an edge-aimed edit moves one long side of a ribbon
+# without the other. The admissibility condition of C-347 is stated and
+# unbuilt, and this is the measurement that says building it is
+# necessary rather than tidy.
+WEAVE_MATRIX_WIDTH_SWING_REPORTED = True
+# AND THE DAYLIGHT MUST NOT CLOSE. A weave whose strands have grown
+# until the gaps between them are gone has stopped being a weave,
+# whatever a tiling check says -- and `still_has_a_topology` cannot see
+# it, since a gap-free result is precisely what that asks for. Measured
+# 0.932 to 0.941 of a cell across every stack tried, against 0.937 as
+# built, so a twentieth is a margin no healthy run has approached.
+WEAVE_MATRIX_COVER_MARGIN = 0.05
+
+
+def _weave_matrix_width_swing(polygon) -> float:
+  """How much a strand piece's width varies along its own axis.
+
+  Args:
+    polygon: one strand piece.
+
+  Returns:
+    The widest reading minus the narrowest, over the widest, taken at
+    nine stations along the piece's own long axis. Zero for a true
+    ribbon.
+
+  IT IS TURNED ONTO ITS AXIS FIRST, so the reading is the width of the
+  ribbon rather than the height of its bounding box -- which on a
+  sloped edge reads wide for a piece of perfectly constant width.
+  """
+  import shapely
+  from weavingspace_qgis import topology_edits
+  axis = topology_edits._long_axis(polygon)
+  if axis is None:
+    return 0.0
+  turned = shapely.affinity.rotate(
+    polygon, -topology_edits._as_direction(axis[0], axis[1]),
+    origin="centroid")
+  minx, miny, maxx, maxy = turned.bounds
+  spans = []
+  for step in range(1, 10):
+    x = minx + (maxx - minx) * step / 10.0
+    cut = shapely.intersection(
+      turned, shapely.geometry.LineString([(x, miny - 1), (x, maxy + 1)]))
+    if not cut.is_empty:
+      spans.append(cut.bounds[3] - cut.bounds[1])
+  if not spans or max(spans) <= 0:
+    return 0.0
+  return (max(spans) - min(spans)) / max(spans)
+
+
+def _weave_matrix_structures():
+  """Every combination of the two readings, as (reading, families).
+
+  Returns:
+    A list of pairs. Four of them, because the two switches are
+    INDEPENDENT -- which is the claim the crossing exists to exercise,
+    and a grid that ran three of the four could not see a combination
+    failing on its own.
+  """
+  from weavingspace_qgis import topology_edits
+  return [(reading, families)
+          for reading in topology_edits.ASPECT_READINGS
+          for families in topology_edits.STRAND_FAMILIES]
+
+
+def _weave_matrix_cloth(unit, kinds):
+  """Each strand piece's geometry, in the unit's own row order.
+
+  Args:
+    unit: a scaffolded unit, or one straight from the catalogue.
+    kinds: the map `scaffolded_weave` returned, or an empty one where
+      every tile is cloth.
+
+  Returns:
+    A list of (row, geometry) for the tiles that are cloth.
+
+  BY ROW, so a piece can be compared with its own edited self. Taking
+  the symmetric difference of ALL the cloth and attributing each patch
+  to whatever lies near it reads two directions whatever happened,
+  since a corner is close to a warp and to a weft alike -- measured,
+  and the reason the probe behind this was rewritten.
+  """
+  out = []
+  ids = unit.tiles["tile_id"].astype(str)
+  for row, geometry in enumerate(unit.tiles.geometry):
+    tile_id = str(ids.iloc[row])
+    if kinds and kinds.get(tile_id) != "strand":
+      continue
+    if geometry.geom_type != "Polygon":
+      continue
+    out.append((row, geometry))
+  return out
+
+
+def _weave_matrix_cell(name, count, aspect, reading, families, route,
+                       aftermath="one edit"):
+  """Build one weave one way, aim one manipulation at it, and judge.
+
+  Args:
+    name: the catalogue key of the weave.
+    count: its element count, which is how the catalogue is keyed.
+    aspect: the strand width to build at.
+    reading: which reading of the aspect gaps to build under.
+    families: whether one class may hold both strand directions.
+    route: the manipulation key, e.g. "zigzag_edge".
+    aftermath: "one edit", or "three stacked" to chain the three edge
+      manipulations of `WEAVE_MATRIX_STACK` on top of it.
+
+  Returns:
+    (verdict, detail). "ok", "SKIPPED" with a reason, or a sentence
+    naming what went wrong.
+
+  THE INVARIANT IS THE ONE THAT CAN FAIL, and it is the tiling
+  matrix's: an edit either MOVES the cloth or SAYS why not, and
+  SILENCE is the defect. Asserting that the cloth moved would demand
+  the software get it wrong, since several manipulations legitimately
+  refuse on several weaves -- a push at a symmetric vertex moves
+  nothing, and says so.
+
+  AND A BUILD MAY NOT RAISE. Every refusal in this module arrives as a
+  sentence a control can show, so a design that raises where its
+  neighbours explain themselves is a dark tab with a traceback behind
+  it. That is not hypothetical: `cube weave a-b|c-d|e-f` at aspect 1.0
+  raised `AssertionFailedException` out of GEOS's overlay from inside
+  `daylight_by_kind`, on shapely 2.1.2 with GEOS 3.14.1 as QGIS 4.0.3
+  ships them, and the arm below is what found it.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  spec = catalog.TILINGS_BY_N[count][name]
+  try:
+    topology, unit, kinds, glue, note = topology_edits.weave_topology(
+      spec, 1000.0, aspect, reading=reading, families=families)
+  except Exception as exc:                            # noqa: BLE001
+    return (f"building it raised {type(exc).__name__} rather than "
+            f"refusing in words: {str(exc)[:90]}", "")
+  if topology is None:
+    # THE REFUSING ARM: the promise here is that it SAYS SO.
+    if not (note or "").strip():
+      return ("no topology and nothing said, so a control has nothing "
+              "to show", "")
+    return ("ok", note)
+  target = topology_edits.MANIPULATIONS[route]["target"]
+  labels = topology_edits.class_labels(topology, glue).get(target) or []
+  if not labels:
+    return ("SKIPPED", f"this weave offers no {target} class to move")
+  edits = [{"how": route, "target": target, "classes": labels[0],
+            "args": {name: default for name, _label, _low, _high, default,
+                     _step in topology_edits.MANIPULATIONS[route]["args"]}}]
+  if aftermath == "three stacked":
+    # EACH IS AIMED AT THE CLASS THE DESIGN HAS AT THAT MOMENT, which
+    # is `apply`'s own contract: a chained edit carries the labels the
+    # last one left, and driving the stack any other way would test a
+    # journey the product does not offer.
+    for how, args in WEAVE_MATRIX_STACK:
+      later = topology_edits.MANIPULATIONS[how]["target"]
+      names = topology_edits.class_labels(topology, glue).get(later) or []
+      if not names:
+        break
+      edits.append({"how": how, "target": later, "classes": names[0],
+                    "args": dict(args)})
+  before = _weave_matrix_cloth(unit, kinds)
+  try:
+    edited, refusals, _state = topology_edits.apply(
+      topology, list(edits), glue=glue)
+  except Exception as exc:                            # noqa: BLE001
+    return (f"applying {route} raised {type(exc).__name__} rather than "
+            f"refusing in words: {str(exc)[:90]}", "")
+  spoke = bool([line for line in refusals if line.strip()])
+  moved = 0.0
+  if edited is not None and len(edited.tiles) == len(unit.tiles):
+    for row, old in before:
+      moved += old.symmetric_difference(
+        edited.tiles.geometry.iloc[row]).area
+  cell = unit.prototile.geometry[0].area
+  if moved <= cell / 1e6 and not spoke:
+    return (f"{route} on {target} class {labels[0]!r} was taken and "
+            f"nothing happened: the cloth did not move and nothing was "
+            f"said", "")
+  # WHAT STACKING COSTS THE CLOTH, and these are the two readings a
+  # tiling check cannot make. `still_has_a_topology` asks whether the
+  # result is gap-free, which is a question about a TILING; a weave has
+  # two more promises, that its strands stay ribbons and that the
+  # daylight between them stays open, and neither is implied by the
+  # first.
+  if edited is not None and len(edited.tiles) == len(unit.tiles):
+    after = [(row, edited.tiles.geometry.iloc[row]) for row, _g in before]
+    swing = max([_weave_matrix_width_swing(g) for _row, g in after] or [0.0])
+    # THE SWING IS REPORTED AND NOT GATED, and it is asked of EDGE
+    # manipulations alone: moving a vertex turns a rectangle into a
+    # trapezoid by construction, so a vertex route varies a strand's
+    # width whatever the code does -- 34.4% and 47.1% on a SINGLE
+    # `push_vertex`, which is this grid's own first failure and was the
+    # harness over-reaching rather than the plugin misbehaving.
+    reported = f", ribbon width varies {swing:.1%}" if target == "edge" \
+      else ""
+    was = sum(g.area for _row, g in before) / cell
+    now = sum(g.area for _row, g in after) / cell
+    if now > was + WEAVE_MATRIX_COVER_MARGIN:
+      return (f"the cloth covers {now:.3f} of a cell after {aftermath} "
+              f"where it covered {was:.3f}, so the strands have grown "
+              f"and the weave's daylight is closing", "")
+    return ("ok", f"moved {moved / cell:.6f} of a cell{reported}"
+                  f"{'; said something' if spoke else ''}")
+  return ("ok", f"moved {moved / cell:.6f} of a cell"
+                f"{'; said something' if spoke else ''}")
+
+
+def test_the_weave_structure_matrix():
+  """Every manipulation, across weaves, across both readings of both switches.
+
+  A weave's structure now answers to TWO independent questions -- does
+  a strand-width gap count, and may one class hold both strand
+  families -- and each has two answers, so there are four structures
+  where there was one. Crossed with five manipulations, four weaves and
+  three strand widths, that is a family of behaviours, and a family
+  fails one member at a time. A single case passes for whichever member
+  happens to be intact.
+
+  SPINE PLUS SAMPLE, as this suite's other matrices. `plain weave a|b`
+  at aspect 0.75 runs against all four structures and all five routes
+  every time, since a route that stops being exercised is the quietest
+  way to lose coverage; the rest is sampled under a seed the failure
+  prints. `WEAVINGSPACE_WEAVE_MATRIX_FULL=1` runs the whole crossing.
+
+  THE PLAIN WEAVE IS THE SPINE ON A MEASUREMENT, not a preference: it
+  builds a topology in about two seconds where `twill weave a|b` takes
+  about forty, and every property this grid asks about is one it can
+  show. The sample is deliberately small for the same reason, and the
+  cost is written here because a matrix nobody will run is worth
+  nothing.
+
+  AND THE TRIAXIAL ARM ASKS A DIFFERENT QUESTION, because no cube
+  weave can carry a topology today: that a build ANSWERS rather than
+  raising. It earned its place immediately -- `cube weave a-b|c-d|e-f`
+  at aspect 1.0 raised a GEOS `AssertionFailedException` out of
+  `daylight_by_kind`, where every neighbouring design refused in a
+  sentence, so somebody picking that weave at full strand width met a
+  traceback on the worker thread instead of a reason.
+
+  AND STACKING IS AN AXIS, because `apply` chains each edit onto the
+  object the last one returned and never rebuilds, so what accumulates
+  is invisible to a single-edit cell. It adds two readings a tiling
+  check cannot make, since `still_has_a_topology` asks only whether the
+  result is GAP-FREE: that the daylight between strands stays open,
+  which is GATED here, and that a strand stays a ribbon of constant
+  width, which is REPORTED.
+
+  THE SECOND IS REPORTED BECAUSE IT DOES NOT HOLD, and that is the
+  finding rather than a softened assertion. Swept over four weaves,
+  three strand widths and both readings of both switches, a single
+  `rotate_edge` varies a strand's width by 51.4% along its own axis on
+  `twill weave a|b` at aspect 0.5 glued, and three stacked reach 93.8%.
+  An edge-aimed edit moves one long side of a ribbon without the other,
+  which is exactly what ruling 3 of C-347 says an edit must not do, and
+  what the roadmap's unbuilt admissibility condition is for: the unit of
+  aim on a weave is a STRAND class, not an edge class. A ceiling above
+  93.8% could catch nothing and one below it would be red on ordinary
+  journeys, so this grid prints the number and gates on what actually
+  holds.
+
+  THE HARNESS'S OWN FAILURES ARE TALLIED, because a grid whose failures
+  are mostly its own is one nobody acts on. Its first run with this
+  axis reported eleven, and TEN were this test's: the ribbon invariant
+  was asked of `push_vertex` and `nudge_vertex`, which turn a rectangle
+  into a trapezoid by construction and so vary a strand's width along
+  its axis whatever the code does -- 34.4% and 47.1% on a SINGLE edit,
+  before anything was stacked. It is asked of edge manipulations alone
+  now, which is what ruling 3 of C-347 is a promise about. The eleventh
+  was not the harness and is recorded above.
+
+  THE PICTURE IS WHERE THIS CAME FROM, and it is worth saying because
+  the reading it produced first was wrong twice over.
+  `tools/probes/stacking_edge_manipulations_on_a_weave.py` draws the
+  stack, and its first drawing reported every strand off its axis (a
+  colour looked up by rounding where the angle is modulo a half turn)
+  and the daylight closing (each panel scaled to its own cloth, so a
+  step whose pieces moved outward was silently zoomed). Both were the
+  drawing's faults and the AREA reading caught them, which is the
+  standing rule about a verdict with no control beside it arriving in a
+  new place: a picture is only as trustworthy as the arithmetic its
+  colours and its axes are chosen by.
+
+  SKIPS ARE COUNTED AND REPORTED WITH THEIR REASONS AND DO NOT FAIL THE
+  GRID, as in the tiling matrix: a weave offering no vertex class is
+  not the plugin misbehaving. What DOES fail is a route skipped in
+  every cell it was drawn for, an aftermath the grid was never drawn
+  for, and a run where most cells staged nothing.
+
+  Regression: a weave build raising where every neighbouring design refuses in words, so the tab goes dark with a traceback behind it. [mutation]
+  """
+  import os
+  import random
+  from weavingspace_qgis import topology_edits
+  full = os.environ.get("WEAVINGSPACE_WEAVE_MATRIX_FULL") == "1"
+  seed = int(os.environ.get("WEAVINGSPACE_WEAVE_MATRIX_SEED", "20260911"))
+  routes = list(topology_edits.MANIPULATIONS)
+  structures = _weave_matrix_structures()
+  assert len(structures) == 4, \
+    f"PREMISE: {len(structures)} structures, so the two switches are " \
+    f"not both being crossed"
+
+  spine_weave, spine_count = WEAVE_MATRIX_WEAVES[0]
+  cells = [(spine_weave, spine_count, 0.75, reading, families, route,
+            aftermath)
+           for reading, families in structures for route in routes
+           for aftermath in WEAVE_MATRIX_AFTERMATHS]
+  rest = [(nm, ct, asp, rd, fm, ro, af)
+          for nm, ct in WEAVE_MATRIX_WEAVES
+          for asp in WEAVE_MATRIX_ASPECTS
+          for rd, fm in structures
+          for ro in routes
+          for af in WEAVE_MATRIX_AFTERMATHS
+          if not (nm == spine_weave and asp == 0.75)]
+  if full:
+    cells = cells + rest
+  else:
+    cells += random.Random(seed).sample(rest, min(2, len(rest)))
+  # THE TRIAXIAL ARM RUNS EVERY TIME and is never sampled: it is the
+  # only part of this grid that has ever gone red, and this suite's own
+  # rule is that a cell which has failed once joins the spine for good.
+  triaxial = [(nm, ct, asp, topology_edits.ASPECT_LIKE_A_DROP,
+               topology_edits.WARP_AND_WEFT_APART, routes[0], "one edit")
+              for nm, ct in WEAVE_MATRIX_TRIAXIAL
+              for asp in WEAVE_MATRIX_TRIAXIAL_ASPECTS]
+  cells += triaxial
+
+  trouble, skipped, ran, passed_over = [], {}, 0, []
+  for name, count, aspect, reading, families, route, aftermath in cells:
+    where = (f"{name} a={aspect} {reading}/{families} {route} "
+             f"/ {aftermath}")
+    verdict, detail = _weave_matrix_cell(
+      name, count, aspect, reading, families, route, aftermath)
+    if verdict == "SKIPPED":
+      skipped[route] = skipped.get(route, 0) + 1
+      passed_over.append(f"{where}: {detail}")
+    else:
+      ran += 1
+      if verdict != "ok":
+        trouble.append(f"{where}: {verdict}")
+
+  assert ran, "not one cell ran, so this matrix asserts nothing"
+  never = [r for r in routes if skipped.get(r, 0) and
+           skipped[r] == sum(1 for c in cells if c[5] == r)]
+  assert not never, (
+    f"these routes were skipped in every cell they were drawn for, so "
+    f"they are axes that cannot fail: {never}\n  "
+    + "\n  ".join(passed_over))
+  # ...AND NEITHER AFTERMATH MAY GO UNEXERCISED, for the same reason:
+  # a stacking axis that never ran reads exactly like one that passed.
+  staged = {af for _n, _c, _a, _r, _f, _ro, af in cells}
+  assert staged == set(WEAVE_MATRIX_AFTERMATHS), (
+    f"the grid was drawn for {sorted(staged)} rather than "
+    f"{sorted(WEAVE_MATRIX_AFTERMATHS)}, so an aftermath cannot fail")
+  assert ran >= len(cells) * 3 // 4, (
+    f"only {ran} of {len(cells)} cells staged anything, so most of this "
+    f"matrix reported on a case it could not reach:\n  "
+    + "\n  ".join(passed_over))
+  assert not trouble, (
+    f"{len(trouble)} of {ran} weave cells failed (seed {seed}, "
+    f"WEAVINGSPACE_WEAVE_MATRIX_FULL=1 for the whole crossing):\n  "
+    + "\n  ".join(trouble))
+
+
+WEAVE_TAB_MATRIX_SPACING = 1000.0
+WEAVE_TAB_MATRIX_ASPECT = 0.75
+WEAVE_TAB_MATRIX_WEAVE = ("plain weave a|b", 2)
+# A WEAVE THE TAB CANNOT BUILD, so "it refuses in words" is asked of
+# the tab and not only of the module beneath it. Every cube weave
+# refuses today; this is the cheapest.
+WEAVE_TAB_MATRIX_REFUSER = ("cube weave a--|b--|c--", 3)
+
+
+def _put_the_chooser_on(combo, value, what):
+  """Move one of the tab's structure choosers the way a click does.
+
+  Args:
+    combo: the QComboBox.
+    value: the item DATA to select, e.g. "like-an-inset".
+    what: a name for the message where the entry is missing.
+
+  Returns:
+    None. Asserts rather than returning, since a chooser that does not
+    offer the value means the cell is about to judge a structure it did
+    not ask for.
+
+  BY DATA, NEVER BY TEXT, for the reason `_choose_family` gives: the
+  label is prose a maintainer may reword and the data is the contract,
+  and `setCurrentText` on a non-editable combo does nothing at all when
+  it does not match exactly.
+  """
+  index = combo.findData(value)
+  assert index >= 0, (
+    f"the {what} chooser offers no {value!r}; it has "
+    f"{[combo.itemData(i) for i in range(combo.count())]}")
+  combo.setCurrentIndex(index)
+
+
+def _weave_tab_matrix_cell(dlg, reading, families, route):
+  """Move both choosers, then aim one manipulation, and judge.
+
+  Args:
+    dlg: a dialog already showing the weave under test.
+    reading: which reading of the aspect gaps to choose.
+    families: whether one class may hold both strand directions.
+    route: the manipulation key to aim.
+
+  Returns:
+    (verdict, detail), as the tiling matrix's cell does.
+
+  IT IS A DIFFERENTIAL, which is the shape this project's evidence
+  favours: the tab is driven as a person drives it, and the classes it
+  then offers are compared with the classes `topology_edits` computes
+  for the same design from the SETTINGS -- the spacing, the aspect and
+  the two readings, all of them told to both sides rather than one side
+  reading them off the other. A disagreement is a defect by
+  construction and needs no oracle.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  panel = dlg.topology_panel
+  _put_the_chooser_on(panel.aspect_reading, reading, "aspect-gap")
+  _tick(150)
+  _put_the_chooser_on(panel.strand_families, families, "warp-and-weft")
+  _tick(150)
+  if not _wait_for_the_topology(dlg, explain=False):
+    # A STALL IS ITS OWN VERDICT, counted rather than failed on, and
+    # that is a decision rather than a tolerance. QGIS accepts a
+    # topology build and never starts it -- R-4 as first seen, and the
+    # `Running` shape of R-93 -- and the maintainer's call of
+    # 2026-09-07 was to treat it as the environmental fault it is and
+    # track it, on the measurement that it passes on CI and reaches no
+    # user on QGIS's top-level loop while surfacing under this suite's
+    # nested `_tick` pump. A grid that goes red for it one run in
+    # several is a grid nobody reads, and flakiness is how a suite
+    # stops being believed. What is NOT tolerated is stalling at
+    # scale, which the assertion below bounds.
+    return ("STALLED", _why_the_topology_tab_is_busy(dlg))
+  if panel._topology is None:
+    said = (panel.note.text() or "").strip()
+    if not said:
+      return ("no topology and nothing said, so somebody meets a dark "
+              "tab with no reason in it", "")
+    return ("ok", said)
+
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  wanted = topology_edits.class_labels(
+    *(lambda t: (t[0], t[3]))(topology_edits.weave_topology(
+      catalog.TILINGS_BY_N[count][name], WEAVE_TAB_MATRIX_SPACING,
+      WEAVE_TAB_MATRIX_ASPECT, reading=reading, families=families)))
+  offered = {"edge": [], "vertex": []}
+  for position in range(panel.class_combo.count()):
+    data = panel.class_combo.itemData(position)
+    if data and data[0] in offered and len(data) > 1 and data[1]:
+      offered[data[0]].extend(
+        data[1] if isinstance(data[1], (list, tuple)) else [data[1]])
+  for kind in ("edge", "vertex"):
+    shown, expected = len(set(offered[kind])), len(wanted[kind])
+    # THE GROUP ENTRY IS NOT A CLASS, so a chooser holding "every edge"
+    # beside the classes offers one datum more than there are classes;
+    # the comparison is on the SET of labels those entries carry, and
+    # a count short of the structure's is what says the tab is showing
+    # a different reading from the one it was asked for.
+    if shown and shown != expected:
+      return (f"the tab offers {shown} {kind} classes where this "
+              f"structure has {expected}, so the chooser is describing "
+              f"a reading nobody asked for", "")
+
+  target = topology_edits.MANIPULATIONS[route]["target"]
+  chosen = -1
+  for position in range(panel.class_combo.count()):
+    data = panel.class_combo.itemData(position)
+    if data and data[0] == target:
+      chosen = position
+      break
+  if chosen < 0:
+    return ("SKIPPED", f"this weave offers no {target} class to move")
+  panel.class_combo.setCurrentIndex(chosen)
+  _tick(150)
+  index = panel.how_combo.findData(route)
+  if index < 0:
+    return ("SKIPPED", f"{route} is not offered for a {target}")
+  panel.how_combo.setCurrentIndex(index)
+  _tick(150)
+
+  before_edits = len(panel.edits())
+  before_note = (panel.note.text() or "").strip()
+  before_tiles = _unit_tiles(dlg)
+  panel.apply_button.click()          # its own signal, as a person uses it
+  moved = spoke = False
+  for _ in range(60):
+    _settle_topology(dlg, seconds=5)
+    _tick(200)
+    said_now = (panel.note.text() or "").strip()
+    moved = _unit_ground_moved(dlg, before_tiles)
+    spoke = bool(said_now) and said_now != before_note
+    if moved or spoke:
+      break
+  if len(panel.edits()) <= before_edits and not spoke:
+    return ("the click was taken and nothing happened: no edit "
+            "recorded, no sentence said", "")
+  return ("ok", f"{'moved' if moved else 'said something'}")
+
+
+def test_the_weave_topology_tab_matrix():
+  """Both structure choosers, driven on the tab, across the manipulations.
+
+  The two switches were built and WIRED rather than driven: the
+  chooser, the rebuild it queues and the classes it then offers were
+  read out of the source. This grid drives them as a person does --
+  open the tab, pick a weave, move each chooser, aim a manipulation,
+  press Apply -- across the four combinations of the two readings and
+  every manipulation the tab offers.
+
+  IT IS A DIFFERENTIAL, the shape this project's own record says finds
+  the defects: the classes the tab offers after a chooser moves are
+  compared with the classes `topology_edits` computes for the same
+  design from the settings. Both sides are TOLD the spacing, the aspect
+  and the two readings, so neither reads its expectation off the other,
+  and a disagreement is a defect by construction.
+
+  AND A REFUSING WEAVE IS IN THE GRID, because "the tab says why it
+  cannot" is half the promise and a matrix made only of designs that
+  work cannot ask about it. Every cube weave refuses today, for the
+  separately diagnosed `set_precision` fault.
+
+  THE COST IS THE BUILD, and it is why the weave here is the plain one:
+  a `plain weave a|b` topology takes about two seconds where a twill
+  takes about forty, and every property this grid asks about is one the
+  plain weave can show. The structure matrix beside this one covers the
+  other weaves without a window.
+
+  SKIPS ARE COUNTED AND REPORTED and do not fail the grid, as in the
+  tiling matrix; what fails is a route skipped in every cell it was
+  drawn for, and a run where most cells staged nothing.
+
+  AND A STALL IS ITS OWN VERDICT, neither a pass nor a failure. QGIS
+  accepts a topology build and never starts it -- R-4 as first seen and
+  the `Running` shape of R-93 -- and the maintainer's call of
+  2026-09-07 was to treat that as the environmental fault it is: it
+  passes on CI and reaches no user on QGIS's top-level loop, surfacing
+  under this suite's nested `_tick` pump. This grid met it once in
+  twenty-one cells on its second run having passed its first, so it is
+  counted and bounded at a quarter rather than failed on. A grid red
+  one run in several is a grid nobody reads.
+
+  THE HARNESS'S OWN FAILURES ARE TALLIED, because a grid whose failures
+  are mostly its own is one nobody acts on. Its first run reported ONE,
+  and it was this test's rather than the plugin's: `family_combo` is
+  filled for the KIND and the count in force, and a dialog opens on
+  "tiling", so setting the count alone left every cell unable to find
+  its weave. Every cell skipped, and the grid said so through its own
+  "not one cell ran" assertion rather than passing -- which is the
+  no-silent-caps rule earning its keep on the first run of a new grid.
+
+  Regression: a chooser that queues a rebuild nobody had driven, so the classes on screen were read from the source rather than seen. [mutation]
+  """
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  routes = list(topology_edits.MANIPULATIONS)
+  structures = _weave_matrix_structures()
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  refuser, refuser_count = WEAVE_TAB_MATRIX_REFUSER
+
+  cells = [(name, count, reading, families, route)
+           for reading, families in structures for route in routes]
+  # THE REFUSING ARM, one cell, on the reading that scaffolds: the
+  # question there is whether the tab SPEAKS, and it is the same
+  # question under either switch.
+  cells.append((refuser, refuser_count, topology_edits.ASPECT_LIKE_A_DROP,
+                topology_edits.WARP_AND_WEFT_APART, routes[0]))
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  trouble, skipped, ran, passed_over, stalled = [], {}, 0, [], []
+  for weave, elements, reading, families, route in cells:
+    where = f"{weave} {reading}/{families} {route}"
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      # THE KIND COMES FIRST, AND THE COUNT AFTER IT. `family_combo`
+      # is filled from the catalogue for the kind AND the count in
+      # force, so a dialog left on "tiling" offers no weave at any
+      # count -- which is how the first run of this grid skipped every
+      # cell it had and said so through its own no-silent-caps
+      # assertion, the harness fault it exists to make visible rather
+      # than a green it could not have earned.
+      dlg.kind_combo.setCurrentText("weave")
+      _tick(200)
+      dlg.n_spin.setValue(int(elements))
+      _tick(200)
+      if (dlg.family_combo.findData(weave) < 0
+          and dlg.family_combo.findText(weave) < 0):
+        skipped[route] = skipped.get(route, 0) + 1
+        passed_over.append(
+          f"{where}: the chooser offers no family {weave!r} at "
+          f"n={elements}")
+        continue
+      _choose_family(dlg, weave)
+      _tick(200)
+      dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+      dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+      _tick(300)
+      verdict, detail = _weave_tab_matrix_cell(
+        dlg, reading, families, route)
+    finally:
+      dlg.close()
+      # EVERY CELL STARTS WHERE THE LAST ONE DID, which is the empty
+      # project rule applied inside one test: output left behind is
+      # adopted by the next cell's dialog, and its baseline is then
+      # another design's map.
+      for other in list(QgsProject.instance().mapLayers().values()):
+        if other is not layer:
+          QgsProject.instance().removeMapLayer(other.id())
+    if verdict == "SKIPPED":
+      skipped[route] = skipped.get(route, 0) + 1
+      passed_over.append(f"{where}: {detail}")
+    elif verdict == "STALLED":
+      stalled.append(f"{where}: {detail}")
+    else:
+      ran += 1
+      if verdict != "ok":
+        trouble.append(f"{where}: {verdict}")
+
+  assert ran, "not one cell ran, so this matrix asserts nothing"
+  # A STALL AT SCALE IS NOT THE ENVIRONMENT. One cell of twenty-one is
+  # the fault R-93 describes; a quarter of them is a build path that
+  # has stopped starting, and the bound is what tells the two apart.
+  assert len(stalled) <= max(1, len(cells) // 4), (
+    f"{len(stalled)} of {len(cells)} cells never got a topology or a "
+    f"reason, which is past the intermittent stall of R-93 and is a "
+    f"build path that has stopped starting:\n  " + "\n  ".join(stalled))
+  never = [r for r in routes if skipped.get(r, 0) and
+           skipped[r] == sum(1 for c in cells if c[4] == r)]
+  assert not never, (
+    f"these routes were skipped in every cell they were drawn for, so "
+    f"they are axes that cannot fail: {never}\n  "
+    + "\n  ".join(passed_over))
+  assert ran + len(stalled) >= len(cells) * 3 // 4, (
+    f"only {ran} of {len(cells)} cells staged anything:\n  "
+    + "\n  ".join(passed_over))
+  assert not trouble, (
+    f"{len(trouble)} of {ran} weave tab cells failed"
+    f"{f' ({len(stalled)} stalled)' if stalled else ''}:\n  "
+    + "\n  ".join(trouble))
+
+
 def test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is():
   """The supplied-geometry workaround must not be tiling-only.
 
@@ -94126,6 +94814,9 @@ def main():
         test_a_weaves_two_kinds_of_daylight_partition_its_gap)
   check("a weave's classes can be kept to one strand family",
         test_a_weaves_classes_can_be_kept_to_one_strand_family)
+  check("the weave structure matrix", test_the_weave_structure_matrix)
+  check("the weave topology tab matrix",
+        test_the_weave_topology_tab_matrix)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

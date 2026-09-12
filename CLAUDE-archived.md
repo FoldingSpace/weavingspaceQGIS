@@ -389,6 +389,7 @@ quote them, do not renumber them.
 - **C-352** — two readings of a weave's aspect gaps, and a quotient rather than a rebuild  <sub>minted</sub>
 - **C-353** — edge classes that stay on one strand family  <sub>minted</sub>
 - **C-354** — the direction-preserving subgroup, built: the transform list is not a group
+- **C-355** — An edge-aimed edit does not keep a weave's ribbons at constant width  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11844,3 +11845,57 @@ STILL NOT MEASURED: a triaxial weave, since all three cube weaves
 refuse the scaffolding for the separately diagnosed `set_precision`
 fault, so the homomorphism into a group of order six is written and
 untried.
+
+### C-355 — An edge-aimed edit does not keep a weave's ribbons at constant width
+
+Measured 2026-09-11, when the maintainer asked that stacked edge
+manipulations be checked by LOOKING rather than by counting.
+
+RULING 3 OF C-347 SAYS AN EDIT MOVES A STRAND'S TWO LONG EDGES IN
+PHASE, because a ribbon of constant width is what reads as yarn and an
+edge-aimed edit gives one wider in some places than others. That was
+recorded as the reason to aim at a strand. What had never been measured
+is how far the edge-aimed version actually departs.
+
+FAR. Swept over four weaves, three strand widths and both readings of
+both switches, a strand's width varies along its own axis by:
+
+  rotate_edge   one edit    51.4%   twill weave a|b, 0.5, glued
+  zigzag_edge   one edit    21.3%   basket weave ab|cd, 0.9, glued
+  scale_edge    one edit     5.3%   twill weave a|b, 0.5, glued
+  rotate_edge   stacked     70.1%   basket weave ab|cd, 0.5, counting
+  zigzag_edge   stacked     93.5%   twill weave a|b, 0.5, glued
+  scale_edge    stacked     93.8%   twill weave a|b, 0.5, glued
+
+A swing of 93.8% is a strand nearly pinched through. It is worst at low
+aspect and under the glued reading, which is consistent: both widen the
+class an edit reaches.
+
+AND NOTHING SAYS SO. `still_has_a_topology` asks whether the result is
+GAP-FREE, which is a question about a TILING, and the answer was True in
+every cell of every sweep. A weave has two further promises -- that a
+strand stays a ribbon, and that the daylight between strands stays open
+-- and only the second held (cloth coverage 0.932 to 0.941 of a cell
+against 0.937 as built, over every stack tried).
+
+SO IT IS REPORTED AND NOT GATED, which is a decision rather than a
+softening. A ceiling above 93.8% could catch nothing; one below it is
+red on ordinary journeys. This project's own rule is that a limit a
+healthy run can reach is worse than none, and its other rule is that
+when an attribution is a guess you report rather than gate. The weave
+structure matrix prints the number per cell and gates on what does
+hold.
+
+WHAT IT MEANS FOR THE ROADMAP, which is the point of writing it down:
+the admissibility condition of C-347 is stated and unbuilt, and this is
+the measurement that makes building it necessary rather than tidy. The
+unit of aim on a weave is a STRAND class and not an edge class, and
+until it is, an edit on a weave is free to stop the cloth reading as
+cloth while every check the plugin has reports success.
+
+AND THE VERTEX MANIPULATIONS ARE OUTSIDE THE PROMISE. `push_vertex` and
+`nudge_vertex` vary a strand's width by 34.4% and 47.1% on a SINGLE
+edit, because moving a vertex turns a rectangle into a trapezoid by
+construction. Ruling 3 is a promise only an edge manipulation can keep
+or break, and asking it of a vertex route was the matrix's own first
+failure.

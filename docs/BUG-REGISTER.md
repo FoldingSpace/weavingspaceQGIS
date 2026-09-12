@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-567 defect(s) with a regression test.
+569 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -762,6 +762,10 @@ there is no separate list to remember.
   guarded by `test_the_topology_tab_says_when_it_is_working`
 - **the soundness mark and the gap hatch read `gaps()`, which sees only enclosed holes, so a tear that pulled the units apart was marked sound.**  
   guarded by `test_the_validity_check_sees_a_tear_that_opens_no_hole`
+- **a weave build raising where every neighbouring design refuses in words, so the tab goes dark with a traceback behind it.**  
+  guarded by `test_the_weave_structure_matrix`
+- **a chooser that queues a rebuild nobody had driven, so the classes on screen were read from the source rather than seen.**  
+  guarded by `test_the_weave_topology_tab_matrix`
 - **nothing bounded the dialog's height, so a tall design on a small display put its own buttons off the screen.**  
   guarded by `test_the_window_never_grows_past_the_screen`
 - **the one call needing scipy raised at call time, and scipy is deliberately not a dependency.**  
@@ -1188,7 +1192,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 190
+- the mutation campaign: 192
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
