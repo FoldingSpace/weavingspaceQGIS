@@ -40,7 +40,9 @@ from qgis.PyQt.QtWidgets import (
   QLabel,
   QListWidget,
   QListWidgetItem,
+  QButtonGroup,
   QPushButton,
+  QRadioButton,
   QScrollArea,
   QVBoxLayout,
   QWidget,
@@ -2568,16 +2570,43 @@ class TopologyPanel(QWidget):
     # "considered separately" was weighed and refused: it states one of
     # the two answers, so it contradicts the chooser whenever the other
     # is picked, and it would widen the label column four rows share.
-    self.strand_families = QComboBox()
-    self.strand_families.addItem("Together, where a mirror swaps warp for "
-                                 "weft", "together")
-    self.strand_families.addItem("Apart, as a loom keeps them", "apart")
-    self.strand_families.setToolTip(
-      "Whether a mirror swapping warp for weft may put both in one class.")
-    self.strand_families.currentIndexChanged.connect(
+    # A VERTICAL TOGGLE RATHER THAN A DROPDOWN, and the width is why as
+    # much as the reading is. (Maintainer's ask, 2026-09-12.) A
+    # QComboBox asks for its widest ITEM, so naming the two groups in
+    # the options took the dialog's minimum width from 1315px to
+    # 1665px at a desktop 13pt -- past the 1480 ceiling, and a MINIMUM
+    # cannot be dragged narrower, so the window would have run off a
+    # 1440-wide screen. Stacked radio buttons cost the widest LINE
+    # instead, and a two-line label halves that again.
+    # AND BOTH ANSWERS ARE ON SCREEN AT ONCE, which is the better
+    # reason: this is a choice between two readings of what a weave IS,
+    # and the decision it supports is one somebody makes by comparing
+    # them. A dropdown shows one and hides the other behind a click.
+    self.strand_families = QButtonGroup(self)
+    families = QWidget()
+    stacked = QVBoxLayout(families)
+    stacked.setContentsMargins(0, 0, 0, 0)
+    stacked.setSpacing(2)
+    for label, value in (
+        ("Together, where a mirror swaps warp for weft\n"
+         "(symmetry group of the drawing)", "together"),
+        ("Apart, as a loom keeps them\n"
+         "(direction-preserving subgroup)", "apart")):
+      button = QRadioButton(label)
+      button.setToolTip(
+        "Whether a mirror swapping warp for weft may put both in one class.")
+      self.strand_families.addButton(button)
+      # THE VALUE RIDES ON THE BUTTON, so the group can be asked what is
+      # in force without a second list to keep in step -- the shape
+      # `_strands_in_force` and `aspect_reading_in_force` already have.
+      button.setProperty("families", value)
+      stacked.addWidget(button)
+      if value == "together":
+        button.setChecked(True)
+    self.strand_families.buttonToggled.connect(
       self._on_strand_families_chosen)
     grid.addWidget(QLabel("Warp and weft classes"), 1, 0)
-    grid.addWidget(self.strand_families, 1, 1)
+    grid.addWidget(families, 1, 1)
 
     self.class_combo = QComboBox()
     self.class_combo.setToolTip("Which class of edge or vertex to move.")
@@ -3435,8 +3464,15 @@ class TopologyPanel(QWidget):
     self._selection = (None, [])
     self.aspect_reading_changed.emit(self.aspect_reading_in_force())
 
-  def _on_strand_families_chosen(self, _index: int = 0) -> None:
+  def _on_strand_families_chosen(self, _button=None, checked=True) -> None:
     """Somebody changed whether warp and weft share their classes.
+
+    Args:
+      _button: the radio that toggled, as `QButtonGroup.buttonToggled`
+        delivers it; unused, since the group is asked what is in force.
+      checked: whether that radio came ON. The group signals once for
+        the button going off and once for the one coming on, and only
+        the second is a choice.
 
     Returns:
       None. The choice is announced so the dialog can rebuild the
@@ -3448,6 +3484,11 @@ class TopologyPanel(QWidget):
     that splits, so a label held across the change would name a
     different set of edges rather than none at all.
     """
+    # ONE SIGNAL PER CHOICE, NOT TWO. `buttonToggled` fires for the
+    # button going OFF as well as the one coming ON, so answering both
+    # would rebuild the topology twice for one click.
+    if checked is False:
+      return
     self._selection = (None, [])
     self.strand_families_changed.emit(self.strand_families_in_force())
 
@@ -3459,7 +3500,8 @@ class TopologyPanel(QWidget):
       under a group whose mirror carries warps onto wefts, or "apart"
       where every class that holds both directions is split.
     """
-    data = self.strand_families.currentData()
+    button = self.strand_families.checkedButton()
+    data = button.property("families") if button is not None else None
     return data if data else "together"
 
   def aspect_reading_in_force(self) -> str:

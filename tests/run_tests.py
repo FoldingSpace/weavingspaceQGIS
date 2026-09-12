@@ -92767,6 +92767,32 @@ def _put_the_chooser_on(combo, value, what):
   combo.setCurrentIndex(index)
 
 
+def _put_the_strand_families_on(panel, value):
+  """Press the warp-and-weft radio the way a click does.
+
+  Args:
+    panel: the TopologyPanel.
+    value: "together" or "apart".
+
+  Returns:
+    None. Asserts rather than returning, since a value the toggle does
+    not offer means the cell is about to judge a structure it did not
+    ask for.
+
+  IT IS A BUTTON GROUP RATHER THAN A COMBO since 2026-09-12, the two
+  readings being stacked so both are on screen at once; the value rides
+  on each button as a property, which is what `strand_families_in_force`
+  reads.
+  """
+  for button in panel.strand_families.buttons():
+    if button.property("families") == value:
+      button.setChecked(True)
+      return
+  raise AssertionError(
+    f"the warp-and-weft toggle offers no {value!r}; it has "
+    f"{[b.property('families') for b in panel.strand_families.buttons()]}")
+
+
 def _weave_tab_matrix_cell(dlg, reading, families, route):
   """Move both choosers, then aim one manipulation, and judge.
 
@@ -92791,7 +92817,7 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
   panel = dlg.topology_panel
   _put_the_chooser_on(panel.aspect_reading, reading, "aspect-gap")
   _tick(150)
-  _put_the_chooser_on(panel.strand_families, families, "warp-and-weft")
+  _put_the_strand_families_on(panel, families)
   _tick(150)
   if not _wait_for_the_topology(dlg, explain=False):
     # A STALL IS ITS OWN VERDICT, counted rather than failed on, and
@@ -92818,23 +92844,49 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
     *(lambda t: (t[0], t[3]))(topology_edits.weave_topology(
       catalog.TILINGS_BY_N[count][name], WEAVE_TAB_MATRIX_SPACING,
       WEAVE_TAB_MATRIX_ASPECT, reading=reading, families=families)))
-  offered = {"edge": [], "vertex": []}
-  for position in range(panel.class_combo.count()):
-    data = panel.class_combo.itemData(position)
-    if data and data[0] in offered and len(data) > 1 and data[1]:
-      offered[data[0]].extend(
-        data[1] if isinstance(data[1], (list, tuple)) else [data[1]])
+
+  def offered_now():
+    """The distinct edge and vertex labels the class chooser holds."""
+    found = {"edge": set(), "vertex": set()}
+    for position in range(panel.class_combo.count()):
+      data = panel.class_combo.itemData(position)
+      if data and data[0] in found and len(data) > 1 and data[1]:
+        found[data[0]].update(
+          data[1] if isinstance(data[1], (list, tuple)) else [data[1]])
+    return {kind: len(labels) for kind, labels in found.items()}
+
+  # WAIT FOR THE LANDING THIS CHOICE ASKED FOR, NOT FOR ANY TOPOLOGY.
+  # `_wait_for_the_topology` answers as soon as the panel holds one, and
+  # after a chooser moves the panel still holds the PREVIOUS structure
+  # until the rebuild lands -- so this cell once read the default
+  # design's 10 edge classes on every row and reported every chooser as
+  # describing "a reading nobody asked for". Logged landing by landing
+  # the product was right each time: inset 6, apart 12, back to 6. The
+  # default phase also lands TWICE, a chained build, so waiting for "a
+  # new topology object" is satisfied by a stale second landing too.
+  # A waiter whose exit condition can already be true measures nothing,
+  # which is this suite's own documented trap (T-132).
+  # AGREEMENT IS WHAT IT WAITS FOR, bounded, so a rebuild that never
+  # lands the asked-for structure still fails -- it cannot be waited
+  # out. The ceiling is the slowest landing measured, 33s for apart
+  # with its gaps glued, times this suite's margin.
+  import time as _time
+  deadline = _time.monotonic() + 120.0 * CONTENTION
+  shown = offered_now()
+  while _time.monotonic() < deadline:
+    if all(not shown[kind] or shown[kind] == len(wanted[kind])
+           for kind in ("edge", "vertex")) and shown["edge"]:
+      break
+    _settle_topology(dlg, seconds=5)
+    _tick(200)
+    shown = offered_now()
   for kind in ("edge", "vertex"):
-    shown, expected = len(set(offered[kind])), len(wanted[kind])
-    # THE GROUP ENTRY IS NOT A CLASS, so a chooser holding "every edge"
-    # beside the classes offers one datum more than there are classes;
-    # the comparison is on the SET of labels those entries carry, and
-    # a count short of the structure's is what says the tab is showing
-    # a different reading from the one it was asked for.
-    if shown and shown != expected:
-      return (f"the tab offers {shown} {kind} classes where this "
-              f"structure has {expected}, so the chooser is describing "
-              f"a reading nobody asked for", "")
+    expected = len(wanted[kind])
+    if shown[kind] and shown[kind] != expected:
+      return (f"the tab offers {shown[kind]} {kind} classes where this "
+              f"structure has {expected}, and went on doing so for "
+              f"{120.0 * CONTENTION:.0f}s, so the chooser never reached "
+              f"the reading it was asked for", "")
 
   target = topology_edits.MANIPULATIONS[route]["target"]
   chosen = -1
