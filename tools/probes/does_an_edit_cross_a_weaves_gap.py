@@ -219,8 +219,35 @@ def _pieces_and_movement(name: str, reading: str):
   return before, after, moved, filler, aimed, topology, glue, ""
 
 
+def _strandwise_label(edge, glue) -> str:
+  """One edge's class, refined by the direction the edge runs in.
+
+  Args:
+    edge: an `Edge` from the topology.
+    glue: the label map a reading of the aspect gaps called for, or
+      None.
+
+  Returns:
+    The class label with `|` appended where the edge runs across the
+    drawing and `-` where it runs along it.
+
+  A PROXY FOR THE SUBGROUP RATHER THAN THE SUBGROUP. The refinement
+  wanted is orbits under the symmetries that carry warps to warps, and
+  this splits by the edge's own orientation instead; the two agree
+  while the only direction-mixing symmetry is the swap, which is what
+  the uniform doubling in
+  `tools/probes/classes_that_stay_on_one_strand_family.py` is
+  consistent with.
+  """
+  label = getattr(edge, "label", "")
+  klass = glue["edges"].get(label, label) if glue else label
+  (x0, y0), (x1, y1) = edge.get_geometry().coords[0], \
+    edge.get_geometry().coords[-1]
+  return f"{klass}{'|' if abs(y1 - y0) > abs(x1 - x0) else '-'}"
+
+
 def _draw_reading(axis, name: str, reading: str, cells: float,
-                  label_size: int) -> None:
+                  label_size: int, strandwise: bool = False) -> None:
   """Draw one weave under one reading onto one axis.
 
   Args:
@@ -229,6 +256,11 @@ def _draw_reading(axis, name: str, reading: str, cells: float,
     reading: which reading of the aspect gaps to build under.
     cells: half the window's width, in spacings.
     label_size: the point size of an ordinary class label.
+    strandwise: where True, each class label carries the direction the
+      edge runs in, which is the refinement by the direction-preserving
+      subgroup. The EDIT IS UNCHANGED, since the library selects edges
+      by label alone and cannot yet be handed a strandwise class; the
+      column shows what the classes would be, not an edit aimed at one.
 
   Returns:
     None; the axis is mutated.
@@ -241,6 +273,10 @@ def _draw_reading(axis, name: str, reading: str, cells: float,
     return
   names = te.class_labels(topology, glue)
   order = names.get("edge") or []
+  if strandwise:
+    order = sorted({_strandwise_label(e, glue) for e in topology.edges.values()
+                    if getattr(e, "label", "")},
+                   key=lambda s: (len(s), s))
   ink = {label: CLASS_INK[i % len(CLASS_INK)]
          for i, label in enumerate(order)}
   for piece in filler:
@@ -268,16 +304,17 @@ def _draw_reading(axis, name: str, reading: str, cells: float,
     if not label:
       continue
     klass = glue["edges"].get(label, label) if glue else label
+    shown = _strandwise_label(edge, glue) if strandwise else klass
     line = edge.get_geometry()
     point = line.interpolate(0.5, normalized=True)
     if abs(point.x - centre.x) > half or abs(point.y - centre.y) > half:
       continue
-    colour = ink.get(klass, "#333333")
+    colour = ink.get(shown, "#333333")
     is_aimed = klass == aimed
     axis.plot(*line.xy, color=colour, zorder=4,
               linewidth=3.2 if is_aimed else 1.6,
               solid_capstyle="round", alpha=1.0 if is_aimed else 0.8)
-    axis.text(point.x, point.y, klass,
+    axis.text(point.x, point.y, shown,
               fontsize=label_size + 1 if is_aimed else label_size,
               color="white" if is_aimed else colour, ha="center",
               va="center", zorder=5, fontweight="bold",
@@ -295,10 +332,16 @@ def _draw_reading(axis, name: str, reading: str, cells: float,
   says = ("aspect gaps COUNT, as a dropped strand's gap does"
           if reading == te.ASPECT_LIKE_A_DROP
           else "aspect gaps IGNORED, as an inset's gaps are")
+  if strandwise:
+    says += "\nAND classes kept on one strand family"
   axis.set_title(f"{name}\n{says}\n"
-                 f"{len(order)} edge classes: {', '.join(order)}; "
-                 f"aimed at {aimed}\n"
-                 f"{sum(moved)} of {len(moved)} ribbon pieces moved",
+                 f"{len(order)} edge classes: "
+                 f"{', '.join(order[:12])}{' ...' if len(order) > 12 else ''}"
+                 f"{'' if strandwise else '; aimed at ' + aimed}\n"
+                 + (f"the same edit as the middle column moved "
+                    f"{sum(moved)} of {len(moved)}"
+                    if strandwise else
+                    f"{sum(moved)} of {len(moved)} ribbon pieces moved"),
                  fontsize=9, pad=6)
 
 
@@ -327,13 +370,22 @@ def figure(path: str, weaves=(FIGURE_WEAVE,), cells: float = 1.15,
   wave is what came of it.
   """
   os.makedirs(IMAGES, exist_ok=True)
-  figure_, axes = plt.subplots(len(weaves), 2, figsize=size, squeeze=False)
+  # THREE COLUMNS: the two readings, then the glued reading refined so
+  # a class stays on one strand family, which is the maintainer's
+  # question of 2026-09-11 drawn beside the two it refines.
+  columns = ((te.ASPECT_LIKE_A_DROP, False),
+             (te.ASPECT_LIKE_AN_INSET, False),
+             (te.ASPECT_LIKE_AN_INSET, True))
+  figure_, axes = plt.subplots(len(weaves), len(columns), figsize=size,
+                               squeeze=False)
   for row, name in enumerate(weaves):
-    for column, reading in enumerate(te.ASPECT_READINGS):
-      _draw_reading(axes[row][column], name, reading, cells, label_size)
+    for column, (reading, fine) in enumerate(columns):
+      _draw_reading(axes[row][column], name, reading, cells, label_size,
+                    strandwise=fine)
   figure_.suptitle(
     f"The same zigzag at aspect {ASPECT}, aimed at the first edge class, "
-    f"under each reading of a weave's ASPECT GAPS.\n"
+    f"under each reading of a weave's ASPECT GAPS, and then with the "
+    f"classes kept on one strand family.\n"
     f"A dropped strand's ground counts under both readings; an inset's "
     f"counts under neither. Only the aspect gap is in question.\n"
     f"The aimed-at class is thick with a filled label. Dashed is where "
