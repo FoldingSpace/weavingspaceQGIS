@@ -175,15 +175,15 @@ changelog=0.24.4 Saving a map is now something you do rather than
     dropped again afterwards, so what you get back is the weave you
     started with. A weave whose structure cannot be worked out says so
     instead of leaving the tab empty.
-    What a weave's gaps are: two choosers above the class list decide
-    what the structure is made of, because a weave's ground is empty
-    for more than one reason. Gaps from strand width asks whether the
-    daylight between strands counts, like a strand left out of the
-    pattern, or is ignored, like an inset. Warp and weft asks whether
-    one class may hold threads running both ways, as the drawing's own
-    symmetry has them, or keeps the two directions apart, as a cloth
-    does. Moving either works the structure out again and offers you a
-    different set of classes to aim an edit at.
+    What a weave's structure is made of: two controls above the class
+    list decide it. Gaps from strand width asks whether the daylight
+    between strands counts, like a strand left out of the pattern, or
+    is ignored, like an inset. Warp and weft classes chooses between
+    the drawing's full symmetry, where a mirror can swap warp for
+    weft, and the direction-preserving subgroup, which keeps the two
+    apart as a loom does. A weave starts with them apart. Changing
+    either works the structure out again and offers you a different
+    set of classes to aim an edit at.
     Dragging an edit: dragging a handle on the
     Topology tab now previews only the change that will be
     recorded. Where the design cannot take the move any further the
