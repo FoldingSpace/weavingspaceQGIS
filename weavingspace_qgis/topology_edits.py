@@ -480,14 +480,33 @@ def class_labels(topology, glue=None) -> dict:
   `ASPECT_LIKE_AN_INSET` several of the library's labels name one class
   and the chooser should offer one entry, not several.
   """
-  edges = sorted({e.label for e in topology.edges.values()
-                  if getattr(e, "label", None)})
-  points = sorted({v.label for v in topology.points.values()
-                   if getattr(v, "label", None)})
+  edges = {e.label for e in topology.edges.values()
+           if getattr(e, "label", None)}
+  points = {v.label for v in topology.points.values()
+            if getattr(v, "label", None)}
   if glue:
-    edges = sorted({glue["edges"].get(label, label) for label in edges})
-    points = sorted({glue["points"].get(label, label) for label in points})
-  return {"edge": edges, "vertex": points}
+    edges = {glue["edges"].get(label, label) for label in edges}
+    points = {glue["points"].get(label, label) for label in points}
+  return {"edge": sorted(edges, key=_label_order),
+          "vertex": sorted(points, key=_label_order)}
+
+
+def _label_order(label: str):
+  """Sort a class label the way the library issues them.
+
+  Args:
+    label: a class label, `a` to `z` then `aa`, `ab` and on.
+
+  Returns:
+    A sort key putting every one-letter label before every two-letter
+    one.
+
+  PLAIN ALPHABETICAL IS WRONG HERE, and visibly so: it puts `aa`
+  between `a` and `b`, so a basket weave's chooser reads `a, aa, ab,
+  ac, ad, ae, b, c`. This project has the same rule for element ids at
+  `bridge.element_order`, for the same reason -- `"aa" < "z"`.
+  """
+  return (len(label), label)
 
 
 def _move_edges_vertex_consistent(topology, selector: str, displacement_of):

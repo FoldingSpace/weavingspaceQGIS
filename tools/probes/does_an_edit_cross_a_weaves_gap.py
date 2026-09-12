@@ -219,11 +219,102 @@ def _pieces_and_movement(name: str, reading: str):
   return before, after, moved, filler, aimed, topology, glue, ""
 
 
-def figure(path: str) -> None:
+def _draw_reading(axis, name: str, reading: str, cells: float,
+                  label_size: int) -> None:
+  """Draw one weave under one reading onto one axis.
+
+  Args:
+    axis: the matplotlib axis.
+    name: the catalogue key of the weave.
+    reading: which reading of the aspect gaps to build under.
+    cells: half the window's width, in spacings.
+    label_size: the point size of an ordinary class label.
+
+  Returns:
+    None; the axis is mutated.
+  """
+  (before, after, moved, filler, aimed, topology, glue,
+   note) = _pieces_and_movement(name, reading)
+  if topology is None:
+    axis.set_title(f"{name}: {note[:50]}", fontsize=9)
+    axis.axis("off")
+    return
+  names = te.class_labels(topology, glue)
+  order = names.get("edge") or []
+  ink = {label: CLASS_INK[i % len(CLASS_INK)]
+         for i, label in enumerate(order)}
+  for piece in filler:
+    axis.add_patch(MplPolygon(list(piece.exterior.coords), closed=True,
+                              facecolor="#ece3cd", edgecolor="#b9ac8c",
+                              linewidth=0.8, zorder=1))
+  for piece, did in zip(after, moved):
+    for part in getattr(piece, "geoms", [piece]):
+      if part.geom_type != "Polygon":
+        continue
+      axis.add_patch(MplPolygon(
+        list(part.exterior.coords), closed=True,
+        facecolor="#fbe0cd" if did else "#ccd9ec",
+        edgecolor="#6f6f6f", linewidth=0.9, zorder=2))
+  for piece in before:
+    axis.add_patch(MplPolygon(list(piece.exterior.coords), closed=True,
+                              facecolor="none", edgecolor="#3a3a3a",
+                              linewidth=0.8, linestyle=(0, (4, 3)),
+                              zorder=3))
+  middle = shapely.union_all(before) if before else shapely.Polygon()
+  centre = middle.centroid
+  half = cells * SPACING
+  for edge in topology.edges.values():
+    label = getattr(edge, "label", "")
+    if not label:
+      continue
+    klass = glue["edges"].get(label, label) if glue else label
+    line = edge.get_geometry()
+    point = line.interpolate(0.5, normalized=True)
+    if abs(point.x - centre.x) > half or abs(point.y - centre.y) > half:
+      continue
+    colour = ink.get(klass, "#333333")
+    is_aimed = klass == aimed
+    axis.plot(*line.xy, color=colour, zorder=4,
+              linewidth=3.2 if is_aimed else 1.6,
+              solid_capstyle="round", alpha=1.0 if is_aimed else 0.8)
+    axis.text(point.x, point.y, klass,
+              fontsize=label_size + 1 if is_aimed else label_size,
+              color="white" if is_aimed else colour, ha="center",
+              va="center", zorder=5, fontweight="bold",
+              bbox=dict(boxstyle="round,pad=0.15",
+                        facecolor=colour if is_aimed else "white",
+                        edgecolor="none", alpha=0.95))
+  axis.set_xlim(centre.x - half * 1.04, centre.x + half * 1.04)
+  axis.set_ylim(centre.y - half * 1.04, centre.y + half * 1.04)
+  axis.set_aspect("equal")
+  axis.axis("off")
+  # THE TITLE NAMES WHICH GAPS. A weave's ground is empty for three
+  # different reasons and "gaps" alone does not say which is being
+  # decided about, which is the whole of the question (maintainer's
+  # correction, 2026-09-11).
+  says = ("aspect gaps COUNT, as a dropped strand's gap does"
+          if reading == te.ASPECT_LIKE_A_DROP
+          else "aspect gaps IGNORED, as an inset's gaps are")
+  axis.set_title(f"{name}\n{says}\n"
+                 f"{len(order)} edge classes: {', '.join(order)}; "
+                 f"aimed at {aimed}\n"
+                 f"{sum(moved)} of {len(moved)} ribbon pieces moved",
+                 fontsize=9, pad=6)
+
+
+def figure(path: str, weaves=(FIGURE_WEAVE,), cells: float = 1.15,
+           size=(14.6, 8.0), label_size: int = 11) -> None:
   """Draw what one edit reaches, with the classes it was aimed at named.
 
   Args:
     path: where to write the PNG.
+    weaves: the catalogue keys to draw, one row each.
+    cells: half the window's width, in spacings. A small window makes
+      one hole legible; a larger one shows the pattern repeating,
+      which is what says the alternation is the design rather than an
+      accident of where the picture was cut.
+    size: the figure's size in inches.
+    label_size: the point size of an ordinary class label.
 
   Returns:
     None; the PNG is written.
@@ -236,75 +327,19 @@ def figure(path: str) -> None:
   wave is what came of it.
   """
   os.makedirs(IMAGES, exist_ok=True)
-  figure_, axes = plt.subplots(1, 2, figsize=(14.6, 8.0))
-  titles = {te.ASPECT_LIKE_A_DROP: "gaps count, like a dropped strand",
-            te.ASPECT_LIKE_AN_INSET: "gaps ignored, like an inset"}
-  for axis, reading in zip(axes, te.ASPECT_READINGS):
-    (before, after, moved, filler, aimed, topology, glue,
-     note) = _pieces_and_movement(FIGURE_WEAVE, reading)
-    if topology is None:
-      axis.set_title(note[:60], fontsize=9)
-      continue
-    names = te.class_labels(topology, glue)
-    order = names.get("edge") or []
-    ink = {name: CLASS_INK[i % len(CLASS_INK)]
-           for i, name in enumerate(order)}
-    for piece in filler:
-      axis.add_patch(MplPolygon(list(piece.exterior.coords), closed=True,
-                                facecolor="#ece3cd", edgecolor="#b9ac8c",
-                                linewidth=1.0, zorder=1))
-    for piece, did in zip(after, moved):
-      for part in getattr(piece, "geoms", [piece]):
-        if part.geom_type != "Polygon":
-          continue
-        axis.add_patch(MplPolygon(
-          list(part.exterior.coords), closed=True,
-          facecolor="#fbe0cd" if did else "#ccd9ec",
-          edgecolor="#6f6f6f", linewidth=1.1, zorder=2))
-    for piece in before:
-      axis.add_patch(MplPolygon(list(piece.exterior.coords), closed=True,
-                                facecolor="none", edgecolor="#3a3a3a",
-                                linewidth=1.0, linestyle=(0, (4, 3)),
-                                zorder=3))
-    middle = shapely.union_all(before) if before else shapely.Polygon()
-    centre = middle.centroid
-    half = 1.15 * SPACING
-    for edge in topology.edges.values():
-      label = getattr(edge, "label", "")
-      if not label:
-        continue
-      klass = glue["edges"].get(label, label) if glue else label
-      line = edge.get_geometry()
-      point = line.interpolate(0.5, normalized=True)
-      if abs(point.x - centre.x) > half or abs(point.y - centre.y) > half:
-        continue
-      colour = ink.get(klass, "#333333")
-      is_aimed = klass == aimed
-      axis.plot(*line.xy, color=colour, zorder=4,
-                linewidth=4.4 if is_aimed else 2.2,
-                solid_capstyle="round", alpha=1.0 if is_aimed else 0.75)
-      axis.text(point.x, point.y, klass, fontsize=13 if is_aimed else 11,
-                color="white" if is_aimed else colour, ha="center",
-                va="center", zorder=5, fontweight="bold",
-                bbox=dict(boxstyle="round,pad=0.2",
-                          facecolor=colour if is_aimed else "white",
-                          edgecolor="none", alpha=0.95))
-    axis.set_xlim(centre.x - half * 1.06, centre.x + half * 1.06)
-    axis.set_ylim(centre.y - half * 1.06, centre.y + half * 1.06)
-    axis.set_aspect("equal")
-    axis.axis("off")
-    axis.set_title(f"{titles[reading]}\n"
-                   f"{len(order)} edge classes: {', '.join(order)}. "
-                   f"Aimed at {aimed}.\n"
-                   f"{sum(moved)} of {len(moved)} ribbon pieces moved",
-                   fontsize=10, pad=8)
+  figure_, axes = plt.subplots(len(weaves), 2, figsize=size, squeeze=False)
+  for row, name in enumerate(weaves):
+    for column, reading in enumerate(te.ASPECT_READINGS):
+      _draw_reading(axes[row][column], name, reading, cells, label_size)
   figure_.suptitle(
-    f"{FIGURE_WEAVE} at aspect {ASPECT}: the same zigzag, aimed at the "
-    f"first edge class.\nThe aimed-at class is drawn thick with a filled "
-    f"label. Dashed is where each ribbon was. Peach ribbons moved, blue "
-    f"ones did not, cream squares are the filler that plugs a gap.",
+    f"The same zigzag at aspect {ASPECT}, aimed at the first edge class, "
+    f"under each reading of a weave's ASPECT GAPS.\n"
+    f"A dropped strand's ground counts under both readings; an inset's "
+    f"counts under neither. Only the aspect gap is in question.\n"
+    f"The aimed-at class is thick with a filled label. Dashed is where "
+    f"each ribbon was. Peach moved, blue did not, cream is the filler.",
     fontsize=10)
-  figure_.tight_layout(rect=(0, 0, 1, 0.84))
+  figure_.tight_layout(rect=(0, 0, 1, 0.90))
   figure_.savefig(path, dpi=140)
   plt.close(figure_)
 
@@ -411,6 +446,9 @@ def main() -> None:
             f"strand piece(s)"
             + (f"  [{row['note'][:40]}]" if row["note"] else ""))
   figure(os.path.join(IMAGES, "what-an-edit-reaches.png"))
+  figure(os.path.join(IMAGES, "what-an-edit-reaches-wide.png"),
+         weaves=("twill weave a|b", "basket weave ab|cd"),
+         cells=2.6, size=(17.0, 17.4), label_size=7)
   labelled_figure(os.path.join(IMAGES, "the-edge-classes-named.png"))
   print(f"\nfigure written to {IMAGES}")
 
