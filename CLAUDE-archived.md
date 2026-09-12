@@ -390,6 +390,7 @@ quote them, do not renumber them.
 - **C-353** — edge classes that stay on one strand family  <sub>minted</sub>
 - **C-354** — the direction-preserving subgroup, built: the transform list is not a group
 - **C-355** — An edge-aimed edit does not keep a weave's ribbons at constant width  <sub>minted</sub>
+- **C-356** — Reference-venv figures can describe designs the plugin cannot reach  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11899,3 +11900,47 @@ edit, because moving a vertex turns a rectangle into a trapezoid by
 construction. Ruling 3 is a promise only an edge manipulation can keep
 or break, and asking it of a vertex route was the matrix's own first
 failure.
+
+### C-356 — Reference-venv figures can describe designs the plugin cannot reach
+
+Found 2026-09-12, while adding a rendered arm to the weave structure
+matrix, by a stray line saying `twill weave a|b: refused`.
+
+`.venv-reference` is where this project asks its geometry questions,
+because it drives `topology_edits` and the vendored library with no
+QGIS in the way and answers in seconds. The state of play recommends
+it in those words. What nobody had checked is whether the two
+interpreters AGREE.
+
+THEY DO NOT. Under QGIS 4.0.3's own Python -- 3.12.11, shapely 2.1.2,
+GEOS 3.14.1 -- `twill weave a|b` builds NO topology at any of the three
+strand widths, where the reference venv (Python 3.14) builds it at all
+three and reports 6 edge and 4 vertex classes. `twill weave a|b-`
+builds at 0.75 alone under QGIS and at 0.9 and 0.75 in the venv. The
+plain weave and the basket agree everywhere.
+
+THE CAUSE IS A DEFECT THIS PROJECT HAS ALREADY WRITTEN UP. The raw
+exception is `KeyError: (108, 105)` from `Tile.get_edges`, which is
+`docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`
+exactly: the constructor deletes an edge from its own dict while a tile
+goes on naming it. It is GEOS-VERSION-SENSITIVE, which the note did not
+know and which is its third reproduction.
+
+WHAT IT COST, and it is the reason this is an account rather than a
+footnote: every twill figure in the weave work was measured in the
+venv. The 6-to-12 class refinement, the 8-of-16 against 16-of-16 edit
+measurement, the 51.4% and 93.8% ribbon swings -- all describe a design
+the plugin cannot currently build. The numbers are not wrong. Their
+conditions were unstated, which is the same fault as having no
+instrument beside a figure.
+
+AND THE MATRIX COULD NOT SEE IT. A weave that refuses in words counts
+as a PASS, correctly, since saying why a design carries no topology is
+half the promise -- so a weave that stops building entirely reads
+exactly like one refusing properly. The grid now collects refusals,
+prints them on a pass, and fails where more than half the cells refuse.
+
+THE RULE: a figure measured in `.venv-reference` carries the venv's
+name until it has been reproduced under `$QGIS_PY`, and a weave figure
+is reproduced there before it is quoted anywhere a reader would take it
+for the product's behaviour.

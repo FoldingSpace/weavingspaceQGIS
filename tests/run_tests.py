@@ -92192,6 +92192,17 @@ WEAVE_MATRIX_WIDTH_SWING_REPORTED = True
 # 0.932 to 0.941 of a cell across every stack tried, against 0.937 as
 # built, so a twentieth is a margin no healthy run has approached.
 WEAVE_MATRIX_COVER_MARGIN = 0.05
+# HOW MANY CELLS ARE ALSO LOOKED AT. Rendering is the expensive half --
+# a layer, a render job and a pixel sweep per cell -- so the visual arm
+# is SAMPLED under the same seed the rest of the grid prints, which is
+# this suite's standing answer to a crossing it cannot afford whole.
+WEAVE_MATRIX_VISUAL_CELLS = 4
+# WHAT THE PICTURE AND THE GEOMETRY MAY DISAGREE BY. The painted ink
+# and the cloth's own area over the same extent were measured to agree
+# within 0.0063 across eight structures on three weaves, the residue
+# being antialiased edges; the tolerance is that worst reading times a
+# margin, so a healthy run cannot reach it.
+WEAVE_MATRIX_INK_TOLERANCE = 0.02
 
 
 def _weave_matrix_width_swing(polygon) -> float:
@@ -92272,6 +92283,113 @@ def _weave_matrix_cloth(unit, kinds):
       continue
     out.append((row, geometry))
   return out
+
+
+def _weave_matrix_visual_cell(name, count, aspect, reading, families,
+                              out_dir):
+  """Render one edited weave and ask the picture what the geometry said.
+
+  Args:
+    name: the catalogue key of the weave.
+    count: its element count.
+    aspect: the strand width to build at.
+    reading: which reading of the aspect gaps to build under.
+    families: whether one class may hold both strand directions.
+    out_dir: somewhere to write the PNG.
+
+  Returns:
+    (verdict, detail), as the other cells do.
+
+  WHY A PICTURE ADDS ANYTHING HERE, since every other cell of this grid
+  reads geometry and this project's rule is that a matrix asking about
+  records catches none of the defects that are about what is SEEN
+  (T-48). The cloth's area is what `.area` reports; the ink is what the
+  polygon actually PAINTS, and the two part company exactly where a
+  ring is wound the wrong way, a piece self-intersects, or a part of a
+  multi-part is dropped on the way to a renderer -- none of which moves
+  an area reading at all. Comparing them is a differential between two
+  descriptions of one thing, which is the shape this project's own
+  record says finds the defects.
+
+  THE BACKGROUND IS CHROMA-KEYED, so "is this ink" is an exact test
+  rather than a near-white heuristic: `render_layers` fills magenta,
+  which no fill here produces.
+  """
+  import os
+  from qgis.PyQt.QtGui import QColor
+  import shapely
+  from visual_tests import render_layers, BACKGROUND
+  from weavingspace_qgis import catalog, topology_edits
+  spec = catalog.TILINGS_BY_N[count][name]
+  try:
+    topology, unit, kinds, glue, note = topology_edits.weave_topology(
+      spec, 1000.0, aspect, reading=reading, families=families)
+  except Exception as exc:                            # noqa: BLE001
+    return (f"building it raised {type(exc).__name__}: {str(exc)[:80]}", "")
+  if topology is None:
+    return ("SKIPPED", f"this weave carries no topology here: {note[:60]}")
+  labels = topology_edits.class_labels(topology, glue).get("edge") or []
+  if not labels:
+    return ("SKIPPED", "this weave offers no edge class to move")
+  edit = {"how": "zigzag_edge", "target": "edge", "classes": labels[0],
+          "args": {"n": 2, "h": 0.15}}
+  edited, _refusals, _state = topology_edits.apply(
+    topology, [edit], glue=glue)
+  drawn = edited if edited is not None else unit
+  ids = drawn.tiles["tile_id"].astype(str)
+  cloth = [g for row, g in enumerate(drawn.tiles.geometry)
+           if kinds.get(str(ids.iloc[row])) == "strand"
+           and g.geom_type == "Polygon"]
+  if not cloth:
+    return ("SKIPPED", "the edit left no drawable cloth")
+  layer = QgsVectorLayer("Polygon?crs=EPSG:3857", "cloth", "memory")
+  features = []
+  for geometry in cloth:
+    feature = QgsFeature()
+    feature.setGeometry(QgsGeometry.fromWkt(geometry.wkt))
+    features.append(feature)
+  layer.dataProvider().addFeatures(features)
+  layer.updateExtents()
+  QgsProject.instance().addMapLayer(layer)
+  try:
+    png = os.path.join(out_dir, f"weave-{abs(hash((name, aspect, reading, families)))}.png")
+    image = render_layers([layer], png, size=500)
+    key = QColor(BACKGROUND)
+    wanted = (key.red(), key.green(), key.blue())
+    ink = total = 0
+    for x in range(0, image.width(), 2):
+      for y in range(0, image.height(), 2):
+        colour = QColor(image.pixel(x, y))
+        total += 1
+        if any(abs(c - w) > 12 for c, w in
+               ((colour.red(), wanted[0]), (colour.green(), wanted[1]),
+                (colour.blue(), wanted[2]))):
+          ink += 1
+    painted = ink / total if total else 0.0
+    extent = layer.extent()
+    extent = extent.buffered(extent.width() * 0.02)
+    box = shapely.box(extent.xMinimum(), extent.yMinimum(),
+                      extent.xMaximum(), extent.yMaximum())
+    expected = shapely.union_all(cloth).area / box.area
+  finally:
+    QgsProject.instance().removeMapLayer(layer.id())
+  # NEITHER BLANK NOR SOLID, stated separately from the comparison
+  # because both are catastrophes a tolerance could absorb: a cloth
+  # that painted nothing and one that painted everything are each
+  # within 0.02 of SOMETHING.
+  if painted < 0.01:
+    return ("the cloth painted nothing at all, so the geometry reached "
+            "no renderer", "")
+  if painted > 0.99:
+    return ("the cloth painted the whole canvas, so the weave's "
+            "daylight reached no renderer", "")
+  if abs(painted - expected) > WEAVE_MATRIX_INK_TOLERANCE:
+    return (f"the picture shows {painted:.4f} ink where the geometry "
+            f"says {expected:.4f}, past the "
+            f"{WEAVE_MATRIX_INK_TOLERANCE} antialiasing explains, so "
+            f"what these polygons PAINT is not what their area says",
+            "")
+  return ("ok", f"painted {painted:.4f} against {expected:.4f}")
 
 
 def _weave_matrix_cell(name, count, aspect, reading, families, route,
@@ -92507,6 +92625,7 @@ def test_the_weave_structure_matrix():
   cells += triaxial
 
   trouble, skipped, ran, passed_over = [], {}, 0, []
+  refused, swings = [], []
   for name, count, aspect, reading, families, route, aftermath in cells:
     where = (f"{name} a={aspect} {reading}/{families} {route} "
              f"/ {aftermath}")
@@ -92517,10 +92636,81 @@ def test_the_weave_structure_matrix():
       passed_over.append(f"{where}: {detail}")
     else:
       ran += 1
+      # A REFUSAL IS AN "ok" HERE, since saying why a design carries no
+      # topology is half the promise -- and that is exactly how a weave
+      # that STOPS building would pass unseen. They are collected and
+      # printed, because a grid that cannot tell "refuses correctly"
+      # from "no longer works" is a grid that reports the second as the
+      # first. `twill weave a|b` builds in the reference venv and
+      # refuses under QGIS's own GEOS, on the upstream KeyError of
+      # `upstream-note-an-edge-is-deleted-while-a-tile-still-names-it`,
+      # and nothing here said so until it was asked by hand.
+      if verdict == "ok" and "carries no topology" not in detail \
+          and detail and "could not work out" in detail:
+        refused.append(f"{where}: {detail[:70]}")
+      if verdict == "ok" and "ribbon width varies" in detail:
+        swings.append(detail.split("ribbon width varies ")[1].split("%")[0])
       if verdict != "ok":
         trouble.append(f"{where}: {verdict}")
 
+  # THE VISUAL ARM, sampled under the same seed. Every cell above reads
+  # GEOMETRY, and this project's record is that a matrix asking about
+  # records catches none of the defects that are about what is seen.
+  visual = [(nm, ct, asp, rd, fm)
+            for nm, ct in WEAVE_MATRIX_WEAVES
+            for asp in WEAVE_MATRIX_ASPECTS
+            for rd, fm in structures]
+  # THE SAMPLE IS WALKED UNTIL ENOUGH CELLS HAVE A PICTURE, rather than
+  # taken as a fixed slice. A weave that carries no topology here has
+  # nothing to render, and a fixed slice landing on two of them looks
+  # at half what it meant to -- which is what the first run did, the
+  # twill refusing under QGIS's own GEOS. Walking a SHUFFLED list and
+  # stopping at the count wanted is not choosing by the answer: a cell
+  # is passed over for having no picture, never for the verdict its
+  # picture gives.
+  order = list(visual)
+  random.Random(seed).shuffle(order)
+  looked = 0
+  with _temp_dir() as shots:
+    for nm, ct, asp, rd, fm in order:
+      if looked >= WEAVE_MATRIX_VISUAL_CELLS:
+        break
+      where = f"{nm} a={asp} {rd}/{fm} (rendered)"
+      verdict, detail = _weave_matrix_visual_cell(nm, ct, asp, rd, fm, shots)
+      if verdict == "SKIPPED":
+        passed_over.append(f"{where}: {detail}")
+        continue
+      looked += 1
+      if verdict != "ok":
+        trouble.append(f"{where}: {verdict}")
+  # THREE AT LEAST, or the arm has stopped being a sample. One cell
+  # rendering is not "we looked at the pictures", and a run where
+  # almost nothing can be drawn is itself the finding.
+  assert looked >= min(3, WEAVE_MATRIX_VISUAL_CELLS), (
+    f"only {looked} cells could be rendered, so the visual arm is "
+    f"reporting on pictures it could not take:\n  "
+    + "\n  ".join(passed_over[-6:]))
+
+  # WHAT THE GRID SAW, PRINTED ON A PASS AS WELL AS A FAILURE. A report
+  # nobody reads is not a report, and the ribbon swing is REPORTED
+  # rather than gated (C-355) -- which is worth nothing if it only
+  # appears in a message that fires when something else breaks.
+  print(f"    weave matrix: {ran} cells, {looked} rendered, "
+        f"{len(refused)} refused to build"
+        + (f", worst ribbon swing {max(swings, key=float)}%"
+           if swings else ""))
+  for line in refused:
+    print(f"      refused: {line}")
+
   assert ran, "not one cell ran, so this matrix asserts nothing"
+  # THE SPINE MUST ACTUALLY BUILD. A refusal counts as "ok" above, so
+  # every weave losing its topology at once would pass this grid in
+  # silence -- which is the shape that hid `twill weave a|b` refusing
+  # under QGIS while the reference venv built it.
+  assert len(refused) < len(cells) // 2, (
+    f"{len(refused)} of {len(cells)} cells refused to build a topology "
+    f"at all, which is a weave path that has stopped working rather "
+    f"than designs refusing correctly:\n  " + "\n  ".join(refused[:8]))
   never = [r for r in routes if skipped.get(r, 0) and
            skipped[r] == sum(1 for c in cells if c[5] == r)]
   assert not never, (

@@ -24,6 +24,14 @@ import traceback
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 sys.path.insert(0, ROOT)
+# ...AND THE SUITE'S OWN DIRECTORY, which running tests/run_tests.py
+# directly gets for free and loading it by spec does not. Without it
+# every test importing `visual_tests` -- which is every test that
+# renders anything -- dies here at ModuleNotFoundError while passing in
+# the full suite, so this tool could not run the visual half of what it
+# exists to iterate on. Found 2026-09-12, by a weave matrix that grew a
+# rendered arm.
+sys.path.insert(0, os.path.join(ROOT, "tests"))
 
 spec = importlib.util.spec_from_file_location(
   "run_tests", os.path.join(ROOT, "tests", "run_tests.py"))

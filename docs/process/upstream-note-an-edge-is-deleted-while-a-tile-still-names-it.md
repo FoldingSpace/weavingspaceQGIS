@@ -113,3 +113,25 @@ BUILD have too (45 of them in one), and coordinate precision, where
 gridifying the filler changed nothing and there are no near-duplicate
 vertices at all. What the instrumented run shows is only what it
 shows: an edge deleted, and a tile still naming it.
+
+## A third reproduction, and it depends on the GEOS in force
+
+Added 2026-09-12. The scaffolded `twill weave a|b` at spacing 1000 and
+aspect 0.9, 0.75 or 0.5 raises `KeyError: (108, 105)` from
+`Tile.get_edges`, through `_match_reference_tile_vertices` and
+`insert_vertex_at`, which is the same shape as the two reproductions
+above.
+
+What is new is that IT DEPENDS ON THE ENVIRONMENT. The same code, the
+same spec and the same arguments build a topology without complaint
+under Python 3.14 with its own shapely, and fail under the Python 3.12,
+shapely 2.1.2 and GEOS 3.14.1 that QGIS 4.0.3 ships. `twill weave a|b-`
+is intermediate: it builds at aspect 0.75 under QGIS and refuses at 0.9
+and 0.5, where the other interpreter takes 0.9 and 0.75.
+
+That is worth reporting because it bears on how the defect is found
+rather than only on what it is: a maintainer reproducing this on one
+machine may see a clean build, and the tiles reaching the constructor
+are identical either way. The scaffolding hands over a partition
+measured at gap 0.000000001 and overlap 0.000000000 before the
+constructor is called.

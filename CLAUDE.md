@@ -1346,6 +1346,16 @@ and the ids beside each rule.
   same sentence and re-run it before quoting it again (C-202). Profile
   the thing a person waits for, since the cost is often not where the
   subject is (C-182).
+- **AND `.venv-reference` IS A DIFFERENT MACHINE, SO A FIGURE TAKEN
+  THERE CARRIES ITS NAME UNTIL IT IS REPRODUCED UNDER `$QGIS_PY`.**
+  The venv exists because it drives the library with no QGIS in the
+  way, and it answers a question the product may answer differently:
+  `twill weave a|b` builds a topology at every strand width there and
+  NONE under QGIS's own GEOS, on the upstream KeyError that note
+  already records. Every twill figure in the weave work was a venv
+  figure describing a design the plugin cannot reach, and the numbers
+  were not wrong -- their conditions were unstated, which is the same
+  fault as a figure with no instrument beside it. (C-356.)
 - **PROVE THE QUANTITY THE FAILURE MEASURES, NOT ONE THAT SOUNDS
   EQUIVALENT** -- is this the number the red run prints? (C-151.)
   Verify against what shipped, not what you wrote, where a publish

@@ -1221,6 +1221,28 @@ The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 record, the dead ends and what weaving asks of an edit are in
 docs/process/weaving-and-topology.md; the rulings are C-347.
 
+## WHICH INTERPRETER A WEAVE FIGURE WAS TAKEN ON: 2026-09-12
+
+EVERY TWILL FIGURE IN THIS DOCUMENT'S WEAVE SECTIONS WAS MEASURED IN
+`.venv-reference`, AND THE TWILL DOES NOT BUILD UNDER QGIS. Under QGIS
+4.0.3's own Python -- 3.12.11, shapely 2.1.2, GEOS 3.14.1 -- `twill
+weave a|b` carries no topology at aspect 0.9, 0.75 or 0.5, raising
+`KeyError` from `Tile.get_edges`, which is the upstream defect of
+`upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md` in
+its third reproduction and its first that is version-sensitive. The
+venv (Python 3.14) builds all three. `twill weave a|b-` builds at 0.75
+alone under QGIS. `plain weave a|b` and `basket weave ab|cd` agree
+across both.
+
+SO THE TWILL NUMBERS BELOW -- the 6-to-12 class refinement, the 8 of 16
+against 16 of 16 edit measurement, the 51.4% and 93.8% ribbon swings --
+describe a design the plugin cannot presently reach, and are kept
+because they are correct about the geometry and will be reachable again
+when the upstream defect closes. The plain weave and the basket carry
+the same findings on designs that build in both places. A figure taken
+in the venv carries the venv's name until it is reproduced under
+`$QGIS_PY` (C-356).
+
 ## Stacking edge manipulations on a weave: 2026-09-11
 
 An edit on a weave is measured one at a time everywhere above.
