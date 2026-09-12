@@ -2824,6 +2824,11 @@
   "excerpt": "The *Messages* tab, the first of those, keeps everything the",
   "where": "docs/USER-GUIDE.md"
  },
+ "f24b910707f718ec": {
+  "approved": "2026-09-12",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "f297bd31c128e7bf": {
   "approved": "2026-08-08",
   "excerpt": "Where the slices/dissection cuts start on the base shape: 0 ",
