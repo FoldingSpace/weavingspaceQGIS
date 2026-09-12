@@ -332,8 +332,8 @@ def _draw_reading(axis, name: str, reading: str, cells: float,
   says = ("aspect gaps COUNT, as a dropped strand's gap does"
           if reading == te.ASPECT_LIKE_A_DROP
           else "aspect gaps IGNORED, as an inset's gaps are")
-  if strandwise:
-    says += "\nAND classes kept on one strand family"
+  says += ("\nAND classes kept on one strand family"
+           if strandwise else "\nclasses as the library gives them")
   axis.set_title(f"{name}\n{says}\n"
                  f"{len(order)} edge classes: "
                  f"{', '.join(order[:12])}{' ...' if len(order) > 12 else ''}"
@@ -370,10 +370,19 @@ def figure(path: str, weaves=(FIGURE_WEAVE,), cells: float = 1.15,
   wave is what came of it.
   """
   os.makedirs(IMAGES, exist_ok=True)
-  # THREE COLUMNS: the two readings, then the glued reading refined so
-  # a class stays on one strand family, which is the maintainer's
-  # question of 2026-09-11 drawn beside the two it refines.
-  columns = ((te.ASPECT_LIKE_A_DROP, False),
+  # FOUR COLUMNS, BECAUSE THESE ARE TWO INDEPENDENT SWITCHES. Whether
+  # a strand-width gap counts is one question; whether a class may
+  # hold edges of both strand families is another, and the second
+  # applies under either answer to the first. Drawing only three of
+  # the four made them look like one ladder (maintainer's correction,
+  # 2026-09-11).
+  # THE TWO REFINEMENTS ARE WINGS ON THE ORIGINAL PAIR (maintainer's
+  # arrangement, 2026-09-11). The middle two are the question about
+  # aspect gaps, which is what the drawing was first about; each is
+  # flanked by its OWN strandwise refinement, so a reader compares
+  # inward across the one switch and outward across the other.
+  columns = ((te.ASPECT_LIKE_A_DROP, True),
+             (te.ASPECT_LIKE_A_DROP, False),
              (te.ASPECT_LIKE_AN_INSET, False),
              (te.ASPECT_LIKE_AN_INSET, True))
   figure_, axes = plt.subplots(len(weaves), len(columns), figsize=size,
@@ -384,14 +393,19 @@ def figure(path: str, weaves=(FIGURE_WEAVE,), cells: float = 1.15,
                     strandwise=fine)
   figure_.suptitle(
     f"The same zigzag at aspect {ASPECT}, aimed at the first edge class, "
-    f"under each reading of a weave's ASPECT GAPS, and then with the "
-    f"classes kept on one strand family.\n"
+    f"under TWO INDEPENDENT SWITCHES.\n"
+    f"The middle pair asks whether aspect gaps count. Each wing is that "
+    f"column's own refinement, where a class may not hold edges of both "
+    f"strand families.\n"
     f"A dropped strand's ground counts under both readings; an inset's "
     f"counts under neither. Only the aspect gap is in question.\n"
     f"The aimed-at class is thick with a filled label. Dashed is where "
     f"each ribbon was. Peach moved, blue did not, cream is the filler.",
     fontsize=10)
-  figure_.tight_layout(rect=(0, 0, 1, 0.90))
+  # A FOUR-LINE TITLE PER PANEL NEEDS ROOM BETWEEN THE ROWS, or the
+  # second row's headings land on the first row's drawings; `h_pad` is
+  # what tight_layout reserves between subplots rather than around them.
+  figure_.tight_layout(rect=(0, 0, 1, 0.92), h_pad=5.0)
   figure_.savefig(path, dpi=140)
   plt.close(figure_)
 
