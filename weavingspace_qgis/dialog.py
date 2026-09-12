@@ -24312,7 +24312,7 @@ class WeavingSpaceDialog(QDialog):
                     else topology_edits.ASPECT_LIKE_A_DROP),
         "families": (panel.strand_families_in_force()
                      if hasattr(panel, "strand_families_in_force")
-                     else topology_edits.WARP_AND_WEFT_TOGETHER),
+                     else topology_edits.WARP_AND_WEFT_APART),
       }
 
     def work(task):

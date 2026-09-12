@@ -148,8 +148,12 @@ def read(name: str, reading: str, aspect: float) -> dict:
   refinement where they disagree is describing the constructor's patch
   rather than the design.
   """
+  # PINNED TO G: this probe refines the LIBRARY's classes by each edge's
+  # orientation itself, so it must start from them, whatever the
+  # default has since become.
   topology, unit, kinds, glue, note = te.weave_topology(
-    spec_for(name), SPACING, aspect, reading=reading)
+    spec_for(name), SPACING, aspect, reading=reading,
+    families=te.WARP_AND_WEFT_TOGETHER)
   if topology is None:
     return {"note": note}
   library = te.class_labels(topology, glue)["edge"]

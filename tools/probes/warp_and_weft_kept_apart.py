@@ -167,8 +167,12 @@ def main() -> None:
   for name in WEAVES:
     print(f"\n=== {name} ===")
     for aspect in ASPECTS:
+      # THE CONTROL IS PINNED TO G. It asks whether the transform pool
+      # reproduces the LIBRARY's own classes, and a topology built under
+      # H would compare the pool against labels already refined.
       topology, _unit, kinds, _glue, note = te.weave_topology(
-        spec_for(name), SPACING, aspect)
+        spec_for(name), SPACING, aspect,
+        families=te.WARP_AND_WEFT_TOGETHER)
       if topology is None:
         print(f"  a={aspect}: REFUSED -- {note}")
         continue

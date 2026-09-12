@@ -439,7 +439,7 @@ def build(unit, weave=None):
     weave.get("spec"), weave.get("spacing"), weave.get("aspect"),
     crs=None, strands=weave.get("strands"),
     reading=weave.get("reading", ASPECT_LIKE_A_DROP),
-    families=weave.get("families", WARP_AND_WEFT_TOGETHER))
+    families=weave.get("families", WARP_AND_WEFT_APART))
   if topology is None:
     return None, note or reason, None, kinds, glue
   return topology, "", filled, kinds, glue
@@ -1514,7 +1514,7 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
 
 def weave_topology(spec, spacing: float, aspect: float, crs=None,
                    strands=None, reading: str = ASPECT_LIKE_A_DROP,
-                   families: str = WARP_AND_WEFT_TOGETHER):
+                   families: str = WARP_AND_WEFT_APART):
   """The topology of a weave under one reading of its daylight.
 
   Args:
@@ -1525,9 +1525,14 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
     strands: a typed strands code, or None for the entry's own.
     reading: which daylight the structure may see; see
       `scaffolded_weave`.
-    families: `WARP_AND_WEFT_APART` to split every class that holds
-      edges of both strand directions, or `WARP_AND_WEFT_TOGETHER` for
-      the classes the library assigns.
+    families: `WARP_AND_WEFT_APART` -- the default -- to split every
+      class that holds edges of both strand directions, or
+      `WARP_AND_WEFT_TOGETHER` for the classes the library assigns.
+      APART IS THE DEFAULT BECAUSE THIS FUNCTION IS ONLY EVER ABOUT A
+      WEAVE, and the maintainer's ruling of 2026-09-12 is "H for
+      weaves, G for tiles": a cloth's classes are orbits under the
+      direction-preserving subgroup H, while a tiling keeps the full
+      group G, which it does by never reaching this function at all.
 
   Returns:
     `(topology, unit, kinds, glue, note)`. The topology is None where

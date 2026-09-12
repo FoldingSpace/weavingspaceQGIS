@@ -2160,6 +2160,20 @@ Confirmed with the user via an explicit design review:
   aimed at a refined class therefore reaches one family under the
   counting reading and both under the glued one on a twill. That is the
   quotient's meaning rather than a defect in either switch. (C-354.)
+- **H FOR WEAVES, G FOR TILES.** (Maintainer's ruling, 2026-09-12.) A
+  weave's classes default to orbits under the DIRECTION-PRESERVING
+  SUBGROUP H, so the `Warp and weft classes` toggle opens on Apart; a
+  tiling keeps the full group G, which it does by never reaching the
+  refinement, since only a weave is scaffolded. Pinned: every probe
+  whose published figures were measured under G passes
+  `WARP_AND_WEFT_TOGETHER` explicitly, so a changed default cannot
+  change a quoted number in silence. THE SAME ARGUMENT REACHES EVERY
+  TILING AND IS LEFT OPEN ON PURPOSE: `Topology(unit, ignore_tile_ids=True)`
+  takes the symmetry group of the SHAPES, which collapses Cairo's four
+  pentagons and hex-slice 12's twelve triangles to ONE tile class each,
+  so elements carrying different variables cannot be edited apart;
+  `ignore_tile_ids=False` keeps them (4/10/6 against 1/2/2 on Cairo).
+  The maintainer's call was to leave that for now (ROADMAP.md).
 - **A STRANDS CODE IS SOMETHING YOU TYPE, AND THE CODE SETS THE
   ELEMENT COUNT.** (Maintainer's ruling, 2026-09-08.) The catalogue's
   77 weave entries carried their codes baked in while the guide taught

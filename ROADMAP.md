@@ -464,6 +464,22 @@ which is the maintainer's act.
 The discussion, with figures, is
 docs/process/the-topology-of-a-weave-and-its-holes.md.
 
+**THE SYMMETRY GROUP A TILING'S CLASSES ARE TAKEN UNDER -- LEFT FOR NOW,
+ON THE MAINTAINER'S DECISION OF 2026-09-12.** The Topology tab builds
+every topology with `ignore_tile_ids=True`, the symmetry group of the
+tile SHAPES, which ignores which element a tile is. So Cairo's four
+pentagons collapse to one tile class, 2 edge and 2 vertex classes, and
+hex-slice 12's twelve triangles to one, 3 and 3: an edit aimed at a
+class moves every element's tiles at once, and element a cannot be
+edited apart from element b though they carry different variables.
+`ignore_tile_ids=False` keeps elements apart -- Cairo 4 tile / 10 edge
+/ 6 vertex, hex-slice 12 12 / 18 / 6 -- and runs faster, skipping the
+symmetry search. It is the warp-and-weft argument one level up: the
+picture's symmetry erases a distinction the MAP depends on. NOT
+DECIDED, and it wants grilling before any code, since it changes class
+counts on every design and the labels shelved edits are replayed by.
+Weaves already refine by strand direction (H for weaves, G for tiles).
+
 **THE TOPOLOGY TAB'S PALETTE, TOWARD THE PAPER'S FIGURE 13.** (Maintainer's ask, 2026-09-06: learn the styling of `topology-styling-to-learn.png`, on the roadmap rather than now.) The figure draws a tiling as thin WHITE edges on a light grey ground, with ONE darker-grey region for the thing being worked on and DOTTED grey construction lines for the auxiliary geometry -- monochrome and restrained. The tab today is the opposite: black edges, orange for the selected class, a red selected edge, teal handles and ghost, red hatching for gaps, and a/b/A/B labels everywhere. The direction is to move to white-on-grey with one emphasis colour and dotted lines for the ghost, the rotation arc and the dual overlay, so the drawing reads as a diagram rather than a control panel. It is an aesthetic change and the maintainer's to tune, so it wants a before/after put to them rather than built blind; it also composes with the honest-preview work (a red dotted glyph for an impossible move needs the palette settled). The reference image is in `claude scratch/`.
 DEFERRED BACK HERE on 2026-09-07: it wants a before/after put to the
 maintainer rather than built blind, so it waits on their eye rather

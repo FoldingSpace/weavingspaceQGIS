@@ -115,7 +115,8 @@ def read(name: str, reading: str) -> dict:
   """
   spec = spec_for(name)
   topology, unit, kinds, glue, note = te.weave_topology(
-    spec, SPACING, ASPECT, reading=reading)
+    spec, SPACING, ASPECT, reading=reading,
+    families=te.WARP_AND_WEFT_TOGETHER)
   if topology is None:
     return {"note": note}
   labels = te.class_labels(topology, glue)
@@ -193,7 +194,8 @@ def _pieces_and_movement(name: str, reading: str):
   """
   spec = spec_for(name)
   topology, unit, kinds, glue, note = te.weave_topology(
-    spec, SPACING, ASPECT, reading=reading)
+    spec, SPACING, ASPECT, reading=reading,
+    families=te.WARP_AND_WEFT_TOGETHER)
   if topology is None:
     return [], [], [], [], "", None, None, note
   labels = te.class_labels(topology, glue)
@@ -435,7 +437,8 @@ def labelled_figure(path: str) -> None:
   figure_, axes = plt.subplots(1, 2, figsize=(14.0, 7.4))
   for axis, reading in zip(axes, te.ASPECT_READINGS):
     topology, unit, kinds, glue, note = te.weave_topology(
-      spec_for(FIGURE_WEAVE), SPACING, ASPECT, reading=reading)
+      spec_for(FIGURE_WEAVE), SPACING, ASPECT, reading=reading,
+      families=te.WARP_AND_WEFT_TOGETHER)
     if topology is None:
       axis.set_title(note[:60], fontsize=9)
       continue

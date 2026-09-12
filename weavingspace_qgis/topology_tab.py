@@ -2601,7 +2601,11 @@ class TopologyPanel(QWidget):
       # `_strands_in_force` and `aspect_reading_in_force` already have.
       button.setProperty("families", value)
       stacked.addWidget(button)
-      if value == "together":
+      # H IS WHERE IT OPENS, on the maintainer's ruling of 2026-09-12:
+      # "H for weaves, G for tiles". The toggle is shown for every
+      # design and bites only on a weave, so opening on H changes
+      # nothing for a tiling, which keeps its full group G.
+      if value == "apart":
         button.setChecked(True)
     self.strand_families.buttonToggled.connect(
       self._on_strand_families_chosen)
@@ -3502,7 +3506,7 @@ class TopologyPanel(QWidget):
     """
     button = self.strand_families.checkedButton()
     data = button.property("families") if button is not None else None
-    return data if data else "together"
+    return data if data else "apart"
 
   def aspect_reading_in_force(self) -> str:
     """Which reading of a weave's daylight the tab is showing.
