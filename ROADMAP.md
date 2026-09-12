@@ -468,13 +468,12 @@ unglued (`does_an_edit_cross_a_weaves_gap.py`). WHAT IS OWED:
   covers the two kinds of daylight and none covers these.
 - THE TAB IS WIRED AND HAS NOT BEEN DRIVEN under QGIS. The chooser,
   the requeue on change and the glued labels are read from the code.
-- A SECOND, INDEPENDENT SWITCH IS MEASURED AND NOT BUILT (C-353): the
-  library's classes are orbits under a group whose mirror swaps warp
-  for weft, a symmetry of the picture and never of a cloth. Orbits
-  under the direction-preserving subgroup cost exactly twice on every
-  weave measured, and triaxially could cost six times. What is
-  measured is a PROXY by edge orientation; the real thing reads
-  `tile_matching_transforms`.
+- THE SECOND, INDEPENDENT SWITCH IS BUILT (C-353, C-354): a `Warp and
+  weft` chooser offers the picture's symmetry against the cloth's, and
+  the refinement takes orbits under the direction-preserving
+  transforms, guarded by a test and three catalogue entries. WHAT IS
+  LEFT is a triaxial weave, which no cube weave can show while all
+  three refuse the scaffolding.
 
 The discussion, with figures, is
 docs/process/the-topology-of-a-weave-and-its-holes.md.

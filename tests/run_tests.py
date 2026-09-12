@@ -91947,6 +91947,108 @@ def test_a_weaves_two_kinds_of_daylight_partition_its_gap():
       f"remove the two must already be one thing"
 
 
+def test_a_weaves_classes_can_be_kept_to_one_strand_family():
+  """Splitting warp from weft must REFINE the classes, not rename them.
+
+  The library takes its classes as orbits under the design's full
+  symmetry group, which for a weave admits a mirror carrying warps onto
+  wefts -- a symmetry of the picture and never of a cloth, since warp
+  and weft differ physically whatever the drawing does. Orbits under
+  the direction-preserving subgroup are what a cloth has, and the
+  maintainer's ask of 2026-09-11 was to build the choice as a control
+  (C-353).
+
+  THREE THINGS ARE ASSERTED AND THEY FAIL DIFFERENTLY. That the
+  refinement is a REFINEMENT -- every class kept apart sits inside one
+  of the library's -- which is what makes it a second reading of the
+  same structure rather than a different structure. That no class kept
+  apart holds edges of two directions, asked of the DRAWN edges rather
+  than of the transforms the refinement was taken from, so the
+  construction and the geometry are two descriptions being compared.
+  And that the two switches COMPOSE, since the aspect-gap reading is an
+  independent question and either answer to it must survive either
+  answer to this one.
+
+  THE PREMISE IS ASSERTED FIRST, because a design whose classes were
+  already on one direction each would pass every line below without
+  the refinement doing anything at all: `plain weave a|b` is used
+  because its ten edge classes are measured to hold BOTH directions,
+  every one of them.
+
+  A CHEAP WEAVE IS CHOSEN DELIBERATELY. `plain weave a|b` builds a
+  topology in about two seconds where `twill weave a|b` takes forty,
+  and the property under test is not one the twill could show and the
+  plain weave could not.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  def read(aspect, reading, families):
+    """Build one weave one way and describe its classes by place.
+
+    Args:
+      aspect: the strand width, as a fraction of the spacing.
+      reading: which reading of the aspect gaps to build under.
+      families: whether one class may hold both strand directions.
+
+    Returns:
+      (by_place, directions_in_each), the first mapping each edge's
+      rounded midpoint to the class it is in and the second each class
+      to how many distinct directions its edges run in.
+
+    THE KEY IS THE PLACE, NOT THE ID, so two builds can be compared
+    without assuming the library numbers its edges the same way twice.
+    """
+    spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+    topology, _unit, _kinds, glue, note = topology_edits.weave_topology(
+      spec, 1000.0, aspect, reading=reading, families=families)
+    assert topology is not None, \
+      f"plain weave a|b would not build at aspect {aspect}: {note}"
+    by_place, angles = {}, {}
+    for edge in topology.edges.values():
+      label = getattr(edge, "label", "")
+      if not label:
+        continue
+      klass = glue["edges"].get(label, label) if glue else label
+      line = edge.get_geometry()
+      (x0, y0), (x1, y1) = line.coords[0], line.coords[-1]
+      by_place[(round((x0 + x1) / 2, 4), round((y0 + y1) / 2, 4))] = klass
+      angle = topology_edits._as_direction(x1 - x0, y1 - y0)
+      seen = angles.setdefault(klass, [])
+      if not any(topology_edits._same_direction(angle, other)
+                 for other in seen):
+        seen.append(angle)
+    return by_place, {klass: len(seen) for klass, seen in angles.items()}
+
+  for reading in topology_edits.ASPECT_READINGS:
+    together, mixed_together = read(
+      0.75, reading, topology_edits.WARP_AND_WEFT_TOGETHER)
+    apart, mixed_apart = read(
+      0.75, reading, topology_edits.WARP_AND_WEFT_APART)
+    assert sorted(together) == sorted(apart), \
+      f"under {reading} the two settings drew different edges, so the " \
+      f"comparison below is between two designs rather than two readings"
+    assert any(count > 1 for count in mixed_together.values()), \
+      f"under {reading} the library's own classes already keep to one " \
+      f"direction each, so this weave cannot show the refinement doing " \
+      f"anything"
+    assert not [klass for klass, count in mixed_apart.items() if count > 1], \
+      f"under {reading} these classes still hold edges of two " \
+      f"directions with warp and weft kept apart: " \
+      f"{[k for k, c in mixed_apart.items() if c > 1]}"
+    within = {}
+    for place, klass in apart.items():
+      within.setdefault(klass, set()).add(together[place])
+    straddling = {klass: names for klass, names in within.items()
+                  if len(names) > 1}
+    assert not straddling, \
+      f"under {reading} these classes are not a refinement of the " \
+      f"library's -- each spans several of them: {straddling}"
+    assert len(set(apart.values())) > len(set(together.values())), \
+      f"under {reading} keeping warp and weft apart left " \
+      f"{len(set(apart.values()))} classes against " \
+      f"{len(set(together.values()))}, so nothing was split"
+
+
 def test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is():
   """The supplied-geometry workaround must not be tiling-only.
 
@@ -93931,6 +94033,8 @@ def main():
         test_a_weaves_two_kinds_of_daylight_are_told_apart)
   check("a weave's two kinds of daylight partition its gap",
         test_a_weaves_two_kinds_of_daylight_partition_its_gap)
+  check("a weave's classes can be kept to one strand family",
+        test_a_weaves_classes_can_be_kept_to_one_strand_family)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

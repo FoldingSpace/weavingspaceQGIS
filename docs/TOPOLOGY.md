@@ -1162,11 +1162,36 @@ a class holds 81 vertical edges against 80 horizontal on one twill
 class -- a symmetry of the picture rather than of the cloth. Orbits
 under the direction-preserving subgroup refine them and cost exactly a
 factor of two on three weaves, both readings and three widths, with
-copies under the lattice never disagreeing. What is measured is a
-PROXY by edge orientation; computing the subgroup means reading
-`tile_matching_transforms` and keeping the transforms that carry a
-direction to itself, and triaxially the splitting could be sixfold.
-(C-353.)
+copies under the lattice never disagreeing. That first reading was a
+PROXY by edge orientation. (C-353.)
+
+AND IT IS BUILT FROM THE TRANSFORMS THEMSELVES, WHERE THE LIST TURNS
+OUT NOT TO BE A GROUP. `tile_matching_transforms` is assembled from
+shape matches, closed under nothing, and each entry is a PARTIAL
+relation, so orbits under it as it stands give 12 edge classes on
+`plain weave a|b` where the library gives 10 and 37 on `basket weave
+ab|cd` where it gives 31. Dropping its direction-swapping members
+therefore split classes twice over -- 23 and 67 against the proxy's 20
+and 62 -- since a PRODUCT of two swapping transforms preserves
+direction and was absent from the shorter list. Adding every pairwise
+composite reproduces the library exactly, 10, 6 and 31 edge classes on
+the three weaves, and its direction-preserving half gives 20, 12 and
+62, which is the proxy's factor of two reached by a second road. That
+agreement is asked as a CONTROL at every build: where orbits under the
+whole pool do not reproduce the classes on screen nothing is split and
+the reason is said. The labels are then REWRITTEN rather than mapped,
+which is what lets an edit be aimed at a warp without moving the wefts
+it is mirrored onto, since a merge travels as a map from label to class
+and a split cannot. Measured on four weaves at aspects 0.9, 0.75 and
+0.5, invariant across the widths, with no refined class holding edges
+of two directions when the DRAWN edges are asked rather than the
+construction they came from. AND IT IS NOT A UNIFORM DOUBLING: `twill
+weave a|b-` splits not at all, 52 edge classes and 37 glued under both
+settings, because a hyphen is a strand somebody left out and the
+picture then has no mirror carrying warps onto wefts to disbelieve
+in. Triaxially the homomorphism lands in a
+group of order six, which no cube weave can show while all three refuse
+the scaffolding. (C-354.)
 
 The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 `tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`,
@@ -1178,6 +1203,7 @@ The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 `tools/probes/the_join_between_a_weave_and_its_drawing.py`,
 `tools/probes/does_an_edit_cross_a_weaves_gap.py`,
 `tools/probes/classes_that_stay_on_one_strand_family.py`,
+`tools/probes/warp_and_weft_kept_apart.py`,
 `tools/probes/the_apertures_a_weave_leaves.py` and
 `tools/probes/what_a_quotient_does_to_a_hole.py`. The full
 record, the dead ends and what weaving asks of an edit are in

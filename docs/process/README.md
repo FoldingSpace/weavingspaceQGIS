@@ -90,11 +90,16 @@ interlacement rather than the cover. The fifth is the record of
 building both readings, where the gap turns out to be quotiented rather
 than rebuilt away, and where an edit aimed at a glued class is measured
 reaching sixteen of sixteen ribbon pieces against eight without it. The
-sixth adds a second and independent switch: the library's classes are
-orbits under a group containing a mirror that swaps warp for weft,
-which is a symmetry of the picture and never of a cloth. Read it before
-building on a weave's classes, or before quoting "the dual of a weave",
-which is not a definite phrase until somebody says what the holes are.
+sixth adds a second and independent switch, now built as well: the
+library's classes are orbits under a group containing a mirror that
+swaps warp for weft, which is a symmetry of the picture and never of a
+cloth. Building it found that the library's list of matching transforms
+is not a group, so orbits taken under the list as it stands do not
+reproduce its own classes; the repair is the pairwise composites, and
+that the enlarged pool reproduces those classes exactly is what makes
+the refinement trustworthy. Read it before building on a weave's
+classes, or before quoting "the dual of a weave", which is not a
+definite phrase until somebody says what the holes are.
 
 **Editing a weave's structure** (`weaving-and-topology.md`) asks
 whether the Topology tab's refusal of every weave is a fact about

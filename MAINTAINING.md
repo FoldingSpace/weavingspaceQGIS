@@ -575,12 +575,59 @@ become its own tile, which the scaffolding wants anyway since
 three cube weaves at aspect 0.75: 3 filler pieces of 68, 11 of 65 and
 13 of 21 stop being a single polygon under the library's own gridify.
 
+### Warp and weft, kept apart by a subgroup of the design's own symmetries
+
+The library's classes are orbits under the design's FULL symmetry
+group, and a weave's drawing admits a mirror carrying warps onto wefts,
+so one class holds edges of both directions. A cloth has no such
+symmetry. `topology_edits.keep_warp_and_weft_apart` takes orbits under
+the direction-preserving transforms instead, and `weave_topology` calls
+it where `families` is `WARP_AND_WEFT_APART`.
+
+**THE LABELS ARE REWRITTEN RATHER THAN MAPPED.** A gluing is a MERGE
+and travels as a label-to-class map; a refinement is a SPLIT and no map
+from the library's labels can express one. Every consumer reads
+`edge.label` -- the chooser, the drawing, the replay, and the library's
+own `transform_geometry` with its `label in selector` -- so the new
+classes go into the labels and everything learns about them at once.
+
+**AND `tile_matching_transforms` IS NOT A GROUP**, which is the part
+that will surprise you. It is assembled from shape matches and closed
+under nothing, and each entry is a PARTIAL relation, so orbits under
+the list as it stands give 12 edge classes on `plain weave a|b` where
+the library gives 10. `_transform_pool` therefore adds every pairwise
+composite -- 510 distinct from 47 listed on `twill weave a|b` -- and
+that pool reproduces the library exactly. Without the composites,
+dropping the direction-swapping members would also drop the
+identifications their PRODUCTS make, which split classes for a reason
+nobody asked about (23 rather than 20 on `plain weave a|b`).
+
+**THE CONTROL IS ASKED EVERY TIME AND IT CAN REFUSE.** Orbits under the
+whole pool are compared with the library's own labelling before
+anything is split; where they disagree the function changes nothing and
+says so, since a partition taken from a pool that does not describe
+this design is not a refinement of the classes on screen. Measured on
+`plain weave a|b` 10 to 20 edge classes, `twill weave a|b` 6 to 12,
+both readings and three strand widths, with no refined class holding
+edges of two directions
+(`tools/probes/warp_and_weft_kept_apart.py`; C-354).
+
+**THE ORDER IS REFINE, THEN GLUE**, and they compose because the sides
+of an aspect hole face each other along ONE direction, so a gluing
+never crosses the split. The strand directions come off the tiles
+themselves -- a strand piece is longer along its own axis -- so a
+rotated or triaxial family needs no case of its own.
+
 **WHAT THE TAB SHOWS.** The `Gaps from strand width` chooser sits above
 the class controls, since the reading decides what the classes ARE
 rather than how they are drawn; changing it queues a fresh topology
 through `_queue_topology` and drops the selection, a class named under
 one reading need not existing under the other. It is not a term of
 `_geometry_signature`: no map geometry moves, so nothing re-tiles.
+`Warp and weft` sits directly beneath it and behaves identically, its
+own signal reaching `dialog._on_strand_families_changed`; its selection
+is dropped with more force, since a refinement RENAMES every class
+after the first one that splits.
 
 ### A strands code you can type, and what follows what
 

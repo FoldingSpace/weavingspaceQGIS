@@ -2777,6 +2777,49 @@ MUTATIONS = [
        test="test_a_weaves_two_kinds_of_daylight_partition_its_gap",
        why="a hyphen weave's scaffolding covering four times the "
            "ground its gap holds, which no topology can be built on"),
+  dict(name="asking-for-warp-and-weft-apart-reaches-the-refinement",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE SWITCH AXIS. The reading is applied where it is NAMED, so
+       # a condition testing the other value builds the library's own
+       # classes under both settings and the tab offers a control that
+       # changes nothing -- which is what the aspect reading beside it
+       # was already found to need guarding against.
+       old="""  if families == WARP_AND_WEFT_APART:
+    keep_warp_and_weft_apart(topology, kinds)""",
+       new="""  if families == WARP_AND_WEFT_TOGETHER:
+    keep_warp_and_weft_apart(topology, kinds)""",
+       test="test_a_weaves_classes_can_be_kept_to_one_strand_family",
+       why="a chooser that says warp and weft are kept apart while "
+           "every class goes on holding both"),
+  dict(name="the-refinement-keeps-only-direction-preserving-symmetries",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE CONSTRUCTION AXIS, which is a different claim from the one
+       # above: the switch may reach the refinement and the refinement
+       # still take orbits under the WHOLE group, which is the library's
+       # own answer wearing new labels.
+       old="""  a, b, c, d = matrix[0], matrix[1], matrix[2], matrix[3]""",
+       new="""  return True""",
+       test="test_a_weaves_classes_can_be_kept_to_one_strand_family",
+       why="classes relabelled and not refined, so an edit aimed at a "
+           "warp still moves the wefts it is mirrored onto"),
+  dict(name="the-transform-pool-carries-the-composites",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE CONTROL AXIS. `tile_matching_transforms` is a list of
+       # partial matches rather than a closed group, so orbits under it
+       # alone give 12 edge classes on `plain weave a|b` where the
+       # library gives 10. Without the composites the control inside
+       # `keep_warp_and_weft_apart` refuses and nothing is refined --
+       # which is the honest behaviour, and the guard has to see that
+       # the composites are what stop it firing.
+       old="""  for one in listed:
+    for two in listed:
+      product = _composed(one, two)
+      pool.setdefault(_transform_key(product), product)""",
+       new="""  for one in listed:
+    pool.setdefault(_transform_key(one), one)""",
+       test="test_a_weaves_classes_can_be_kept_to_one_strand_family",
+       why="a refinement that is not a refinement of the classes on "
+           "screen, or no refinement at all and no sign of why"),
   dict(name="a-shallow-copy-serves-both-kinds-of-unit",
        file="weavingspace_qgis/topology_edits.py",
        # Passing `override` unconditionally is the state this was in:

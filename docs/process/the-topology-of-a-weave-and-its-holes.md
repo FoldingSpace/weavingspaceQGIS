@@ -864,9 +864,47 @@ measured there is a PROXY: the refinement is taken by each edge's own
 orientation, which agrees with the subgroup's orbits while the index is
 two and the only direction-mixing is the swap. Computing the subgroup
 properly means reading `tile_matching_transforms` and keeping the
-transforms that carry a direction to itself, and that is what should be
-built on. Triaxially the map lands in a group of order six rather than
-two, so a class could split six ways.
+transforms that carry a direction to itself. Triaxially the map lands
+in a group of order six rather than two, so a class could split six
+ways.
+
+That is now what the plugin does, and taking the second road turned out
+to teach something the first could not. The library's list of matching
+transforms is not a group. It is assembled from shape matches and
+closed under nothing, and each entry is a partial relation, since the
+library seeks a transformed element's image among the base elements
+alone and gives up where it lands on a copy. Orbits taken under that
+list as it stands do not even reproduce the library's own classes: 12
+edge classes on the plain weave where it reports 10, and 37 on the
+basket where it reports 31. Dropping the direction-swapping members of
+such a list therefore splits classes twice over, once for the reason we
+want and once because a PRODUCT of two swapping transforms preserves
+direction and is simply missing. The plain weave came back with 23
+classes rather than 20; the basket with 67 rather than 62.
+
+Adding every pairwise composite repairs it, and the repair carries its
+own proof. The enlarged pool reproduces the library exactly, 10, 6 and
+31 edge classes on the three weaves, so orbits taken under any part of
+it are a refinement of the classes somebody is actually looking at.
+Its direction-preserving half then gives 20, 12 and 62, which is the
+orientation proxy's factor of two arrived at along a quite different
+road. Two independent constructions agreeing is the only kind of
+agreement worth much here, and this is one. The agreement is also asked
+as a control at every build: where orbits under the whole pool fail to
+reproduce the classes on screen, nothing is split and the reason is
+said, since a refinement that is not a refinement would move an edit
+onto edges nobody chose.
+
+One more measurement is worth having, and it is the one that persuades
+us the construction is about direction rather than about arithmetic.
+The refinement is not a uniform doubling. `twill weave a|b-` does not
+split at all: 52 edge classes counting and 37 glued, under either
+setting, with no class holding two directions before anybody asks. A
+hyphen is a strand somebody left out, so that drawing has no mirror
+carrying warps onto wefts, and there is nothing for the refinement to
+disbelieve in. It costs twice exactly where the picture has the
+symmetry a cloth does not, and nothing where the weave's own code has
+already broken it.
 
 ## Two switches, not one
 
@@ -880,8 +918,10 @@ The two are not equally open, though. The aspect question is a research
 decision with defensible answers on both sides, which is why the tab
 carries a control for it. The strandwise question has an argument that
 points one way only, since the warp-weft swap is never a symmetry of
-cloth, so it may belong as how a weave's classes are always computed
-rather than as a thing anybody chooses.
+cloth. It is a control today because we would rather you saw both
+answers than took ours; if you agree that a cloth settles it, the
+honest next move is to make it how a weave's classes are always
+computed and retire the chooser.
 
 ## What is built, and what is not
 
@@ -892,11 +932,33 @@ rather than joined into a string; and a chooser on the Topology tab
 reading "Count, like a dropped strand" against "Ignore, like an inset",
 which queues a fresh topology and drops the selection when it moves.
 
-Not built: the strandwise refinement as something an edit can be aimed
-at, since the library's selector takes labels alone and cannot express
-"these edges, not those" where the difference is direction. Nor is any
-of it guarded by a test yet, and the tab has been wired rather than
-driven.
+Built since: the strandwise refinement itself, as
+`keep_warp_and_weft_apart`, under a second chooser reading "Together, as
+the drawing's symmetry has them" against "Apart, as a cloth has them".
+An edit CAN now be aimed at one strand family, which had looked
+impossible while we thought of the refinement as something the
+library's selector would have to express. It cannot express a split;
+what it can do is take whatever labels the classes carry. So the
+refinement rewrites the labels rather than mapping them, and the
+chooser, the drawing, the replay and the gluing all learn about the new
+classes at once. The refinement runs before the gluing. The two compose
+without argument, because the sides of an aspect hole face each other
+along a single direction, so gluing never crosses the split.
+
+A test now guards it on the plain weave under both readings, asserting
+three separate things: that the split is a refinement rather than a
+renaming, that no class left holds edges of two directions when the
+DRAWN edges are asked rather than the construction, and that the
+premise holds at all, since a design whose classes already kept to one
+direction would pass the rest without the refinement doing anything.
+Three catalogue entries break it three ways and each is watched to
+fail. The tab itself has been wired rather than driven; somebody should
+still open the plugin and move both choosers.
+
+Not built: any of this on a triaxial weave, where the homomorphism
+lands in a group of order six rather than two. All three cube weaves
+refuse the scaffolding for a separately diagnosed fault, so the sixfold
+case is written and untried.
 
 TWO SMALLER THINGS SURFACED WHILE BUILDING IT. The cube weaves refused
 the scaffolding at `get_clean_polygon`, which ends in `set_precision` at

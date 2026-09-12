@@ -396,8 +396,8 @@ def build(unit, weave=None):
     unit: the Tileable, before modifiers.
     weave: None for a design that tiles as it stands, or a dict of the
       terms a weave has to be rebuilt from -- `spec`, `spacing`,
-      `aspect`, `strands` and `reading` -- which lets a design with
-      daylight be scaffolded into one that tiles.
+      `aspect`, `strands`, `reading` and `families` -- which lets a
+      design with daylight be scaffolded into one that tiles.
 
   Returns:
     `(topology, reason)` where the topology is None on a refusal, and
@@ -415,17 +415,30 @@ def build(unit, weave=None):
   this off the main thread and only once somebody has ticked the
   experimental box.
   """
+  plain = None
   try:
     plain = _topology_class()(unit, True)
-    return (plain, "") if weave is None else (plain, "", unit, {}, None)
   except Exception as exc:                            # noqa: BLE001
     reason = _why_not(exc, unit)
+  if plain is not None:
+    if weave is None:
+      return plain, ""
+    # A WEAVE THAT NEEDS NO SCAFFOLDING IS STILL A WEAVE, so the
+    # strand-family question is put to it here as well: at full width
+    # the mirror that carries warps onto wefts is exactly the symmetry
+    # this reading declines to believe in. It sits OUTSIDE the build's
+    # own `try`, or a refinement that raised would be reported as a
+    # design with no topology at all.
+    if weave.get("families") == WARP_AND_WEFT_APART:
+      keep_warp_and_weft_apart(plain, None)
+    return plain, "", unit, {}, None
   if weave is None:
     return None, reason
   topology, filled, kinds, glue, note = weave_topology(
     weave.get("spec"), weave.get("spacing"), weave.get("aspect"),
     crs=None, strands=weave.get("strands"),
-    reading=weave.get("reading", ASPECT_LIKE_A_DROP))
+    reading=weave.get("reading", ASPECT_LIKE_A_DROP),
+    families=weave.get("families", WARP_AND_WEFT_TOGETHER))
   if topology is None:
     return None, note or reason, None, kinds, glue
   return topology, "", filled, kinds, glue
@@ -1277,6 +1290,14 @@ def _outline_of(covered):
 ASPECT_LIKE_A_DROP = "like-a-drop"
 ASPECT_LIKE_AN_INSET = "like-an-inset"
 ASPECT_READINGS = (ASPECT_LIKE_A_DROP, ASPECT_LIKE_AN_INSET)
+
+# WHETHER ONE CLASS MAY HOLD BOTH STRAND FAMILIES, which is a second
+# and INDEPENDENT question from the one above; the construction is at
+# `keep_warp_and_weft_apart`.
+WARP_AND_WEFT_TOGETHER = "together"
+WARP_AND_WEFT_APART = "apart"
+STRAND_FAMILIES = (WARP_AND_WEFT_TOGETHER, WARP_AND_WEFT_APART)
+
 # JUST BELOW ONE RATHER THAN AT IT: at exactly 1.0 the library's
 # assembly dissolves adjacent pieces that share a label, so a twill's
 # sixteen tiles become two and the design stops being the same design.
@@ -1472,7 +1493,8 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
 
 
 def weave_topology(spec, spacing: float, aspect: float, crs=None,
-                   strands=None, reading: str = ASPECT_LIKE_A_DROP):
+                   strands=None, reading: str = ASPECT_LIKE_A_DROP,
+                   families: str = WARP_AND_WEFT_TOGETHER):
   """The topology of a weave under one reading of its daylight.
 
   Args:
@@ -1483,6 +1505,9 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
     strands: a typed strands code, or None for the entry's own.
     reading: which daylight the structure may see; see
       `scaffolded_weave`.
+    families: `WARP_AND_WEFT_APART` to split every class that holds
+      edges of both strand directions, or `WARP_AND_WEFT_TOGETHER` for
+      the classes the library assigns.
 
   Returns:
     `(topology, unit, kinds, glue, note)`. The topology is None where
@@ -1495,6 +1520,14 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
   THE FILLER IS DROPPED BY THE CALLER, not here: an edit is applied to
   the scaffolded unit and the strands are recovered afterwards by
   asking `kinds`, which is the shape ruling 1 of C-347 sets out.
+
+  THE TWO QUESTIONS ARE SEPARATE AND ARE ANSWERED IN ORDER. Splitting
+  warp from weft is a refinement of the classes and gluing an aspect
+  hole away is a merge of them, so the refinement runs FIRST and the
+  gluing then reads whatever labels are in force -- which is right
+  rather than merely convenient, since the two sides of an aspect hole
+  face each other along one direction and a gluing therefore never
+  crosses the split.
   """
   filled, kinds, note = scaffolded_weave(
     spec, spacing, aspect, crs=crs, strands=strands, reading=reading)
@@ -1504,6 +1537,8 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
     topology = _topology_class()(filled, True)
   except Exception as exc:                            # noqa: BLE001
     return None, filled, kinds, None, _why_not(exc, filled)
+  if families == WARP_AND_WEFT_APART:
+    keep_warp_and_weft_apart(topology, kinds)
   # THE READING IS APPLIED HERE OR IT IS APPLIED NOWHERE. Both readings
   # scaffold identically, since the difference is a quotient of the
   # structure rather than a change to the geometry, so a caller that
@@ -1613,6 +1648,416 @@ def glue_the_aspect_holes(topology, kinds: dict) -> dict:
           "before": (len(edges_before), len(points_before)),
           "after": (len(set(edge_map.values())),
                     len(set(point_map.values())))}
+
+
+# ---------------------------------------------------------------------
+# WARP AND WEFT: A SECOND AND INDEPENDENT READING OF THE SAME STRUCTURE
+#
+# The library takes its classes as orbits under the design's FULL
+# symmetry group. A weave's drawing generally admits a mirror carrying
+# warps onto wefts, so one class holds edges of both directions -- 81
+# vertical against 80 horizontal on one twill class. A CLOTH HAS NO
+# SUCH SYMMETRY: warp and weft differ physically whatever the picture
+# does, so that mirror is a symmetry of the picture and never of the
+# weave (the maintainer's question, 2026-09-11; C-353).
+#
+# It is INDEPENDENT of the aspect-gap reading and is applied first, so
+# a gluing runs on whatever labels are in force.
+
+# Upstream's own test for "the same element under a transform" is a
+# centroid distance of ten times `tiling_utils.RESOLUTION`, and the
+# refinement matches elements exactly as `_find_edge_transitivity_classes`
+# does or it would be measuring something else.
+SAME_PLACE = 10 * 1e-6
+
+
+def _long_axis(polygon):
+  """The direction of a tile's longer side.
+
+  Args:
+    polygon: a tile's shape.
+
+  Returns:
+    An (dx, dy) pair along the longest side of the minimum rotated
+    rectangle, or None where the shape has no usable rectangle.
+
+  A STRAND PIECE IS LONGER ALONG ITS OWN AXIS than across it, which is
+  what keeps ribbons continuous across cells (C-347), so the long side
+  of the bounding rectangle IS the strand's direction. Reading it off
+  the geometry rather than off the spec means a rotated family and a
+  triaxial one need no special case.
+  """
+  try:
+    corners = list(polygon.minimum_rotated_rectangle.exterior.coords)[:4]
+  except Exception:                                   # noqa: BLE001
+    return None
+  if len(corners) < 4:
+    return None
+  best, longest = None, -1.0
+  for index in range(4):
+    (x0, y0), (x1, y1) = corners[index], corners[(index + 1) % 4]
+    span = math.hypot(x1 - x0, y1 - y0)
+    if span > longest:
+      longest, best = span, (x1 - x0, y1 - y0)
+  return best
+
+
+def _as_direction(dx: float, dy: float) -> float:
+  """A vector's direction as an angle in degrees, modulo a half turn.
+
+  Args:
+    dx, dy: the vector's components.
+
+  Returns:
+    The angle in [0, 180), a direction and its reverse answering the
+    same, since a strand has no arrowhead.
+  """
+  angle = math.degrees(math.atan2(dy, dx)) % 180.0
+  return 0.0 if abs(angle - 180.0) < 1e-6 else angle
+
+
+def _same_direction(one: float, other: float, tolerance: float = 0.5) -> bool:
+  """Whether two angles name one direction.
+
+  Args:
+    one, other: angles in degrees.
+    tolerance: how many degrees apart still counts as the same.
+
+  Returns:
+    True where they agree modulo a half turn.
+  """
+  return abs(((one - other + 90.0) % 180.0) - 90.0) < tolerance
+
+
+def strand_directions(unit, kinds: dict = None) -> list:
+  """The distinct directions a weave's strands run in.
+
+  Args:
+    unit: the unit the topology was built from, scaffolded or not.
+    kinds: the map `scaffolded_weave` returned, so the filler is left
+      out; None or empty to read every tile, which is what a weave at
+      full width wants.
+
+  Returns:
+    A sorted list of angles in degrees, two for a biaxial weave and
+    three for a triaxial one. An empty list where the tiles give no
+    usable rectangle.
+  """
+  frame = getattr(unit, "tiles", None)
+  if frame is None:
+    return []
+  found = []
+  ids = frame["tile_id"].astype(str) if "tile_id" in frame else None
+  for index, shape in enumerate(frame.geometry):
+    if kinds and ids is not None and kinds.get(str(ids.iloc[index])) != "strand":
+      continue
+    axis = _long_axis(shape)
+    if axis is None:
+      continue
+    angle = _as_direction(axis[0], axis[1])
+    if not any(_same_direction(angle, other) for other in found):
+      found.append(angle)
+  return sorted(found)
+
+
+def _carries_every_direction(matrix, directions: list) -> bool:
+  """Whether a transform leaves each strand direction where it is.
+
+  Args:
+    matrix: a shapely affine 6-tuple.
+    directions: the angles `strand_directions` found.
+
+  Returns:
+    True where every direction maps to itself, which is what makes the
+    transform a member of the direction-preserving subgroup. A
+    transform sending a direction to one that is not in the list at
+    all answers False, since it does not act on the families we are
+    keeping apart.
+  """
+  a, b, c, d = matrix[0], matrix[1], matrix[2], matrix[3]
+  for angle in directions:
+    ux, uy = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+    if not _same_direction(_as_direction(a * ux + b * uy, c * ux + d * uy),
+                           angle):
+      return False
+  return True
+
+
+def _composed(one, two):
+  """The transform that applies `one` and then `two`.
+
+  Args:
+    one, two: shapely affine 6-tuples.
+
+  Returns:
+    Their composition, as a 6-tuple.
+  """
+  a1, b1, c1, d1, e1, f1 = one
+  a2, b2, c2, d2, e2, f2 = two
+  return (a2 * a1 + b2 * c1, a2 * b1 + b2 * d1,
+          c2 * a1 + d2 * c1, c2 * b1 + d2 * d1,
+          a2 * e1 + b2 * f1 + e2, c2 * e1 + d2 * f1 + f2)
+
+
+def _transform_pool(topology) -> list:
+  """Every transform the refinement may take orbits under.
+
+  Args:
+    topology: a built Topology.
+
+  Returns:
+    A list of distinct shapely affine 6-tuples: the ones the library
+    recorded, plus each pairwise composition of them.
+
+  THE COMPOSITES ARE NOT A REFINEMENT OF THE METHOD, THEY ARE WHAT
+  MAKES IT AGREE WITH THE LIBRARY. `tile_matching_transforms` is a
+  list of matches rather than a closed group, and each match is a
+  PARTIAL relation -- the library seeks the image among the base
+  elements alone and finds nothing where it lands on a copy. Taking
+  orbits under the list as it stands gives 12 edge classes on `plain
+  weave a|b` where the library gives 10 and 37 on `basket weave ab|cd`
+  where it gives 31; with the pairwise composites the counts are 10 and
+  31 exactly, on all three weaves measured. Dropping the
+  direction-swapping members of the shorter list would therefore have
+  split classes for a second reason nobody asked for.
+
+  DEDUPLICATION IS WHAT MAKES IT AFFORDABLE: `twill weave a|b` records
+  47 transforms, so 2,209 products, of which 510 are distinct.
+  """
+  listed = []
+  for transform in (getattr(topology, "tile_matching_transforms", {})
+                    or {}).values():
+    matrix = getattr(transform, "transform", None)
+    if not matrix or len(matrix) < 6:
+      continue
+    listed.append(tuple(float(value) for value in matrix[:6]))
+  pool = {}
+  for matrix in listed:
+    pool.setdefault(_transform_key(matrix), matrix)
+  for one in listed:
+    for two in listed:
+      product = _composed(one, two)
+      pool.setdefault(_transform_key(product), product)
+  return list(pool.values())
+
+
+def _transform_key(matrix):
+  """A rounded form of a transform, for telling two of them apart.
+
+  Args:
+    matrix: a shapely affine 6-tuple.
+
+  Returns:
+    A tuple key. The linear part is rounded far finer than the offsets
+    because it is made of sines and cosines near unity while the
+    offsets are in map units, where a millionth of a metre is already
+    below the library's own resolution.
+  """
+  return (tuple(round(value, 9) for value in matrix[:4])
+          + tuple(round(value, 6) for value in matrix[4:6]))
+
+
+def _nearest_among(points: dict, tolerance: float):
+  """A lookup taking a position to the element already there.
+
+  Args:
+    points: element key to a shapely Point.
+    tolerance: how close counts as the same place.
+
+  Returns:
+    A callable (x, y) -> key or None.
+
+  IT IS BUCKETED rather than a scan, because the pool holds hundreds
+  of transforms and the base elements hundreds of points: a scan is
+  the product of the two and this is not.
+  """
+  cell = tolerance * 10.0
+  buckets = {}
+  for key, point in points.items():
+    buckets.setdefault((round(point.x / cell), round(point.y / cell)),
+                       []).append(key)
+
+  def lookup(x: float, y: float):
+    gx, gy = round(x / cell), round(y / cell)
+    for dx in (-1, 0, 1):
+      for dy in (-1, 0, 1):
+        for key in buckets.get((gx + dx, gy + dy), ()):
+          point = points[key]
+          if math.hypot(point.x - x, point.y - y) <= tolerance:
+            return key
+    return None
+
+  return lookup
+
+
+def _orbits(points: dict, matrices: list) -> dict:
+  """Which elements the given transforms carry onto one another.
+
+  Args:
+    points: element key to the shapely Point that stands for it -- an
+      edge's centroid or a vertex's own position, which is what the
+      library compares.
+    matrices: the transforms to take orbits under.
+
+  Returns:
+    A dict of element key to the key that represents its orbit.
+  """
+  lookup = _nearest_among(points, SAME_PLACE)
+  parent = {key: key for key in points}
+
+  def find(key):
+    while parent[key] != key:
+      parent[key] = parent[parent[key]]
+      key = parent[key]
+    return key
+
+  for a, b, c, d, e, f in matrices:
+    for key, point in points.items():
+      landed = lookup(a * point.x + b * point.y + e,
+                      c * point.x + d * point.y + f)
+      if landed is None:
+        continue
+      one, two = find(key), find(landed)
+      if one != two:
+        parent[max(one, two)] = min(one, two)
+  return {key: find(key) for key in points}
+
+
+def _partition_of(marks: dict) -> set:
+  """A labelling read as the set of groups it makes.
+
+  Args:
+    marks: element key to whatever names its class.
+
+  Returns:
+    A set of frozensets, so two labellings can be compared without
+    caring what the classes are called.
+  """
+  groups = {}
+  for key, mark in marks.items():
+    groups.setdefault(mark, set()).add(key)
+  return {frozenset(members) for members in groups.values()}
+
+
+def keep_warp_and_weft_apart(topology, kinds: dict = None) -> dict:
+  """Split each class that holds edges of two strand directions.
+
+  Args:
+    topology: a built Topology, whose edge and vertex labels are
+      REWRITTEN in place where the refinement applies.
+    kinds: the map `scaffolded_weave` returned, or None to read every
+      tile as cloth, which is what a weave at full width wants.
+
+  Returns:
+    A dict with `note` -- empty where the refinement was applied and a
+    sentence where it was not -- `directions`, and `before`/`after`
+    counts of edge and vertex classes.
+
+  THE LABELS ARE REWRITTEN RATHER THAN MAPPED, and that is what makes
+  this compose with everything downstream at no cost. A gluing is a
+  MERGE and travels as a map from label to class; a refinement is a
+  SPLIT, and no map from the library's labels can express one. Every
+  consumer here and in the library reads `edge.label`, from the
+  chooser through `transform_geometry`'s own `label in selector`, so
+  putting the new classes in the labels means the drawing, the
+  selector, the replay and the gluing all learn about them at once.
+
+  AND THE CONTROL IS THE REASON TO TRUST IT. Taking orbits under the
+  WHOLE pool must reproduce the library's own classes exactly; where it
+  does not, the pool is not describing this design's symmetry and a
+  refinement taken from it would be describing the pool. The function
+  then changes nothing and says so, rather than shipping a partition
+  that is not a refinement of the one somebody is looking at.
+  (C-353.)
+  """
+  directions = strand_directions(getattr(topology, "tileable", None), kinds)
+  before = (len(class_labels(topology)["edge"]),
+            len(class_labels(topology)["vertex"]))
+  if len(directions) < 2:
+    return {"note": "this design has no second strand direction to keep "
+                    "apart", "directions": directions,
+            "before": before, "after": before}
+  edges = [edge for edge in topology.edges.values()
+           if getattr(edge, "label", None)]
+  points = [point for point in topology.points.values()
+            if getattr(point, "label", None)]
+  edge_places, vertex_places = {}, {}
+  for edge in edges:
+    edge_places.setdefault(edge.base_ID, edge.get_geometry().centroid)
+  for point in points:
+    vertex_places.setdefault(point.base_ID, point.point)
+  pool = _transform_pool(topology)
+  library_edges = {edge.base_ID: edge.label for edge in edges}
+  library_points = {point.base_ID: point.label for point in points}
+  if (_partition_of(_orbits(edge_places, pool))
+      != _partition_of(library_edges)
+      or _partition_of(_orbits(vertex_places, pool))
+      != _partition_of(library_points)):
+    return {"note": "this design's symmetries do not reproduce its own "
+                    "classes, so warp and weft cannot be told apart here",
+            "directions": directions, "before": before, "after": before}
+  kept = [matrix for matrix in pool
+          if _carries_every_direction(matrix, directions)]
+  _relabel(edges, _orbits(edge_places, kept), library_edges, edge_places,
+           _library_labels(False))
+  _relabel(points, _orbits(vertex_places, kept), library_points,
+           vertex_places, _library_labels(True))
+  after = (len(class_labels(topology)["edge"]),
+           len(class_labels(topology)["vertex"]))
+  return {"note": "", "directions": directions,
+          "before": before, "after": after}
+
+
+def _library_labels(upper: bool) -> list:
+  """The alphabet the library labels classes with.
+
+  Args:
+    upper: True for the vertex alphabet, False for the edge one.
+
+  Returns:
+    The library's own list, so a refined design is labelled exactly as
+    an unrefined one is and nothing downstream has to learn a second
+    spelling.
+  """
+  from .vendor.weavingspace.topology import LABELS, labels
+  return LABELS if upper else labels
+
+
+def _relabel(elements, orbit_of: dict, was: dict, places: dict,
+             alphabet: list) -> None:
+  """Write a refined class onto every element that belongs to it.
+
+  Args:
+    elements: the topology's edges or points, as objects with a
+      `label` and a `base_ID`.
+    orbit_of: base_ID to the key representing its refined class.
+    was: base_ID to the label the library gave it.
+    places: base_ID to the point that stands for it.
+    alphabet: the label list to draw from.
+
+  Returns:
+    None; the elements are relabelled in place.
+
+  THE ORDER IS DETERMINISTIC AND FOLLOWS THE OLD ONE, so a class that
+  did not split keeps its neighbours' company and a rebuild of the same
+  design gives the same names: classes are sorted by the library label
+  they came out of, and within one label by the position of their
+  first member. A refinement renames every class after the first split
+  whatever we do, which is what the shelf's own alphabet check is for.
+  """
+  order = {}
+  for base, orbit in orbit_of.items():
+    place = places[base]
+    key = (_label_order(was[base]), round(place.x, 6), round(place.y, 6))
+    if orbit not in order or key < order[orbit]:
+      order[orbit] = key
+  names = {orbit: alphabet[index]
+           for index, orbit in enumerate(sorted(order, key=order.get))
+           if index < len(alphabet)}
+  for element in elements:
+    name = names.get(orbit_of.get(element.base_ID))
+    if name:
+      element.label = name
 
 
 def _tile_id_of(tile, topology) -> str:

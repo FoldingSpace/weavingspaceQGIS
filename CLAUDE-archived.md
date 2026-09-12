@@ -388,6 +388,7 @@ quote them, do not renumber them.
 - **C-351** — the two kinds of daylight were measured in different frames  <sub>minted</sub>
 - **C-352** — two readings of a weave's aspect gaps, and a quotient rather than a rebuild  <sub>minted</sub>
 - **C-353** — edge classes that stay on one strand family  <sub>minted</sub>
+- **C-354** — the direction-preserving subgroup, built: the transform list is not a group
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11741,3 +11742,86 @@ something anybody chooses.
 NOT BUILT: the refinement as something an edit can be AIMED at. The
 library's selector takes labels alone and cannot express "these edges,
 not those" where the difference is direction.
+
+### C-354 — The direction-preserving subgroup, built: the transform list is not a group
+
+Built 2026-09-11 at the maintainer's ask, from C-353's own statement
+of what the real thing would be: read `tile_matching_transforms`, keep
+the transforms that carry every strand direction to itself, and take
+orbits under those.
+
+THE LIST IS NOT A GROUP, which is the whole of what this cost. Taking
+orbits under `tile_matching_transforms` AS IT STANDS does not even
+reproduce the library's own classes: 12 edge classes on `plain weave
+a|b` where the library reports 10, and 37 on `basket weave ab|cd`
+where it reports 31. Two reasons compound. The list is assembled from
+matches of the prototile and the tiles against each other and is
+closed under nothing, and each entry is a PARTIAL relation, since
+`_match_geoms_under_transform` seeks the image among the base elements
+alone and answers -1 where it lands on a copy.
+
+SO DROPPING THE SWAPPING MEMBERS SPLIT CLASSES TWICE OVER. A product
+of two direction-swapping transforms preserves direction and is a
+genuine member of the subgroup, and with the shorter list it is absent:
+`plain weave a|b` came back with 23 edge classes rather than the 20 the
+orientation proxy had measured, and `basket weave ab|cd` with 67 rather
+than 62. The splitting that is not about direction is invisible in the
+answer, which reads as a refinement either way.
+
+THE REPAIR IS THE PAIRWISE COMPOSITES, and the reason to believe it is
+that the enlarged pool reproduces the library exactly -- 10, 6 and 31
+edge classes on the three weaves, 7, 4 and 21 vertex classes -- while
+its direction-preserving half gives 20, 12 and 62, which is the
+orientation proxy's factor of two arrived at by a second road.
+Deduplication is what makes it affordable: `twill weave a|b` records 47
+transforms, so 2,209 products, of which 510 are distinct.
+
+THAT AGREEMENT IS THE CONTROL AND IT IS ASKED EVERY TIME.
+`keep_warp_and_weft_apart` takes orbits under the whole pool first and
+compares the partition with the library's own labelling; where the two
+disagree it changes nothing and says so, because a partition taken
+from a pool that does not describe this design's symmetry is not a
+refinement of the classes on screen, and a refinement that is not one
+would quietly move an edit onto edges nobody chose. Three weaves at
+three widths pass it.
+
+AND THE LABELS ARE REWRITTEN RATHER THAN MAPPED, which is what answers
+C-353's "not built" paragraph. A gluing is a MERGE and travels as a map
+from label to class; a refinement is a SPLIT and no map from the
+library's labels can express one. Every consumer reads `edge.label`,
+including the library's own `transform_geometry` and its `label in
+selector` -- so putting the new classes in the labels means the
+chooser, the drawing, the replay and the gluing all learn about them at
+once, and an edit CAN be aimed at a warp without moving the wefts it is
+mirrored onto. The refinement runs before the gluing, and the two
+compose because the sides of an aspect hole face each other along one
+direction, so a gluing never crosses the split.
+
+THE STRAND DIRECTIONS ARE READ OFF THE TILES rather than taken from the
+spec: a strand piece is longer along its own axis than across it
+(C-347), so the long side of the minimum rotated rectangle is the
+direction, and a rotated family or a triaxial one needs no case of its
+own. Measured on `plain weave a|b`, `twill weave a|b`, `basket weave
+ab|cd` and `twill weave a|b-` at aspects 0.9, 0.75 and 0.5, with the
+counts invariant across the widths and no refined class holding edges
+of two directions -- which is the proxy's claim asked of the drawn
+edges rather than of the construction it came from. The instrument is
+`tools/probes/warp_and_weft_kept_apart.py`.
+
+AND IT IS NOT A UNIFORM DOUBLING, WHICH IS THE BEST EVIDENCE THAT IT IS
+MEASURING THE RIGHT THING. `twill weave a|b-` splits not at all: 52 edge
+classes counting and 37 glued under both settings, at 0.9 and 0.75, with
+no class holding two directions before the refinement is asked for. A
+hyphen is a strand somebody left out, so the picture has no mirror
+carrying warps onto wefts and the homomorphism's kernel is already
+everything. The refinement costs twice exactly where that mirror exists
+and nothing where the weave's own code has broken it.
+
+THE COST IS THE POOL, not the orbits, and it is small beside the build
+it follows: the refinement adds well under a second where a `twill
+weave a|b` topology takes about forty.
+
+STILL NOT MEASURED: a triaxial weave, since all three cube weaves
+refuse the scaffolding for the separately diagnosed `set_precision`
+fault, so the homomorphism into a group of order six is written and
+untried.

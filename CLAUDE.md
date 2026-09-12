@@ -2120,7 +2120,14 @@ Confirmed with the user via an explicit design review:
   and cost exactly a factor of two on every weave, reading and width
   measured. It applies under either answer to the aspect question, so
   the two are separate controls; unlike that one it has an argument
-  pointing only one way. (C-353.)
+  pointing only one way. (C-353.) BUILT 2026-09-11, AND THE
+  TRANSFORM LIST IS NOT A GROUP: orbits under `tile_matching_transforms`
+  as it stands do not even reproduce the library's own classes, so the
+  refinement takes them under that list PLUS its pairwise composites,
+  and asks as its control that the whole pool reproduce those classes
+  before it splits anything. THE LABELS ARE REWRITTEN RATHER THAN
+  MAPPED, since a merge travels as a map and a split cannot, and
+  everything downstream already reads `edge.label`. (C-354.)
 - **A STRANDS CODE IS SOMETHING YOU TYPE, AND THE CODE SETS THE
   ELEMENT COUNT.** (Maintainer's ruling, 2026-09-08.) The catalogue's
   77 weave entries carried their codes baked in while the guide taught

@@ -3509,6 +3509,8 @@ class WeavingSpaceDialog(QDialog):
     self.topology_panel.dual_requested.connect(self._generate_the_dual)
     self.topology_panel.aspect_reading_changed.connect(
       self._on_aspect_reading_changed)
+    self.topology_panel.strand_families_changed.connect(
+      self._on_strand_families_changed)
     # WHICH GROUP THE DUAL WAS ASKED FOR FROM, a LABEL for naming the
     # new group and never an identity; set by the button, read once by
     # `_a_name_for_a_new_group`, and cleared there.
@@ -24308,6 +24310,9 @@ class WeavingSpaceDialog(QDialog):
         "reading": (panel.aspect_reading_in_force()
                     if hasattr(panel, "aspect_reading_in_force")
                     else topology_edits.ASPECT_LIKE_A_DROP),
+        "families": (panel.strand_families_in_force()
+                     if hasattr(panel, "strand_families_in_force")
+                     else topology_edits.WARP_AND_WEFT_TOGETHER),
       }
 
     def work(task):
@@ -25048,6 +25053,22 @@ class WeavingSpaceDialog(QDialog):
     not a term of `_geometry_signature` and pressing Generate is not
     wanted; only the topology is rebuilt, through the same door a
     design change uses.
+    """
+    self._queue_topology(even_if_unasked=True)
+
+  def _on_strand_families_changed(self, _families: str = "") -> None:
+    """Somebody changed whether warp and weft share their classes.
+
+    Returns:
+      None. A fresh topology is queued, because this decides what the
+      structure IS rather than how it is drawn: the same plain weave
+      gives ten edge classes with the library's own symmetry group and
+      twenty once the mirror that carries warps onto wefts is set
+      aside.
+
+    NOTHING IS RE-TILED, exactly as for the reading beside it. No map
+    geometry moves, so this is not a term of `_geometry_signature` and
+    pressing Generate is not wanted.
     """
     self._queue_topology(even_if_unasked=True)
 

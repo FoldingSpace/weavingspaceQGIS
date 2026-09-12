@@ -2415,6 +2415,11 @@ class TopologyPanel(QWidget):
   # it moves; the dialog listens for this exactly as it listens for an
   # edit. (Maintainer's instruction, 2026-09-08.)
   aspect_reading_changed = pyqtSignal(str)
+  # AND WHETHER A CLASS MAY HOLD BOTH STRAND FAMILIES, which is a
+  # second and independent question about the same structure: it
+  # applies under either reading of the daylight, so it is its own
+  # control and its own signal. (Maintainer's ask, 2026-09-11.)
+  strand_families_changed = pyqtSignal(str)
   # THE BUTTON ASKS THE DIALOG TO GENERATE THE DUAL (ruling 1 of
   # 2026-09-05): the panel knows whether a dual is on offer, and the
   # dialog is what can land a map in a group. One signal, like the
@@ -2547,11 +2552,34 @@ class TopologyPanel(QWidget):
     grid.addWidget(QLabel("Gaps from strand width"), 0, 0)
     grid.addWidget(self.aspect_reading, 0, 1)
 
+    # AND THE SECOND READING OF THE SAME STRUCTURE sits beneath it, for
+    # the same reason: it too decides what the classes ARE. The two are
+    # INDEPENDENT -- either answer to the daylight question composes
+    # with either answer to this one -- so they are two controls rather
+    # than four entries in one.
+    # THE OPTIONS NAME WHAT IS BEING BELIEVED IN, as the chooser above
+    # does. The library's classes come from a group whose mirror
+    # carries warps onto wefts, which is a symmetry the DRAWING has;
+    # a cloth has none, warp and weft differing physically whatever the
+    # picture does. So the choice is between the picture's symmetry and
+    # the cloth's, which is the question itself.
+    self.strand_families = QComboBox()
+    self.strand_families.addItem("Together, as the drawing's symmetry has "
+                                 "them", "together")
+    self.strand_families.addItem("Apart, as a cloth has them", "apart")
+    self.strand_families.setToolTip(
+      "Whether one class may hold both warp and weft edges, as the drawing "
+      "does.")
+    self.strand_families.currentIndexChanged.connect(
+      self._on_strand_families_chosen)
+    grid.addWidget(QLabel("Warp and weft"), 1, 0)
+    grid.addWidget(self.strand_families, 1, 1)
+
     self.class_combo = QComboBox()
     self.class_combo.setToolTip("Which class of edge or vertex to move.")
     self.class_combo.currentIndexChanged.connect(self._on_class_chosen)
-    grid.addWidget(QLabel("Class"), 1, 0)
-    grid.addWidget(self.class_combo, 1, 1)
+    grid.addWidget(QLabel("Class"), 2, 0)
+    grid.addWidget(self.class_combo, 2, 1)
 
     # THE LIST THAT CONFIRMS WHAT IS SELECTED. (Maintainer's decision,
     # 2026-09-01: click to select, a list to confirm, each following
@@ -2573,7 +2601,7 @@ class TopologyPanel(QWidget):
       QAbstractItemView.SelectionMode.NoSelection)
     self.class_list.setMaximumHeight(110)
     self.class_list.itemChanged.connect(self._on_class_ticked)
-    grid.addWidget(self.class_list, 2, 0, 1, 2)
+    grid.addWidget(self.class_list, 3, 0, 1, 2)
 
     # WHAT THE DESIGN'S SYMMETRY IS, in words, beside the classes it
     # explains. `D4` is dihedral of order four -- four rotations and
@@ -2585,15 +2613,15 @@ class TopologyPanel(QWidget):
     self.symmetry_note.setToolTip(
       "The symmetry group of each tile, and how many symmetries the "
       "whole design has.")
-    grid.addWidget(self.symmetry_note, 3, 0, 1, 2)
+    grid.addWidget(self.symmetry_note, 4, 0, 1, 2)
 
     self.how_combo = QComboBox()
     for key, spec in MANIPULATION_ORDER():
       self.how_combo.addItem(spec["label"], key)
     self.how_combo.setToolTip("What to do to the chosen class.")
     self.how_combo.currentIndexChanged.connect(self._rebuild_arguments)
-    grid.addWidget(QLabel("Do"), 4, 0)
-    grid.addWidget(self.how_combo, 4, 1)
+    grid.addWidget(QLabel("Do"), 5, 0)
+    grid.addWidget(self.how_combo, 5, 1)
 
     self._argument_rows = []
     # WHAT THE BOXES SAID, so a rebuild does not silently hand back
@@ -3402,6 +3430,33 @@ class TopologyPanel(QWidget):
     """
     self._selection = (None, [])
     self.aspect_reading_changed.emit(self.aspect_reading_in_force())
+
+  def _on_strand_families_chosen(self, _index: int = 0) -> None:
+    """Somebody changed whether warp and weft share their classes.
+
+    Returns:
+      None. The choice is announced so the dialog can rebuild the
+      topology, exactly as the reading above it does: this decides what
+      the classes ARE rather than how they are drawn.
+
+    THE SELECTION IS DROPPED for the same reason as above, and with
+    more force: a refinement RENAMES every class after the first one
+    that splits, so a label held across the change would name a
+    different set of edges rather than none at all.
+    """
+    self._selection = (None, [])
+    self.strand_families_changed.emit(self.strand_families_in_force())
+
+  def strand_families_in_force(self) -> str:
+    """Whether one class may hold both warp and weft edges.
+
+    Returns:
+      "together" where the classes stand as the library assigns them,
+      under a group whose mirror carries warps onto wefts, or "apart"
+      where every class that holds both directions is split.
+    """
+    data = self.strand_families.currentData()
+    return data if data else "together"
 
   def aspect_reading_in_force(self) -> str:
     """Which reading of a weave's daylight the tab is showing.
