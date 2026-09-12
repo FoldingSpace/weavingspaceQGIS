@@ -2279,6 +2279,15 @@ geopandas *and* matplotlib —
 not QGIS's own (macOS code-signing refuses PyPI C extensions in the
 signed QGIS process); any virtualenv with those two packages works.
 
+**AND `.venv-reference` IS NOT THE SAME MACHINE AS THE PLUGIN.** It is
+the fastest way to ask the vendored library a geometry question, and
+its answers can differ from the product's: `twill weave a|b` builds a
+topology at every strand width there and NONE under QGIS 4.0.3's own
+shapely and GEOS, on the upstream `get_edges` KeyError that
+`docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md`
+records. A figure taken in the venv carries the venv's name until it is
+reproduced under `$QGIS_PY` (C-356).
+
 The zip must stay under 20 MB and contain no binaries if it is ever
 submitted to the official QGIS plugin repository (this is why
 dependencies are downloaded at runtime rather than bundled).

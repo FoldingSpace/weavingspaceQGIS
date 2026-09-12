@@ -472,6 +472,30 @@ passed for weeks; a tester retyping one boundary found that nothing
 followed. Widening that test into a matrix is what turned one green
 tick into a 36-cell grid that fails 17 ways when the fix is removed.
 
+**AND A MATRIX MAY NEED A SECOND ONE BESIDE IT, one layer down.** A
+weave's structure answers to two independent questions, so
+`test_the_weave_structure_matrix` crosses them below Qt on
+`topology_edits` alone -- four weaves, three strand widths, four
+structures, five manipulations, two aftermaths -- while
+`test_the_weave_topology_tab_matrix` drives the same two choosers
+through the DIALOG and compares the classes the tab offers with the
+classes computed from the settings. The second is the differential; the
+first is what makes it affordable to have one, since a grid that opens
+a window per cell cannot cross five axes.
+
+**AND ONE ARM OF IT RENDERS, SAMPLED AT FOUR CELLS.** Every other cell
+of both grids reads geometry, and this file's own record is that a
+matrix asking about records catches none of the defects that are about
+what is seen. The arm compares the ink a cell's cloth PAINTS with the
+area its polygons claim over one extent: the two part company where a
+ring is wound the wrong way, a piece self-intersects, or a part is
+dropped on the way to a renderer, none of which moves an area reading.
+Agreement was measured at 0.0063, so the tolerance is 0.02. It walks a
+SHUFFLED list until it has four pictures rather than taking a fixed
+slice, since a design carrying no topology has none to give -- a cell
+is passed over for having no picture, never for the verdict its
+picture gives.
+
 Signs you should be writing a matrix rather than a case:
 - the behaviour has a name a user would recognise as a promise;
 - you find yourself writing "and also" in the test's docstring;
@@ -767,6 +791,14 @@ The accounts are T-138.
   the save's in-place skip is what proves that matrix can go red. A
   guard's own first draft is where the next defect is -- a lookup by
   class bounds stopping at the first match (T-64).
+- A VERDICT THAT LEGITIMATELY PASSES CAN ABSORB THE FAILURE IT SHOULD
+  CATCH, and a grid with one needs to COUNT it: "this design refuses in
+  words" is a correct pass, so a design that STOPS building reads
+  exactly like one refusing properly -- `twill weave a|b` builds in
+  `.venv-reference` and refuses under QGIS's own GEOS, and the two weave
+  matrices passed on it without a word until it was asked by hand. Collect such
+  verdicts, print them on a PASS, and fail on their rate rather than on
+  their presence (C-356, T-149).
 - ONE ENTRY PER AXIS, and read which assertion fired: the catalogue
   proves a test's primary axis and cannot see the rest (T-63); a guard
   written twice cannot be killed at either half (T-62); of twenty-six

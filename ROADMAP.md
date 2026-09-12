@@ -444,34 +444,22 @@ WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
 rather than a transform applied after, so there is no un-thinned unit
 to edit and thin later. That is the R-40 boundary, measured.
 
-**ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? BOTH READINGS ARE
-BUILT; THE DECISION IS THE MAINTAINER'S AND DAVID'S.** (Maintainer's
-question, 2026-09-08; both readings coded at their ask, 2026-09-11.) A
-chooser on the Topology tab, "Gaps from strand width", offers "Count,
-like a dropped strand" against "Ignore, like an inset". Counting is the
-scaffolded topology as built. Ignoring is a QUOTIENT rather than a
-rebuild: an aspect hole's opposite sides are declared one side and its
-four corners one point, which is C-352 and the maintainer's
-construction, since a full-width rebuild fuses at 1.0 and leaves a
-hairline `get_clean_polygon` destroys at 0.999. The measurements that
-put the question stand (`the_apertures_a_weave_leaves.py`): the
-dropped-pair hole survives full width, so the toggle decides less than
-it looks, and what is at stake is `twill weave a|b`'s four apertures.
-The reading changes class counts by about a third and CARRIES AN EDIT
-ACROSS THE GAP, measured at 16 of 16 ribbon pieces glued against 8
-unglued (`does_an_edit_cross_a_weaves_gap.py`). WHAT IS OWED:
+**ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? THE DECISION IS THE
+MAINTAINER'S AND DAVID'S, AND IT CAN NOW BE MADE BY LOOKING.** Both
+readings are built, guarded and driven, and so is the second and
+independent switch beside them, `Warp and weft` (R-96; the rulings are
+C-352, C-353 and C-354). WHAT IS OWED IS THE DECISION ITSELF, which is
+not an assistant's to take: whether a strand-width gap counts in a
+weave's structure, and whether the chooser for warp and weft should
+stay a choice at all, since the argument there points one way only.
 
-- NO TEST GUARDS ANY OF IT. The readings, the quotient, the selector
-  expansion and `class_labels` are all unwatched. One catalogue entry
-  covers the two kinds of daylight and none covers these.
-- THE TAB IS WIRED AND HAS NOT BEEN DRIVEN under QGIS. The chooser,
-  the requeue on change and the glued labels are read from the code.
-- THE SECOND, INDEPENDENT SWITCH IS BUILT (C-353, C-354): a `Warp and
-  weft` chooser offers the picture's symmetry against the cloth's, and
-  the refinement takes orbits under the direction-preserving
-  transforms, guarded by a test and three catalogue entries. WHAT IS
-  LEFT is a triaxial weave, which no cube weave can show while all
-  three refuse the scaffolding.
+ONE THING BLOCKS A FULL ANSWER. `twill weave a|b` builds no topology
+under QGIS's own GEOS, on the upstream `get_edges` KeyError, so every
+twill figure in this work was taken in `.venv-reference` and describes
+a design the plugin cannot presently reach (C-356). The plain weave and
+the basket carry the same findings and build in both places. The
+upstream note now has its third reproduction and awaits a sending,
+which is the maintainer's act.
 
 The discussion, with figures, is
 docs/process/the-topology-of-a-weave-and-its-holes.md.

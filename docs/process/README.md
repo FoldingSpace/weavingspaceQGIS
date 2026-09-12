@@ -101,6 +101,25 @@ the refinement trustworthy. Read it before building on a weave's
 classes, or before quoting "the dual of a weave", which is not a
 definite phrase until somebody says what the holes are.
 
+**Three probes came out of the weave work and are worth knowing
+about** because each answers a question the others cannot.
+`warp_and_weft_kept_apart.py` takes the classes as orbits under the
+direction-preserving transforms and asks, as a control at every build,
+whether the whole pool of transforms reproduces the library's own
+classes. `an_edit_aimed_at_one_strand_family.py` asks the question that
+actually matters -- whether an edit aimed at a refined class moves one
+family and leaves the other -- and its first version could not see the
+answer, attributing moved ground to any piece within a map unit, which
+a corner is of a warp and a weft alike.
+`stacking_edge_manipulations_on_a_weave.py` draws what accumulates when
+edits are chained, and is the clearest example here of a picture
+producing two findings that were both faults in the drawing: a colour
+looked up by rounding an angle defined modulo a half turn, and panels
+each scaled to their own contents. The area measurement beside them
+refuted both, and the finding that was real -- that an edge-aimed edit
+does not keep a strand at constant width -- was in the numbers all
+along.
+
 **Editing a weave's structure** (`weaving-and-topology.md`) asks
 whether the Topology tab's refusal of every weave is a fact about
 weaves or an artefact of how they are built. Four routes were tried

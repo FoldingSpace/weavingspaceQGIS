@@ -119,6 +119,7 @@ quote them, do not renumber them.
 - **R-93** — What a Running task, an idle pool and a thread list can tell apart  <sub>minted</sub>
 - **R-94** — The zigzag's amplitude ceiling, and what the search costs  <sub>minted</sub>
 - **R-95** — The honest preview, built  <sub>minted</sub>
+- **R-96** — Both readings of a weave's aspect gap, built and guarded  <sub>minted</sub>
 
 
 ### R-1 — 0.24.3 — released 2026-08-26: what it gave and what it put right
@@ -4833,3 +4834,38 @@ freeze at the press.
 The rulings are in CLAUDE.md (C-343), the mechanism in MAINTAINING.md
 under what a drag shows while it is happening, and the measurements in
 docs/TOPOLOGY.md and docs/PERFORMANCE.md.
+
+### R-96 — Both readings of a weave's aspect gap, built and guarded
+
+<sub>Cut from `ROADMAP.md` on 2026-09-12, the work having landed.</sub>
+
+**ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? BOTH READINGS ARE
+BUILT; THE DECISION IS THE MAINTAINER'S AND DAVID'S.** (Maintainer's
+question, 2026-09-08; both readings coded at their ask, 2026-09-11.) A
+chooser on the Topology tab, "Gaps from strand width", offers "Count,
+like a dropped strand" against "Ignore, like an inset". Counting is the
+scaffolded topology as built. Ignoring is a QUOTIENT rather than a
+rebuild: an aspect hole's opposite sides are declared one side and its
+four corners one point, which is C-352 and the maintainer's
+construction, since a full-width rebuild fuses at 1.0 and leaves a
+hairline `get_clean_polygon` destroys at 0.999. The measurements that
+put the question stand (`the_apertures_a_weave_leaves.py`): the
+dropped-pair hole survives full width, so the toggle decides less than
+it looks, and what is at stake is `twill weave a|b`'s four apertures.
+The reading changes class counts by about a third and CARRIES AN EDIT
+ACROSS THE GAP, measured at 16 of 16 ribbon pieces glued against 8
+unglued (`does_an_edit_cross_a_weaves_gap.py`).
+
+AND THE SECOND, INDEPENDENT SWITCH WAS BUILT BESIDE IT (C-353, C-354):
+a `Warp and weft` chooser offering the picture's symmetry against the
+cloth's, the refinement taking orbits under the direction-preserving
+transforms of `tile_matching_transforms` plus their pairwise
+composites, the whole pool reproducing the library's own classes as the
+control that makes it trustworthy.
+
+BOTH ARE GUARDED AND DRIVEN. `test_the_weave_structure_matrix` crosses
+them against four weaves, three strand widths, five manipulations and
+two aftermaths, with a rendered arm of four cells and a triaxial arm;
+`test_the_weave_topology_tab_matrix` moves both choosers through the
+dialog and compares the classes the tab offers with the classes
+computed from the settings. Four catalogue entries, all caught.
