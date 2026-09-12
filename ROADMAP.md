@@ -771,7 +771,12 @@ layer_styles WHERE f_table_name = '%s'` -- reached the queue, and "that
 string is irrelevant for me to approve".) Recorded rather than acted on,
 because the fix is not obviously an improvement: the filter is
 deliberately over-inclusive, and the day it skipped strings opening with
-`{` it dropped three live user-facing sentences unread. (R-71.)
+`{` it dropped three live user-facing sentences unread. (R-71.) AND IT
+STILL DROPS SOME: `looks_like_prose` wants three spaces, so a short
+hyphenated label -- "(direction-preserving subgroup)", measured
+2026-09-12 -- is excluded while its parallel "(symmetry group of the
+drawing)" is admitted. Worked around by keeping each option one literal;
+the filter itself is unchanged and wants a decision, not a patch.
 
 **Badges on the README**, and the "minimalist faux 3d" button styling
 the user mentioned. Both cosmetic, neither designed.

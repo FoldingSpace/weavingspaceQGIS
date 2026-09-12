@@ -2587,12 +2587,28 @@ class TopologyPanel(QWidget):
     stacked = QVBoxLayout(families)
     stacked.setContentsMargins(0, 0, 0, 0)
     stacked.setSpacing(2)
+    # EACH OPTION IS ONE LITERAL, AND THE LINE BREAK IS PLACED IN CODE AT
+    # ITS OPENING PARENTHESIS. Both halves of that are load-bearing.
+    # The break is what keeps this toggle narrow, and
+    # `tools/text_review.py` normalises whitespace in the prose it
+    # collects, so a newline INSIDE a literal is shown to the reviewer
+    # as a space and an edit applied from there writes the label back
+    # on one line, re-widening the window with nothing to say so. And
+    # the option must stay ONE literal, because the review tool keeps
+    # only strings of three spaces or more: split in two,
+    # "(direction-preserving subgroup)" has one space, was left out of
+    # the queue, and would have shipped unread beside its parallel,
+    # which was admitted. One literal is one sentence the reviewer sees
+    # whole; a reworded option keeps its break wherever it keeps a
+    # parenthesis, and loses it only where the parenthesis goes.
     for label, value in (
-        ("Together, where a mirror swaps warp for weft\n"
+        ("Together, where a mirror swaps warp for weft "
          "(symmetry group of the drawing)", "together"),
-        ("Apart, as a loom keeps them\n"
-         "(direction-preserving subgroup)", "apart")):
-      button = QRadioButton(label)
+        ("Apart, as a loom keeps them (direction-preserving subgroup)",
+         "apart")):
+      sentence, bracket, group = label.partition(" (")
+      button = QRadioButton(
+        "\n(".join((sentence, group)) if bracket else label)
       button.setToolTip(
         "Whether a mirror swapping warp for weft may put both in one class.")
       self.strand_families.addButton(button)
