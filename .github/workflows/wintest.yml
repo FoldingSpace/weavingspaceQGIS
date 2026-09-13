@@ -125,10 +125,19 @@ jobs:
       # eight exits refuses through a MODAL. Every exit names itself
       # now, the keep-the-result guard prints its whole decision, and
       # the failure block reads the modal store beside the bar.
-      - name: The failing tests, and nothing else
-        # THE ONE WINDOWS-ONLY RED as of b387f09, plus the two
-        # siblings that were routed through the same waiter -- because
-        # one fix and three loops is how this project has lost a
-        # repair before, and the siblings have never been driven here.
+      - name: Which weave topologies build on this platform
+        # CHASING rc21's CI on 8de744d (2026-09-13). The two-letter guard's
+        # full-width arm found "the library could not work out its
+        # structure" for `basket weave ab|cd` here, where the Mac builds
+        # it -- the C-356 shape -- so the probe says which weaves build
+        # under THIS shapely and GEOS before any fixture is re-aimed.
         shell: cmd
-        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_save_is_deferred_only_when_a_run_is_really_coming test_a_tick_dropped_by_a_save_comes_back test_a_cancel_the_writer_could_not_serve_says_nothing
+        run: call "%QGIS_SHIM%" -u tools/probes/which_weave_topologies_build_here.py
+
+      - name: The failing tests, and nothing else
+        # THE WINDOWS-ONLY REDS on 8de744d: the two-letter guard, and a
+        # save that met "the map is still drawing" in a test that passed
+        # here on d118d82; plus the dual test every leg failed, repaired
+        # in 04cc08a, as the sibling routed through the same group door.
+        shell: cmd
+        run: call "%QGIS_SHIM%" -u tools/run_some.py test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone test_a_later_save_replaces_a_motif_rather_than_dropping_it test_a_second_edit_of_the_source_makes_a_different_dual
