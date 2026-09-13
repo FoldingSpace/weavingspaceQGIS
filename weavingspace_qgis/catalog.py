@@ -522,7 +522,8 @@ def strands_problem(code: str, weave_type: str = "plain") -> str | None:
   # repairs28).
   if len(groups) != 3 and weave_type in TRIAXIAL_WEAVES:
     return (f"A {weave_type} weave runs strands in three directions, so "
-            "its code needs all three, as in a|b|c.")
+            "its strands code needs three directions specified, as in "
+            "a|b|c.")
   for character in code:
     if character in "|()-" or ("a" <= character <= "z"):
       continue
@@ -581,7 +582,7 @@ def strands_problem(code: str, weave_type: str = "plain") -> str | None:
       listed = (", ".join(str(n) for n in counts[:-1]) + " or "
                 + str(counts[-1])) if len(counts) > 1 else str(counts[0])
       return (f"A {weave_type} weave has {listed} elements, and this "
-              f"code names {len(labels)}.")
+              f"strand code names {len(labels)}.")
   return None
 
 

@@ -199,6 +199,11 @@
   "excerpt": "WeavingSpace \u2013 tiled & woven multivariate maps (v{})",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "0ef29c470aa28077": {
+  "approved": "2026-09-13",
+  "excerpt": "The strand width a weave is rebuilt at to read its direction",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "0f2f19c333545cd3": {
   "approved": "2026-08-08",
   "excerpt": "# WeavingSpace QGIS plugin",
@@ -703,6 +708,11 @@
   "approved": "2026-08-09",
   "excerpt": "Opens a thin gap around every tile or strand.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "3e7ef9ddbea42c52": {
+  "approved": "2026-09-13",
+  "excerpt": "A {} weave has {} elements, and this strand code names {}.",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "3e9c4452622eb29b": {
   "approved": "2026-08-26",
@@ -1318,6 +1328,11 @@
   "approved": "2026-08-08",
   "excerpt": "\n## What it makes",
   "where": "README.md"
+ },
+ "6b6abde801c3ed57": {
+  "approved": "2026-09-13",
+  "excerpt": "A {} weave runs strands in three directions, so its strands ",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "6b7ef413473a615c": {
   "approved": "2026-08-08",
@@ -2178,6 +2193,11 @@
   "approved": "2026-09-08",
   "excerpt": "This code is all gaps, so there would be nothing to draw.",
   "where": "weavingspace_qgis/catalog.py"
+ },
+ "bc137c4d645897f9": {
+  "approved": "2026-09-13",
+  "excerpt": "This weave's structure is read with its gaps filled in, so i",
+  "where": "weavingspace_qgis/topology_edits.py"
  },
  "bd0f734ef0ff860f": {
   "approved": "2026-09-06",
