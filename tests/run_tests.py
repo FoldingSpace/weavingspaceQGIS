@@ -93063,6 +93063,98 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
   return ("ok", f"{'moved' if moved else 'said something'}")
 
 
+def test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding():
+  """After an edit on a thin weave, the map holds strands and no filler.
+
+  A weave below full width reaches a topology by SCAFFOLDING: filler
+  tiles fill its daylight so the library can build, and ruling 1 of
+  C-347 says the filler is dropped afterwards. The dialog adopted the
+  edited scaffold whole, so after one edit Generate drew nine extra
+  "(no data)" element layers in the daylight and Save wrote them into
+  the file, with nothing said.
+
+  THE EXPECTATION COMES FROM THE SETTINGS: the elements are the letters
+  of the strands code `a|b`, and the filler's ids are the non-strand
+  entries of the `kinds` map `weave_topology` returns for the same
+  design -- asserted to exist, or the case could not go red.
+
+  Regression: the edited scaffold was adopted as the map's unit, so the weave's daylight was tiled as elements (round ten, stoch12). [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spec = catalog.TILINGS_BY_N[count][name]
+  _topology, _unit, kinds, _glue, note = te.weave_topology(
+    spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+    reading=te.ASPECT_LIKE_A_DROP, families=te.WARP_AND_WEFT_APART)
+  filler = {tid for tid, kind in kinds.items() if kind != "strand"}
+  strands = {tid for tid, kind in kinds.items() if kind == "strand"}
+  assert filler, f"PREMISE: the weave was not scaffolded ({note})"
+  assert strands == {"a", "b"}, f"PREMISE: the strands are {strands}"
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+    _choose_family(dlg, name)
+    _tick(200)
+    dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+    dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+    _tick(300)
+    panel = dlg.topology_panel
+    import time as _time
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    chosen = -1
+    while _time.monotonic() < deadline and chosen < 0:
+      for position in range(panel.class_combo.count()):
+        data = panel.class_combo.itemData(position)
+        if data and data[0] == "edge" and isinstance(data[1], str):
+          chosen = position
+          break
+      if chosen < 0:
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+    assert chosen >= 0, (
+      f"the tab never offered an edge class on the weave: family "
+      f"{dlg._family_key()!r}, topology held "
+      f"{panel._topology is not None}, note {panel.note.text()!r}, "
+      f"chooser {[panel.class_combo.itemData(i) for i in range(panel.class_combo.count())][:6]}")
+    panel.class_combo.setCurrentIndex(chosen)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    _tick(150)
+    before = _unit_tiles(dlg)
+    panel.apply_button.click()
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while _time.monotonic() < deadline and not (
+        panel.edits() and _unit_ground_moved(dlg, before)):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert _unit_ground_moved(dlg, before), "the edit never reached the unit"
+    held = {str(t) for t in dlg._unit.tiles["tile_id"]}
+    assert not held & filler, (
+      f"the dialog's unit carries the scaffolding's filler {sorted(held & filler)} "
+      f"beside its strands, so the next Generate tiles the daylight as elements")
+    _generate_and_wait(dlg)
+    drawn = set(_element_layers(dlg))
+    assert drawn, "PREMISE: the Generate after the edit drew no element layer"
+    assert drawn <= strands, (
+      f"after an edit the map drew element layers {sorted(drawn - strands)} "
+      f"that are the weave's scaffolding filler, not its strands {sorted(strands)}")
+  finally:
+    dlg.close()
+    for other in list(QgsProject.instance().mapLayers().values()):
+      QgsProject.instance().removeMapLayer(other.id())
+
+
 def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
   """An edit aimed at `aa` moves `aa`, and never `a` beside it.
 
@@ -95408,6 +95500,8 @@ def main():
         test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole)
   check("an edit aimed at a two-letter class moves that class alone",
         test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone)
+  check("an edited weave draws its cloth and not its scaffolding",
+        test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

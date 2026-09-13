@@ -24345,6 +24345,14 @@ class WeavingSpaceDialog(QDialog):
         edited, refusals, after = topology_edits.apply(
           topology, wanted_edits, glue=built.get("glue"))
         built["edited"] = edited
+        # AND WHAT THE MAP DRAWS IS THE CLOTH: the tab draws and aims
+        # with the scaffold its topology is of, but the filler is dropped
+        # before the unit is adopted, or Generate tiles the daylight as
+        # elements and Save writes them (round ten, stoch12). On the
+        # worker, since it copies the unit.
+        built["edited_cloth"] = (
+          topology_edits.cloth_of(edited, built.get("kinds"))
+          if built.get("scaffolded") else edited)
         built["refusals"] = refusals
         # ONE MARK PER EDIT, so the change list can say which of them
         # left a design that still carried a topology -- which is how
@@ -24539,7 +24547,8 @@ class WeavingSpaceDialog(QDialog):
         # itself, so an answer this build happened to have is no longer
         # consulted by anything. Deleted rather than left, because a
         # record with a writer and no reader reads as protection.
-        edited = built.get("edited")
+        edited = (built.get("edited_cloth") if "edited_cloth" in built
+                  else built.get("edited"))
         if edited is not None:
           # THE CRS GOES BACK ON HERE, on the main thread, because
           # attaching one constructs a pyproj CRS and the worker may

@@ -2810,6 +2810,17 @@ MUTATIONS = [
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="the-map-adopts-the-cloth-not-the-scaffold",
+       file="weavingspace_qgis/dialog.py",
+       # THE FILLER IS DROPPED BEFORE ADOPTION, or Generate tiles the
+       # weave's daylight as elements and Save writes them.
+       old="""        built["edited_cloth"] = (
+          topology_edits.cloth_of(edited, built.get("kinds"))
+          if built.get("scaffolded") else edited)""",
+       new="""        built["edited_cloth"] = edited""",
+       test="test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding",
+       why="after an edit on a thin weave the map draws the scaffolding's "
+           "filler as extra no-data element layers"),
   dict(name="the-library-is-handed-labels-not-a-joined-string",
        file="weavingspace_qgis/topology_edits.py",
        # THE ONE DOOR TO THE LIBRARY. Without it a record naming `aa`

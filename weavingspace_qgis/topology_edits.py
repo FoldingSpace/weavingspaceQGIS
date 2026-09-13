@@ -2232,6 +2232,31 @@ def strands_of(unit, kinds: dict):
   return unit.tiles[keep]
 
 
+def cloth_of(unit, kinds: dict):
+  """A scaffolded unit with its filler dropped, as the map should draw it.
+
+  Args:
+    unit: a unit from `scaffolded_weave`, possibly after an edit.
+    kinds: the map that call returned. Empty or None means the unit was
+      never scaffolded, and it is handed back as it stands.
+
+  Returns:
+    A copy of the unit carrying its strand tiles alone, or None where
+    the library will not make the copy -- in which case nothing should
+    be adopted, since the scaffolding is not a design anybody drew.
+
+  THE FILLER IS SCAFFOLDING, NOT CLOTH (ruling 1 of C-347: fill, take
+  the topology, DROP the filler afterwards). The dialog adopted the
+  edited scaffold whole, so after any edit on a thin weave Generate drew
+  nine extra "(no data)" element layers in the daylight and Save wrote
+  them into the file (round ten, stoch12, stores18). `strands_of` said
+  what to keep and had no caller.
+  """
+  if not kinds:
+    return unit
+  return _shallow_copy_with_tiles(unit, strands_of(unit, kinds).copy())
+
+
 def _one_tile_per_piece_of_ground(tiles):
   """Drop tiles the patch hands back twice.
 
