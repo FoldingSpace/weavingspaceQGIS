@@ -92899,6 +92899,17 @@ def _put_the_chooser_on(combo, value, what):
   and `setCurrentText` on a non-editable combo does nothing at all when
   it does not match exactly.
   """
+  # A BUTTON GROUP SINCE 2026-09-13 for the aspect reading, as the
+  # warp-and-weft toggle already was: the value rides on each radio.
+  if hasattr(combo, "buttons"):
+    offered = [b.property("reading") or b.property("families")
+               for b in combo.buttons()]
+    for button in combo.buttons():
+      if value in (button.property("reading"), button.property("families")):
+        button.setChecked(True)
+        return
+    raise AssertionError(
+      f"the {what} toggle offers no {value!r}; it has {offered}")
   index = combo.findData(value)
   assert index >= 0, (
     f"the {what} chooser offers no {value!r}; it has "

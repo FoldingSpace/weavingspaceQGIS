@@ -602,21 +602,14 @@ dropping the direction-swapping members would also drop the
 identifications their PRODUCTS make, which split classes for a reason
 nobody asked about (23 rather than 20 on `plain weave a|b`).
 
-**THE CONTROL IS ASKED EVERY TIME AND IT CAN REFUSE.** Orbits under the
-whole pool are compared with the library's own labelling before
-anything is split; where they disagree the function changes nothing and
-says so, since a partition taken from a pool that does not describe
-this design is not a refinement of the classes on screen. Measured on
-`plain weave a|b` 10 to 20 edge classes, `twill weave a|b` 6 to 12,
-both readings and three strand widths, with no refined class holding
-edges of two directions
-(`tools/probes/warp_and_weft_kept_apart.py`; C-354).
-
-**THE ORDER IS REFINE, THEN GLUE**, and no gluing ever unions two
-classes of different direction, measured on both weaves: an aspect
-hole's opposite sides are parallel. The strand directions come off the
-tiles themselves -- a strand piece is longer along its own axis -- so a
-rotated or triaxial family needs no case of its own.
+**THE CONTROL IS ASKED EVERY TIME AND IT CAN REFUSE**: orbits under the
+whole pool must reproduce the library's labelling or nothing is split --
+10 to 20 edge classes on `plain weave a|b`, 6 to 12 on `twill weave a|b`
+(`tools/probes/warp_and_weft_kept_apart.py`; C-354). **THE ORDER IS
+REFINE, THEN GLUE**, an aspect hole's opposite sides being parallel. The
+strand directions come off the DESIGN rebuilt thin
+(`design_strand_directions`), not off the tiles, which at full width are
+squares with no long axis (round ten; see the section below).
 
 **BUT AN EDGE'S DIRECTION IS NOT THE STRAND FAMILY THAT OWNS IT**, and
 that is the thing to know before promising anybody what an edit
@@ -633,32 +626,92 @@ is why `plain weave a|b` answers one direction under both readings and
 is what the suite asserts
 (`tools/probes/an_edit_aimed_at_one_strand_family.py`).
 
-**WHAT THE TAB SHOWS.** The `Gaps from strand width` chooser sits above
-the class controls, since the reading decides what the classes ARE
-rather than how they are drawn; changing it queues a fresh topology
-through `_queue_topology` and drops the selection, a class named under
-one reading need not existing under the other. It is not a term of
-`_geometry_signature`: no map geometry moves, so nothing re-tiles.
-`Warp and weft classes` sits directly beneath it as a VERTICAL TOGGLE
-of two radio buttons in a `QButtonGroup`, each value riding on its
-button as the `families` property, and behaves identically, its own
-signal reaching `dialog._on_strand_families_changed`; its selection is
-dropped with more force, since a refinement RENAMES every class after
-the first one that splits. `buttonToggled` fires for the button going
-off as well as the one coming on, and only the second is answered.
-IT OPENS ON APART, the direction-preserving subgroup, on the ruling "H
-for weaves, G for tiles"; a tiling is unaffected because only a weave
-reaches the refinement.
+**WHAT THE TAB SHOWS.** `Gaps from strand width` and, beneath it,
+`Warp and weft classes` sit above the class controls, since the readings
+decide what the classes ARE. Both are VERTICAL TOGGLES of two radio
+buttons in a `QButtonGroup`, the value riding on each button (`reading`,
+`families`); `buttonToggled` fires for the button going off as well, and
+only the one coming on is answered. Each drops the selection and reaches
+the dialog (`_on_aspect_reading_changed`, `_on_strand_families_changed`),
+which queues a fresh topology -- or, where edits stand, takes the edit's
+own door, a reading then changing which edges those edits move. The
+families toggle opens on Apart ("H for weaves, G for tiles").
 
-**A TOGGLE RATHER THAN A DROPDOWN, AND THE WIDTH IS WHY.** A QComboBox
-asks for its widest item, so naming the groups in the options took the
+**TOGGLES RATHER THAN DROPDOWNS, AND THE WIDTH IS WHY.** A QComboBox asks
+for its widest item, so naming the groups in the options took the
 window's minimum to 1665px at 13pt against a 1480 ceiling; stacked radios
-cost the widest line, 1293px. Each option is ONE literal -- the sentence
-and its parenthetical group -- and the line break is placed in code at the
-opening parenthesis, because `tools/text_review.py` normalises whitespace
-(a newline inside a literal would come back from an applied edit as one
-line) and keeps only strings of three spaces or more (a separate
-"(direction-preserving subgroup)" would never have been reviewed). C-357.
+cost the widest line. Each option is ONE literal with any line break
+placed in code, because `tools/text_review.py` normalises whitespace and
+keeps only strings of three spaces or more (C-357). The gaps chooser
+became a toggle on 2026-09-13 to match, its approved literals unchanged.
+
+### A weave's structure after round ten: what every door now goes through
+
+Round ten (docs/process/defects-2026-09-12.md) found the weave topology's
+terms reaching the build and nothing else. What a maintainer must now
+hold, door by door:
+
+**A CLASS SELECTOR IS LABELS, READ BY ONE OWNER.** The library selects
+with `label in selector`, a substring test on a string, so `aa` reached
+`a`. `topology_edits.labels_in(selector, alphabet, made_against)` is the
+one reading -- a string that is a label is that label, a record made
+against an alphabet holding two-letter labels names one class, an older
+joined record splits only into DISTINCT known labels -- and
+`move_as_applied` hands the library a tuple. A multi-class selection is
+recorded as a LIST. The tab reads its selection through `_held_labels`.
+
+**A GLUED CLASS IS WIDENED AT EVERY DOOR.** `widen_selector(selector,
+glue, how, made_against)` takes the target from the MANIPULATION (a
+record carries none) and is called by `apply`, the drag preview and the
+drop's refinement; the dialog's replay passes `glue`. The view holds the
+gluing too, and `_class_of` answers for the paint, the handles' seat, the
+hover and the click, so a glued class lights and clicks whole.
+
+**THE MAP DRAWS THE CLOTH, MODIFIED.** `weave_topology` applies the
+design's rotate, scale and skew to the scaffold (`modified`) before the
+topology is built, since a thin weave is rebuilt from its settings and
+the dialog's modified unit never reached it; the dialog adopts
+`topology_edits.cloth_of(edited, kinds)` -- the filler dropped -- and puts
+a weave's tile inset on the cloth after the replay, an inset being gaps.
+The tab goes on drawing and aiming with the scaffold its topology is of.
+
+**THE READINGS ARE TERMS OF EVERY KEY, STAMP AND RECORD.** Where edits
+stand, `_topology_edit_key` carries both readings, so the signatures and
+the tiled-frame cache move on a switch and the chooser handlers take
+`_queue_preview`; `_topology_stamp` carries them for any weave, so a
+landing, a held dual and a Save's owed-topology question see a switch; and
+`_capture_design` writes them for a weave (not a tiling, so older tiling
+records stay current), the restore setting both choosers through
+`TopologyPanel.put_the_readings`, signals blocked, BEFORE any edit is
+replayed, a missing key giving Count and Apart. A held landing keeps every
+`set_unit` argument by name.
+
+**WARP AND WEFT ARE READ OFF THE DESIGN.** `design_strand_directions`
+rebuilds the same weave at strand width 0.5 with its modifiers and reads
+the directions there: at full width the tiles are squares with no long
+axis, and Apart silently kept mixed classes.
+
+**A THIN WEAVE OFFERS NO DUAL; A DUAL GROUP IS A TILING.**
+`dual_on_offer` refuses a topology that `stands_on_scaffolding`
+(`SCAFFOLD_HAS_NO_DUAL`), since the chain could only tile the source;
+`_weave_terms_at(depth)` gives no weave terms above depth 0, so a dual is
+never refined as cloth; `_edits_a_replay_owes` tells the replay gate
+which edits a build must replay, the dual's frozen source edits being
+none of them; frozen edits carry `frozen_for` and
+`_frozen_for_this_design` replays them only onto the design they were
+made on, the chain's refusals reported rather than discarded; and
+`_on_group_chosen` also waits while `_a_dual_press_is_waiting`, or the
+press's stash was restored over the newly chosen group, its Save path
+included.
+
+**A CENTRALLY SYMMETRIC TILE'S CENTRE IS ITS CENTROID.** `_exact_centre`
+answers such a tile (`_is_its_own_half_turn`) without `polylabel`, whose
+relative-tolerance search subdivided a rectangle's midline for ~100 ms a
+tile, and `_consistent_centre` searches once per base tile, keyed by its
+shape.
+
+**A LANDING KEEPS A SELECTION OF SEVERAL.** `_refresh_classes` restores
+from `_selection` and only where every class survives, compared as labels.
 
 ### A strands code you can type, and what follows what
 

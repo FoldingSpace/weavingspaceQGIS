@@ -2601,17 +2601,31 @@ class TopologyPanel(QWidget):
     # choosing between; wording the choice as "holes" against "not
     # there" named the consequence and hid the comparison, which is the
     # question itself (maintainer's correction, 2026-09-08).
-    self.aspect_reading = QComboBox()
-    self.aspect_reading.addItem("Count, like a hole made by a 'missing' strand",
-                                "like-a-drop")
-    self.aspect_reading.addItem("Ignore, like an inset", "like-an-inset")
-    self.aspect_reading.setToolTip(
-      "Whether strand-width gaps count in the structure, like a hole made "
-      "by a 'missing' strand.")
-    self.aspect_reading.currentIndexChanged.connect(
-      self._on_aspect_reading_chosen)
+    # A VERTICAL TOGGLE, TO MATCH THE ONE BENEATH IT. (Maintainer's ask,
+    # 2026-09-13.) The two readings are one kind of choice and were two
+    # kinds of control; stacked radios also put both answers on screen at
+    # once, which is how somebody compares two readings of what a weave
+    # IS. The options' literals and tooltip are the approved ones.
+    self.aspect_reading = QButtonGroup(self)
+    readings = QWidget()
+    reading_stack = QVBoxLayout(readings)
+    reading_stack.setContentsMargins(0, 0, 0, 0)
+    reading_stack.setSpacing(2)
+    for label, value in (
+        ("Count, like a hole made by a 'missing' strand", "like-a-drop"),
+        ("Ignore, like an inset", "like-an-inset")):
+      button = QRadioButton(label)
+      button.setToolTip(
+        "Whether strand-width gaps count in the structure, like a hole made "
+        "by a 'missing' strand.")
+      self.aspect_reading.addButton(button)
+      button.setProperty("reading", value)
+      reading_stack.addWidget(button)
+      if value == "like-a-drop":
+        button.setChecked(True)
+    self.aspect_reading.buttonToggled.connect(self._on_aspect_reading_chosen)
     grid.addWidget(QLabel("Gaps from strand width"), 0, 0)
-    grid.addWidget(self.aspect_reading, 0, 1)
+    grid.addWidget(readings, 0, 1)
 
     # AND THE SECOND READING OF THE SAME STRUCTURE sits beneath it, for
     # the same reason: it too decides what the classes ARE. The two are
@@ -3553,8 +3567,14 @@ class TopologyPanel(QWidget):
         "has stopped moving with the count -- this box is where the "
         "count is.")
 
-  def _on_aspect_reading_chosen(self, _index: int = 0) -> None:
+  def _on_aspect_reading_chosen(self, _button=None, checked=True) -> None:
     """Somebody changed how a weave's strand-width gaps are read.
+
+    Args:
+      _button: the radio that toggled, as `QButtonGroup.buttonToggled`
+        delivers it; unused, since the group is asked what is in force.
+      checked: whether that radio came ON. The group signals for the
+        button going off as well, and only the one coming on is a choice.
 
     Returns:
       None. The choice is announced so the dialog can rebuild the
@@ -3567,6 +3587,8 @@ class TopologyPanel(QWidget):
     shelf's own alphabet check reports what an edit now aims at, and
     this is the same shape one control earlier.
     """
+    if checked is False:
+      return
     self._selection = (None, [])
     self.aspect_reading_changed.emit(self.aspect_reading_in_force())
 
@@ -3618,7 +3640,8 @@ class TopologyPanel(QWidget):
       the structure as a missing strand's ground does, or
       "like-an-inset" where it is glued away as an inset's is.
     """
-    data = self.aspect_reading.currentData()
+    button = self.aspect_reading.checkedButton()
+    data = button.property("reading") if button is not None else None
     return data if data else "like-a-drop"
 
   def put_the_readings(self, reading, families) -> None:
@@ -3644,11 +3667,11 @@ class TopologyPanel(QWidget):
     """
     wanted = reading if reading in ("like-a-drop", "like-an-inset") \
         else "like-a-drop"
-    position = self.aspect_reading.findData(wanted)
     blocked = self.aspect_reading.blockSignals(True)
     try:
-      if position >= 0:
-        self.aspect_reading.setCurrentIndex(position)
+      for button in self.aspect_reading.buttons():
+        if button.property("reading") == wanted:
+          button.setChecked(True)
     finally:
       self.aspect_reading.blockSignals(blocked)
     wanted = families if families in ("apart", "together") else "apart"
