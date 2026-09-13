@@ -5436,6 +5436,137 @@ def test_a_save_with_an_edit_outstanding_leaves_the_motif_alone():
       f"opening the pair gets another design's motif")
 
 
+def test_every_stub_accepts_every_call_its_original_takes():
+  """A test's stand-in for a product function must not be narrower than it.
+
+  THE FAULT THIS IS ABOUT surfaced at rc20's gate, 2026-09-12.
+  `test_a_design_that_cannot_carry_its_edits_still_draws` swapped
+  `topology_edits.build` for a counting stub taking `unit` alone, and
+  the dialog has called `build(unit, weave=...)` since the weave
+  scaffolding reached it on 2026-09-11. The stub raised TypeError inside
+  the worker, the tab never got a topology, and the test died at
+  StopIteration -- a failure about a test harness reading exactly like
+  one about the product. It passed on CI at 1bcf88a; nothing ran the
+  whole suite between the signature growing and the candidate.
+
+  SO THE SHAPE IS GUARDED, NOT THE SITE. Every place this file assigns a
+  local function over a product callable is found by reading the file,
+  and each stub is held to the ORIGINAL's signature: it must accept
+  every parameter the original accepts, by name or through `*args` or
+  `**kwargs`, and where the original gives a parameter a default the
+  stub must too, since a caller omitting it would otherwise break the
+  stub alone. A stub forwarding `*args, **kwargs` accepts anything,
+  which is why most of this file's stubs are written that way.
+
+  DEFAULTS ARE COMPARED, NOT JUST NAMES, and that is not a nicety. The
+  first scan behind this guard listed parameter names only, and so
+  reported two stubs as narrowed that were in fact exact copies of
+  their originals' signatures, defaults included -- an instrument
+  aggregating over the very distinction under test.
+
+  A CALLABLE WITH NO PYTHON SIGNATURE -- a Qt builtin such as `exec` --
+  cannot be compared, and is COUNTED rather than silently passed, with
+  a premise that the scan found enough sites to be a guard at all.
+
+  Regression: a counting stub that took one argument where the product began passing two, so a test failed about its own harness while reading like a product defect. [docs-reading]
+  """
+  import ast
+  import importlib
+  import inspect
+  import os
+
+  source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "run_tests.py")
+  with open(source_path, encoding="utf-8") as handle:
+    tree = ast.parse(handle.read())
+
+  def resolve(module, name):
+    """The object an import binds, or None where it cannot be had."""
+    try:
+      return getattr(importlib.import_module(module), name)
+    except (ImportError, AttributeError):
+      try:
+        return importlib.import_module(f"{module}.{name}")
+      except ImportError:
+        return None
+
+  def accepts(stub, original):
+    """What the stub cannot take that the original can, as sentences."""
+    arguments = stub.args
+    positional = arguments.posonlyargs + arguments.args
+    with_default = {a.arg for a in positional[len(positional)
+                                              - len(arguments.defaults):]}
+    with_default |= {a.arg for a, d in zip(arguments.kwonlyargs,
+                                           arguments.kw_defaults)
+                     if d is not None}
+    names = {a.arg for a in positional} | {a.arg for a in arguments.kwonlyargs}
+    missing = []
+    for parameter in original.parameters.values():
+      if parameter.kind is parameter.VAR_POSITIONAL:
+        if not arguments.vararg:
+          missing.append(f"*{parameter.name}")
+        continue
+      if parameter.kind is parameter.VAR_KEYWORD:
+        if not arguments.kwarg:
+          missing.append(f"**{parameter.name}")
+        continue
+      if parameter.name not in names:
+        if not (arguments.kwarg or (arguments.vararg and parameter.kind
+                                    is not parameter.KEYWORD_ONLY)):
+          missing.append(parameter.name)
+        continue
+      if (parameter.default is not parameter.empty
+          and parameter.name not in with_default):
+        missing.append(f"a default for {parameter.name}")
+    return missing
+
+  compared, uncomparable, narrowed = 0, [], []
+  for function in ast.walk(tree):
+    if not isinstance(function, ast.FunctionDef):
+      continue
+    bound, local = {}, {}
+    for node in ast.walk(function):
+      if (isinstance(node, ast.ImportFrom) and node.module
+          and node.module.startswith("weavingspace_qgis")):
+        for alias in node.names:
+          bound[alias.asname or alias.name] = (node.module, alias.name)
+      elif isinstance(node, ast.FunctionDef) and node is not function:
+        local[node.name] = node
+    for node in ast.walk(function):
+      if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+        continue
+      target = node.targets[0]
+      if not (isinstance(target, ast.Attribute)
+              and isinstance(target.value, ast.Name)
+              and target.value.id in bound
+              and isinstance(node.value, ast.Name)
+              and node.value.id in local):
+        continue
+      holder = resolve(*bound[target.value.id])
+      real = getattr(holder, target.attr, None) if holder is not None else None
+      where = (f"{function.name} line {node.lineno}: "
+               f"{target.value.id}.{target.attr} = {node.value.id}")
+      try:
+        signature = inspect.signature(real)
+      except (TypeError, ValueError):
+        uncomparable.append(where)
+        continue
+      compared += 1
+      gaps = accepts(local[node.value.id], signature)
+      if gaps:
+        narrowed.append(f"{where} cannot take {', '.join(gaps)} "
+                        f"that {target.attr}{signature} accepts")
+
+  assert compared >= 10, (
+    f"PREMISE: only {compared} stubs could be compared against their "
+    f"originals ({len(uncomparable)} had no Python signature), so this "
+    f"guard is not looking at enough of the file to mean anything")
+  assert not narrowed, (
+    "these stubs are narrower than the functions they stand in for, so "
+    "a caller the original accepts breaks the stub and the test fails "
+    "about its own harness:\n  " + "\n  ".join(narrowed))
+
+
 def test_a_design_that_cannot_carry_its_edits_still_draws():
   """A promise the design cannot keep is not renewed for ever.
 
@@ -5472,9 +5603,17 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
   builds = {"n": 0}
   real_build = topology_edits.build
 
-  def counted(unit):
+  # THE STUB FORWARDS WHATEVER IT IS GIVEN, as this file's other
+  # counting stubs already do. It took `unit` alone until 2026-09-12,
+  # and the dialog has called `build(unit, weave=...)` since the weave
+  # scaffolding reached it on 2026-09-11 -- so the stub raised
+  # TypeError inside the worker, the tab never got a topology, and the
+  # edited arm died at StopIteration looking for a vertex class. It
+  # passed on CI at 1bcf88a and nothing ran the whole suite between the
+  # signature growing and rc20's gate, which is where it surfaced.
+  def counted(*args, **kwargs):
     builds["n"] += 1
-    return real_build(unit)
+    return real_build(*args, **kwargs)
 
   def journey(with_an_edit):
     layer = make_region_layer()
@@ -95056,6 +95195,8 @@ def main():
         test_a_weaves_two_kinds_of_daylight_partition_its_gap)
   check("a weave's classes can be kept to one strand family",
         test_a_weaves_classes_can_be_kept_to_one_strand_family)
+  check("every stub accepts every call its original takes",
+        test_every_stub_accepts_every_call_its_original_takes)
   check("the weave structure matrix", test_the_weave_structure_matrix)
   check("the weave topology tab matrix",
         test_the_weave_topology_tab_matrix)

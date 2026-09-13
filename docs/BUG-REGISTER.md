@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-569 defect(s) with a regression test.
+570 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -27,6 +27,8 @@ there is no separate list to remember.
   guarded by `test_a_weaves_two_kinds_of_daylight_partition_its_gap`
 - **the inline-span pass read the document RAW, and a ``` fence line carries three backticks -- the pattern needs a non-backtick between a pair, so the first two cannot pair and the third opened a span running to the next backtick. Everything quoted after a fence was invisible and scraps of prose were collected as commands instead. Measured 2026-08-31: MAINTAINING.md contributed ONE command reference where it carries thirteen, and the one the gate could not see named `dev/instruments/probe_zigzag_cleaners.py`, a gitignored path that does not exist -- the same defect whose sibling in ROADMAP.md failed CI and superseded rc6, left standing because the repair went to the instance CI named. Fifteen references were hidden across the gated documents. The per-document check could not catch it either: a document that contributes SOMETHING passes.**  
   guarded by `test_every_documented_command_still_exists`
+- **a counting stub that took one argument where the product began passing two, so a test failed about its own harness while reading like a product defect.**  
+  guarded by `test_every_stub_accepts_every_call_its_original_takes`
 
 ## Found by a family audit of the claims the software makes
 
@@ -1205,5 +1207,5 @@ there is no separate list to remember.
 - driving the UI and rebuilding the same map from the library directly: 5
 - the hostile data corpus: 4
 - a randomised differential sweep: 3
-- re-reading the procedural documents: 2
+- re-reading the procedural documents: 3
 - comparing rendered output against the reference in Lab space: 1
