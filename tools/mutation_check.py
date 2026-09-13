@@ -2813,6 +2813,14 @@ MUTATIONS = [
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="the-glued-door-reads-the-records-alphabet",
+       file="weavingspace_qgis/topology_edits.py",
+       old="""  named = labels_in(selector, set(which) | set(which.values()), made_against)""",
+       new="""  named = labels_in(selector, set(which) | set(which.values()))""",
+       test="test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone",
+       why="an edit recorded against a two-letter class, replayed through "
+           "a weave's gluing, is split into letters and moves classes "
+           "nobody chose"),
   dict(name="a-centrally-symmetric-tile-is-not-searched",
        file="weavingspace_qgis/topology_edits.py",
        old="""  if _is_its_own_half_turn(shape):
@@ -2928,9 +2936,9 @@ MUTATIONS = [
        # vertex edit against the EDGE map and the corners of the hole
        # are left behind.
        old="""  target = MANIPULATIONS.get(how, {}).get("target", "")
-  return _expanded(selector, glue, target)""",
+  return _expanded(selector, glue, target, made_against)""",
        new="""  target = ""
-  return _expanded(selector, glue, target)""",
+  return _expanded(selector, glue, target, made_against)""",
        test="test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole",
        why="a nudge aimed at a glued vertex class moves one corner of the "
            "hole and not the others"),

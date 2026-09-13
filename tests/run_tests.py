@@ -93807,6 +93807,28 @@ def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
   assert any("aa" in r for r in solid_refusals), (
     f"the replay neither applied nor named the missing class: {solid_refusals}")
 
+  # AND THROUGH THE GLUED DOOR: a record naming `ab`, made where two-letter
+  # labels existed, replayed onto a glued design that has `a` and `b` but
+  # no `ab`, must be refused -- the gluing's widening once split it into
+  # two glued classes and moved both (round ten, trigger11).
+  glued_topology, _gu, _gk, glued_map, glued_note = te.weave_topology(
+    catalog.TILINGS_BY_N[2]["plain weave a|b"], 1000.0, 0.75,
+    reading=te.ASPECT_LIKE_AN_INSET, families=te.WARP_AND_WEFT_APART)
+  assert glued_topology is not None and glued_map, (
+    f"PREMISE: no glued plain weave ({glued_note})")
+  glued_labels = {e.label for e in glued_topology.edges.values() if e.label}
+  assert {"a", "b"} <= glued_labels and "ab" not in glued_labels, (
+    f"PREMISE: the glued weave's classes are {sorted(glued_labels)}")
+  glued_before = {label: lines_of(glued_topology, label) for label in ("a", "b")}
+  glued_edit = dict(edit, classes="ab", against=te.classes(topology)["edge"])
+  _t3, glued_refusals, glued_state = te.apply(
+    glued_topology, [glued_edit], glue=glued_map)
+  glued_after_topology = glued_state.get("topology") or glued_topology
+  for label in ("a", "b"):
+    assert lines_of(glued_after_topology, label) == glued_before[label], (
+      f"an edit recorded against class `ab`, replayed through the gluing "
+      f"onto a design with no `ab`, moved class `{label}` ({glued_refusals})")
+
 
 def test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole():
   """An edit on a glued weave class reaches the map on both sides of a hole.

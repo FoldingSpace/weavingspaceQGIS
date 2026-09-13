@@ -773,7 +773,7 @@ def move_as_applied(topology, selector, how, ready):
   return topology.transform_geometry(True, True, selector, how, **ready)
 
 
-def _expanded(selector, glue, target: str = ""):
+def _expanded(selector, glue, target: str = "", made_against: str = ""):
   """Every library label a glued class stands for.
 
   Args:
@@ -781,6 +781,9 @@ def _expanded(selector, glue, target: str = ""):
       them.
     glue: the map `glue_the_aspect_holes` returned, or None.
     target: "edge" or "vertex", saying which of the two maps to read.
+    made_against: the edit's recorded alphabet, or "" -- without it a
+      two-letter label the glued design lacks was split into letters that
+      each name a glued class (round ten, trigger11).
 
   Returns:
     A list of every library label whose class is one the selector
@@ -796,14 +799,14 @@ def _expanded(selector, glue, target: str = ""):
   if not glue or not selector:
     return selector
   which = glue.get("points" if target == "vertex" else "edges", {})
-  named = labels_in(selector, set(which) | set(which.values()))
+  named = labels_in(selector, set(which) | set(which.values()), made_against)
   wanted = {which.get(label, label) for label in named}
   widened = sorted((label for label, klass in which.items()
                     if klass in wanted), key=lambda label: (len(label), label))
   return widened or selector
 
 
-def widen_selector(selector: str, glue, how: str) -> str:
+def widen_selector(selector: str, glue, how: str, made_against: str = ""):
   """The library selector an edit aimed at `selector` must be given.
 
   Args:
@@ -812,6 +815,9 @@ def widen_selector(selector: str, glue, how: str) -> str:
       the classes stand as the library assigned them.
     how: the manipulation's key, which decides whether the edge map or
       the vertex map is read.
+    made_against: the joined alphabet the edit was recorded against, or
+      "" -- passed to `labels_in` so a two-letter label recorded where
+      such labels existed is not split on the way through the gluing.
 
   Returns:
     The selector widened to every library label a glued class stands
@@ -826,7 +832,7 @@ def widen_selector(selector: str, glue, how: str) -> str:
   one side of a hole and the chooser named both (round ten, asym10).
   """
   target = MANIPULATIONS.get(how, {}).get("target", "")
-  return _expanded(selector, glue, target)
+  return _expanded(selector, glue, target, made_against)
 
 
 def apply(topology, edits, glue=None):
@@ -911,7 +917,7 @@ def apply(topology, edits, glue=None):
     # the other -- which is precisely the adjacency the gluing was
     # asserting. The library's own selector is a string of labels, so
     # the expansion is a string too.
-    selector = widen_selector(selector, glue, how)
+    selector = widen_selector(selector, glue, how, edit.get("against") or "")
     # NOTHING HERE ASKS WHETHER THE DESIGN STILL HAS A REBUILDABLE
     # TOPOLOGY, and that is the point of chaining: the object carries
     # its own classes forward, so an edit after one that opened gaps is
