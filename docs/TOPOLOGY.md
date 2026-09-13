@@ -1202,7 +1202,10 @@ settings, because a hyphen is a strand somebody left out and the
 picture then has no mirror carrying warps onto wefts to disbelieve
 in. Triaxially the homomorphism lands in a
 group of order six, which no cube weave can show while all three refuse
-the scaffolding. (C-354.)
+the scaffolding. (C-354.) AND H IS WHERE A WEAVE STARTS: the maintainer's
+ruling of 2026-09-12 is "H for weaves, G for tiles", so the toggle opens
+on Apart, and a tiling keeps the full group by never reaching the
+refinement.
 
 The instruments are `tools/probes/can_a_weave_carry_a_topology.py`,
 `tools/probes/what_a_class_aimed_edit_does_to_a_ribbon.py`,

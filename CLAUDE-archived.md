@@ -391,6 +391,7 @@ quote them, do not renumber them.
 - **C-354** — the direction-preserving subgroup, built: the transform list is not a group
 - **C-355** — An edge-aimed edit does not keep a weave's ribbons at constant width  <sub>minted</sub>
 - **C-356** — Reference-venv figures can describe designs the plugin cannot reach  <sub>minted</sub>
+- **C-357** — A chooser's width and the review round trip  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11944,3 +11945,38 @@ THE RULE: a figure measured in `.venv-reference` carries the venv's
 name until it has been reproduced under `$QGIS_PY`, and a weave figure
 is reproduced there before it is quoted anywhere a reader would take it
 for the product's behaviour.
+
+### C-357 — A chooser's width and the review round trip
+
+2026-09-12, while the maintainer reworded the Topology tab's
+warp-and-weft chooser to name its groups.
+
+A QCOMBOBOX ASKS FOR ITS WIDEST ITEM, and a minimum width cannot be
+dragged narrower. Naming the two groups inside the options took the
+dialog's minimum from 1315px to 1665px at a desktop 13pt, past the 1480
+ceiling; eliding the combo at rest brought it to 1488, and the proposed
+label, "Warp and weft classes are derived, topologically:", was the last
+157px of that. Rebuilt as two stacked radio buttons with the group on a
+second line, the cost is the widest LINE and the minimum is 1293px --
+narrower than the plain dropdown before the groups were named, with both
+readings on screen at once. Beside the toggle the long label measures
+1444px, which fits with 36px to spare.
+
+AND TWO FACTS ABOUT `tools/text_review.py` DECIDED HOW THE OPTIONS ARE
+WRITTEN. It normalises whitespace in the prose it collects, so an option
+held as one literal containing a newline is shown to the reviewer with a
+space where the break is, and an edit applied from the review file
+writes it back on one line -- collapsing the toggle and re-widening the
+window, with nothing to say so. Splitting each option into two literals
+avoided that and exposed the second fact: `looks_like_prose` keeps only
+strings of three spaces or more, so "(direction-preserving subgroup)",
+with one, was left out of the queue while its parallel was admitted.
+Each option is therefore ONE literal, and the break is placed in code at
+the opening parenthesis.
+
+AND `--apply` IS THE WRONG VERB WHEN THE EDITS ARE ALREADY IN THE
+SOURCE. The maintainer's rewording was put into the source directly; the
+review file still held the OLD wording, and `--apply` treats any
+difference between the two as the reviewer's edit, so it would have
+written "dropped strand" back over their change. `--approve` records the
+source and reads no edits, and is what was run.

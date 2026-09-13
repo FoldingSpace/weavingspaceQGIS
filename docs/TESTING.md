@@ -799,6 +799,15 @@ The accounts are T-138.
   matrices passed on it without a word until it was asked by hand. Collect such
   verdicts, print them on a PASS, and fail on their rate rather than on
   their presence (C-356, T-149).
+- A STUB NARROWER THAN THE FUNCTION IT REPLACES FAILS ABOUT ITS OWN
+  HARNESS, and reads like the product failing: a counting stub taking
+  `unit` alone died inside the worker once the dialog began passing
+  `weave=`, and rc20's gate found it with the product sound. Stubs
+  forward `*args, **kwargs`, and
+  `test_every_stub_accepts_every_call_its_original_takes` holds every
+  one to its original's names AND defaults -- defaults because the scan
+  that sized the family compared names only, and called two exact
+  copies narrowed (T-150).
 - ONE ENTRY PER AXIS, and read which assertion fired: the catalogue
   proves a test's primary axis and cannot see the rest (T-63); a guard
   written twice cannot be killed at either half (T-62); of twenty-six

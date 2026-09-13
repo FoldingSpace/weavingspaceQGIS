@@ -918,10 +918,11 @@ The two are not equally open, though. The aspect question is a research
 decision with defensible answers on both sides, which is why the tab
 carries a control for it. The strandwise question has an argument that
 points one way only, since the warp-weft swap is never a symmetry of
-cloth. It is a control today because we would rather you saw both
-answers than took ours; if you agree that a cloth settles it, the
-honest next move is to make it how a weave's classes are always
-computed and retire the chooser.
+cloth. We kept both answers on screen rather than choosing for you, and
+the choice that came back was to keep them and to start from the
+cloth's: H for weaves, G for tiles. A weave now opens with warp and weft
+apart, and the drawing's full symmetry is one click away for anybody who
+wants to see what it would have made of the same cloth.
 
 ## What is built, and what is not
 
@@ -929,12 +930,15 @@ Built: `scaffolded_weave`, `weave_topology` and `glue_the_aspect_holes`
 in `topology_edits.py`; the selector expansion that carries an edit
 across a glued hole; `class_labels`, which returns labels as labels
 rather than joined into a string; and a chooser on the Topology tab
-reading "Count, like a dropped strand" against "Ignore, like an inset",
+reading "Count, like a hole made by a 'missing' strand" against
+"Ignore, like an inset",
 which queues a fresh topology and drops the selection when it moves.
 
 Built since: the strandwise refinement itself, as
-`keep_warp_and_weft_apart`, under a second chooser reading "Together, as
-the drawing's symmetry has them" against "Apart, as a cloth has them".
+`keep_warp_and_weft_apart`, under a second control, a vertical toggle
+labelled "Warp and weft classes" that offers "Together, where a mirror
+swaps warp for weft (symmetry group of the drawing)" against "Apart, as a
+loom keeps them (direction-preserving subgroup)", and opens on Apart.
 An edit CAN now be aimed at one strand family, which had looked
 impossible while we thought of the refinement as something the
 library's selector would have to express. It cannot express a split;

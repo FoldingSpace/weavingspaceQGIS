@@ -639,10 +639,26 @@ rather than how they are drawn; changing it queues a fresh topology
 through `_queue_topology` and drops the selection, a class named under
 one reading need not existing under the other. It is not a term of
 `_geometry_signature`: no map geometry moves, so nothing re-tiles.
-`Warp and weft` sits directly beneath it and behaves identically, its
-own signal reaching `dialog._on_strand_families_changed`; its selection
-is dropped with more force, since a refinement RENAMES every class
-after the first one that splits.
+`Warp and weft classes` sits directly beneath it as a VERTICAL TOGGLE
+of two radio buttons in a `QButtonGroup`, each value riding on its
+button as the `families` property, and behaves identically, its own
+signal reaching `dialog._on_strand_families_changed`; its selection is
+dropped with more force, since a refinement RENAMES every class after
+the first one that splits. `buttonToggled` fires for the button going
+off as well as the one coming on, and only the second is answered.
+IT OPENS ON APART, the direction-preserving subgroup, on the ruling "H
+for weaves, G for tiles"; a tiling is unaffected because only a weave
+reaches the refinement.
+
+**A TOGGLE RATHER THAN A DROPDOWN, AND THE WIDTH IS WHY.** A QComboBox
+asks for its widest item, so naming the groups in the options took the
+window's minimum to 1665px at 13pt against a 1480 ceiling; stacked radios
+cost the widest line, 1293px. Each option is ONE literal -- the sentence
+and its parenthetical group -- and the line break is placed in code at the
+opening parenthesis, because `tools/text_review.py` normalises whitespace
+(a newline inside a literal would come back from an applied edit as one
+line) and keeps only strings of three spaces or more (a separate
+"(direction-preserving subgroup)" would never have been reviewed). C-357.
 
 ### A strands code you can type, and what follows what
 

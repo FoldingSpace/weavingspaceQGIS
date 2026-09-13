@@ -450,8 +450,8 @@ readings are built, guarded and driven, and so is the second and
 independent switch beside them, `Warp and weft` (R-96; the rulings are
 C-352, C-353 and C-354). WHAT IS OWED IS THE DECISION ITSELF, which is
 not an assistant's to take: whether a strand-width gap counts in a
-weave's structure, and whether the chooser for warp and weft should
-stay a choice at all, since the argument there points one way only.
+weave's structure. The warp-and-weft half is SETTLED: H for weaves, G
+for tiles, the toggle opening on Apart and both answers kept.
 
 ONE THING BLOCKS A FULL ANSWER. `twill weave a|b` builds no topology
 under QGIS's own GEOS, on the upstream `get_edges` KeyError, so every

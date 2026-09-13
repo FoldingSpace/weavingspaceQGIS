@@ -237,7 +237,10 @@ self-fixing at low cost for whoever edits them next.)
   prose was written. Generate the delta, present it, and wait.
   `--apply` and `--approve` run only on the user's say-so, and an
   approval made in error is undone with
-  `git checkout -- docs/text-approved.json`. (User correction,
+  `git checkout -- docs/text-approved.json`. WHERE THE USER'S EDITS
+  HAVE ALREADY BEEN MADE IN THE SOURCE, record them with `--approve`
+  and never `--apply`, which writes the review file's older wording
+  back over them (C-357). (User correction,
   2026-08-09, after the assistant approved its own five strings.)
 - **The standards are ENFORCED at release, not merely intended.**
   `release.py` runs `tools/check_roadmap.py --merge` first and
@@ -812,6 +815,15 @@ are C-265 and the ids beside each rule.
   about a font, and the offscreen platform every runner uses supplies
   a 9pt one (C-140). A `ResizeToContents` column re-measures on every
   `setItem`, ten seconds a message at five hundred rows (C-166).
+- **A QCOMBOBOX ASKS FOR ITS WIDEST ITEM, SO ITS OPTIONS SET THE
+  WINDOW'S MINIMUM WIDTH**, which cannot be dragged narrower: naming two
+  groups in a chooser's options took the dialog from 1315px to 1665px at
+  a desktop 13pt, past the 1480 ceiling, where stacked radio buttons cost
+  the widest LINE and came to 1293px. And a line break a layout depends
+  on never lives INSIDE a reviewable literal, since
+  `tools/text_review.py` normalises whitespace and an applied edit writes
+  it back on one line; keep one literal and place the break in code
+  (C-357).
 - **A CELL WIDGET IN A HIDDEN COLUMN CAN PAINT AT THE TABLE'S ORIGIN**,
   so a blank cell is made by removing the widget; and Data & colours
   handlers must never trigger a table rebuild, since a rebuild lands
@@ -2145,21 +2157,14 @@ Confirmed with the user via an explicit design review:
   and cost exactly a factor of two on every weave, reading and width
   measured. It applies under either answer to the aspect question, so
   the two are separate controls; unlike that one it has an argument
-  pointing only one way. (C-353.) BUILT 2026-09-11, AND THE
-  TRANSFORM LIST IS NOT A GROUP: orbits under `tile_matching_transforms`
-  as it stands do not even reproduce the library's own classes, so the
-  refinement takes them under that list PLUS its pairwise composites,
-  and asks as its control that the whole pool reproduce those classes
-  before it splits anything. THE LABELS ARE REWRITTEN RATHER THAN
-  MAPPED, since a merge travels as a map and a split cannot, and
-  everything downstream already reads `edge.label`. AND AN EDGE'S OWN
-  DIRECTION IS NOT THE STRAND FAMILY THAT OWNS IT: a horizontal edge is
-  a weft's flank or a warp's END CAP, so the quotient, which declares an
-  aspect hole's opposite sides one side, can union 64 weft flanks with
-  69 warp end caps -- one class, one direction, two families. An edit
-  aimed at a refined class therefore reaches one family under the
-  counting reading and both under the glued one on a twill. That is the
-  quotient's meaning rather than a defect in either switch. (C-354.)
+  pointing only one way. (C-353.) BUILT, AND THE TRANSFORM LIST IS NOT
+  A GROUP: the refinement takes orbits under `tile_matching_transforms`
+  PLUS its pairwise composites, and refuses unless that pool reproduces
+  the library's own classes. The labels are REWRITTEN, a split being
+  something no label map can express. AND AN EDGE'S DIRECTION IS NOT ITS
+  STRAND'S: a horizontal edge is a weft's flank or a warp's end cap, so
+  under the glued reading one refined class can reach both families.
+  (C-354.)
 - **H FOR WEAVES, G FOR TILES.** (Maintainer's ruling, 2026-09-12.) A
   weave's classes default to orbits under the DIRECTION-PRESERVING
   SUBGROUP H, so the `Warp and weft classes` toggle opens on Apart; a
@@ -2168,12 +2173,9 @@ Confirmed with the user via an explicit design review:
   whose published figures were measured under G passes
   `WARP_AND_WEFT_TOGETHER` explicitly, so a changed default cannot
   change a quoted number in silence. THE SAME ARGUMENT REACHES EVERY
-  TILING AND IS LEFT OPEN ON PURPOSE: `Topology(unit, ignore_tile_ids=True)`
-  takes the symmetry group of the SHAPES, which collapses Cairo's four
-  pentagons and hex-slice 12's twelve triangles to ONE tile class each,
-  so elements carrying different variables cannot be edited apart;
-  `ignore_tile_ids=False` keeps them (4/10/6 against 1/2/2 on Cairo).
-  The maintainer's call was to leave that for now (ROADMAP.md).
+  TILING and is left open on the maintainer's call: the shape group
+  collapses Cairo's four elements to one tile class, so they cannot be
+  edited apart (ROADMAP.md).
 - **A STRANDS CODE IS SOMETHING YOU TYPE, AND THE CODE SETS THE
   ELEMENT COUNT.** (Maintainer's ruling, 2026-09-08.) The catalogue's
   77 weave entries carried their codes baked in while the guide taught

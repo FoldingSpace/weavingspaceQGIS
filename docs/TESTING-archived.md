@@ -180,6 +180,7 @@ quote them, do not renumber them.
 - **T-147** — Rendering a gesture finds what reading and the suite cannot  <sub>minted</sub>
 - **T-148** — A premise that pumps a fixed number of ticks is a bet on the machine  <sub>minted</sub>
 - **T-149** — A drawing is only as trustworthy as the arithmetic its colours and axes use  <sub>minted</sub>
+- **T-150** — A stub narrower than the function it replaces fails about its own harness  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7211,3 +7212,36 @@ what number would move if it were true before reporting it.
 THE THIRD READING, the one that was real, came from the numbers all
 along: the ribbon width swing, which the picture could not have shown
 because it is a few percent at the scale the eye reads. C-355.
+
+### T-150 — A stub narrower than the function it replaces fails about its own harness
+
+rc20's gate, 2026-09-12: 850 of 851 passed, every shard naming the same
+total, and the one failure was
+`test_a_design_that_cannot_carry_its_edits_still_draws` dying at
+`StopIteration` while looking for a vertex class.
+
+THE PRODUCT WAS FINE. The test swapped `topology_edits.build` for a
+counting stub, `def counted(unit)`, and since b8aec65 (2026-09-11) the
+dialog has called `build(unit, weave=...)`. The stub raised TypeError
+inside the worker, the tab never received a topology, and the test's
+own premise failed downstream of that -- a failure about the HARNESS
+that read, from its traceback, exactly like one about the product. It
+had passed on CI at 1bcf88a, and no whole suite ran between the
+signature growing and the candidate, so every targeted run of the weave
+work went green around it.
+
+THE REPAIR is the shape this file's other counting stubs already had:
+`def counted(*args, **kwargs)` forwarding everything. THE GUARD is on
+the family: `test_every_stub_accepts_every_call_its_original_takes`
+reads the suite for every local function assigned over a product
+callable and holds each to the original's signature, names and
+defaults both.
+
+AND ITS FIRST INSTRUMENT MADE THE MISTAKE IT GUARDS AGAINST, one level
+over. The scan that sized the family listed each stub's parameter NAMES
+and not their defaults, so it reported `counting_draw(colours, boxed)`
+and `fake_fetch(dist, candidates, progress)` as narrowed. Both were
+exact copies of their originals, defaults included, and one was about
+to be "repaired". The guard compares defaults because of it, and was
+watched to fire both on the restored one-argument stub and on a default
+removed by hand.
