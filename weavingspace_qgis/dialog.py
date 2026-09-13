@@ -24313,6 +24313,19 @@ class WeavingSpaceDialog(QDialog):
         "families": (panel.strand_families_in_force()
                      if hasattr(panel, "strand_families_in_force")
                      else topology_edits.WARP_AND_WEFT_APART),
+        # THE MODIFIERS, read here on the main thread, because a thin
+        # weave's topology is rebuilt from its settings and the unit the
+        # dialog rotated never reaches it (round ten, stoch12). The tile
+        # inset is applied to the cloth after the replay, an inset being
+        # gaps no topology can be built on.
+        "modifiers": {
+          "rotate": self.mod_rotate.value(),
+          "scale": (self.mod_scale_x.value(), self.mod_scale_y.value(),
+                    self.mod_glyph.isChecked()),
+          "skew": (self.mod_skew_x.value(), self.mod_skew_y.value()),
+        },
+        "tile_inset": (self.mod_t_inset.value() * terms.get("aspect", 1.0)
+                       * (terms.get("spacing") or 0.0) / 100),
       }
 
     def work(task):
@@ -24353,6 +24366,9 @@ class WeavingSpaceDialog(QDialog):
         built["edited_cloth"] = (
           topology_edits.cloth_of(edited, built.get("kinds"))
           if built.get("scaffolded") else edited)
+        inset = (weave_terms or {}).get("tile_inset") or 0.0
+        if built.get("scaffolded") and inset and built["edited_cloth"] is not None:
+          built["edited_cloth"] = built["edited_cloth"].inset_tiles(inset)
         built["refusals"] = refusals
         # ONE MARK PER EDIT, so the change list can say which of them
         # left a design that still carried a topology -- which is how

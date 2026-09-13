@@ -439,7 +439,8 @@ def build(unit, weave=None):
     weave.get("spec"), weave.get("spacing"), weave.get("aspect"),
     crs=None, strands=weave.get("strands"),
     reading=weave.get("reading", ASPECT_LIKE_A_DROP),
-    families=weave.get("families", WARP_AND_WEFT_APART))
+    families=weave.get("families", WARP_AND_WEFT_APART),
+    modifiers=weave.get("modifiers"))
   if topology is None:
     return None, note or reason, None, kinds, glue
   return topology, "", filled, kinds, glue
@@ -1629,9 +1630,45 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
   return filled, kinds, ""
 
 
+def modified(unit, modifiers=None):
+  """A unit with the design's rotate, scale and skew applied.
+
+  Args:
+    unit: a Tileable, typically a scaffolded weave.
+    modifiers: {"rotate": degrees, "scale": (x, y, glyph), "skew": (x, y)}
+      as the dialog's controls hold them, or None for none. Insets are
+      NOT here: an inset opens gaps, which no topology can be built on,
+      so a caller applies it to the cloth afterwards.
+
+  Returns:
+    The unit after each modifier that changes something, in the order
+    `dialog._build_unit` applies them, so the scaffold a topology is
+    built on is the design the map draws.
+
+  WHY IT EXISTS. A thin weave's topology is rebuilt from its SETTINGS,
+  so the unit the dialog had already rotated never reached it: one edit
+  on a weave rotated 30 degrees drew the map and wrote the file at 0,
+  the Rotate box still reading 30 (round ten, stoch12). Identities are
+  skipped for the reason `_build_unit` gives -- a no-op transform still
+  re-grids the geometry.
+  """
+  if not modifiers:
+    return unit
+  angle = modifiers.get("rotate") or 0.0
+  if angle:
+    unit = unit.transform_rotate(angle)
+  sx, sy, glyph = modifiers.get("scale") or (1.0, 1.0, False)
+  if (sx, sy) != (1.0, 1.0) or glyph:
+    unit = unit.transform_scale(sx, sy, glyph)
+  kx, ky = modifiers.get("skew") or (0.0, 0.0)
+  if kx or ky:
+    unit = unit.transform_skew(kx, ky)
+  return unit
+
+
 def weave_topology(spec, spacing: float, aspect: float, crs=None,
                    strands=None, reading: str = ASPECT_LIKE_A_DROP,
-                   families: str = WARP_AND_WEFT_APART):
+                   families: str = WARP_AND_WEFT_APART, modifiers=None):
   """The topology of a weave under one reading of its daylight.
 
   Args:
@@ -1650,6 +1687,9 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
       weaves, G for tiles": a cloth's classes are orbits under the
       direction-preserving subgroup H, while a tiling keeps the full
       group G, which it does by never reaching this function at all.
+    modifiers: the design's rotate, scale and skew, as `modified`
+      takes them, applied to the scaffold before the topology is built;
+      None for none.
 
   Returns:
     `(topology, unit, kinds, glue, note)`. The topology is None where
@@ -1675,6 +1715,7 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
     spec, spacing, aspect, crs=crs, strands=strands, reading=reading)
   if filled is None:
     return None, None, kinds, None, note
+  filled = modified(filled, modifiers)
   try:
     topology = _topology_class()(filled, True)
   except Exception as exc:                            # noqa: BLE001

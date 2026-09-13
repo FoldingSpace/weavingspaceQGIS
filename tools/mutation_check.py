@@ -2822,6 +2822,14 @@ MUTATIONS = [
        test="test_a_reading_changed_under_a_standing_edit_redraws_the_map",
        why="switching a weave's reading under a standing edit leaves the "
            "map drawn under the old reading"),
+  dict(name="a-weave-topology-is-built-on-the-modified-scaffold",
+       file="weavingspace_qgis/topology_edits.py",
+       old="""  filled = modified(filled, modifiers)
+  try:""",
+       new="""  try:""",
+       test="test_an_edited_weave_keeps_its_rotation",
+       why="one topology edit on a rotated thin weave draws the map "
+           "un-rotated while the Rotate box keeps its value"),
   dict(name="the-map-adopts-the-cloth-not-the-scaffold",
        file="weavingspace_qgis/dialog.py",
        # THE FILLER IS DROPPED BEFORE ADOPTION, or Generate tiles the

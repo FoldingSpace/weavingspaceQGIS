@@ -93191,6 +93191,89 @@ def test_a_reading_changed_under_a_standing_edit_redraws_the_map():
       QgsProject.instance().removeMapLayer(other.id())
 
 
+def test_an_edited_weave_keeps_its_rotation():
+  """One topology edit on a rotated thin weave keeps the rotation.
+
+  A thin weave's topology is rebuilt from its settings, so the modifier
+  chain the dialog applied to its unit never reached it: one edit on a
+  weave rotated 30 degrees drew the map and wrote the file at 0, the
+  Rotate box still reading 30, with nothing said.
+
+  THE ORACLE IS THE STRANDS' OWN DIRECTIONS, read off the dialog's unit
+  before the edit -- the rotated design as built, asserted to be rotated
+  -- and again after it. An edge edit moves an edge and never turns the
+  cloth, so the directions must agree to a degree.
+
+  Regression: a thin weave's topology ignored the modifier chain, so an edit un-rotated the map (round ten, stoch12). [mutation]
+  """
+  from weavingspace_qgis import topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+
+  def directions(unit):
+    """The strands' directions, modulo a half turn, to a degree."""
+    return sorted(round(a % 180.0) % 180 for a in te.strand_directions(unit))
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+    _choose_family(dlg, name)
+    _tick(200)
+    dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+    dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+    dlg.mod_rotate.setValue(30.0)
+    _tick(400)
+    rotated = directions(dlg._unit)
+    assert rotated and 0 not in rotated and 90 not in rotated, (
+      f"PREMISE: the rotated weave's strands run at {rotated}, so a lost "
+      f"rotation could not show")
+    panel = dlg.topology_panel
+    import time as _time
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    chosen = -1
+    while _time.monotonic() < deadline and chosen < 0:
+      for position in range(panel.class_combo.count()):
+        data = panel.class_combo.itemData(position)
+        if data and data[0] == "edge" and isinstance(data[1], str):
+          chosen = position
+          break
+      if chosen < 0:
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+    assert chosen >= 0, (
+      f"the tab never offered an edge class on the rotated weave: note "
+      f"{panel.note.text()!r}")
+    panel.class_combo.setCurrentIndex(chosen)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    _tick(150)
+    before = _unit_tiles(dlg)
+    panel.apply_button.click()
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while _time.monotonic() < deadline and not (
+        panel.edits() and _unit_ground_moved(dlg, before)):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert _unit_ground_moved(dlg, before), "the edit never reached the unit"
+    after = directions(dlg._unit)
+    assert after == rotated, (
+      f"one edge edit turned the weave's strands from {rotated} to {after} "
+      f"degrees while the Rotate box reads {dlg.mod_rotate.value()}")
+  finally:
+    dlg.close()
+    for other in list(QgsProject.instance().mapLayers().values()):
+      QgsProject.instance().removeMapLayer(other.id())
+
+
 def test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding():
   """After an edit on a thin weave, the map holds strands and no filler.
 
@@ -95656,6 +95739,8 @@ def main():
         test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone)
   check("an edited weave draws its cloth and not its scaffolding",
         test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding)
+  check("an edited weave keeps its rotation",
+        test_an_edited_weave_keeps_its_rotation)
   check("a reading changed under a standing edit redraws the map",
         test_a_reading_changed_under_a_standing_edit_redraws_the_map)
   check("a unit can be copied with new tiles whatever kind it is",

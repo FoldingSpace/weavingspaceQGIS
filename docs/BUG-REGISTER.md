@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-574 defect(s) with a regression test.
+575 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -626,6 +626,8 @@ there is no separate list to remember.
   guarded by `test_an_edit_on_the_dual_is_not_an_edit_on_the_design`
 - **the edited scaffold was adopted as the map's unit, so the weave's daylight was tiled as elements (round ten, stoch12).**  
   guarded by `test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding`
+- **a thin weave's topology ignored the modifier chain, so an edit un-rotated the map (round ten, stoch12).**  
+  guarded by `test_an_edited_weave_keeps_its_rotation`
 - **an element taking its classes from another element's layer lost the reference at the next Generate, because a re-tile replaces every layer, so the two silently stopped agreeing about a column they share. Found by the collateral sweep, 2026-08-27.**  
   guarded by `test_an_element_follows_the_layer_it_takes_its_classes_from`
 - **every element layer carried every mapped variable, so a shared GeoPackage shipped attributes the map never displayed and grew twenty-fold; and the table names said nothing about which variable each element drew.**  
@@ -1202,7 +1204,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 196
+- the mutation campaign: 197
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
