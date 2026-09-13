@@ -470,7 +470,7 @@ docs/process/the-topology-of-a-weave-and-its-holes.md.
 what a thin weave's dual means, deferred to "Later, or never" on the
 maintainer's word of 2026-09-13).
 (2026-09-12 and 13; the ledger is docs/process/defects-2026-09-12.md,
-twenty-one rows closed.) THE QUESTIONS ARE THE MAINTAINER'S, each
+twenty-two rows closed, the last found by rc21's first full suite.) THE QUESTIONS ARE THE MAINTAINER'S, each
 returned by a repairer rather than built:
 
 - THE TOPOLOGY SHELF IS SESSION-WIDE, NOT PER GROUP. Merely choosing a

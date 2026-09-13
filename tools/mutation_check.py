@@ -2844,6 +2844,15 @@ MUTATIONS = [
   # the landing the term also discards. What would have to move: the
   # leave-alone branch and the owed-build wait together.
 
+  dict(name="a-restore-that-moves-no-reading-keeps-the-selection",
+       file="weavingspace_qgis/topology_tab.py",
+       old="""    if (self.aspect_reading_in_force(),
+        self.strand_families_in_force()) != before:
+      self._selection = (None, [])""",
+       new="""    self._selection = (None, [])""",
+       test="test_a_second_edit_of_the_source_makes_a_different_dual",
+       why="choosing a group sends the Topology tab's selection to the first "
+           "class, so the edit a person was aiming is aimed elsewhere"),
   dict(name="a-scaffold-keeps-no-dual-for-the-file",
        file="weavingspace_qgis/dialog.py",
        old="""          (stamp, None if topology_edits.stands_on_scaffolding(for_dual)

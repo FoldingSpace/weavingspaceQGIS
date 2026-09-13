@@ -3655,8 +3655,9 @@ class TopologyPanel(QWidget):
         puts the toggle on "apart", today's default.
 
     Returns:
-      None. Both controls are moved with their signals blocked and the
-      selection is dropped, as a click on either drops it.
+      None. Both controls are moved with their signals blocked, and
+      the selection is dropped where either reading MOVED, as a click
+      on either drops it; a restore that changes neither leaves it be.
 
     SILENT, BECAUSE THE CALLER IS A RESTORE. `_apply_working_state`
     rebuilds the unit once at its end, and that rebuild queues the
@@ -3665,6 +3666,8 @@ class TopologyPanel(QWidget):
     take the edit's own door, for a change nobody made (round ten,
     harm16).
     """
+    before = (self.aspect_reading_in_force(),
+              self.strand_families_in_force())
     wanted = reading if reading in ("like-a-drop", "like-an-inset") \
         else "like-a-drop"
     blocked = self.aspect_reading.blockSignals(True)
@@ -3682,7 +3685,14 @@ class TopologyPanel(QWidget):
           button.setChecked(True)
     finally:
       self.strand_families.blockSignals(blocked)
-    self._selection = (None, [])
+    # ONLY WHERE A READING MOVED. Every record restore calls this, a
+    # tiling's included, and a landing restores the selection from this
+    # store (row 13), so an unconditional drop sent every group choice
+    # to the first class -- a zigzag aimed at edge `a` came back from the
+    # source group on vertex `A` (round ten; rc21's first full suite).
+    if (self.aspect_reading_in_force(),
+        self.strand_families_in_force()) != before:
+      self._selection = (None, [])
 
   def _on_class_chosen(self):
     """Highlight whatever class the chooser now names, and re-offer
