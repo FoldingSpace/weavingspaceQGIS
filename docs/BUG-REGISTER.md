@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-581 defect(s) with a regression test.
+583 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -486,6 +486,8 @@ there is no separate list to remember.
   guarded by `test_a_font_change_moves_the_design_tab_s_fields`
 - **setting an output path made every Generate write the GeoPackage, so a file chosen for later was written to at once and a live update rewrote somebody's file on every keystroke.**  
   guarded by `test_a_generate_draws_and_only_a_save_writes`
+- **under the glued reading the drawing lit 24 edges of a glued class where Apply moved 42, and a click selected a library label (round ten, repairs23).**  
+  guarded by `test_a_glued_class_is_lit_and_clicked_as_the_class`
 - **the graduated copy moved positional colours only (digit keys), so the hand-picked No data colour stayed behind and the target's twin drew default grey where the categorical copy carries its catch-all. Found by the editor hunt of 2026-08-26; ruled 2026-08-26.**  
   guarded by `test_a_graduated_copy_carries_the_catch_all`
 - **the categorized adoption path got a test and its graduated twin, five identical lines away, still had none.**  
@@ -506,6 +508,8 @@ there is no separate list to remember.
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
 - **a landing held under a press dropped the glue, so the tab lost the glued reading (round ten, asym11).**  
   guarded by `test_a_landing_held_under_a_press_keeps_the_glued_reading`
+- **any topology landing replaced a multi-class selection with vertex A, so the next Apply edited a class nobody chose (round ten, stores19).**  
+  guarded by `test_a_landing_keeps_a_selection_of_several_classes`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
 - **saving after moving to another design with the experimental box off left the file with no motif and no dual, and nothing in their place.**  
@@ -1216,7 +1220,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 203
+- the mutation campaign: 205
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
