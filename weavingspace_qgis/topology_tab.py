@@ -4001,7 +4001,8 @@ class TopologyPanel(QWidget):
       # so the honest preview honestly reported a tear the drop would
       # never have made.
       moved = edits_module.move_as_applied(
-        self._topology, data[1], key,
+        self._topology,
+        edits_module.widen_selector(data[1], self._glue, key), key,
         edits_module.in_map_units(
           edits_module.whole_where_needed(args),
           getattr(self._topology, "tileable", None)))
@@ -4411,7 +4412,9 @@ class TopologyPanel(QWidget):
       for name in moving:
         candidate[name] = (float(good[name]) + middle
                            * (float(asked[name]) - float(good[name])))
-      if edits_module.lays_out(topology, labels, key, candidate):
+      if edits_module.lays_out(
+          topology, edits_module.widen_selector(labels, self._glue, key),
+          key, candidate):
         best, low = candidate, middle
       else:
         high = middle

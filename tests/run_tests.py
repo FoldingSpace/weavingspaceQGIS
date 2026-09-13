@@ -93063,6 +93063,151 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
   return ("ok", f"{'moved' if moved else 'said something'}")
 
 
+def test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole():
+  """An edit on a glued weave class reaches the map on both sides of a hole.
+
+  Under "Ignore, like an inset" a strand-width hole's opposite sides are
+  one class, so the chooser offers `a` for what the library labels `a`
+  and `g`, and ruling 3 of C-352 says an edit aimed at it moves both.
+  The dialog replayed the record WITHOUT the gluing, so the map moved
+  one side and the chooser went on naming both, with nothing said.
+
+  THE EXPECTED SIDE BYPASSES THE WIDENING ALTOGETHER: it is the same
+  recorded edit aimed at every library label the class stands for,
+  spelled out here from the gluing map and applied with no glue, so a
+  fault in the one function that widens cannot be shared by the oracle.
+  The CONTROL is the edit aimed at the one label alone, and the premise
+  asserts the two differ on the cloth, or the case could not go red.
+
+  Regression: the glued reading's widening never reached the product's replay, so an edit moved one side of a hole (round ten, asym10). [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spec = catalog.TILINGS_BY_N[count][name]
+  reading, families = te.ASPECT_LIKE_AN_INSET, te.WARP_AND_WEFT_APART
+
+  def fresh():
+    """A topology, kinds and glue for the settings, built anew."""
+    topology, _unit, kinds, glue, note = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      reading=reading, families=families)
+    assert topology is not None, f"the weave built no topology: {note}"
+    return topology, kinds, glue
+
+  def cloth(tiles_frame, kinds):
+    """The union of the strand tiles, the ground a person sees."""
+    from shapely.ops import unary_union
+    keep = [kinds.get(str(t)) == "strand" for t in tiles_frame["tile_id"]]
+    return unary_union(list(tiles_frame[keep].geometry))
+
+  # THE VERTEX ARM, which needs no window: a recorded edit carries no
+  # target of its own, so the manipulation must decide which of the two
+  # gluing maps widens it. Read off the map directly, never through the
+  # function under test.
+  _t, _k, vertex_glue = fresh()
+  corners = {}
+  for label, klass in vertex_glue["points"].items():
+    corners.setdefault(klass, []).append(label)
+  shared = sorted(k for k, labels in corners.items() if len(labels) > 1)
+  assert shared, f"PREMISE: no vertex class stands for two labels: {corners}"
+  widened = te.widen_selector(shared[0], vertex_glue, "nudge_vertex")
+  assert set(corners[shared[0]]) <= set(widened), (
+    f"a nudge aimed at glued vertex class {shared[0]!r} was widened to "
+    f"{widened!r}, missing the corners {corners[shared[0]]} it stands for")
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+    _choose_family(dlg, name)
+    _tick(200)
+    dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+    dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+    _tick(300)
+    panel = dlg.topology_panel
+    _put_the_chooser_on(panel.aspect_reading, reading, "aspect-gap")
+    _tick(150)
+    _put_the_strand_families_on(panel, families)
+    _tick(150)
+    # NO `_wait_for_the_topology` HERE: it answers on a panel still
+    # holding the previous structure, and on a loaded machine it gave up
+    # while the panel held one. The wait below is for the glued class
+    # itself, which only the landing this reading asked for can offer.
+    _topology, kinds, glue = fresh()
+    stands_for = {}
+    for label, klass in glue["edges"].items():
+      stands_for.setdefault(klass, []).append(label)
+    glued = sorted(k for k, labels in stands_for.items() if len(labels) > 1)
+    assert glued, f"no edge class stands for two labels: {stands_for}"
+    klass = glued[0]
+
+    import time as _time
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    chosen = -1
+    while _time.monotonic() < deadline and chosen < 0:
+      for position in range(panel.class_combo.count()):
+        if panel.class_combo.itemData(position) == ("edge", klass):
+          chosen = position
+      if chosen < 0:
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+    assert chosen >= 0, (
+      f"the tab never offered glued edge class {klass!r}: "
+      f"{[panel.class_combo.itemData(i) for i in range(panel.class_combo.count())]}")
+    panel.class_combo.setCurrentIndex(chosen)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    _tick(150)
+    before = _unit_tiles(dlg)
+    panel.apply_button.click()
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while _time.monotonic() < deadline and not (
+        panel.edits() and _unit_ground_moved(dlg, before)):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert panel.edits(), "Apply recorded no edit"
+    assert _unit_ground_moved(dlg, before), "the edit never reached the unit"
+    edit = panel.edits()[-1]
+    assert edit.get("classes") == klass, f"recorded {edit!r}"
+
+    def aimed_at(selector):
+      """The cloth after this edit is aimed at `selector`, no glue."""
+      topology, kinds_now, _glue = fresh()
+      tileable, refusals, _state = te.apply(
+        topology, [dict(edit, classes=selector)], glue=None)
+      assert not refusals, refusals
+      return cloth(tileable.tiles, kinds_now)
+
+    expected = aimed_at("".join(sorted(stands_for[klass])))
+    control = aimed_at(klass)
+    assert expected.symmetric_difference(control).area > 100.0, (
+      f"aiming at {klass!r} alone and at {stands_for[klass]} moves the "
+      f"same cloth, so this case cannot tell a widened edit from one "
+      f"that was not")
+    drawn = cloth(dlg._unit.tiles, kinds)
+    off_expected = drawn.symmetric_difference(expected).area
+    off_control = drawn.symmetric_difference(control).area
+    assert off_expected < 1.0, (
+      f"the map's cloth is {off_expected:.1f} map units squared away from "
+      f"the edit aimed at every side of glued class {klass!r} "
+      f"({stands_for[klass]}), and {off_control:.1f} from the edit aimed at "
+      f"{klass!r} alone -- so the chooser names both sides of the hole and "
+      f"the map moved one")
+  finally:
+    dlg.close()
+    for other in list(QgsProject.instance().mapLayers().values()):
+      QgsProject.instance().removeMapLayer(other.id())
+
+
 def test_the_weave_topology_tab_matrix():
   """Both structure choosers, driven on the tab, across the manipulations.
 
@@ -95200,6 +95345,8 @@ def main():
   check("the weave structure matrix", test_the_weave_structure_matrix)
   check("the weave topology tab matrix",
         test_the_weave_topology_tab_matrix)
+  check("an edit aimed at a glued class moves every side of the hole",
+        test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

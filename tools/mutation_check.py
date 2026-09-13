@@ -2810,6 +2810,28 @@ MUTATIONS = [
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="the-replay-carries-the-glued-reading",
+       file="weavingspace_qgis/dialog.py",
+       # THE DOOR THE MAP IS DRAWN THROUGH. Without the gluing the replay
+       # aims at one library label, so the map moves one side of a hole
+       # while the chooser names both (round ten, asym10).
+       old="""          topology, wanted_edits, glue=built.get("glue"))""",
+       new="""          topology, wanted_edits)""",
+       test="test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole",
+       why="an edit on a glued weave class moves one side of the hole on "
+           "the map while the tab names both"),
+  dict(name="a-glued-selector-is-widened-by-its-manipulations-target",
+       file="weavingspace_qgis/topology_edits.py",
+       # A RECORD CARRIES NO TARGET, so reading one off the edit widens a
+       # vertex edit against the EDGE map and the corners of the hole
+       # are left behind.
+       old="""  target = MANIPULATIONS.get(how, {}).get("target", "")
+  return _expanded(selector, glue, target)""",
+       new="""  target = ""
+  return _expanded(selector, glue, target)""",
+       test="test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole",
+       why="a nudge aimed at a glued vertex class moves one corner of the "
+           "hole and not the others"),
   dict(name="asking-for-warp-and-weft-apart-reaches-the-refinement",
        file="weavingspace_qgis/topology_edits.py",
        # THE SWITCH AXIS. The reading is applied where it is NAMED, so
@@ -3078,10 +3100,12 @@ MUTATIONS = [
        # while the drag drew a tear the drop would never make. The
        # replacement is the code as it stood before a2f719a.
        old="""      moved = edits_module.move_as_applied(
-        self._topology, data[1], key,
+        self._topology,
+        edits_module.widen_selector(data[1], self._glue, key), key,
         edits_module.in_map_units(""",
        new="""      moved = self._topology.transform_geometry(
-        True, True, data[1], key,
+        True, True,
+        edits_module.widen_selector(data[1], self._glue, key), key,
         **edits_module.in_map_units(""",
        test="test_the_drag_previews_the_move_the_drop_would_make",
        why="a rotate drawing the gap-free tiling its drop records, "

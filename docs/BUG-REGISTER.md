@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-570 defect(s) with a regression test.
+571 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -614,6 +614,8 @@ there is no separate list to remember.
   guarded by `test_a_vertex_consistent_rotate_and_scale_keep_the_tiling`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
+- **the glued reading's widening never reached the product's replay, so an edit moved one side of a hole (round ten, asym10).**  
+  guarded by `test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole`
 - **an edit naming a class the design does not have was replayed silently, leaving a list describing a design the map did not have.**  
   guarded by `test_an_edit_for_a_class_that_has_gone_is_reported`
 - **an edit made on the dual was replayed onto the design's own like-named edge the moment the box came off.**  
@@ -1194,7 +1196,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 192
+- the mutation campaign: 193
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57

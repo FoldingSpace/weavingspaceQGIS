@@ -24339,8 +24339,11 @@ class WeavingSpaceDialog(QDialog):
       # the main thread would put a 0.75-4.4s build plus a rebuild per
       # edit in front of every preview.
       if topology is not None and wanted_edits:
+        # THE GLUE RIDES WITH THE EDITS, or an edit aimed at a class the
+        # glued reading made of two library labels moves one of them
+        # while the chooser names both (round ten, asym10).
         edited, refusals, after = topology_edits.apply(
-          topology, wanted_edits)
+          topology, wanted_edits, glue=built.get("glue"))
         built["edited"] = edited
         built["refusals"] = refusals
         # ONE MARK PER EDIT, so the change list can say which of them

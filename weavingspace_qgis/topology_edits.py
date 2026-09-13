@@ -715,6 +715,32 @@ def _expanded(selector: str, glue, target: str = "") -> str:
                         if klass in wanted)) or selector
 
 
+def widen_selector(selector: str, glue, how: str) -> str:
+  """The library selector an edit aimed at `selector` must be given.
+
+  Args:
+    selector: the class labels a person aimed at, as recorded.
+    glue: the label maps the weave's reading called for, or None where
+      the classes stand as the library assigned them.
+    how: the manipulation's key, which decides whether the edge map or
+      the vertex map is read.
+
+  Returns:
+    The selector widened to every library label a glued class stands
+    for, or unchanged without a gluing or for an unknown manipulation.
+
+  ONE OWNER FOR EVERY DOOR THAT AIMS AN EDIT. The commit, the drag's
+  preview and the drop's refinement all hand a selector to the library,
+  and an edit a record carries has no "target" of its own -- the
+  manipulation decides it. The first form widened only inside `apply`
+  and read `edit["target"]`, which the tab never writes, while no product
+  caller passed `glue` at all, so under the glued reading the map moved
+  one side of a hole and the chooser named both (round ten, asym10).
+  """
+  target = MANIPULATIONS.get(how, {}).get("target", "")
+  return _expanded(selector, glue, target)
+
+
 def apply(topology, edits, glue=None):
   """Replay an edit list onto a topology, returning what to draw.
 
@@ -797,7 +823,7 @@ def apply(topology, edits, glue=None):
     # the other -- which is precisely the adjacency the gluing was
     # asserting. The library's own selector is a string of labels, so
     # the expansion is a string too.
-    selector = _expanded(selector, glue, edit.get("target"))
+    selector = widen_selector(selector, glue, how)
     # NOTHING HERE ASKS WHETHER THE DESIGN STILL HAS A REBUILDABLE
     # TOPOLOGY, and that is the point of chaining: the object carries
     # its own classes forward, so an edit after one that opened gaps is
