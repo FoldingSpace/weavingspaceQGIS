@@ -2830,15 +2830,31 @@ MUTATIONS = [
        test="test_a_weaves_dual_asks_no_search_of_a_rectangle",
        why="every landing of a thin weave freezes QGIS for tens of seconds "
            "searching for the centres of rectangles"),
-  dict(name="a-weave-topology-stamp-carries-its-readings",
+  # RETIRED 2026-09-13, axis LIVE and HELD REDUNDANTLY. The entry was
+  # `a-weave-topology-stamp-carries-its-readings`, removing the readings
+  # from `_topology_stamp`, with
+  # `test_a_save_just_after_a_reading_switch_writes_the_new_motif`. Caught
+  # at 2de0845; SURVIVED on the merged tree, because row 12 (9e22504) made
+  # the readings design terms: a Save after a switch with nothing redrawn
+  # is now answered by the leave-alone branch (entry below), and after a
+  # Generate by the wait for a build already running. Measured offscreen
+  # with the term removed: both arms write the motif their record names,
+  # and `test_a_reading_changed_under_a_standing_edit_redraws_the_map` and
+  # `test_the_weave_topology_tab_matrix` pass too, row 4's rebuild covering
+  # the landing the term also discards. What would have to move: the
+  # leave-alone branch and the owed-build wait together.
+
+  dict(name="a-save-leaves-alone-the-motif-of-a-design-not-drawn",
        file="weavingspace_qgis/dialog.py",
-       old="""    if spec is not None and spec.get("type") == "weave" and panel is not None:
-      stamp = stamp + ((""",
+       old="""    if drawn and not same:
+      try:
+        held = bridge.gpkg_tables(path)""",
        new="""    if False:
-      stamp = stamp + ((""",
+      try:
+        held = bridge.gpkg_tables(path)""",
        test="test_a_save_just_after_a_reading_switch_writes_the_new_motif",
-       why="a Save pressed just after a weave reading switch writes the "
-           "un-edited motif beside the edited tiles"),
+       why="a Save after a weave reading switch with nothing redrawn writes "
+           "the new reading's motif beside tiles and a record of the old"),
   dict(name="a-standing-weave-edit-keys-on-its-readings",
        file="weavingspace_qgis/dialog.py",
        old="""      if spec is not None and spec.get("type") == "weave" and panel is not None:

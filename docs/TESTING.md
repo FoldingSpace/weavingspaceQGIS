@@ -550,7 +550,9 @@ accounts are T-134.
   inherits `PYTHONHOME` and dies at `encodings`, so pass a chosen
   environment and assert the condition the child was launched to
   create; the mutation runner setdefaults `offscreen`, since two font
-  entries came back UNJUDGEABLE without it; a sandbox carries every
+  entries came back UNJUDGEABLE without it, and so does `run_some` now,
+  whose bare runs measured Cocoa for a whole round and showed a red
+  guard as a hang (T-153); a sandbox carries every
   document the suite reads, and the list is derived rather than kept.
   A gate that cannot start is not a gate that answered: the secrets
   check under the QGIS environment exited 1 having checked nothing

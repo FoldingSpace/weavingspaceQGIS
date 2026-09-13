@@ -516,9 +516,17 @@ Two branches returned a DESIGN QUESTION instead of building, which is the
 outcome the brief asked for.
 
 **THE QUEUE, NOT THE HUNTS, WAS AGAIN THE LIMIT** -- until the repairs
-were parallelised, after which the limit became the machine: a hung run
-of seven hours at under two minutes of CPU, and several `HUNG` catalogue
-verdicts, under six hunts and four repairers at once.
+were parallelised, after which the limit became the machine: several
+`HUNG` catalogue verdicts under six hunts and four repairers at once.
+
+**AND THE VERIFIER'S OWN RUNNER WAS ON THE WRONG PLATFORM.** Every
+targeted run of the round went through `tools/run_some.py` with no Qt
+platform set, so on Cocoa, where the suite and CI run `offscreen`. A
+seven-hour stall and row 8's guard "hanging" on the merged tree were both
+such runs; offscreen, row 8's guard FAILED in two minutes, and a serial
+bisect named row 12's repair, whose readings-as-design-terms had made the
+guard's oracle stale (T-151, T-153). Re-run the round's guards offscreen
+before believing any verdict a bare `run_some` gave.
 
 ## ROUND NINE, 2026-09-07 (night): twelve closed, and nine of them one shape
 

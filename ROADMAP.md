@@ -498,7 +498,15 @@ fault, announced (repairs27, withdrawn as a claim); the entries
 `moving-the-warp-and-weft-chooser-rebuilds-the-topology` and
 `a-file-holding-a-motif-gets-a-fresh-one` came back HUNG under load and
 want a judgement on a quiet machine; and the refinement's refusal notes
-are still discarded by both build paths.
+are still discarded by both build paths. THE READINGS IN `_topology_stamp`
+NOW HAVE NO GUARD THAT FAILS WITHOUT THEM: row 12's leave-alone, the wait
+for a build already running and row 4's rebuild each answer first, so the
+entry was retired as held redundantly (2026-09-13) -- a guard staging a
+build launched under one reading and landing after a switch, with row 4's
+rebuild held back, is what would give the term its own. The seven-hour
+dual-group stall was a Cocoa `run_some` run (T-153) and the same guard passed
+offscreen with nineteen others on the merged tree, so it is not a recurrence
+of R-93 until one is seen offscreen.
 
 **THE SYMMETRY GROUP A TILING'S CLASSES ARE TAKEN UNDER -- LEFT FOR NOW,
 ON THE MAINTAINER'S DECISION OF 2026-09-12.** The Topology tab builds

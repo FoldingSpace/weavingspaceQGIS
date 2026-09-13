@@ -17,6 +17,15 @@ import os
 import sys
 import traceback
 
+# THE SUITE'S PLATFORM, set before anything imports Qt. Every wrapper
+# that runs the suite -- tests/run_tests_macos.sh, CI, mutation_check --
+# sets `offscreen`, and tests/run_tests.py itself does not, so a bare
+# `"$QGIS_PY" tools/run_some.py` ran on Cocoa: a whole round of targeted
+# runs on 2026-09-13 measured a platform the suite never uses, and a
+# guard read as hung there at a fifth of a core. A caller who sets the
+# variable keeps their choice.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 # The checkout this script lives in, derived rather than written
 # down: a hard-coded path meant that running the copy inside a git
 # WORKTREE quietly exercised the other checkout's tests instead --

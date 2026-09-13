@@ -93863,10 +93863,21 @@ def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
   no reading -- and wrote the UN-EDITED unit beside the edited tiles, the
   old dual and a record listing the edit, saying only that it had saved.
 
-  THE ORACLE IS THE RECORD REPLAYED UNDER THE NEW READING, computed from
-  the settings with no glue, against the unit table read back out of the
-  GeoPackage through QGIS's own reader; the press is made at once, with
-  a premise that a topology build was outstanding when it was made.
+  THE ORACLE IS THE EDIT REPLAYED UNDER THE READING THE FILE'S OWN RECORD
+  NAMES, computed from the settings, against the unit table read back
+  out of the GeoPackage through QGIS's own reader: the motif must
+  describe the map the file says it holds. TWO ARMS, each pressed at once
+  with a build outstanding. With no Generate after the switch nothing
+  was redrawn, so the record keeps the old reading and the motif must
+  too; after a Generate the record moves and the motif must follow.
+
+  HELD REDUNDANTLY SINCE ROW 12 (T-151). Row 12 made the readings design
+  terms, so the first arm is answered by the save leaving a motif alone
+  where the design on screen is not the one drawn, and the second by the
+  save waiting for a build already running; removing the readings from
+  `_topology_stamp` fails neither (measured 2026-09-13, offscreen). The
+  first arm expected the NEW reading's motif until then and went red on
+  the merged tree, which a run on Cocoa reported as a hang.
 
   Regression: a Save in the window after a weave reading switch wrote the un-edited motif, the stamp being blind to the reading (round ten, repairs26). [mutation]
   """
@@ -93952,30 +93963,73 @@ def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
       assert press_save(dlg), "PREMISE: the hurried press wrote nothing"
       _the_topology_tab_is_quiet(dlg)
       _tick(300)
+      held_before_generate = _motif_and_readings_in(path)
+
+      _generate_and_wait(dlg)
+      outstanding = (dlg._topology_task is not None
+                     or bool(getattr(dlg, "_topology_wanted", False)))
+      assert outstanding, (
+        "FIXTURE: no topology build was outstanding at the press after the "
+        "Generate, so the second window was never open")
+      assert press_save(dlg), "PREMISE: the press after Generate wrote nothing"
+      _the_topology_tab_is_quiet(dlg)
+      _tick(300)
+      held_after_generate = _motif_and_readings_in(path)
     finally:
       dlg.close()
       dlg.deleteLater()
       _tick(50)
       QgsProject.instance().removeAllMapLayers()
 
-    topology, _u2, kinds, _g2, _n2 = te.weave_topology(
+  def replayed_under(reading):
+    topology, _u2, kinds, glue, _n2 = te.weave_topology(
       spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
-      reading=te.ASPECT_LIKE_A_DROP, families=te.WARP_AND_WEFT_APART)
-    tileable, _r, _s = te.apply(topology, [edit], glue=None)
+      reading=reading, families=te.WARP_AND_WEFT_APART)
+    tileable, _r, _s = te.apply(
+      topology, [edit],
+      glue=glue if reading == te.ASPECT_LIKE_AN_INSET else None)
     keep = [kinds.get(str(t)) == "strand" for t in tileable.tiles["tile_id"]]
-    expected = unary_union(list(tileable.tiles[keep].geometry))
-    motif = QgsVectorLayer(f"{path}|layername=weavingspace_unit_no_crs",
-                           "motif", "ogr")
-    assert motif.isValid(), "the saved file holds no unit table"
-    shapes = [shapely_wkb.loads(bytes(f.geometry().asWkb()))
-              for f in motif.getFeatures()]
-    assert shapes, "the saved unit table is empty"
-    written = unary_union(shapes)
-    off = written.symmetric_difference(expected).area
+    return unary_union(list(tileable.tiles[keep].geometry))
+
+  for arm, (written, reading), wanted in (
+      ("with no Generate after the switch", held_before_generate,
+       te.ASPECT_LIKE_AN_INSET),
+      ("after a Generate", held_after_generate, te.ASPECT_LIKE_A_DROP)):
+    assert reading == wanted, (
+      f"PREMISE: {arm}, the file's record names the reading {reading!r} "
+      f"where {wanted!r} was drawn")
+    off = written.symmetric_difference(replayed_under(reading)).area
     assert off < 1.0, (
-      f"a Save pressed just after switching the reading wrote a motif "
-      f"{off:.1f} map units squared from the edit replayed under the new "
-      f"reading -- the file describes another design than its tiles")
+      f"{arm}, a Save pressed with a build outstanding wrote a motif "
+      f"{off:.1f} map units squared from the edit replayed under the "
+      f"reading its own record names ({reading}) -- the file describes "
+      f"another design than its tiles")
+
+
+def _motif_and_readings_in(path):
+  """Read a saved file's motif and the weave reading its record names.
+
+  Args:
+    path: the GeoPackage a Save has just written.
+
+  Returns:
+    `(union, reading)`: the union of the unit table's geometries read
+    through QGIS's own OGR reader, and the record's `aspect_reading`.
+    The layer is released before returning, so the next Save meets no
+    reader holding the file.
+  """
+  from shapely import wkb as shapely_wkb
+  from shapely.ops import unary_union
+  from weavingspace_qgis import bridge
+  motif = QgsVectorLayer(f"{path}|layername=weavingspace_unit_no_crs",
+                         "motif", "ogr")
+  assert motif.isValid(), "the saved file holds no unit table"
+  shapes = [shapely_wkb.loads(bytes(f.geometry().asWkb()))
+            for f in motif.getFeatures()]
+  del motif
+  assert shapes, "the saved unit table is empty"
+  design = (bridge.read_working_state(path) or {}).get("design") or {}
+  return unary_union(shapes), design.get("aspect_reading")
 
 
 def test_a_weaves_dual_asks_no_search_of_a_rectangle():

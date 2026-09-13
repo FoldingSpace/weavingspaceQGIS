@@ -183,6 +183,7 @@ quote them, do not renumber them.
 - **T-150** — A stub narrower than the function it replaces fails about its own harness  <sub>minted</sub>
 - **T-151** — A freeze is guarded by a count, and an allowance a sibling shortcut already meets is loose  <sub>minted</sub>
 - **T-152** — A guard's premise can be made vacuous by another repair, and a staged window must open  <sub>minted</sub>
+- **T-153** — A subset runner that sets no platform measures Cocoa  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7286,3 +7287,33 @@ outstanding until the debounce fires. The window is staged by running
 the rebuild the debounce would, the premise then holding. A guard for a
 narrow window that cannot open measures nothing, and asserting the
 window is what said so. (The title's first half is T-151's merge case.)
+
+### T-153 — A subset runner that sets no platform measures Cocoa
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-153).</sub>
+
+From docs/TESTING.md, "THE HARNESS IS PART OF THE MEASUREMENT", 2026-09-13.
+
+Round ten's repairs were verified with `tools/run_some.py`, whose docstring
+says it runs a subset "in the suite's own conditions". It set no Qt
+platform, and `tests/run_tests.py` sets none either: `offscreen` comes from
+the wrappers -- `tests/run_tests_macos.sh`, CI, `mutation_check` (C-168),
+`probe_kit`. The repair brief and the handover both gave the bare command,
+so every targeted run of the round ran on Cocoa.
+
+Row 8's guard, `test_a_save_just_after_a_reading_switch_writes_the_new_motif`,
+then read as a HANG on the merged tree: `press_save` -> `_settle_topology`
+at the hurried press, a faulthandler dump naming the wait, and a native
+sample showing the main thread in `QCocoaEventDispatcher` at about 18% of a
+core. A bisect was launched as four Cocoa runs at once, and after twelve
+minutes none had written a line. Stopped, and run once offscreen on HEAD,
+the guard FAILED in about two minutes at 36 s of CPU in 44 s: "wrote a motif
+1562.5 map units squared from the edit replayed under the new reading". A
+serial offscreen bisect named `9e22504` (row 12) in eight runs. Row 12 had
+made the readings design terms, the save's leave-alone branch then answered
+the guard's journey, and the guard's oracle had gone stale (T-151's shape);
+it was restaged. The hang was the platform hiding a red.
+
+The seven-hour stall recorded the same day as R-93 was a `run_some` run of
+the same kind, so that attribution is unproven. `run_some.py` now sets
+`offscreen` by default, keeping a caller's explicit choice.
