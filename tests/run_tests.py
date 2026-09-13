@@ -93467,6 +93467,257 @@ def test_a_weaves_readings_come_back_with_its_record():
       QgsProject.instance().removeMapLayer(other.id())
 
 
+def test_a_landing_keeps_a_selection_of_several_classes():
+  """A topology landing puts back a selection of several classes.
+
+  A selection of two classes out of three is shown on a temporary "2 of
+  3 edge classes" row of the class chooser. Every landing refills the
+  chooser, and the refill read what to put back from the combo AFTER
+  that row had been cleared away, so any landing -- the one a person's
+  own Apply causes included -- moved the selection to the first class,
+  `vertex A`, and the next Apply or drag edited a class nobody chose.
+
+  THE ORACLE IS THE FIXTURE: the classes ticked are the classes that
+  must be held after the landing, in the panel's store, the tick list
+  and the drawing alike. Driven on a standalone panel with the landing
+  handed to `set_unit` directly, on `hex-slice 2`, whose three edge
+  classes let two of them be a subset (on `laves 3.3.4.3.4` two classes
+  are all of them, and the chooser lists that as "every"). A single
+  class is the control, and a selection the weave choosers DROP must
+  stay dropped, since the refill used to restore it from the combo.
+
+  Regression: any topology landing replaced a multi-class selection with vertex A, so the next Apply edited a class nobody chose (round ten, stores19). [mutation]
+  """
+  from qgis.PyQt.QtCore import Qt
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.topology_tab import TopologyPanel
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[2]["hex-slice 2"],
+                           spacing=500, crs=3857)
+  topology, why = te.build(unit)
+  assert topology is not None, f"PREMISE: the design has no topology: {why}"
+  edges = te.class_labels(topology)["edge"]
+  assert len(edges) >= 3, (
+    f"PREMISE: {len(edges)} edge classes, so two cannot be a subset")
+  chosen = list(edges[:2])
+
+  def ticked(panel):
+    """The (target, label) rows the tick list holds ticked."""
+    return sorted(panel.class_list.item(i).data(Qt.ItemDataRole.UserRole)
+                  for i in range(panel.class_list.count())
+                  if panel.class_list.item(i).checkState()
+                  == Qt.CheckState.Checked)
+
+  def tick(panel, labels):
+    """Tick these edge classes in the list, as a person does."""
+    for i in range(panel.class_list.count()):
+      item = panel.class_list.item(i)
+      if item.data(Qt.ItemDataRole.UserRole) in [("edge", x) for x in labels]:
+        item.setCheckState(Qt.CheckState.Checked)
+
+  panel = TopologyPanel()
+  panel.set_unit(unit, topology, "")
+  tick(panel, chosen)
+  wanted = sorted(("edge", label) for label in chosen)
+  assert ticked(panel) == wanted, (
+    f"PREMISE: ticking {chosen} left {ticked(panel)} ticked")
+  listed = [panel.class_combo.itemData(i)
+            for i in range(panel.class_combo.count())
+            if i != panel._subset_row]
+  assert panel._subset_row is not None and \
+      panel.class_combo.currentData() not in listed, (
+    f"PREMISE: the chooser shows {panel.class_combo.currentText()!r} on a "
+    f"listed row, so the temporary subset row the defect loses is absent")
+
+  panel.set_unit(unit, te.build(unit)[0], "")
+  assert ticked(panel) == wanted, (
+    f"a landing moved a selection of {chosen} to {ticked(panel)} -- the "
+    f"chooser now reads {panel.class_combo.currentText()!r}, and the next "
+    f"Apply edits a class nobody chose")
+  assert sorted(panel._held_labels()) == sorted(chosen), (
+    f"after a landing the panel holds {panel._selection!r}, not {chosen}")
+  assert sorted(panel.view._chosen[1]) == sorted(chosen), (
+    f"after a landing the drawing highlights {panel.view._chosen!r}")
+  assert panel.class_combo.currentText().startswith("2 of "), (
+    f"after a landing the chooser reads {panel.class_combo.currentText()!r}")
+
+  single = TopologyPanel()
+  single.set_unit(unit, topology, "")
+  tick(single, [edges[1]])
+  single.set_unit(unit, te.build(unit)[0], "")
+  assert ticked(single) == [("edge", edges[1])], (
+    f"CONTROL: a landing moved a single class {edges[1]!r} to "
+    f"{ticked(single)}")
+
+  dropped = TopologyPanel()
+  dropped.set_unit(unit, topology, "")
+  tick(dropped, chosen)
+  dropped._on_aspect_reading_chosen()
+  dropped.set_unit(unit, te.build(unit)[0], "")
+  assert ticked(dropped) != wanted, (
+    "a selection the weave's reading chooser dropped was put back by the "
+    "landing, from the chooser's own row")
+
+
+def test_a_glued_class_is_lit_and_clicked_as_the_class():
+  """Under a gluing the drawing lights and clicks whole glued classes.
+
+  Under "Ignore, like an inset" one class stands for several of the
+  library's labels -- on `plain weave a|b` at aspect 0.75, glued `a` for
+  library `a` and `g`. The drawing compared the library's label on each
+  edge with the class the chooser names, so choosing `a` lit its own
+  edges and none of `g`'s, which Apply also moves; and a click on an
+  edge labelled `g` selected `g`, a class the chooser does not list.
+
+  THE ORACLE IS THE GLUING MAP, inverted: the library labels a glued
+  class stands for are read off `weave_topology`'s own `glue`, and the
+  drawing's PIXELS are sampled on a point along each edge for the
+  classmate ink. The control is an edge of an unrelated class, which
+  must not be lit; the click is a real mouse press, placed where no
+  handle sits.
+
+  Regression: under the glued reading the drawing lit 24 edges of a glued class where Apply moved 42, and a click selected a library label (round ten, repairs23). [mutation]
+  """
+  from qgis.PyQt.QtCore import QPointF, Qt
+  from qgis.PyQt.QtGui import QColor
+  from qgis.PyQt.QtTest import QTest
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis import topology_tab
+  from weavingspace_qgis.topology_tab import TopologyPanel
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  topology, unit, _kinds, glue, note = te.weave_topology(
+    catalog.TILINGS_BY_N[count][name], WEAVE_TAB_MATRIX_SPACING,
+    WEAVE_TAB_MATRIX_ASPECT, reading=te.ASPECT_LIKE_AN_INSET,
+    families=te.WARP_AND_WEFT_APART)
+  assert topology is not None and glue, f"PREMISE: no glued topology ({note})"
+  stands_for = {}
+  for label, klass in glue["edges"].items():
+    stands_for.setdefault(klass, []).append(label)
+  klass = sorted(k for k, v in stands_for.items() if len(v) > 1)[0]
+  others = [label for label in stands_for[klass] if label != klass]
+  assert others, f"PREMISE: glued {klass!r} stands for {stands_for[klass]}"
+
+  panel = TopologyPanel()
+  try:
+    panel.resize(1800, 1300)
+    panel.show()
+    _tick(100)
+    panel.set_unit(unit, topology, "", glue=glue)
+    view = panel.view
+    # OFFSET EDGES ON, the drawing's own way of separating the two edges
+    # that share a boundary: without it a lit edge is overpainted by its
+    # unlit twin from the neighbouring tile, and no pixel can say which.
+    view.set_shown("offset", True)
+    # AND NO LABELS, whose text sits on the short edges this design's
+    # glued classes are made of and would be sampled as the edge.
+    view.set_shown("edge_labels", False)
+    view.set_shown("vertex_labels", False)
+    view.grab()                       # a transform exists only after a paint
+    _tick(50)
+    for i in range(panel.class_combo.count()):
+      if panel.class_combo.itemData(i) == ("edge", klass):
+        panel.class_combo.setCurrentIndex(i)
+    _tick(50)
+    assert panel._selection == ("edge", klass), (
+      f"PREMISE: choosing {klass!r} left the selection {panel._selection!r}")
+    image = view.grab().toImage()
+    # WARM, NOT EXACT: a two-pixel line on a fractional position is
+    # antialiased into its neighbours, so no pixel need carry the ink
+    # itself. The selection's two inks are the only warm ones this
+    # drawing uses at rest (no hover, a sound design with no gap hatch);
+    # every other ink and the tile fill are grey or blue.
+    for ink in (topology_tab._CLASSMATE_INK, topology_tab._CHOSEN_INK):
+      colour = QColor(ink)
+      assert colour.red() - colour.blue() > 60, (
+        f"PREMISE: the selection ink {ink} is no longer warm")
+    for ink in (topology_tab._TILE_FILL, topology_tab._EDGE_INK,
+                topology_tab._VERTEX_INK):
+      colour = QColor(ink)
+      assert colour.red() - colour.blue() < 20, (
+        f"PREMISE: the drawing's ink {ink} is warm, so the sampler "
+        f"cannot tell it from a highlight")
+
+    def seat(edge, fraction):
+      """A widget point `fraction` of the way along the edge AS DRAWN.
+
+      Asked of the view's own path, offset toggle and all, rather than
+      computed from the geometry (T-101).
+      """
+      path = view._edge_line(edge)
+      return QPointF(-1.0, -1.0) if path is None else \
+          path.pointAtPercent(fraction)
+
+    def lit(edge):
+      """Whether the drawing painted this edge in a selection's ink."""
+      point = seat(edge, 0.5)
+      # IN THE IMAGE'S PIXELS, which a grab takes at the screen's device
+      # ratio -- two, here, once the panel is large.
+      ratio = image.devicePixelRatio() or 1.0
+      x0, y0 = int(round(point.x() * ratio)), int(round(point.y() * ratio))
+      if not (3 <= x0 < image.width() - 3 and 3 <= y0 < image.height() - 3):
+        return None
+      for dx in (-2, -1, 0, 1, 2):
+        for dy in (-2, -1, 0, 1, 2):
+          colour = QColor(image.pixel(x0 + dx, y0 + dy))
+          if colour.red() - colour.blue() > 40:
+            return True
+      return False
+
+    # THE HELD EDGE CARRIES THE HANDLES, drawn over its middle, so it
+    # is left out of both samples.
+    far = [e for e in topology.edges.values() if e.label in others
+           and e is not view._chosen_thing]
+    near = [e for e in topology.edges.values() if e.label == klass
+            and e is not view._chosen_thing]
+    unrelated = [e for e in topology.edges.values()
+                 if glue["edges"].get(e.label, e.label) != klass]
+    readings = {"near": [lit(e) for e in near], "far": [lit(e) for e in far]}
+    assert any(r for r in readings["near"]), (
+      f"PREMISE: none of {klass!r}'s own edges reads as lit, so the sampler "
+      f"cannot see a highlight ({readings['near']})")
+    unrelated_lit = [e.label for e in unrelated if lit(e)]
+    assert len(unrelated_lit) < len(unrelated) / 4, (
+      f"CONTROL: {len(unrelated_lit)} of {len(unrelated)} edges of other "
+      f"classes read as lit, so the sampler reads more than the highlight")
+    seen_far = [r for r in readings["far"] if r is not None]
+    assert seen_far, "PREMISE: no far-side edge is inside the drawing"
+    dark = sum(1 for r in seen_far if not r)
+    assert dark <= len(seen_far) / 4, (
+      f"choosing glued class {klass!r} left {dark} of {len(seen_far)} edges "
+      f"labelled {others} unlit, though Apply moves them with it")
+
+    # THE CLICK: from another class, on the far side of the hole, with
+    # the offset off again, since a click is measured to the edge itself.
+    view.set_shown("offset", False)
+    panel._select_classes("vertex", te.class_labels(topology, glue)["vertex"][0])
+    view.grab()
+    _tick(50)
+    where = None
+    tried = []
+    for edge in far:
+      point = seat(edge, 0.5)
+      if not (0 < point.x() < view.width() and 0 < point.y() < view.height()):
+        continue
+      _t, _l, thing = view._nearest(point)
+      tried.append((getattr(thing, "label", None), view._handle_at(point)))
+      if (not view._handle_at(point) and thing is not None
+          and thing.label in others):
+        where = point
+        break
+    assert where is not None, (
+      f"PREMISE: no far-side edge can be clicked (nearest, handle: {tried})")
+    QTest.mouseClick(view, Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier, where.toPoint())
+    _tick(50)
+    assert panel._selection == ("edge", klass), (
+      f"a click on an edge labelled {others} selected {panel._selection!r} "
+      f"and the chooser reads {panel.class_combo.currentText()!r}, where "
+      f"the class it belongs to is {klass!r}")
+    assert panel.class_combo.currentText() == f"edge {klass}", (
+      f"after the click the chooser reads {panel.class_combo.currentText()!r}")
+  finally:
+    panel.close()
+
+
 def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
   """A Save pressed right after a weave reading switch waits for the motif.
 
@@ -96406,6 +96657,10 @@ def main():
         test_a_weaves_dual_asks_no_search_of_a_rectangle)
   check("a save just after a reading switch writes the new motif",
         test_a_save_just_after_a_reading_switch_writes_the_new_motif)
+  check("a landing keeps a selection of several classes",
+        test_a_landing_keeps_a_selection_of_several_classes)
+  check("a glued class is lit and clicked as the class",
+        test_a_glued_class_is_lit_and_clicked_as_the_class)
   check("a weave's readings come back with its record",
         test_a_weaves_readings_come_back_with_its_record)
   check("a landing held under a press keeps the glued reading",

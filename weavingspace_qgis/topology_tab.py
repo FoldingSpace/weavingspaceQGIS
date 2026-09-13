@@ -604,6 +604,11 @@ class TopologyView(QWidget):
     self._message = "Generate a map to see its topology."
     self._shown = {key: on for key, _label, on in TOGGLES}
     self._chosen = ("", "")
+    # THE GLUING THE PANEL'S CLASSES ARE NAMED UNDER, or None where the
+    # classes stand as the library assigned them. The drawing's objects
+    # carry LIBRARY labels and the selection carries CLASS names, so
+    # every comparison between the two goes through `_class_of`.
+    self._glue = None
     # What the pointer is over, which is not the same as what is
     # chosen. Mouse tracking was already on before this existed, so
     # every move event was delivered and discarded.
@@ -652,7 +657,7 @@ class TopologyView(QWidget):
   # ----------------------------------------------------------- state
 
   def show_topology(self, topology, message: str = "", ghost=None,
-                    gaps=None):
+                    gaps=None, glue=None):
     """Draw this topology, or a message where there is none.
 
     Args:
@@ -664,11 +669,16 @@ class TopologyView(QWidget):
       gaps: the ground the tiles no longer cover, drawn so that a
         design which has stopped carrying a topology SHOWS where,
         rather than only saying so. None where they still meet.
+      glue: the label maps a reading of a weave's daylight called for,
+        as the panel was handed them, or None where the classes stand
+        as the library assigned them. Omitted, a drawn label is its
+        own class, which is what every tiling means.
 
     Returns:
       None; the widget repaints.
     """
     self._topology = topology
+    self._glue = glue
     self._ghost = ghost
     self._gaps = gaps
     self._preview = None
@@ -778,6 +788,32 @@ class TopologyView(QWidget):
     frame = self._edge_frame(thing)
     return None if frame is None else (frame[0], frame[1])
 
+  def _class_of(self, target: str, label):
+    """The class a drawn label belongs to, under the gluing in force.
+
+    Args:
+      target: "edge" or "vertex", saying which of the gluing's two maps
+        to read.
+      label: a label as the library put it on an edge or a vertex, or
+        None.
+
+    Returns:
+      The glued class name where a gluing maps the label, and the label
+      itself otherwise -- so without a gluing this is the identity.
+
+    ONE READING FOR EVERY COMPARISON THE VIEW MAKES. The drawing's
+    objects carry the library's labels and the panel's selection names
+    CLASSES, which under "Ignore, like an inset" are fewer: the paint,
+    the handles' seat, the hover and the click all compared the two
+    directly, so glued `a` lit its 24 edges and not the 18 of `g` that
+    Apply also moves, and a click on `g` selected a class the chooser
+    does not list (round ten, repairs23).
+    """
+    if not self._glue or not label:
+      return label
+    which = self._glue.get("points" if target == "vertex" else "edges", {})
+    return which.get(label, label)
+
   def _settle_what_the_handles_sit_on(self) -> None:
     """Move the handles onto the class that is now chosen.
 
@@ -798,9 +834,11 @@ class TopologyView(QWidget):
     the scale factor is how far out the end sits, the rotation is the
     angle it makes -- so grabbing a handle seated on b and having the
     edit recorded against a measures the number on the wrong edge.
-    MEMBERSHIP IS ASKED THE WAY THE PAINT ASKS IT, `label in chosen`,
-    because a selection may name several classes and "every edge"
-    always does: its datum is the whole group.
+    MEMBERSHIP IS ASKED THE WAY THE PAINT ASKS IT, the thing's CLASS in
+    `chosen`, because a selection may name several classes and "every
+    edge" always does: its datum is the whole group. And the class is
+    read through `_class_of`, since under a gluing a class stands for
+    several of the library's labels (round ten, repairs23).
     """
     target, chosen = self._chosen
     topology = self._drawn()
@@ -811,7 +849,7 @@ class TopologyView(QWidget):
                else topology.points.values())
     held = self._chosen_thing
     for thing in members:
-      if getattr(thing, "label", None) in chosen:
+      if self._class_of(target, getattr(thing, "label", None)) in chosen:
         # THE ONE ALREADY IN HAND WINS, so a click that chose a
         # particular edge is not moved off it by the chooser being
         # synced to the class that click selected.
@@ -826,7 +864,8 @@ class TopologyView(QWidget):
     anchor, self._chosen_anchor = self._chosen_anchor, None
     best, best_away = None, None
     for thing in members:
-      if getattr(thing, "label", None) not in chosen:
+      if self._class_of(target, getattr(thing, "label", None)) \
+          not in chosen:
         continue
       if anchor is None:
         self._chosen_thing = thing
@@ -1060,10 +1099,15 @@ class TopologyView(QWidget):
         # several classes -- and "every edge" always could: its datum
         # is the whole group, so a string like "ab" was compared for
         # equality against single labels and lit nothing at all.
+        # AND BY CLASS, NOT BY LIBRARY LABEL: under a gluing one class
+        # stands for several of the library's labels, so `edge.label in
+        # chosen` lit 24 edges of glued class `a` where Apply moved 42
+        # (round ten, repairs23).
+        klass = self._class_of("edge", edge.label)
         kin = (not held and target == "edge" and chosen
-               and edge.label in chosen)
+               and klass in chosen)
         near = (not held and not kin and over == "edge"
-                and edge.label == warm and warm)
+                and klass == warm and warm)
         painter.setPen(QPen(QColor(
           _CHOSEN_INK if held else _CLASSMATE_INK if kin
           else _HOVER_INK if near else _EDGE_INK),
@@ -1075,7 +1119,9 @@ class TopologyView(QWidget):
       for edge in topology.edges.values():
         where = self._edge_midpoint(edge)
         if where is not None and getattr(edge, "label", None):
-          painter.drawText(where, str(edge.label))
+          # THE CLASS THE CHOOSER NAMES, so a label on the drawing is
+          # always a row somebody can find in the list.
+          painter.drawText(where, str(self._class_of("edge", edge.label)))
 
     for vertex in topology.points.values():
       # NO SEAT FOR AN UNLABELLED CORNER: the edge's own path already
@@ -1085,10 +1131,11 @@ class TopologyView(QWidget):
       if not (getattr(vertex, "label", None) or ""):
         continue
       held = (target == "vertex" and vertex is self._chosen_thing)
+      klass = self._class_of("vertex", vertex.label)
       kin = (not held and target == "vertex" and chosen
-             and vertex.label in chosen)
+             and klass in chosen)
       near = (not held and not kin and over == "vertex"
-              and vertex.label == warm and warm)
+              and klass == warm and warm)
       point = self._to_screen(vertex.point.x, vertex.point.y)
       painter.setBrush(QBrush(QColor(
         _CHOSEN_INK if held else _CLASSMATE_INK if kin
@@ -1099,7 +1146,7 @@ class TopologyView(QWidget):
       if self._shown["vertex_labels"] and getattr(vertex, "label", None):
         painter.setPen(QPen(QColor(_VERTEX_INK)))
         painter.drawText(QPointF(point.x() + 6, point.y() - 6),
-                         str(vertex.label))
+                         str(klass))
 
     # THE HANDLES GO ON TOP, because they are the thing being aimed at
     # and they sit on the geometry they belong to.
@@ -1777,7 +1824,9 @@ class TopologyView(QWidget):
 
     Returns:
       (target, label, thing) for the nearest thing within reach, else
-      ("", "", None). `thing` is the Vertex or the Edge itself, so a
+      ("", "", None). `label` is the CLASS the thing belongs to under
+      the gluing in force, which is the name the panel's chooser lists;
+      without a gluing it is the thing's own label. `thing` is the Vertex or the Edge itself, so a
       caller that needs its geometry does not have to find it again
       from the label -- a class may hold several edges, and the one a
       person grabbed is the one a drag is about. VERTICES WIN TIES
@@ -1815,7 +1864,8 @@ class TopologyView(QWidget):
       distance = ((screen.x() - point.x()) ** 2 +
                   (screen.y() - point.y()) ** 2) ** 0.5
       if distance < best:
-        best, found = distance, ("vertex", vertex.label or "", vertex)
+        best, found = distance, (
+          "vertex", self._class_of("vertex", vertex.label) or "", vertex)
     if found[0]:
       return found
     # AN EDGE IS CLICKABLE ALONG ITS LENGTH, not at a disc on its
@@ -1827,7 +1877,11 @@ class TopologyView(QWidget):
     for edge in topology.edges.values():
       distance = self._distance_to_edge(edge, point)
       if distance is not None and distance < best:
-        best, found = distance, ("edge", edge.label or "", edge)
+        # THE CLASS, NOT THE LIBRARY LABEL: a click on the far side of
+        # a glued hole selected `g`, a label the chooser does not list,
+        # and it read "1 of 12 edge classes" (round ten, repairs23).
+        best, found = distance, (
+          "edge", self._class_of("edge", edge.label) or "", edge)
     return found
 
   def _distance_to_edge(self, edge, point) -> float | None:
@@ -3025,7 +3079,10 @@ class TopologyPanel(QWidget):
         # one -- paid once per landing, and only on this branch, where
         # the coverage figure has already said the design is torn.
         where = edits_module.tears_in_the_patch(unit) or missing
-    self.view.show_topology(topology, message, ghost=ghost, gaps=where)
+    # AND THE GLUING GOES TO THE VIEW, so the drawing compares labels
+    # with the classes the chooser names rather than with the library's.
+    self.view.show_topology(topology, message, ghost=ghost, gaps=where,
+                            glue=glue)
     self._say_what_the_symmetry_is(unit, topology)
     self._refresh_classes()
     self.note.setText(message if topology is None else "")
@@ -3154,7 +3211,21 @@ class TopologyPanel(QWidget):
     # both of its vertex cell's complaints at once -- while the test
     # passes here three times in three, the window being narrow rather
     # than the behaviour being rare.
-    wanted = self.class_combo.currentData()
+    # FROM THE SELECTION, NOT FROM THE COMBO. A selection of several
+    # classes is shown on a temporary "2 of 3 edge classes" row, which
+    # the clear below removes, so the combo's reading found nothing to
+    # put back and ANY landing -- the one a person's own Apply causes
+    # included -- moved the selection to `vertex A`, and the next Apply
+    # edited a class nobody chose (round ten, stores19). And the weave
+    # choosers DROP the selection on this store alone, which the combo
+    # went on contradicting at the landing. A string here is ONE label
+    # and a list is several: `_select_classes` is the store's writer, and
+    # re-reading a string against the NEW design's alphabet could split
+    # `ab` into two classes that design happens to have.
+    held_target, held = self._selection
+    held = ([held] if isinstance(held, str) and held
+            else [str(label) for label in (held or [])]
+            if held_target else [])
     self.class_combo.blockSignals(True)
     self.class_combo.clear()
     # DEFINED BEFORE THE GUARD, because the tick list below reads it
@@ -3205,17 +3276,22 @@ class TopologyPanel(QWidget):
     # because its data is a string. Measured 2026-09-02: the first
     # repair here used `findData` and changed nothing whatever, the
     # probe reporting the same chooser moving B to A.
-    if wanted is not None:
-      for index in range(self.class_combo.count()):
-        if self.class_combo.itemData(index) == wanted:
-          self.class_combo.blockSignals(True)
-          self.class_combo.setCurrentIndex(index)
-          self.class_combo.blockSignals(False)
-          break
-    # THE SELECTION IS RE-ESTABLISHED FROM THE COMBO, which now names
-    # the class the person chose where the design still has it -- so a
-    # rebuild leaves the three controls agreeing rather than leaving
-    # the tick list empty beside a combo naming something.
+    # EVERY CLASS OF THE SELECTION MUST SURVIVE, compared as labels:
+    # a selection of which some members are gone is not the one the
+    # person built, and narrowing it in silence would aim the next edit
+    # at fewer classes than they ticked. It falls through to the first
+    # entry exactly as a vanished single class does.
+    present = groups.get(held_target, []) if held_target else []
+    if held and all(label in present for label in held):
+      # THROUGH THE OWNER, which grows the subset row again where the
+      # selection is one the chooser does not list.
+      self._select_classes(held_target,
+                           self._in_class_order(held_target, held))
+      return
+    # THE SELECTION IS RE-ESTABLISHED FROM THE COMBO'S FIRST ENTRY where
+    # nothing held survives, so a rebuild leaves the three controls
+    # agreeing rather than leaving the tick list empty beside a combo
+    # naming something.
     data = self.class_combo.currentData()
     if data:
       self._select_classes(*data)

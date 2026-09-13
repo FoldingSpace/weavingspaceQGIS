@@ -2885,6 +2885,26 @@ MUTATIONS = [
        test="test_a_weaves_readings_come_back_with_its_record",
        why="the working-state record omits both weave readings, so every "
            "reopen, group choice and Load replays edits under the defaults"),
+  dict(name="a-landing-puts-back-every-class-held",
+       file="weavingspace_qgis/topology_tab.py",
+       # THE RESTORE OF A SELECTION OF SEVERAL, while one class is still
+       # put back: the refill then loses the "2 of 3" row's selection
+       # and lands on the first class, as it did before round ten.
+       old="""    if held and all(label in present for label in held):""",
+       new="""    if held and len(held) == 1 and all(label in present for label in held):""",
+       test="test_a_landing_keeps_a_selection_of_several_classes",
+       why="any topology landing replaces a selection of several classes "
+           "with vertex A, so the next Apply edits a class nobody chose"),
+  dict(name="the-drawing-compares-labels-by-glued-class",
+       file="weavingspace_qgis/topology_tab.py",
+       # THE ONE READING THE PAINT, THE HANDLES' SEAT, THE HOVER AND THE
+       # CLICK ALL TAKE, so every limb is broken at once.
+       old="""    return which.get(label, label)""",
+       new="""    return label""",
+       test="test_a_glued_class_is_lit_and_clicked_as_the_class",
+       why="under the glued reading the drawing lights one library label "
+           "of a glued class and a click selects a label the chooser does "
+           "not list"),
   dict(name="strands-brackets-match-within-each-direction",
        file="weavingspace_qgis/catalog.py",
        # THE WHOLE PER-DIRECTION CHECK, since the library reads brackets
@@ -3611,8 +3631,10 @@ MUTATIONS = [
        # entry, so a rebuild landing between the click that chooses
        # and the press that grabs replaced the person's class with
        # whichever one sorts first.
-       old="""    wanted = self.class_combo.currentData()""",
-       new="""    wanted = None  # mutation: the choice is forgotten""",
+       # Re-anchored in round ten (stores19): the choice is read from
+       # the SELECTION now, the combo having lost a subset's row by then.
+       old="""    held_target, held = self._selection""",
+       new="""    held_target, held = "", ""  # mutation: the choice is forgotten""",
        test="test_a_landing_between_the_click_and_the_press_keeps_the_choice",
        why="the class somebody clicked surviving a rebuild that lands "
            "before they have grabbed its handle"),
