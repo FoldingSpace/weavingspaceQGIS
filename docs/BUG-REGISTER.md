@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-579 defect(s) with a regression test.
+580 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -438,6 +438,8 @@ there is no separate list to remember.
   guarded by `test_a_copy_asks_before_drawing_a_colour_for_every_value`
 - **a categorical copy dropped the class source whenever the receiving row was not already categorized, because the cell it was written into does not exist until the row is.**  
   guarded by `test_a_copy_carries_a_class_source_the_target_has_not_met`
+- **a cube strands code naming four elements moved the design to a plain weave that dropped it, and a two-direction cube code passed unmarked and built nothing (round ten, repairs28).**  
+  guarded by `test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws`
 - **a dataset chosen after the dialog opened left its identity unbound, so the next dataset inherited its hand-picked colours -- one dataset's value strings drawn on another's map and saved into its project.**  
   guarded by `test_a_dataset_chosen_after_the_dialog_opened_owns_its_own_colours`
 - **a change of region dataset re-pointed elements whose chosen column the new data lacks and said nothing, while the deleted-column door announced the identical loss. Found by the notices hunt of 2026-08-26 driving the same loss through both doors; ruled the same day.**  
@@ -1212,7 +1214,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 201
+- the mutation campaign: 202
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57

@@ -93448,6 +93448,8 @@ def test_a_weaves_dual_asks_no_search_of_a_rectangle():
     f"the thin weave's dual asked the precise centre search {weave_asks} "
     f"times where only {allowed} of its base tiles are not their own half "
     f"turn -- a rectangle's search is what froze QGIS at every landing")
+
+
 def test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws():
   """On a cube weave, a code the box leaves unmarked is the code in force.
 
