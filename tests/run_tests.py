@@ -93245,6 +93245,130 @@ def test_a_landing_held_under_a_press_keeps_the_glued_reading():
   assert held._glue == glue, "the held replay left the panel with no gluing"
 
 
+def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
+  """A Save pressed right after a weave reading switch waits for the motif.
+
+  With live update off and an edit standing, switching a weave's reading
+  rebuilds the unit and queues a topology; a Save pressed inside that
+  window found the file's motif "current" -- the topology stamp carried
+  no reading -- and wrote the UN-EDITED unit beside the edited tiles, the
+  old dual and a record listing the edit, saying only that it had saved.
+
+  THE ORACLE IS THE RECORD REPLAYED UNDER THE NEW READING, computed from
+  the settings with no glue, against the unit table read back out of the
+  GeoPackage through QGIS's own reader; the press is made at once, with
+  a premise that a topology build was outstanding when it was made.
+
+  Regression: a Save in the window after a weave reading switch wrote the un-edited motif, the stamp being blind to the reading (round ten, repairs26). [mutation]
+  """
+  from shapely import wkb as shapely_wkb
+  from shapely.ops import unary_union
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spec = catalog.TILINGS_BY_N[count][name]
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  with _temp_dir() as td:
+    path = os.path.join(td, "weave.gpkg")
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      dlg.kind_combo.setCurrentText("weave")
+      _tick(200)
+      dlg.n_spin.setValue(int(count))
+      _tick(200)
+      _choose_family(dlg, name)
+      _tick(200)
+      dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+      dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+      _tick(300)
+      panel = dlg.topology_panel
+      _put_the_chooser_on(panel.aspect_reading, te.ASPECT_LIKE_AN_INSET,
+                          "aspect-gap")
+      _tick(150)
+      _t, _u, _k, glue, _n = te.weave_topology(
+        spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+        reading=te.ASPECT_LIKE_AN_INSET, families=te.WARP_AND_WEFT_APART)
+      stands_for = {}
+      for label, klass in glue["edges"].items():
+        stands_for.setdefault(klass, []).append(label)
+      klass = sorted(k for k, v in stands_for.items() if len(v) > 1)[0]
+      import time as _time
+      deadline = _time.monotonic() + 120.0 * CONTENTION
+      chosen = -1
+      while _time.monotonic() < deadline and chosen < 0:
+        for position in range(panel.class_combo.count()):
+          if panel.class_combo.itemData(position) == ("edge", klass):
+            chosen = position
+        if chosen < 0:
+          _settle_topology(dlg, seconds=5)
+          _tick(200)
+      assert chosen >= 0, f"the tab never offered glued class {klass!r}"
+      panel.class_combo.setCurrentIndex(chosen)
+      _tick(150)
+      panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+      _tick(150)
+      before = _unit_tiles(dlg)
+      panel.apply_button.click()
+      deadline = _time.monotonic() + 120.0 * CONTENTION
+      while _time.monotonic() < deadline and not (
+          panel.edits() and _unit_ground_moved(dlg, before)):
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+      assert _unit_ground_moved(dlg, before), "the edit never reached the unit"
+      edit = panel.edits()[-1]
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg), "PREMISE: the first save wrote nothing"
+      _the_topology_tab_is_quiet(dlg)
+
+      _put_the_chooser_on(panel.aspect_reading, te.ASPECT_LIKE_A_DROP,
+                          "aspect-gap")
+      # THE WINDOW IS STAGED, NOT HOPED FOR: the switch goes through the
+      # preview debounce, so the rebuild it asks for is run here, which
+      # leaves the plain unit in hand and a topology build outstanding --
+      # exactly the state a quick press meets.
+      dlg._rebuild_unit()
+      _tick(0)
+      outstanding = (dlg._topology_task is not None
+                     or bool(getattr(dlg, "_topology_wanted", False)))
+      assert outstanding, (
+        "FIXTURE: no topology build was outstanding at the hurried press, "
+        "so the window this test is about was never open")
+      assert press_save(dlg), "PREMISE: the hurried press wrote nothing"
+      _the_topology_tab_is_quiet(dlg)
+      _tick(300)
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+    topology, _u2, kinds, _g2, _n2 = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      reading=te.ASPECT_LIKE_A_DROP, families=te.WARP_AND_WEFT_APART)
+    tileable, _r, _s = te.apply(topology, [edit], glue=None)
+    keep = [kinds.get(str(t)) == "strand" for t in tileable.tiles["tile_id"]]
+    expected = unary_union(list(tileable.tiles[keep].geometry))
+    motif = QgsVectorLayer(f"{path}|layername=weavingspace_unit_no_crs",
+                           "motif", "ogr")
+    assert motif.isValid(), "the saved file holds no unit table"
+    shapes = [shapely_wkb.loads(bytes(f.geometry().asWkb()))
+              for f in motif.getFeatures()]
+    assert shapes, "the saved unit table is empty"
+    written = unary_union(shapes)
+    off = written.symmetric_difference(expected).area
+    assert off < 1.0, (
+      f"a Save pressed just after switching the reading wrote a motif "
+      f"{off:.1f} map units squared from the edit replayed under the new "
+      f"reading -- the file describes another design than its tiles")
+
+
 def test_an_edited_weave_keeps_its_rotation():
   """One topology edit on a rotated thin weave keeps the rotation.
 
@@ -95855,6 +95979,8 @@ def main():
         test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding)
   check("an edited weave keeps its rotation",
         test_an_edited_weave_keeps_its_rotation)
+  check("a save just after a reading switch writes the new motif",
+        test_a_save_just_after_a_reading_switch_writes_the_new_motif)
   check("a landing held under a press keeps the glued reading",
         test_a_landing_held_under_a_press_keeps_the_glued_reading)
   check("a reading changed under a standing edit redraws the map",

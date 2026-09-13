@@ -24458,19 +24458,6 @@ class WeavingSpaceDialog(QDialog):
         # This is the landing rule this project already applies to a
         # tiling -- an answer is about the design it was launched for.
         _dump("TOPOLOGY", "superseded")
-      elif weave_terms is not None and (
-          weave_terms.get("reading"), weave_terms.get("families")) != (
-          panel.aspect_reading_in_force()
-          if hasattr(panel, "aspect_reading_in_force") else None,
-          panel.strand_families_in_force()
-          if hasattr(panel, "strand_families_in_force") else None):
-        # A WEAVE CHOOSER MOVED WHILE THIS WAS BEING WORKED OUT, which the
-        # stamp cannot see: the readings decide what the classes are and
-        # which edges a standing edit moves, so a build launched under
-        # the old reading landed and its replay became the map (round
-        # ten, harm15). The chooser queued a build of its own, which is
-        # held behind this one and runs once it clears.
-        _dump("TOPOLOGY", "superseded-weave-reading")
       elif wanted_edits != self._topology_shelf.get(
           topology_edits.shelf_key(self._family_key(),
                                    self._element_count(),
@@ -24858,14 +24845,32 @@ class WeavingSpaceDialog(QDialog):
     # class labels -- so without it a landing for one was accepted as
     # describing the other. (2026-09-02, the second face of the shelf
     # key's own defect.)
-    return (self._family_key(), self._element_count(),
-            self._dual_depth(),
-            tuple(sorted(kwargs.items())),
-            (self.mod_rotate.value(),
-             self.mod_scale_x.value(), self.mod_scale_y.value(),
-             self.mod_glyph.isChecked(),
-             self.mod_skew_x.value(), self.mod_skew_y.value(),
-             self.mod_t_inset.value(), self.mod_p_inset.value()))
+    stamp = (self._family_key(), self._element_count(),
+             self._dual_depth(),
+             tuple(sorted(kwargs.items())),
+             (self.mod_rotate.value(),
+              self.mod_scale_x.value(), self.mod_scale_y.value(),
+              self.mod_glyph.isChecked(),
+              self.mod_skew_x.value(), self.mod_skew_y.value(),
+              self.mod_t_inset.value(), self.mod_p_inset.value()))
+    # AND A WEAVE'S TWO READINGS, which decide what its classes are and
+    # which edges a standing edit moves -- so a topology built under one
+    # is not about the design under the other. Without them a landing
+    # launched before a switch was adopted, and a Save pressed in the
+    # window after a switch found the motif "current" and wrote the
+    # un-edited unit beside the edited tiles (round ten, repairs26).
+    # A tiling's stamp is unchanged, so no tiling's saved key moves.
+    spec = kwargs.get("spec") if isinstance(kwargs, dict) else None
+    spec = spec or self._current_spec()
+    panel = getattr(self, "topology_panel", None)
+    if spec is not None and spec.get("type") == "weave" and panel is not None:
+      stamp = stamp + ((
+        "weave-readings",
+        panel.aspect_reading_in_force()
+        if hasattr(panel, "aspect_reading_in_force") else "",
+        panel.strand_families_in_force()
+        if hasattr(panel, "strand_families_in_force") else ""),)
+    return stamp
 
   def _generate_the_dual(self) -> None:
     """Tile the map with this design's dual, in a new group of its own.

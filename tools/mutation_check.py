@@ -2813,6 +2813,15 @@ MUTATIONS = [
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="a-weave-topology-stamp-carries-its-readings",
+       file="weavingspace_qgis/dialog.py",
+       old="""    if spec is not None and spec.get("type") == "weave" and panel is not None:
+      stamp = stamp + ((""",
+       new="""    if False:
+      stamp = stamp + ((""",
+       test="test_a_save_just_after_a_reading_switch_writes_the_new_motif",
+       why="a Save pressed just after a weave reading switch writes the "
+           "un-edited motif beside the edited tiles"),
   dict(name="a-standing-weave-edit-keys-on-its-readings",
        file="weavingspace_qgis/dialog.py",
        old="""      if spec is not None and spec.get("type") == "weave" and panel is not None:
