@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-578 defect(s) with a regression test.
+579 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -620,6 +620,8 @@ there is no separate list to remember.
   guarded by `test_a_topology_that_lands_late_is_discarded`
 - **rotate and scale left the tiling full of gaps, every edit after one of them impossible to aim; the vertex-consistent reformulation is what makes them keep a tiling.**  
   guarded by `test_a_vertex_consistent_rotate_and_scale_keep_the_tiling`
+- **the dual's precise centre search ran on every rectangular strand piece of a scaffolded weave, freezing QGIS for tens of seconds at each landing (round ten, perf1).**  
+  guarded by `test_a_weaves_dual_asks_no_search_of_a_rectangle`
 - **a scheme change made while the row displayed v2 released the copied ladder kept for v1 -- `_release_copied_breaks` iterated every field where its sibling scopes to the current one -- so the return to v1 drew re-derived breaks under the surviving copied colours. Found by the shelf hunt of 2026-08-26, confirmed through the style door independently.**  
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **the glued reading's widening never reached the product's replay, so an edit moved one side of a hole (round ten, asym10).**  
@@ -1210,7 +1212,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 200
+- the mutation campaign: 201
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57

@@ -3298,7 +3298,22 @@ def _consistent_centre(topology, tile):
   """
   from shapely import geometry as geom
   base = topology.tiles[tile.base_ID]
-  centre = _exact_centre(base.shape)
+  # ONE SEARCH PER BASE TILE, not one per copy in the patch: the copies
+  # reuse the base's centre moved by their offset, so asking again is the
+  # same answer bought again -- 56 searches for 13 base tiles on `plain
+  # weave a|b` (round ten, perf1).
+  # KEYED BY THE SHAPE ITSELF, since an edit can reshape a tile in place
+  # and a centre remembered against the object would outlive its shape.
+  shape_key = base.shape.wkb
+  found = getattr(base, "_exact_centre_found", None)
+  if found is not None and found[0] == shape_key:
+    centre = found[1]
+  else:
+    centre = _exact_centre(base.shape)
+    try:
+      base._exact_centre_found = (shape_key, centre)
+    except Exception:                                 # noqa: BLE001
+      pass
   if base is tile:
     return centre
   dx = tile.shape.centroid.x - base.shape.centroid.x
@@ -3349,8 +3364,47 @@ def _exact_centre(shape):
       return shape.centroid
   except Exception:                                   # noqa: BLE001
     pass
+  if _is_its_own_half_turn(shape):
+    return shape.centroid
   scale = max(float(shape.area) ** 0.5, 1e-12)
   return polylabel(shape, tolerance=scale * 1e-9)
+
+
+def _is_its_own_half_turn(shape) -> bool:
+  """Whether a tile maps onto itself turned half a turn about its centroid.
+
+  Args:
+    shape: the tile's polygon.
+
+  Returns:
+    True for a rectangle, a parallelogram, a rhombus or any other
+    centrally symmetric tile, to one part in a thousand million of its
+    own area.
+
+  WHY THE CENTROID IS EXACT THERE, AND WHY IT MATTERS. A centrally
+  symmetric tile's pole of inaccessibility is symmetric about the
+  centroid, so wherever it is a single point it IS the centroid, and
+  where it is a segment -- a rectangle's midline -- the centroid lies on
+  it. `polylabel` at a relative tolerance subdivides that segment for
+  ever before it settles, about 100 ms a tile, and a thin weave's strand
+  pieces are exactly such rectangles: every landing of a scaffolded
+  weave froze QGIS for 13 s on `plain weave a|b` and 47 s on `basket
+  weave ab|cd`, the dual being worked out on the main thread (round
+  ten, perf1).
+  """
+  try:
+    import shapely.affinity as affine
+    centre = shape.centroid
+    turned = affine.rotate(shape, 180.0, origin=centre)
+    area = float(shape.area)
+    # A MILLIONTH, NOT A THOUSAND-MILLIONTH: a half turn about a centroid
+    # in floating point leaves slivers of 1.3e-9 to 3.3e-9 of a strand
+    # piece's own area, so the tighter figure called every rectangle
+    # asymmetric (measured on `plain weave a|b`). A tile that is not
+    # centrally symmetric misses by a large fraction of its area.
+    return area > 0 and float(shape.symmetric_difference(turned).area) <= area * 1e-6
+  except Exception:                                   # noqa: BLE001
+    return False
 
 
 def dual_on_offer(topology, promoted=None):

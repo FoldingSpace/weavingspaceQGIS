@@ -93369,6 +93369,86 @@ def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
       f"reading -- the file describes another design than its tiles")
 
 
+def test_a_weaves_dual_asks_no_search_of_a_rectangle():
+  """Working out a thin weave's dual runs no centre search on its rectangles.
+
+  A dual's corners are tile centres, found by `polylabel` at a tolerance
+  of a thousand-millionth of the tile's size so that the dual's symmetry
+  does not change with the spacing. A rectangle's pole of inaccessibility
+  is a whole segment, so that search subdivides it for about 100 ms a
+  tile -- and a scaffolded weave is made of rectangles, so every landing
+  of a thin weave froze QGIS for 13 s on `plain weave a|b` and 47 s on
+  `basket weave ab|cd`, twice over on the main thread.
+
+  THE MEASURE IS A COUNT, NOT A CLOCK: the real `polylabel` is wrapped so
+  it still answers, and the number of times it is asked is compared with
+  the number of base tiles that are NOT rectangles, told apart by an
+  independent predicate -- four corners and the area of the tile's own
+  minimum rotated rectangle. The CONTROL is the Cairo tiling, whose
+  pentagons must still be searched, so the instrument is shown to count.
+
+  Regression: the dual's precise centre search ran on every rectangular strand piece of a scaffolded weave, freezing QGIS for tens of seconds at each landing (round ten, perf1). [mutation]
+  """
+  import shapely.ops
+  from weavingspace_qgis import catalog, topology_edits as te
+  real = shapely.ops.polylabel
+  asked = {"n": 0}
+
+  def counted(*args, **kwargs):
+    """The real search, counted."""
+    asked["n"] += 1
+    return real(*args, **kwargs)
+
+  def not_half_turns(topology):
+    """How many base tiles do not map onto themselves turned half a turn.
+
+    Read by the test's own coarser check -- a sliver under a
+    ten-thousandth of the tile's area -- so the allowance is a fact
+    about the tiles, not the product's own tolerance.
+    """
+    import shapely.affinity as affine
+    seen, count = set(), 0
+    for tile in topology.tiles:
+      if tile.base_ID in seen:
+        continue
+      seen.add(tile.base_ID)
+      shape = topology.tiles[tile.base_ID].shape
+      turned = affine.rotate(shape, 180.0, origin=shape.centroid)
+      if shape.symmetric_difference(turned).area > shape.area * 1e-4:
+        count += 1
+    return count
+
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  weave, _u, _k, _g, note = te.weave_topology(
+    catalog.TILINGS_BY_N[count][name], WEAVE_TAB_MATRIX_SPACING,
+    WEAVE_TAB_MATRIX_ASPECT, reading=te.ASPECT_LIKE_A_DROP,
+    families=te.WARP_AND_WEFT_APART)
+  assert weave is not None, f"PREMISE: the weave built nothing ({note})"
+  cairo, _why = te.build(catalog.make_unit(
+    catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"], 1000.0, None))
+  assert cairo is not None, "PREMISE: the Cairo tiling built nothing"
+
+  shapely.ops.polylabel = counted
+  try:
+    asked["n"] = 0
+    te.complete_dual(cairo)
+    cairo_asks = asked["n"]
+    asked["n"] = 0
+    te.complete_dual(weave)
+    weave_asks = asked["n"]
+  finally:
+    shapely.ops.polylabel = real
+
+  assert cairo_asks > 0, (
+    "CONTROL: the Cairo tiling's pentagons were never searched, so the "
+    "count below measures nothing")
+  allowed = not_half_turns(weave)
+  assert weave_asks <= allowed, (
+    f"the thin weave's dual asked the precise centre search {weave_asks} "
+    f"times where only {allowed} of its base tiles are not their own half "
+    f"turn -- a rectangle's search is what froze QGIS at every landing")
+
+
 def test_an_edited_weave_keeps_its_rotation():
   """One topology edit on a rotated thin weave keeps the rotation.
 
@@ -95979,6 +96059,8 @@ def main():
         test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding)
   check("an edited weave keeps its rotation",
         test_an_edited_weave_keeps_its_rotation)
+  check("a weave's dual asks no search of a rectangle",
+        test_a_weaves_dual_asks_no_search_of_a_rectangle)
   check("a save just after a reading switch writes the new motif",
         test_a_save_just_after_a_reading_switch_writes_the_new_motif)
   check("a landing held under a press keeps the glued reading",

@@ -2813,6 +2813,15 @@ MUTATIONS = [
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="a-centrally-symmetric-tile-is-not-searched",
+       file="weavingspace_qgis/topology_edits.py",
+       old="""  if _is_its_own_half_turn(shape):
+    return shape.centroid
+  scale = max(""",
+       new="""  scale = max(""",
+       test="test_a_weaves_dual_asks_no_search_of_a_rectangle",
+       why="every landing of a thin weave freezes QGIS for tens of seconds "
+           "searching for the centres of rectangles"),
   dict(name="a-weave-topology-stamp-carries-its-readings",
        file="weavingspace_qgis/dialog.py",
        old="""    if spec is not None and spec.get("type") == "weave" and panel is not None:
