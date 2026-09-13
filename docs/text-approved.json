@@ -2464,6 +2464,11 @@
   "excerpt": "A spacing of about {} map units or more would keep it smaller.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "d2b02bd7f640c2da": {
+  "approved": "2026-09-13",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "d38b031b7c5875c1": {
   "approved": "2026-08-17",
   "excerpt": "'{}' has {} distinct values left between its pinned bounds, ",
