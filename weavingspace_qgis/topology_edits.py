@@ -3495,9 +3495,7 @@ def _is_its_own_half_turn(shape) -> bool:
 
 # WHAT THE OFFER AND THE MAP'S CHAIN BOTH SAY OF A THIN WEAVE, one
 # sentence so the two cannot drift apart (round ten, repairs25).
-SCAFFOLD_HAS_NO_DUAL = (
-  "This weave's structure is read with its gaps filled in, so it has no "
-  "dual of its own to tile with.")
+SCAFFOLD_HAS_NO_DUAL = "A weave with gaps has no dual."
 
 # WHERE A SCAFFOLDED UNIT KEEPS ITS OWN `kinds`, as an attribute of the
 # Tileable rather than of the Topology, since `apply` hands back a new

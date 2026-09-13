@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-590 defect(s) with a regression test.
+591 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -460,6 +460,8 @@ there is no separate list to remember.
   guarded by `test_a_design_is_shown_by_name_and_stored_by_key`
 - **a topology edit plus a tile inset deferred every Generate for ever, four builds a second, and the map never drew.**  
   guarded by `test_a_design_that_cannot_carry_its_edits_still_draws`
+- **a thin weave's Save wrote its scaffold's dual into the file beside the cloth's motif, a dual the dual button refuses.**  
+  guarded by `test_a_design_with_no_meaningful_dual_saves_no_dual`
 - **a design that stopped carrying a topology left the previous one's unit in the file.**  
   guarded by `test_a_design_without_a_topology_leaves_none_in_the_file`
 - **a plugin the user had disabled went on writing to the project and speaking into QGIS's message bar. Found by the two-dialogs hunt, 2026-08-27.**  
@@ -1234,7 +1236,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 207
+- the mutation campaign: 208
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
 - reported by a user: 57

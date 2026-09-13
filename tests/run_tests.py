@@ -94259,6 +94259,80 @@ def test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it():
     dlg.deleteLater()
 
 
+def test_a_design_with_no_meaningful_dual_saves_no_dual():
+  """A thin weave's Save writes its motif and no dual; a full-width one writes both.
+
+  A thin weave's topology is its scaffold's, whose dual describes the
+  filler as much as the cloth, and the dual button refuses it. The
+  landing still computed that dual and the Save wrote it into
+  `weavingspace_dual_no_crs` beside the cloth's motif, so the file
+  described a dual the plugin will not make. Maintainer's decision,
+  2026-09-13: a dual that cannot be made meaningfully for the actual
+  weave or tiling is not saved.
+
+  THE CONTROL IS THE SAME WEAVE AT FULL WIDTH, which tiles as it stands
+  and whose dual is offered: its Save writes both tables into the file,
+  so the file is ours and holds a dual before the thin weave's Save --
+  which must then take that dual out as well as not write its own.
+  Each arm asserts which kind of topology the tab holds.
+
+  Regression: a thin weave's Save wrote its scaffold's dual into the file beside the cloth's motif, a dual the dual button refuses. [mutation]
+  """
+  from weavingspace_qgis import bridge, topology_edits
+
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spacing = WEAVE_TAB_MATRIX_SPACING
+  dlg, _layer = _a_dual_test_dialog(name, count, "weave", spacing, 1.0)
+  with _temp_dir() as td:
+    path = os.path.join(td, "weave.gpkg")
+    try:
+      panel = dlg.topology_panel
+      assert panel._topology is not None \
+          and not topology_edits.stands_on_scaffolding(panel._topology), \
+        f"PREMISE: the full-width weave holds no plain topology: {panel.note.text()!r}"
+      _generate_and_wait(dlg)
+      dlg.gpkg_widget.setFilePath(path)
+      assert press_save(dlg), "PREMISE: the full-width save wrote nothing"
+      _the_topology_tab_is_quiet(dlg)
+      held = bridge.gpkg_tables(path)
+      assert {bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME} <= held, (
+        f"CONTROL: the full-width weave, whose dual is offered, saved "
+        f"{sorted(t for t in held if t.startswith('weavingspace_'))}")
+
+      dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+      # WAIT FOR THE SCAFFOLD ITSELF, not for "a topology": the panel
+      # already holds the full-width answer, so a wait for any answer
+      # exits at once on the old one (T-132).
+      import time as _time
+      deadline = _time.monotonic() + 120.0 * CONTENTION
+      while _time.monotonic() < deadline and not (
+          panel._topology is not None
+          and topology_edits.stands_on_scaffolding(panel._topology)):
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+      assert panel._topology is not None \
+          and topology_edits.stands_on_scaffolding(panel._topology), (
+        f"PREMISE: at strand width {WEAVE_TAB_MATRIX_ASPECT} the tab holds "
+        f"no scaffold: {panel.note.text()!r}")
+      _generate_and_wait(dlg)
+      assert press_save(dlg), "PREMISE: the thin weave's save wrote nothing"
+      _the_topology_tab_is_quiet(dlg)
+      _tick(300)
+      held = bridge.gpkg_tables(path)
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+    assert bridge.UNIT_TABLE_NAME in held, (
+      "PREMISE: the thin weave's save left no motif in the file, so the "
+      "absence of a dual below says nothing")
+    assert bridge.DUAL_TABLE_NAME not in held, (
+      "a thin weave's save left a dual in the file -- its scaffold's, or "
+      "the full-width design's -- though no meaningful dual can be made "
+      "for it")
+
+
 def test_a_weaves_dual_group_takes_the_classes_of_a_tiling():
   """In the dual group of a full-width weave the tab's classes are the dual tiling's.
 
@@ -97321,6 +97395,8 @@ def main():
         test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws)
   check("a thin weave's dual is not offered where the map cannot take it",
         test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it)
+  check("a design with no meaningful dual saves no dual",
+        test_a_design_with_no_meaningful_dual_saves_no_dual)
   check("a weave's dual group takes the classes of a tiling",
         test_a_weaves_dual_group_takes_the_classes_of_a_tiling)
   check("a dual group of an edited design draws without waiting",

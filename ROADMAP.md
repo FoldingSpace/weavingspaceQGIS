@@ -466,7 +466,9 @@ which is the maintainer's act.
 The discussion, with figures, is
 docs/process/the-topology-of-a-weave-and-its-holes.md.
 
-**ROUND TEN LEFT THREE DESIGN QUESTIONS AND A SHORT OWED LIST.**
+**ROUND TEN LEFT THREE DESIGN QUESTIONS AND A SHORT OWED LIST** (the third,
+what a thin weave's dual means, deferred to "Later, or never" on the
+maintainer's word of 2026-09-13).
 (2026-09-12 and 13; the ledger is docs/process/defects-2026-09-12.md,
 twenty-one rows closed.) THE QUESTIONS ARE THE MAINTAINER'S, each
 returned by a repairer rather than built:
@@ -483,9 +485,6 @@ returned by a repairer rather than built:
   OVER-UNDER to the new family's default (repairs28). C-348 carries the
   weave type across such a move and not the pattern; the plugin cannot
   tell a typed pattern from a family's own.
-- WHAT A THIN WEAVE'S DUAL MEANS. The button now refuses on a scaffold
-  (`SCAFFOLD_HAS_NO_DUAL`, ruling 2 of the dual read strictly), but a
-  Save still writes the scaffold's dual beside the cloth's unit.
 
 **ROUND TEN'S OWED LIST, NONE OF IT BLOCKING.** An entry that breaks row 12's Load arm alone,
 and one on the drag preview's glue widening; the symmetry gate passes
@@ -740,6 +739,16 @@ REPEATED VERTICES ARE FIXED UPSTREAM AT THE SOURCE**, in commit
 that conversation is closed (R-65, R-66, R-67; R-92).
 
 ## Later, or never
+
+**WHAT A THIN WEAVE'S DUAL MEANS -- DEFERRED BY THE MAINTAINER, 2026-09-13.**
+A weave below full width, or with hyphens, reaches a topology only through
+its scaffold, whose dual describes the filler as much as the cloth. What a
+dual of the actual weave would be is not decided. FOR NOW, on the
+maintainer's word of the same day, a dual that cannot be made meaningfully
+is neither offered nor saved: the button refuses with "A weave with gaps
+has no dual.", the landing computes no dual for a scaffold, and a Save
+writes the motif alone, taking out a dual an earlier design left in a file
+that was ours. That is the interim rule, not the answer to this question.
 
 **THE PRODUCT STALL OF R-4 IS IGNORED UNTIL IT RECURS.** (Maintainer's
 decision, 2026-09-05.) QGIS accepted a topology build, left it Queued

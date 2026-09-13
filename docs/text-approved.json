@@ -1314,6 +1314,11 @@
   "excerpt": "<div class=\"plates\">\n  <div>\n    <img src=\"img/twill-weave.p",
   "where": "docs/index.html"
  },
+ "6a6fa681f7177311": {
+  "approved": "2026-09-13",
+  "excerpt": "A weave with gaps has no dual.",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "6ad08823a4128aec": {
   "approved": "2026-09-12",
   "excerpt": "Together, where a mirror swaps warp for weft (symmetry group",

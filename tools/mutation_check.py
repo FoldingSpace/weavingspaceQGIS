@@ -2844,6 +2844,23 @@ MUTATIONS = [
   # the landing the term also discards. What would have to move: the
   # leave-alone branch and the owed-build wait together.
 
+  dict(name="a-scaffold-keeps-no-dual-for-the-file",
+       file="weavingspace_qgis/dialog.py",
+       old="""          (stamp, None if topology_edits.stands_on_scaffolding(for_dual)
+           else topology_edits.dual_frame(for_dual))""",
+       new="""          (stamp, topology_edits.dual_frame(for_dual))""",
+       test="test_a_design_with_no_meaningful_dual_saves_no_dual",
+       why="a thin weave's Save writes its scaffold's dual into the file, a "
+           "dual the dual button refuses"),
+  dict(name="a-save-with-no-dual-takes-an-earlier-dual-out",
+       file="weavingspace_qgis/dialog.py",
+       old="""            if no_dual_here and ours and bridge.DUAL_TABLE_NAME in (
+                bridge.gpkg_tables(path)):
+              bridge.drop_gpkg_layer(path, bridge.DUAL_TABLE_NAME)""",
+       new="""            pass""",
+       test="test_a_design_with_no_meaningful_dual_saves_no_dual",
+       why="a thin weave saved over its full-width file keeps the full-width "
+           "dual beside the thin weave's motif"),
   dict(name="a-save-leaves-alone-the-motif-of-a-design-not-drawn",
        file="weavingspace_qgis/dialog.py",
        old="""    if drawn and not same:

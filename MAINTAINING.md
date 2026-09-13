@@ -693,7 +693,11 @@ axis, and Apart silently kept mixed classes.
 
 **A THIN WEAVE OFFERS NO DUAL; A DUAL GROUP IS A TILING.**
 `dual_on_offer` refuses a topology that `stands_on_scaffolding`
-(`SCAFFOLD_HAS_NO_DUAL`), since the chain could only tile the source;
+(`SCAFFOLD_HAS_NO_DUAL`), since the chain could only tile the source; the
+landing holds such a design's stamp beside NO dual frame, and the Save then
+writes the motif alone and drops a dual table an earlier design left in a
+file that was ours (maintainer, 2026-09-13: a dual that cannot be made
+meaningfully is not saved), the pair rule holding wherever a dual exists;
 `_weave_terms_at(depth)` gives no weave terms above depth 0, so a dual is
 never refined as cloth; `_edits_a_replay_owes` tells the replay gate
 which edits a build must replay, the dual's frozen source edits being

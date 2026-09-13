@@ -22664,8 +22664,11 @@ class WeavingSpaceDialog(QDialog):
         that has no record to disagree with.
 
     Returns:
-      (present, key). `present` is whether the file now holds the two
-      tables; `key` names the design they describe, or None where the
+      (present, key). `present` is whether the file now holds the unit
+      table, with the dual beside it wherever the design has a
+      meaningful one and no dual table where it has none (a thin
+      weave's scaffold, maintainer's decision 2026-09-13); `key` names
+      the design they describe, or None where the
       file holds none or where they are somebody else's and we cannot
       say. Both go into the file's own record, which is what lets the
       NEXT save tell a stale motif from a current one without building
@@ -22917,19 +22920,33 @@ class WeavingSpaceDialog(QDialog):
             dual_frame = frame
           else:
             _dump("STATE", "dual-is-of-another-design")
+        # A DESIGN WITH NO MEANINGFUL DUAL WRITES ITS MOTIF ALONE
+        # (maintainer's decision, 2026-09-13): the landing holds this
+        # design's stamp beside a frame of None, and a dual that cannot
+        # be made for the actual weave or tiling is not saved -- nor is
+        # an earlier design's dual table left standing beside the new
+        # motif, in a file that was ours.
+        no_dual_here = (held is not None and held[0] == self._topology_stamp()
+                        and held[1] is None)
         frames = ((bridge.UNIT_TABLE_NAME,
                    topology_edits.unit_frame(self._unit)),
                   (bridge.DUAL_TABLE_NAME, dual_frame))
-        # BOTH OR NEITHER, AND THE PAIR MUST BE OF ONE DESIGN. The
-        # count test below is necessary and was never sufficient: two
-        # frames that are both present satisfied it while describing
-        # different motifs, which is the shape this project calls a
-        # gate that checks half of what it names.
+        if no_dual_here:
+          frames = frames[:1]
+        # BOTH OR NEITHER, AND THE PAIR MUST BE OF ONE DESIGN -- where
+        # the design has a dual. The count test below is necessary and
+        # was never sufficient: two frames that are both present
+        # satisfied it while describing different motifs, which is the
+        # shape this project calls a gate that checks half of what it
+        # names.
         if all(frame is not None for _, frame in frames):
           written = [bridge.write_gpkg_layer(
             bridge.gdf_to_layer(frame, name), path, name, first=False)
             for name, frame in frames]
           if all(w is not None and w.isValid() for w in written):
+            if no_dual_here and ours and bridge.DUAL_TABLE_NAME in (
+                bridge.gpkg_tables(path)):
+              bridge.drop_gpkg_layer(path, bridge.DUAL_TABLE_NAME)
             return True, key
       except Exception:                               # noqa: BLE001
         _dump("STATE", "topology-write-failed",
@@ -24688,8 +24705,15 @@ class WeavingSpaceDialog(QDialog):
         # through the other staleness route, and my own comment two
         # lines below promised "the pair must be of one design" while
         # nothing checked it.
+        # NO DUAL IS COMPUTED WHERE NONE IS MEANINGFUL (maintainer's
+        # decision, 2026-09-13): a thin weave's topology is its
+        # scaffold's, whose dual describes the filler as much as the
+        # cloth and is refused by `dual_on_offer`. The STAMP is still
+        # kept, since the save asks it whose topology is in hand; a
+        # frame of None there means "this design has no dual".
         self._topology_dual = (
-          (stamp, topology_edits.dual_frame(for_dual))
+          (stamp, None if topology_edits.stands_on_scaffolding(for_dual)
+           else topology_edits.dual_frame(for_dual))
           if for_dual is not None else None)
         # `_topology_assessed` USED TO BE RECORDED HERE and is gone
         # (2026-08-31). It was what licensed the save to remove a motif

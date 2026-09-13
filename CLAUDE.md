@@ -1982,10 +1982,11 @@ Confirmed with the user via an explicit design review:
   takes the dual of the dual, the record carrying one frozen edit
   list per dualisation and the shelf key, the stamp and both
   signatures a DEPTH; the way back to an earlier geometry is that
-  group in the chooser (C-334). (5) ITS ELEMENTS ARE
-  ASSIGNED FRESH. Refused: a frozen
-  snapshot, and a derived group that follows its source. A design's
-  gaps are a different question from the dual's holes (R-40 stands).
+  group in the chooser (C-334). (5) ITS ELEMENTS ARE ASSIGNED FRESH.
+  Refused: a frozen snapshot, and a derived group that follows its
+  source. A design's gaps differ from the dual's holes (R-40 stands).
+  A DUAL THAT CANNOT BE MADE MEANINGFULLY IS NOT SAVED (maintainer,
+  2026-09-13); what a thin weave's dual means is deferred (ROADMAP.md).
 - **THREE CONFLICTS SETTLED THE SAME DAY, AND FOUR STRUCK.** THE SHELF
   KEY STAYS NARROW AND REPORTS AT REPLAY: each edit records the class
   alphabet it was made against, and where a design's classes have
