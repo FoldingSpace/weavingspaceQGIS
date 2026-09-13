@@ -3026,6 +3026,25 @@ MUTATIONS = [
        test="test_a_strands_code_that_cannot_be_used_changes_nothing",
        why="a plain weave accepting `a|b|c` and reporting three "
            "elements where the map draws two"),
+  dict(name="a-cube-code-names-a-count-a-cube-weave-has", file=CATALOG,
+       # THE COUNT AXIS of a triaxial code (round ten, repairs28). Break
+       # it and `pq|r|s` typed on a cube moves the count to four, lands
+       # on a plain weave that drops a third direction, and the box
+       # shows the code unmarked while the map draws `ab|cd`.
+       old="""    if counts and len(labels) not in counts:""",
+       new="""    if False:""",
+       test="test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws",
+       why="a cube strands code naming a count no cube family has "
+           "moving the design to a plain weave that silently drops it"),
+  dict(name="a-cube-code-needs-all-three-directions", file=CATALOG,
+       # THE DIRECTION AXIS, the other half of the two-axes entry above:
+       # a cube given `ab|c` passes the box and the library divides by
+       # zero building it (round ten, repairs28).
+       old="""  if len(groups) != 3 and weave_type in TRIAXIAL_WEAVES:""",
+       new="""  if False:""",
+       test="test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws",
+       why="a two-direction code passing the box on a cube weave, "
+           "whose unit is then never built"),
   dict(name="the-push-gain-is-frozen-at-the-press", file=TOPOLOGY_TAB,
        # Reading it live is the state the rail was in for an hour
        # after it gained a divisor: `_drawn()` is the drag's own

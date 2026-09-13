@@ -93448,6 +93448,102 @@ def test_a_weaves_dual_asks_no_search_of_a_rectangle():
     f"the thin weave's dual asked the precise centre search {weave_asks} "
     f"times where only {allowed} of its base tiles are not their own half "
     f"turn -- a rectangle's search is what froze QGIS at every landing")
+def test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws():
+  """On a cube weave, a code the box leaves unmarked is the code in force.
+
+  A strands code sets the element count, and the dialog carries the
+  weave type across that move only where the new count has a family of
+  it. A cube's code runs in three directions, which no other weave type
+  draws, so two refusals are owed and neither was made. `pq|r|s` typed
+  on `cube weave a--|b--|c--` names four elements where no cube family
+  lives: the count moved, the design landed on a plain weave that
+  refuses a third direction, and the box went on showing the code
+  unmarked while the unit was built from the plain weave's own `ab|cd`
+  and the record kept `pq|r|s`. And `ab|c`, two directions on a cube,
+  passed unmarked while the library divides by zero building it.
+
+  THE EXPECTATIONS COME FROM THE CATALOGUE AND THE LIBRARY, never from
+  the validator: the counts a cube exists at are read off the entries
+  here, and the two-direction arm asks `make_unit` itself whether the
+  code builds. The accepted arm, `ab|cd|ef` at six, is there so a
+  repair that refuses every typed cube code cannot pass.
+
+  Regression: a cube strands code naming four elements moved the design to a plain weave that dropped it, and a two-direction cube code passed unmarked and built nothing (round ten, repairs28). [mutation]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  from weavingspace_qgis import catalog
+  key = "cube weave a--|b--|c--"
+  default_tip = "Which elements ride in each direction; - leaves a gap."
+  cube_counts = {n for n, entries in catalog.TILINGS_BY_N.items()
+                 for entry in entries.values()
+                 if entry.get("weave_type") == "cube"}
+  weave_counts = {n for n, entries in catalog.TILINGS_BY_N.items()
+                  for entry in entries.values()
+                  if entry.get("type") == "weave"}
+  assert 4 not in cube_counts and 4 in weave_counts, (
+    f"PREMISE: cube weaves live at {sorted(cube_counts)} and weaves at "
+    f"{sorted(weave_counts)}, so a four-element code does not move a "
+    f"cube somewhere no cube lives")
+  assert 6 in cube_counts, "PREMISE: no cube weave at six to accept"
+  try:
+    catalog.make_unit(catalog.TILINGS_BY_N[3][key], 1000.0, None,
+                      strands="ab|c")
+    two_directions_build = True
+  except Exception:                                   # noqa: BLE001
+    two_directions_build = False
+  assert not two_directions_build, (
+    "PREMISE: the library builds a cube from `ab|c`, so a box that "
+    "accepts it costs nothing")
+
+  project = QgsProject.instance()
+  layer = make_region_layer()
+  project.addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.n_spin.setValue(3)
+    dlg.kind_combo.setCurrentText("weave")
+    _choose_family(dlg, key)
+    dlg._rebuild_unit()
+    before = sorted(set(dlg._unit.tiles.tile_id))
+    assert before == ["a", "b", "c"], f"PREMISE: the cube drew {before}"
+
+    for code in ("pq|r|s", "abcd|ef|g", "ab|c"):
+      dlg.opt_strands.setText(code)
+      dlg._rebuild_unit()
+      unmarked = dlg.opt_strands.toolTip() == default_tip
+      in_force = dlg._strands_in_force()
+      assert not (unmarked and in_force != code), (
+        f"{code!r} sits unmarked in the box while the code in force is "
+        f"{in_force!r}, on {dlg._family_key()!r}")
+      assert not unmarked, (
+        f"{code!r} passed the box unmarked on a cube, landing on "
+        f"{dlg._family_key()!r} at {dlg._element_count()} elements")
+      assert dlg._family_key() == key, (
+        f"{code!r} moved the design to {dlg._family_key()!r}")
+      assert dlg._element_count() == 3, (
+        f"{code!r} moved the element count to {dlg._element_count()}")
+      assert sorted(set(dlg._unit.tiles.tile_id)) == before, (
+        f"{code!r} changed the unit to "
+        f"{sorted(set(dlg._unit.tiles.tile_id))}")
+
+    dlg.opt_strands.setText("ab|cd|ef")
+    dlg._rebuild_unit()
+    spec = dlg._current_spec() or {}
+    assert dlg.opt_strands.toolTip() == default_tip, (
+      f"`ab|cd|ef` was refused on a cube: {dlg.opt_strands.toolTip()!r}")
+    assert spec.get("weave_type") == "cube" and \
+      dlg._element_count() == 6, (
+      f"`ab|cd|ef` landed on {dlg._family_key()!r} at "
+      f"{dlg._element_count()} elements")
+    assert dlg._strands_in_force() == "ab|cd|ef", (
+      f"`ab|cd|ef` is unmarked while {dlg._strands_in_force()!r} is in "
+      f"force")
+    ids = sorted(set(dlg._unit.tiles.tile_id) - {"-"})
+    assert ids == ["a", "b", "c", "d", "e", "f"], (
+      f"`ab|cd|ef` built {ids}")
+  finally:
+    dlg.close()
 
 
 def test_an_edited_weave_keeps_its_rotation():
@@ -96076,6 +96172,8 @@ def main():
         test_a_strands_code_that_cannot_be_used_changes_nothing)
   check("a strands code the box accepts builds exactly its letters",
         test_a_strands_code_the_box_accepts_builds_exactly_its_letters)
+  check("a cube strands code the box accepts is the code the map draws",
+        test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws)
   check("every catalogue weave code is one the box would accept",
         test_every_catalogue_weave_code_is_one_the_box_would_accept)
   check("saving holds on every route", test_saving_holds_on_every_route)

@@ -515,6 +515,14 @@ def strands_problem(code: str, weave_type: str = "plain") -> str | None:
   if len(groups) == 3 and weave_type not in TRIAXIAL_WEAVES:
     return (f"A {weave_type} weave runs strands in two directions, so "
             "a third would not be drawn.")
+  # AND A CUBE NEEDS ALL THREE, the other half of the same rule: the
+  # check above refused a third direction on a biaxial weave and never
+  # asked for one on a triaxial weave, so `ab|c` passed the box unmarked
+  # and Generate said only that the unit could not be built (round ten,
+  # repairs28).
+  if len(groups) != 3 and weave_type in TRIAXIAL_WEAVES:
+    return (f"A {weave_type} weave runs strands in three directions, so "
+            "its code needs all three, as in a|b|c.")
   for character in code:
     if character in "|()-" or ("a" <= character <= "z"):
       continue
@@ -557,7 +565,44 @@ def strands_problem(code: str, weave_type: str = "plain") -> str | None:
     return (f"This code names {len(labels)} elements, and the "
             f"currently enabled weave families go up to "
             f"{STRANDS_CEILING}.")
+  # A TRIAXIAL CODE MUST NAME A COUNT ITS OWN WEAVE TYPE HAS. The code
+  # sets the element count, and the dialog carries the weave type across
+  # that move only where the new count has a family of it. A biaxial
+  # code survives landing elsewhere, since every biaxial type reads it;
+  # a three-direction code does not, so `pq|r|s` typed on a cube moved
+  # the count to four, where no cube family lives, landed on a plain
+  # weave that refuses a third direction, and the box went on showing a
+  # code the map had silently dropped (round ten, repairs28). Refused
+  # HERE rather than in the dialog because `_strands_in_force` asks this
+  # same function, so the box and the map cannot disagree about it.
+  if weave_type in TRIAXIAL_WEAVES:
+    counts = weave_type_counts(weave_type)
+    if counts and len(labels) not in counts:
+      listed = (", ".join(str(n) for n in counts[:-1]) + " or "
+                + str(counts[-1])) if len(counts) > 1 else str(counts[0])
+      return (f"A {weave_type} weave has {listed} elements, and this "
+              f"code names {len(labels)}.")
   return None
+
+
+def weave_type_counts(weave_type: str) -> list[int]:
+  """The element counts at which the catalogue has a weave of this type.
+
+  Args:
+    weave_type: a weave family's own type, e.g. ``cube`` or ``twill``.
+
+  Returns:
+    The counts, ascending; empty where no family has this type, which
+    `strands_problem` reads as nothing to check against rather than as
+    every count refused.
+
+  Read off TILINGS_BY_N rather than written down, so a family added to
+  or removed from the catalogue moves the answer with it.
+  """
+  return sorted(n for n, entries in TILINGS_BY_N.items()
+                if any(entry.get("type") == "weave"
+                       and entry.get("weave_type") == weave_type
+                       for entry in entries.values()))
 
 
 def elements_in_strands(code: str) -> list[str]:
