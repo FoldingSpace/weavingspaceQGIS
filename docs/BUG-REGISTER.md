@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-576 defect(s) with a regression test.
+577 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -502,6 +502,8 @@ there is no separate list to remember.
   guarded by `test_a_kept_scheme_is_held_rather_than_owned`
 - **the scheme cell went on naming a scheme after a ladder was retyped in QGIS or copied from another element, so the row described a classification the map no longer had.**  
   guarded by `test_a_ladder_somebody_else_cut_makes_the_scheme_cell_read_custom`
+- **a landing held under a press dropped the glue, so the tab lost the glued reading (round ten, asym11).**  
+  guarded by `test_a_landing_held_under_a_press_keeps_the_glued_reading`
 - **generating after reopening a project that held maps of two datasets replaced the wrong dataset's map, silently.**  
   guarded by `test_a_landing_never_writes_over_another_datasets_map`
 - **saving after moving to another design with the experimental box off left the file with no motif and no dual, and nothing in their place.**  
@@ -1206,7 +1208,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 198
+- the mutation campaign: 199
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57

@@ -2830,6 +2830,14 @@ MUTATIONS = [
        test="test_an_edited_weave_keeps_its_rotation",
        why="one topology edit on a rotated thin weave draws the map "
            "un-rotated while the Rotate box keeps its value"),
+  dict(name="a-held-landing-keeps-its-glue",
+       file="weavingspace_qgis/topology_tab.py",
+       old="""                                message=message, ghost=ghost, glue=glue)""",
+       new="""                                message=message, ghost=ghost)""",
+       test="test_a_landing_held_under_a_press_keeps_the_glued_reading",
+       why="a topology landing held under a press is replayed without its "
+           "gluing, so the tab offers the library's classes and a drag "
+           "previews another edit than the drop makes"),
   dict(name="strands-brackets-match-within-each-direction",
        file="weavingspace_qgis/catalog.py",
        # THE WHOLE PER-DIRECTION CHECK, since the library reads brackets
@@ -3520,11 +3528,9 @@ MUTATIONS = [
        # CI platforms failing the sibling drag guard on its own
        # premise, "the drag drew no preview at all".
        old="""    if self.view.gesture_in_progress():
-      self._landing_held = (unit, topology, message, ghost)
-      return""",
+      # EVERY ARGUMENT, BY NAME""",
        new="""    if False:
-      self._landing_held = (unit, topology, message, ghost)
-      return""",
+      # EVERY ARGUMENT, BY NAME""",
        test="test_a_build_that_lands_mid_drag_does_not_wipe_the_gesture",
        why="a gesture keeping the picture and the selection it is "
            "being made against, however a background build is timed"),
@@ -3570,7 +3576,7 @@ MUTATIONS = [
        # neighbour and the entry stopped matching (C-288, twice in one
        # night). It still breaks the same decision -- the landing is
        # dropped rather than drawn.
-       old="""    self.set_unit(*held)
+       old="""    self.set_unit(**held)
     # AND IT IS SAID AFTER `set_unit`, which clears the note: the""",
        new="""    pass  # mutation: the landing is dropped on the floor
     # AND IT IS SAID AFTER `set_unit`, which clears the note: the""",

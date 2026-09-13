@@ -93191,6 +93191,60 @@ def test_a_reading_changed_under_a_standing_edit_redraws_the_map():
       QgsProject.instance().removeMapLayer(other.id())
 
 
+def test_a_landing_held_under_a_press_keeps_the_glued_reading():
+  """A topology that lands mid-press is applied later with its gluing.
+
+  The panel HOLDS a landing that arrives while a handle is pressed and
+  applies it when the press ends without an edit. It held four of the
+  arguments `set_unit` takes and not `glue`, so under "Ignore, like an
+  inset" the held landing replayed with no gluing: the class list grew
+  from the glued classes to the library's, and every later drag previewed
+  a different edit from the one the drop put on the map.
+
+  THE ORACLE IS THE SAME LANDING GIVEN DIRECTLY, with no press: the class
+  list it offers is what the held path must end with. The press is
+  staged on the view's own `_press`, the store `gesture_in_progress`
+  reads, and the premise asserts the landing really was held.
+
+  Regression: a landing held under a press dropped the glue, so the tab lost the glued reading (round ten, asym11). [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.topology_tab import TopologyPanel
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  topology, unit, _kinds, glue, note = te.weave_topology(
+    catalog.TILINGS_BY_N[count][name], WEAVE_TAB_MATRIX_SPACING,
+    WEAVE_TAB_MATRIX_ASPECT, reading=te.ASPECT_LIKE_AN_INSET,
+    families=te.WARP_AND_WEFT_APART)
+  assert topology is not None and glue, f"PREMISE: no glued topology ({note})"
+
+  def offered(panel):
+    """The class chooser's rows, as data."""
+    return [panel.class_combo.itemData(i)
+            for i in range(panel.class_combo.count())]
+
+  direct = TopologyPanel()
+  direct.set_unit(unit, topology, "", glue=glue)
+  wanted = offered(direct)
+
+  held = TopologyPanel()
+  held.view._press = ("staged", None)
+  assert held.view.gesture_in_progress(), "PREMISE: the press is not staged"
+  held.set_unit(unit, topology, "", glue=glue)
+  assert held._landing_held is not None, "PREMISE: the landing was not held"
+  held.view._press = None
+  held._settle_a_landing_the_drag_held(len(held.edits()))
+  unglued = TopologyPanel()
+  unglued.set_unit(unit, topology, "")
+  assert len(wanted) < len(offered(unglued)), (
+    f"PREMISE: the glued landing offers {len(wanted)} rows and the unglued "
+    f"one {len(offered(unglued))}, so a lost gluing could not show")
+  assert offered(held) == wanted, (
+    f"a landing held under a press offered {len(offered(held))} class rows "
+    f"where the same landing given directly offers {len(wanted)} -- the "
+    f"held replay dropped the glued reading")
+  assert held._glue == glue, "the held replay left the panel with no gluing"
+
+
 def test_an_edited_weave_keeps_its_rotation():
   """One topology edit on a rotated thin weave keeps the rotation.
 
@@ -95801,6 +95855,8 @@ def main():
         test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding)
   check("an edited weave keeps its rotation",
         test_an_edited_weave_keeps_its_rotation)
+  check("a landing held under a press keeps the glued reading",
+        test_a_landing_held_under_a_press_keeps_the_glued_reading)
   check("a reading changed under a standing edit redraws the map",
         test_a_reading_changed_under_a_standing_edit_redraws_the_map)
   check("a unit can be copied with new tiles whatever kind it is",

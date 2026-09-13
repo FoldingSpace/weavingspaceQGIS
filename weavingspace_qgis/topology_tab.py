@@ -2985,7 +2985,12 @@ class TopologyPanel(QWidget):
     both -- a gesture's world is fixed for the length of the gesture.
     """
     if self.view.gesture_in_progress():
-      self._landing_held = (unit, topology, message, ghost)
+      # EVERY ARGUMENT, BY NAME, so a term `set_unit` gains cannot be
+      # dropped here: the tuple of four predated `glue`, and a landing
+      # held under a press replayed without it and lost the glued
+      # reading (round ten, asym11).
+      self._landing_held = dict(unit=unit, topology=topology,
+                                message=message, ghost=ghost, glue=glue)
       return
     # AND A LANDING THAT ARRIVES WITH NO GESTURE SUPERSEDES A HELD ONE,
     # which is what stops a press nobody ever released -- a button held
@@ -4267,7 +4272,7 @@ class TopologyPanel(QWidget):
       # these would put the previous design's sentence over the new
       # one's.
       return
-    self.set_unit(*held)
+    self.set_unit(**held)
     # AND IT IS SAID AFTER `set_unit`, which clears the note: the
     # order the call site uses, restored at the moment the landing
     # actually arrives on screen.
