@@ -24442,6 +24442,19 @@ class WeavingSpaceDialog(QDialog):
         # This is the landing rule this project already applies to a
         # tiling -- an answer is about the design it was launched for.
         _dump("TOPOLOGY", "superseded")
+      elif weave_terms is not None and (
+          weave_terms.get("reading"), weave_terms.get("families")) != (
+          panel.aspect_reading_in_force()
+          if hasattr(panel, "aspect_reading_in_force") else None,
+          panel.strand_families_in_force()
+          if hasattr(panel, "strand_families_in_force") else None):
+        # A WEAVE CHOOSER MOVED WHILE THIS WAS BEING WORKED OUT, which the
+        # stamp cannot see: the readings decide what the classes are and
+        # which edges a standing edit moves, so a build launched under
+        # the old reading landed and its replay became the map (round
+        # ten, harm15). The chooser queued a build of its own, which is
+        # held behind this one and runs once it clears.
+        _dump("TOPOLOGY", "superseded-weave-reading")
       elif wanted_edits != self._topology_shelf.get(
           topology_edits.shelf_key(self._family_key(),
                                    self._element_count(),
@@ -24773,11 +24786,29 @@ class WeavingSpaceDialog(QDialog):
         edits = edits + [dict(e, how=f"source{level}:" + str(e.get("how", "")))
                          for level, level_edits in enumerate(self._dual_chain)
                          for e in level_edits]
-      return tuple(
+      key = tuple(
         (str(edit.get("classes", "")), str(edit.get("how", "")),
          tuple(sorted((str(name), float(value))
                       for name, value in (edit.get("args") or {}).items())))
         for edit in edits)
+      # AND, WHERE EDITS STAND ON A WEAVE, THE TWO READINGS THEY ARE AIMED
+      # IN. The weave choosers decide what a class label MEANS -- which
+      # library labels a glued class stands for, how a refinement renamed
+      # them -- so the same record moves different edges under each, and
+      # a key blind to them let Generate keep the old map's tiles while
+      # the tab showed the new design (round ten, harm15, stores18,
+      # repairs23). Without edits the readings move no geometry at all,
+      # and the key stays empty so nothing waits for a replay.
+      spec = self._current_spec() if key else None
+      panel = getattr(self, "topology_panel", None)
+      if spec is not None and spec.get("type") == "weave" and panel is not None:
+        key = key + ((
+          "weave-readings",
+          panel.aspect_reading_in_force()
+          if hasattr(panel, "aspect_reading_in_force") else "",
+          panel.strand_families_in_force()
+          if hasattr(panel, "strand_families_in_force") else ""),)
+      return key
     except Exception:                                   # noqa: BLE001
       return ()
 
@@ -25061,12 +25092,16 @@ class WeavingSpaceDialog(QDialog):
       its daylight kept as holes and six and three with the holes
       glued away.
 
-    NOTHING IS RE-TILED. The map's geometry does not move, so this is
-    not a term of `_geometry_signature` and pressing Generate is not
-    wanted; only the topology is rebuilt, through the same door a
-    design change uses.
+    NOTHING IS RE-TILED WHILE NO EDIT STANDS: the map's geometry does
+    not move and only the topology is rebuilt. WHERE EDITS STAND it is
+    a design change, since the reading decides which edges those edits
+    move, so it takes the edit's own door -- `_queue_preview` -- and
+    `_topology_edit_key` carries the reading into both signatures.
     """
-    self._queue_topology(even_if_unasked=True)
+    if self._topology_edit_key():
+      self._queue_preview()
+    else:
+      self._queue_topology(even_if_unasked=True)
 
   def _on_strand_families_changed(self, _families: str = "") -> None:
     """Somebody changed whether warp and weft share their classes.
@@ -25078,11 +25113,15 @@ class WeavingSpaceDialog(QDialog):
       twenty once the mirror that carries warps onto wefts is set
       aside.
 
-    NOTHING IS RE-TILED, exactly as for the reading beside it. No map
-    geometry moves, so this is not a term of `_geometry_signature` and
-    pressing Generate is not wanted.
+    NOTHING IS RE-TILED WHILE NO EDIT STANDS, exactly as for the
+    reading beside it; where edits stand the refinement renames the
+    classes they are aimed at, so it is a design change and takes the
+    edit's own door.
     """
-    self._queue_topology(even_if_unasked=True)
+    if self._topology_edit_key():
+      self._queue_preview()
+    else:
+      self._queue_topology(even_if_unasked=True)
 
   def _on_topology_edited(self) -> None:
     """The topology tab's record changed; keep the design in step.

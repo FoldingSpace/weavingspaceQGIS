@@ -93063,6 +93063,134 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
   return ("ok", f"{'moved' if moved else 'said something'}")
 
 
+def test_a_reading_changed_under_a_standing_edit_redraws_the_map():
+  """With an edit standing, switching a weave's reading reaches the map.
+
+  The reading decides what a class label MEANS: under "Ignore, like an
+  inset" glued class `a` stands for two library labels, under "Count"
+  for one, so the same record moves different edges. Neither chooser
+  was a term of the tiled-frame cache or the edit key, so Generate
+  after a switch kept the previous map's tiles while the tab and the
+  preview showed the new design, and nothing was said.
+
+  THE CONTROL IS A SECOND GENERATE WITH NOTHING SWITCHED, which must
+  leave the layers byte-identical; the treatment must move them, and the
+  dialog's unit must equal the record replayed under the NEW reading,
+  computed from the settings with no glue.
+
+  Regression: the weave choosers were in no key a Generate consults, so a switch under a standing edit left the map drawn under the old reading (round ten, harm15). [mutation]
+  """
+  from shapely.ops import unary_union
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spec = catalog.TILINGS_BY_N[count][name]
+
+  def digest(dlg):
+    """Every element layer's feature geometry, as sorted WKB."""
+    found = []
+    for tid, lyr in sorted(_element_layers(dlg).items()):
+      for feature in lyr.getFeatures():
+        found.append((tid, bytes(feature.geometry().asWkb())))
+    return sorted(found)
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+    _choose_family(dlg, name)
+    _tick(200)
+    dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+    dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+    _tick(300)
+    panel = dlg.topology_panel
+    _put_the_chooser_on(panel.aspect_reading, te.ASPECT_LIKE_AN_INSET,
+                        "aspect-gap")
+    _tick(150)
+    _topo, _unit, _kinds, glue, _note = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      reading=te.ASPECT_LIKE_AN_INSET, families=te.WARP_AND_WEFT_APART)
+    stands_for = {}
+    for label, klass in glue["edges"].items():
+      stands_for.setdefault(klass, []).append(label)
+    klass = sorted(k for k, v in stands_for.items() if len(v) > 1)[0]
+
+    import time as _time
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    chosen = -1
+    while _time.monotonic() < deadline and chosen < 0:
+      for position in range(panel.class_combo.count()):
+        if panel.class_combo.itemData(position) == ("edge", klass):
+          chosen = position
+      if chosen < 0:
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+    assert chosen >= 0, f"the tab never offered glued class {klass!r}"
+    panel.class_combo.setCurrentIndex(chosen)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    _tick(150)
+    before = _unit_tiles(dlg)
+    panel.apply_button.click()
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while _time.monotonic() < deadline and not (
+        panel.edits() and _unit_ground_moved(dlg, before)):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert _unit_ground_moved(dlg, before), "the edit never reached the unit"
+    edit = panel.edits()[-1]
+    _generate_and_wait(dlg)
+    glued_map = digest(dlg)
+    assert glued_map, "PREMISE: the first Generate drew no element layer"
+    _generate_and_wait(dlg)
+    assert digest(dlg) == glued_map, (
+      "CONTROL: a second Generate with nothing changed moved the map")
+
+    _put_the_chooser_on(panel.aspect_reading, te.ASPECT_LIKE_A_DROP,
+                        "aspect-gap")
+    _tick(150)
+    topology, _u, kinds, _g, _n = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      reading=te.ASPECT_LIKE_A_DROP, families=te.WARP_AND_WEFT_APART)
+    expected_tileable, _r, _s = te.apply(topology, [edit], glue=None)
+    keep = [kinds.get(str(t)) == "strand"
+            for t in expected_tileable.tiles["tile_id"]]
+    expected = unary_union(list(expected_tileable.tiles[keep].geometry))
+    # WAIT FOR AGREEMENT, bounded, not for movement: the plain rebuild a
+    # design change makes moves the unit too, before any replay lands.
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    off = None
+    while _time.monotonic() < deadline:
+      off = unary_union(list(dlg._unit.tiles.geometry)).symmetric_difference(
+        expected).area
+      if off < 1.0:
+        break
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert off is not None and off < 1.0, (
+      f"after switching the reading the dialog's unit settled "
+      f"{off:.1f} map units squared from the edit replayed under the new "
+      f"reading (tab reading {panel.aspect_reading_in_force()!r}; record "
+      f"{edit!r})")
+    _generate_and_wait(dlg)
+    assert digest(dlg) != glued_map, (
+      "after switching the reading under a standing edit, Generate drew "
+      "the map exactly as it stood under the old reading, while the tab "
+      "and the unit describe the new one")
+  finally:
+    dlg.close()
+    for other in list(QgsProject.instance().mapLayers().values()):
+      QgsProject.instance().removeMapLayer(other.id())
+
+
 def test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding():
   """After an edit on a thin weave, the map holds strands and no filler.
 
@@ -95528,6 +95656,8 @@ def main():
         test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone)
   check("an edited weave draws its cloth and not its scaffolding",
         test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding)
+  check("a reading changed under a standing edit redraws the map",
+        test_a_reading_changed_under_a_standing_edit_redraws_the_map)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",

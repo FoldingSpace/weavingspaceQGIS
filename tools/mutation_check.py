@@ -2801,15 +2801,27 @@ MUTATIONS = [
        # the classes of a reading they have just moved away from. The
        # anchor carries the docstring's last line, since the body it
        # mutates is one line that appears three times in this file.
-       old="""    pressing Generate is not wanted.
+       old="""    edit's own door.
     \"\"\"
-    self._queue_topology(even_if_unasked=True)""",
-       new="""    pressing Generate is not wanted.
+    if self._topology_edit_key():
+      self._queue_preview()
+    else:
+      self._queue_topology(even_if_unasked=True)""",
+       new="""    edit's own door.
     \"\"\"
     return""",
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="a-standing-weave-edit-keys-on-its-readings",
+       file="weavingspace_qgis/dialog.py",
+       old="""      if spec is not None and spec.get("type") == "weave" and panel is not None:
+        key = key + ((""",
+       new="""      if False:
+        key = key + ((""",
+       test="test_a_reading_changed_under_a_standing_edit_redraws_the_map",
+       why="switching a weave's reading under a standing edit leaves the "
+           "map drawn under the old reading"),
   dict(name="the-map-adopts-the-cloth-not-the-scaffold",
        file="weavingspace_qgis/dialog.py",
        # THE FILLER IS DROPPED BEFORE ADOPTION, or Generate tiles the
@@ -10887,8 +10899,10 @@ MUTATIONS = [
        # already records. Reproduce with
        # `tools/run_some.py test_a_file_that_holds_a_motif_gets_a_fresh_one`
        # against a tree carrying the replacement below.
-       old="""      self._queue_topology(even_if_unasked=True)""",
-       new="""      pass  # mutation: never build the motif the file is owed""",
+       old="""      self._save_pending = True
+      self._queue_topology(even_if_unasked=True)""",
+       new="""      self._save_pending = True
+      pass  # mutation: never build the motif the file is owed""",
        test="test_a_file_that_holds_a_motif_gets_a_fresh_one",
        why="a colleague opening the GeoPackage gets no motif at all, "
            "after a journey that needs no interest in the feature "

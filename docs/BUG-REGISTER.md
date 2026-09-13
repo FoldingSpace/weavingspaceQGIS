@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-573 defect(s) with a regression test.
+574 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -540,6 +540,8 @@ there is no separate list to remember.
   guarded by `test_a_ramp_is_remembered_under_the_mode_the_row_is_in`
 - **picking the ramp 'gray' and pressing Apply in QGIS's styling dock with no change silently renamed the row, the records and the next stamp to 'gist_gray' -- no pixel ever differs, and the label moved under the user. Found by the stochastic hunt of 2026-08-26 (seed 5001, shrunk); ruled 2026-08-26: the user's name wins the tie.**  
   guarded by `test_a_ramp_twins_name_does_not_move_under_the_user`
+- **the weave choosers were in no key a Generate consults, so a switch under a standing edit left the map drawn under the old reading (round ten, harm15).**  
+  guarded by `test_a_reading_changed_under_a_standing_edit_redraws_the_map`
 - **a categorical value edited in QGIS's attribute table never reached the legend -- the value digest was built from finite numbers only, so the signature said unchanged and the landing reattached the stale renderer; the recoded value painted no-data grey with nothing said. Found by the data-edit hunt of 2026-08-26.**  
   guarded by `test_a_recoded_category_reaches_the_legend`
 - **a record could name one dataset's region beside another dataset's coordinate system, and the file inherited both.**  
@@ -1200,7 +1202,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 195
+- the mutation campaign: 196
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
