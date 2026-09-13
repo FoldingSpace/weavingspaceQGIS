@@ -2527,7 +2527,7 @@ class TopologyPanel(QWidget):
     # release body against the changelog -- the question is always
     # whether the renderer reflows, and here it does.
     note = QLabel(
-      "The structure of the repeating unit, before any inset or "
+      "Here, we deal with the structure of the repeating unit, before any inset or "
       "strand width is applied — not of the map on the ground.")
     note.setWordWrap(True)
     side.addWidget(note)

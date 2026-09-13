@@ -131,7 +131,11 @@ jobs:
     # people learn to ignore red jobs. The per-test watchdog is the
     # instrument that catches a real hang, and it names the test; this
     # only has to be lower than six hours.
-    timeout-minutes: 90
+    # RAISED TO 120 on the maintainer's word (2026-09-12): at 852 tests,
+    # with the two weave matrices added in round ten, the 4.0.3 and 4.0.0
+    # legs were cancelled at exactly 90 minutes on d118d82 while the
+    # stable leg finished inside it.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:

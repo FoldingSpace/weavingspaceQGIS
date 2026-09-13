@@ -1679,6 +1679,11 @@
   "excerpt": "Outline every tile on the map.",
   "where": "weavingspace_qgis/dialog.py"
  },
+ "8f24d4e0720b5b3f": {
+  "approved": "2026-09-12",
+  "excerpt": "Here, we deal with the structure of the repeating unit, befo",
+  "where": "weavingspace_qgis/topology_tab.py"
+ },
  "8fb3a089d2909dac": {
   "approved": "2026-08-08",
   "excerpt": "Categorical fields (land cover, dominant crop, period labels",
@@ -2038,6 +2043,11 @@
   "approved": "2026-08-08",
   "excerpt": "Pick a design to preview it.",
   "where": "weavingspace_qgis/dialog.py"
+ },
+ "ad8692fb7dcea276": {
+  "approved": "2026-09-12",
+  "excerpt": "A pair of parentheses in a strands code must hold a strand.",
+  "where": "weavingspace_qgis/catalog.py"
  },
  "adfb9aa2dd1d5e41": {
   "approved": "2026-09-12",
