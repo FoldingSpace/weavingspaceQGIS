@@ -3545,6 +3545,46 @@ class TopologyPanel(QWidget):
     data = self.aspect_reading.currentData()
     return data if data else "like-a-drop"
 
+  def put_the_readings(self, reading, families) -> None:
+    """Move both weave choosers to a record's values, announcing nothing.
+
+    Args:
+      reading: "like-a-drop" or "like-an-inset". Anything else,
+        including None for a record written before the reading was
+        recorded, puts the chooser on "like-a-drop", today's default.
+      families: "apart" or "together". Anything else, None included,
+        puts the toggle on "apart", today's default.
+
+    Returns:
+      None. Both controls are moved with their signals blocked and the
+      selection is dropped, as a click on either drops it.
+
+    SILENT, BECAUSE THE CALLER IS A RESTORE. `_apply_working_state`
+    rebuilds the unit once at its end, and that rebuild queues the
+    topology under whatever these controls then hold; letting the
+    choosers announce themselves as well would queue a second build, or
+    take the edit's own door, for a change nobody made (round ten,
+    harm16).
+    """
+    wanted = reading if reading in ("like-a-drop", "like-an-inset") \
+        else "like-a-drop"
+    position = self.aspect_reading.findData(wanted)
+    blocked = self.aspect_reading.blockSignals(True)
+    try:
+      if position >= 0:
+        self.aspect_reading.setCurrentIndex(position)
+    finally:
+      self.aspect_reading.blockSignals(blocked)
+    wanted = families if families in ("apart", "together") else "apart"
+    blocked = self.strand_families.blockSignals(True)
+    try:
+      for button in self.strand_families.buttons():
+        if button.property("families") == wanted:
+          button.setChecked(True)
+    finally:
+      self.strand_families.blockSignals(blocked)
+    self._selection = (None, [])
+
   def _on_class_chosen(self):
     """Highlight whatever class the chooser now names, and re-offer
     the manipulations that suit it."""

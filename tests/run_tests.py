@@ -93245,6 +93245,228 @@ def test_a_landing_held_under_a_press_keeps_the_glued_reading():
   assert held._glue == glue, "the held replay left the panel with no gluing"
 
 
+def test_a_weaves_readings_come_back_with_its_record():
+  """A weave reopened comes back under the readings its edits were made in.
+
+  "Gaps from strand width" and "Warp and weft classes" decide what an
+  edit's class label MEANS, and neither was in the working-state record:
+  a weave edited under "Ignore, like an inset" with warp and weft
+  together came back from a reopen, a group choice or a Load under
+  "Count" and "Apart", the edit replayed on other edges, and the next
+  Generate or Save wrote that other map, with nothing said.
+
+  THE ROUTE IS THE ORDINARY ONE, close the plugin and open it again, so
+  adoption reads the group's record. THE ORACLE IS THE RECORDED EDIT
+  REPLAYED UNDER THE READINGS IT WAS MADE IN, computed from the settings
+  through `weave_topology`, and the premise is that the same edit
+  replayed under the defaults lands elsewhere, so a lost reading can
+  show. A SECOND ARM saves, puts the dialog on the OTHER readings and
+  Loads the file, which must set both choosers from it; a THIRD takes
+  the keys out of the record and requires today's defaults, which is
+  what an older record must restore whatever the dialog holds.
+
+  Regression: neither weave reading was saved in the group's or the file's record, so a reopened edit replayed under Count and Apart (round ten, harm16). [mutation]
+  """
+  from shapely.ops import unary_union
+  from weavingspace_qgis import catalog, topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  import time as _time
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spec = catalog.TILINGS_BY_N[count][name]
+  reading, families = te.ASPECT_LIKE_AN_INSET, te.WARP_AND_WEFT_TOGETHER
+
+  def replayed(edit, how_read, how_split):
+    """The cloth the record makes under one pair of readings.
+
+    Args:
+      edit: the recorded edit, as the tab's record holds it.
+      how_read: the aspect-gap reading, "like-a-drop" or "like-an-inset".
+      how_split: "apart" or "together" for warp and weft classes.
+
+    Returns:
+      The union of the strand pieces after the edit is applied to the
+      topology `weave_topology` builds from the settings under those
+      readings, the filler dropped.
+    """
+    topology, _u, kinds, glue, note = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      reading=how_read, families=how_split)
+    assert topology is not None, f"PREMISE: no topology ({note})"
+    tileable, _r, _s = te.apply(topology, [edit], glue=glue)
+    keep = [kinds.get(str(t)) == "strand" for t in tileable.tiles["tile_id"]]
+    return unary_union(list(tileable.tiles[keep].geometry))
+
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  two = None
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+    _choose_family(dlg, name)
+    _tick(200)
+    dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+    dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+    _tick(300)
+    panel = dlg.topology_panel
+    _put_the_chooser_on(panel.aspect_reading, reading, "aspect-gap")
+    _tick(150)
+    for button in panel.strand_families.buttons():
+      if button.property("families") == families:
+        button.setChecked(True)
+    _tick(150)
+    assert (panel.aspect_reading_in_force(),
+            panel.strand_families_in_force()) == (reading, families), (
+      "PREMISE: the tab is not on the readings the edit is to be made in")
+    _t, _u, _k, glue, _n = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      reading=reading, families=families)
+    stands_for = {}
+    for label, klass in glue["edges"].items():
+      stands_for.setdefault(klass, []).append(label)
+    klass = sorted(k for k, v in stands_for.items() if len(v) > 1)[0]
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    chosen = -1
+    while _time.monotonic() < deadline and chosen < 0:
+      for position in range(panel.class_combo.count()):
+        if panel.class_combo.itemData(position) == ("edge", klass):
+          chosen = position
+      if chosen < 0:
+        _settle_topology(dlg, seconds=5)
+        _tick(200)
+    assert chosen >= 0, f"the tab never offered glued class {klass!r}"
+    panel.class_combo.setCurrentIndex(chosen)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    _tick(150)
+    before = _unit_tiles(dlg)
+    panel.apply_button.click()
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while _time.monotonic() < deadline and not (
+        panel.edits() and _unit_ground_moved(dlg, before)):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert _unit_ground_moved(dlg, before), "the edit never reached the unit"
+    edit = panel.edits()[-1]
+    _generate_and_wait(dlg)
+    expected = replayed(edit, reading, families)
+    by_default = replayed(edit, te.ASPECT_LIKE_A_DROP, te.WARP_AND_WEFT_APART)
+    assert expected.symmetric_difference(by_default).area > 100.0, (
+      "PREMISE: the edit replayed under the defaults lands where it lands "
+      "under the readings it was made in, so a lost reading could not show")
+    dlg.close()
+    _tick(300)
+
+    two = WeavingSpaceDialog(iface=_Iface())
+    two.live_check.setChecked(False)
+    two.show()
+    _tick(300)
+    _settle(two)
+    tab = two.topology_panel
+    assert tab.edits(), "PREMISE: the reopened dialog did not adopt the edit"
+    assert (tab.aspect_reading_in_force(),
+            tab.strand_families_in_force()) == (reading, families), (
+      f"the reopened weave came back under "
+      f"{tab.aspect_reading_in_force()!r} and "
+      f"{tab.strand_families_in_force()!r}, where its edit was made under "
+      f"{reading!r} and {families!r}")
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    off = None
+    while _time.monotonic() < deadline:
+      if two._unit is not None:
+        off = unary_union(list(two._unit.tiles.geometry)).symmetric_difference(
+          expected).area
+        if off < 1.0:
+          break
+      _settle_topology(two, seconds=5)
+      _tick(200)
+    assert off is not None and off < 1.0, (
+      f"the reopened dialog's unit settled {off} map units squared from "
+      f"the edit replayed under the readings it was made in")
+
+    # THE LOAD ARM, into a dialog already on the OTHER readings: the
+    # restore must SET both choosers from the file, not merely fill a
+    # fresh dialog's (round ten, stoch13 reached the same root this way).
+    import os as _os
+    import tempfile as _tempfile
+    from weavingspace_qgis import bridge
+    out = _os.path.join(_tempfile.mkdtemp(), "readings.gpkg")
+    two.gpkg_widget.setFilePath(out)
+    assert press_save(two), "PREMISE: the save did not write"
+    saved = (bridge.read_working_state(out) or {}).get("design") or {}
+    assert (saved.get("aspect_reading"), saved.get("strand_families")) == (
+      reading, families), (
+      f"the file's record carries readings "
+      f"{saved.get('aspect_reading')!r} and {saved.get('strand_families')!r}")
+    _put_the_chooser_on(tab.aspect_reading, te.ASPECT_LIKE_A_DROP,
+                        "aspect-gap")
+    _tick(150)
+    for button in tab.strand_families.buttons():
+      if button.property("families") == te.WARP_AND_WEFT_APART:
+        button.setChecked(True)
+    _tick(150)
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    off = None
+    while _time.monotonic() < deadline:
+      off = unary_union(list(two._unit.tiles.geometry)).symmetric_difference(
+        by_default).area
+      if off < 1.0:
+        break
+      _settle_topology(two, seconds=5)
+      _tick(200)
+    assert off is not None and off < 1.0, (
+      f"PREMISE: on the other readings the unit settled {off} map units "
+      f"squared from the edit replayed under them, so the Load starts from "
+      f"no known map")
+    two._resume_from_gpkg(out)
+    _settle(two)
+    assert (tab.aspect_reading_in_force(),
+            tab.strand_families_in_force()) == (reading, families), (
+      f"a Load into a dialog on the other readings left "
+      f"{tab.aspect_reading_in_force()!r} and "
+      f"{tab.strand_families_in_force()!r}, where the file's edit was made "
+      f"under {reading!r} and {families!r}")
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    off = None
+    while _time.monotonic() < deadline:
+      off = unary_union(list(two._unit.tiles.geometry)).symmetric_difference(
+        expected).area
+      if off < 1.0:
+        break
+      _settle_topology(two, seconds=5)
+      _tick(200)
+    assert off is not None and off < 1.0, (
+      f"after the Load the unit settled {off} map units squared from the "
+      f"file's edit replayed under the readings it was made in")
+
+    record = two._capture_working_state()
+    assert record["design"].get("aspect_reading") == reading, (
+      "PREMISE: the record the second arm strips carries no reading")
+    older = dict(record)
+    older["design"] = {key: value for key, value in record["design"].items()
+                       if key not in ("aspect_reading", "strand_families")}
+    two._apply_working_state(older)
+    _tick(200)
+    assert (tab.aspect_reading_in_force(),
+            tab.strand_families_in_force()) == (
+              te.ASPECT_LIKE_A_DROP, te.WARP_AND_WEFT_APART), (
+      f"a record with no readings restored "
+      f"{tab.aspect_reading_in_force()!r} and "
+      f"{tab.strand_families_in_force()!r} rather than today's defaults")
+  finally:
+    for window in (dlg, two):
+      if window is not None:
+        window.close()
+    for other in list(QgsProject.instance().mapLayers().values()):
+      QgsProject.instance().removeMapLayer(other.id())
+
+
 def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
   """A Save pressed right after a weave reading switch waits for the motif.
 
@@ -96184,6 +96406,8 @@ def main():
         test_a_weaves_dual_asks_no_search_of_a_rectangle)
   check("a save just after a reading switch writes the new motif",
         test_a_save_just_after_a_reading_switch_writes_the_new_motif)
+  check("a weave's readings come back with its record",
+        test_a_weaves_readings_come_back_with_its_record)
   check("a landing held under a press keeps the glued reading",
         test_a_landing_held_under_a_press_keeps_the_glued_reading)
   check("a reading changed under a standing edit redraws the map",

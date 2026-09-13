@@ -7140,7 +7140,9 @@ class WeavingSpaceDialog(QDialog):
     Returns:
       None. Files the recorded list under the family and element count
       the record itself names, so it is found again by the ordinary
-      shelf lookup rather than by a second rule.
+      shelf lookup rather than by a second rule. First moves the
+      Topology tab's two weave choosers to the readings the record
+      names, today's defaults where it names none.
 
     THE KEY COMES FROM THE RECORD, NOT FROM THE CONTROLS. This runs
     while the controls are being written, and reading them here would
@@ -7148,6 +7150,18 @@ class WeavingSpaceDialog(QDialog):
     instant -- which is how a record comes to be filed under a design
     it was not made on. The record knows what it is about.
     """
+    # THE WEAVE READINGS COME BACK FIRST, before any edit is filed or
+    # replayed, since they decide what the edits' class labels mean: an
+    # edit made under "Ignore, like an inset" and replayed under
+    # "Count" moves one side of each hole where it moved both (round
+    # ten, harm16). SILENCE PUTS TODAY'S DEFAULTS -- Count and Apart --
+    # because a record without the keys is one written before they
+    # existed or a tiling's, and either way the chooser must not keep
+    # a reading left by whatever map was on screen before.
+    panel = getattr(self, "topology_panel", None)
+    if panel is not None and hasattr(panel, "put_the_readings"):
+      panel.put_the_readings(design.get("aspect_reading"),
+                             design.get("strand_families"))
     edits = design.get("topology_edits")
     # THE SOURCE'S FROZEN EDITS travel beside the dual's own: a dual
     # group restored without them re-tiled as the plain dual.
@@ -19174,6 +19188,24 @@ class WeavingSpaceDialog(QDialog):
     panel = getattr(self, "topology_panel", None)
     if panel is not None and panel.edits():
       design["topology_edits"] = panel.edits()
+    # AND, ON A WEAVE, THE TWO READINGS THOSE EDITS ARE AIMED IN. The
+    # weave choosers decide what a class label MEANS -- which library
+    # labels a glued class stands for, how a refinement renamed them --
+    # so a record carrying the edits without the readings replayed a
+    # weave edited under "Ignore, like an inset" under "Count" at every
+    # Load, reopen and group choice, and the next Generate or Save wrote
+    # that other map, with nothing said (round ten, harm16). Read back
+    # by `_restore_recorded_topology_edits` in the same commit, which
+    # puts an ABSENT key on today's defaults, so no version bump.
+    # WEAVES ONLY, the condition `_topology_edit_key` uses: on a tiling
+    # the readings move nothing, and a key written there would make
+    # every tiling record differ from the save's staleness comparison
+    # against a record written before this term existed.
+    spec = self._current_spec() if panel is not None else None
+    if spec is not None and spec.get("type") == "weave" \
+        and hasattr(panel, "aspect_reading_in_force"):
+      design["aspect_reading"] = panel.aspect_reading_in_force()
+      design["strand_families"] = panel.strand_families_in_force()
     # AND THE SOURCE'S FROZEN EDITS WHERE THE MAP IS A DUAL'S, under
     # their own key, since the slot above is the dual's own list; read
     # back by `_restore_recorded_topology_edits`, in the same commit.

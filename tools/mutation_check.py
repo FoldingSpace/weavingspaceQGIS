@@ -2864,6 +2864,27 @@ MUTATIONS = [
        why="a topology landing held under a press is replayed without its "
            "gluing, so the tab offers the library's classes and a drag "
            "previews another edit than the drop makes"),
+  dict(name="a-restored-record-puts-the-weave-readings-back",
+       file="weavingspace_qgis/dialog.py",
+       # THE WHOLE RESTORE OF BOTH CHOOSERS, which runs before the edits
+       # are filed: without it a reopened weave replays under whatever
+       # the tab holds, the defaults in a fresh dialog.
+       old="""      panel.put_the_readings(design.get("aspect_reading"),
+                             design.get("strand_families"))""",
+       new="""      pass""",
+       test="test_a_weaves_readings_come_back_with_its_record",
+       why="a weave edited under 'Ignore, like an inset' comes back from a "
+           "reopen under 'Count', its edit replayed on other edges"),
+  dict(name="the-record-carries-the-weave-readings",
+       file="weavingspace_qgis/dialog.py",
+       # THE CAPTURE'S WHOLE CONDITION, so neither reading reaches the
+       # group's record or the file's.
+       old="""    if spec is not None and spec.get("type") == "weave" \\
+        and hasattr(panel, "aspect_reading_in_force"):""",
+       new="""    if False:""",
+       test="test_a_weaves_readings_come_back_with_its_record",
+       why="the working-state record omits both weave readings, so every "
+           "reopen, group choice and Load replays edits under the defaults"),
   dict(name="strands-brackets-match-within-each-direction",
        file="weavingspace_qgis/catalog.py",
        # THE WHOLE PER-DIRECTION CHECK, since the library reads brackets
