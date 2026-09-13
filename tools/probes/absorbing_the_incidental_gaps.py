@@ -1,4 +1,4 @@
-"""A weave's structure where only a DROPPED STRAND counts as a gap.
+"""A weave's structure where only a MISSING STRAND counts as a gap.
 
 Three ways of giving a thin weave a structure have been measured, and
 all three treat the daylight as something to be filled or bridged:
@@ -6,19 +6,19 @@ all three treat the daylight as something to be filled or bridged:
   hole as tile      the classes then follow how the holes were cut
   contract          decomposition-free, but only an adjacency, and the
                     hyphen makes no difference to it
-  veto              a dropped strand does not SEPARATE anything, so
+  veto              a missing strand does not SEPARATE anything, so
                     there is nothing for a veto to withhold
 
 This probe tries the fourth, which is the maintainer's framing rather
 than a fourth tweak of the same idea (2026-09-08): in a weaving world
-the gaps that are REAL are the dropped strands, and the gaps that come
+the gaps that are REAL are the missing strands, and the gaps that come
 from aspect or inset are not gaps at all but an artefact of how wide we
 chose to draw the yarn. So rather than filling the incidental daylight,
 ABSORB it -- grow each strand until it meets its neighbours -- and let
 the only uncovered ground be the slot where a strand was left out.
 
 Nothing then needs vetoing. An incidental gap cannot license a
-connection because it no longer exists, and a dropped strand is a hole
+connection because it no longer exists, and a missing strand is a hole
 in the design rather than a rule about the graph.
 
 WHAT IT MEASURES, per weave and per aspect:
@@ -243,7 +243,7 @@ def structure_of(reading) -> dict:
     A dict with the tile count and the class counts, or the reason
     there is none. THE HOLES ARE STILL FILLED, because the library
     cannot hold a design with a hole in it -- but they are filled with
-    tiles that stand for the dropped strands rather than for the
+    tiles that stand for the missing strands rather than for the
     incidental daylight, which is the whole difference.
   """
   pieces = []
@@ -303,7 +303,7 @@ def figure(name: str, readings, path: str) -> None:
     axis.relim()
     axis.autoscale()
   figure_.suptitle(f"{name}: the incidental daylight absorbed, so only a "
-                   f"dropped strand is left as a hole", fontsize=10)
+                   f"missing strand is left as a hole", fontsize=10)
   figure_.tight_layout(rect=(0, 0, 1, 0.88))
   figure_.savefig(path, dpi=140)
   plt.close(figure_)

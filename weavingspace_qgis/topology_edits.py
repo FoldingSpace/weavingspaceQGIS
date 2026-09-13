@@ -1326,7 +1326,7 @@ def _outline_of(covered):
 # The discussion is docs/process/the-topology-of-a-weave-and-its-holes.md.
 # NAMED FOR WHAT THE GAP IS BEING LIKENED TO, not for what it becomes.
 # The decision is which of the other two absences a strand-width gap
-# resembles: a dropped strand, which every reading counts, or an inset,
+# resembles: a missing strand, which every reading counts, or an inset,
 # which no reading counts. Calling the two readings "holes" and
 # "styling" named the consequence and hid the comparison, which is the
 # whole of the question (maintainer's correction, 2026-09-08).
@@ -1659,7 +1659,7 @@ def glue_the_aspect_holes(topology, kinds: dict) -> dict:
   closed by growing the strands. A quotient touches none of that.
 
   A HOLE THAT IS NOT FOUR-SIDED IS LEFT ALONE, since "opposite sides"
-  names nothing there, and a dropped strand's ground is never glued
+  names nothing there, and a missing strand's ground is never glued
   under either reading: a hyphen is a strand somebody left out, and
   what it opens is a hole in both readings.
   """

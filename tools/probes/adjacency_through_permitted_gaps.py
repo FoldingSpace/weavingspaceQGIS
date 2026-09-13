@@ -11,7 +11,7 @@ THIS IS THE STEP AFTER (the maintainer's framing, 2026-09-08). Take the
 typed tiling as the substrate and define adjacency as reachability
 THROUGH tiles of permitted kinds. An aspect tile is transparent,
 because the daylight a strand's own width opens is not a real
-separation; the band a dropped strand left is opaque, because that
+separation; the band a missing strand left is opaque, because that
 absence is the one gap a weave really has. The permitted set is a
 parameter rather than a rule baked into the code, so what a different
 choice would give can be measured rather than argued about.

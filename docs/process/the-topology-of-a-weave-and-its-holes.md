@@ -164,7 +164,7 @@ dependence cannot. A hole in a thin weave is not one thing: where a
 strand has been dropped, the band it would have occupied and the
 ordinary aspect gaps flanking it are different in kind and merely happen
 to touch. Two canonical cuts are available, and neither has any freedom
-in it. The strands code names the band a dropped strand left, so that
+in it. The strands code names the band a missing strand left, so that
 cut comes from the specification rather than from the geometry; and the
 daylight a strand's width opened divides by whose width opened it, which
 is a nearest-site partition with every strand grown at the same rate
@@ -182,7 +182,7 @@ hundred and thirty-six and two hundred and twenty-four.
 
 It is worth saying that the last two of those refused outright until the
 day this note was written, and that we recorded the refusal as a fact
-about weaves with dropped strands before looking into it. The two kinds
+about weaves with missing strands before looking into it. The two kinds
 of daylight were being measured in different frames. `daylight_by_kind`
 took the width daylight from `plane_coverage`, which measures one
 fundamental cell, and the conscious gap from a difference of tile
@@ -206,7 +206,7 @@ this project has now paid for twice in one investigation.
 
 Once every hole tile carries its kind, an edge of the resulting
 structure can be asked what it lies between: two strands, a strand and
-its own daylight, or a strand and a dropped strand's band. Two uses
+its own daylight, or a strand and a missing strand's band. Two uses
 suggested themselves and both were built. The first contracts across the
 incidental daylight and refuses to contract across a hyphen, which is
 the maintainer's own framing of what a weave's structure ought to ignore
@@ -224,7 +224,7 @@ over each hyphen weave, once respecting the hyphen and once joining
 across every gap alike, it returns the same graph both ways: on `twill
 weave a|b-` eight strands and thirteen pairs either way, on `plain weave
 ab-|cd-` sixteen and thirty-one, and the count of pairs the hyphen
-withholds is zero in both. The strands a dropped strand separates are,
+withholds is zero in both. The strands a missing strand separates are,
 on these weaves, not adjacent for other reasons anyway, so a rule
 written to refuse them refuses nothing.
 
@@ -291,7 +291,7 @@ construction here survives, and each row names the probe it came from.
 |---|---|---|
 | a tiling, for scale (`laves 3.3.4.3.4`) | 2 edge, 2 vertex | not applicable |
 | holes kept as tiles, cut as the difference gives them | 10 edge, 7 vertex | invariant here, moves on a twill |
-| holes kept as tiles, cut by kind | 30 edge, 20 vertex | invariant, and refused on both weaves with a dropped strand |
+| holes kept as tiles, cut by kind | 30 edge, 20 vertex | invariant, and refused on both weaves with a missing strand |
 | daylight absorbed, then classes taken | 11 edge, 7 vertex | invariant, and three weaves of four refuse the step |
 | relations between strands | 1 alongside, 1 crossing | invariant |
 | strand classes from the interlacement | 1 class of 4 strands | the aspect is not an input |
@@ -370,7 +370,7 @@ output. A strand is a whole ribbon, named by its letter and direction,
 continuous even where the drawing cuts it. A crossing carries which
 strand rides over. A float is a run of crossings a strand rides over
 without dipping, which is what a weaver means by the structure of a
-cloth. A dropped strand is absent from the model rather than being a
+cloth. A missing strand is absent from the model rather than being a
 hole in it, since the code says it was never threaded.
 
 ![The interlacement of three families, read from the code: a filled cell is a crossing the warp rides over. From tools/probes/the_weave_as_an_interlacement.py.](images/holes-as-tiles/the-interlacement-of-three-families.png)
@@ -404,13 +404,13 @@ strands, a twill stepping by a constant amount, which is what draws its
 diagonal, where a basket repeats in blocks. With that second reading the
 three biaxial families come apart.
 
-The dropped strand then behaves as one would want without a rule written
+The missing strand then behaves as one would want without a rule written
 for it, which is the sign that the model is doing the work rather than
 our bookkeeping. `twill weave a|b-` has six strands rather than eight,
 the missing one absent rather than hollow, and its neighbours' floats
 lengthen, which is what happens in cloth when a strand is left out. Its
 two directions differ as well, `(2)` one way against `(1, 0, 1)` the
-other, and that asymmetry is right: dropping a strand from one direction
+other, and that asymmetry is right: leaving a strand out from one direction
 is not a symmetric act, and a structure that reported it as one would be
 describing a different cloth.
 
@@ -506,7 +506,7 @@ disagreement in shape would be a disagreement whatever the naming, which
 is what makes the test worth running at all; even so, an agreement in
 shape is weaker than an agreement in membership, which the next section
 takes up. Five weaves, moreover, is five weaves. It is the biaxial
-families in the catalogue, with and without a dropped strand, and it is
+families in the catalogue, with and without a missing strand, and it is
 not the whole catalogue.
 
 ## The membership question, and the handle that answers it
@@ -567,11 +567,11 @@ picture says why any particular piece of it is empty. Three mechanisms
 open it, and separating them settles most of what a weave's structure
 ought to ignore.
 
-![One plain weave carrying all three at once: the inset ring, the aspect daylight, and the bands two dropped strands left. From tools/probes/three_kinds_of_absence.py.](images/holes-as-tiles/three-kinds-of-absence.png)
+![One plain weave carrying all three at once: the inset ring, the aspect daylight, and the bands two missing strands left. From tools/probes/three_kinds_of_absence.py.](images/holes-as-tiles/three-kinds-of-absence.png)
 
 On `plain weave ab-|cd-` at aspect 0.6 with a tile inset of a tenth of
 the spacing, the inset ring is 0.22 of the ground the design would
-occupy at full width, the aspect daylight 0.16 and the dropped strands'
+occupy at full width, the aspect daylight 0.16 and the missing strands'
 bands 0.27 (`tools/probes/three_kinds_of_absence.py`). Three quantities
 of the same order, three mechanisms of quite different standing, and
 nothing in the drawing to tell them apart.
@@ -627,7 +627,7 @@ attributed to whichever strand it replaces. The third is the
 'interlacement': strands are continuous ribbons, a crossing carries
 which of the two rides over, and no polygon has been drawn at all.
 
-| | inset | aspect | dropped strand |
+| | inset | aspect | missing strand |
 |---|---|---|---|
 | Filled tiling's classes | invisible, where the structure is built before the inset | filled, and every filler tile brings its own edges | not filled, because the code says it was never threaded |
 | Strand adjacency | invisible, same reason | absorbed into the strand it replaces | absent, and the neighbours are simply not adjacent |
@@ -689,7 +689,7 @@ already holds for the zigzag, hold what was asked and clamp on the way
 to the screen rather than writing the clamp back into the record, where
 it would ratchet and never give the value back when the design regained
 room. And a hyphen is a change of design rather than of appearance:
-dropping a strand changes the set of strands and so the alphabet an edit
+leaving a strand out changes the set of strands and so the alphabet an edit
 was aimed at, which is the case the existing rule about a shelf key
 already covers, the replay applying what matches and reporting which
 edits now point at a changed design. Typing a hyphen ought to report as
@@ -716,7 +716,7 @@ than what it replaced.
 ## The reading is applied by rebuilding, not by labelling a region
 
 The first correction came from a mark-up of the drawing. One aperture in
-a weave with a dropped strand is not of one provenance: part of it would
+a weave with a missing strand is not of one provenance: part of it would
 be there with every strand threaded, and part only because one is
 missing. Labelling apertures by cause therefore forces a combination per
 aperture, and there are three causes, so eight combinations. Worse,

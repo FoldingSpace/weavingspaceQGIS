@@ -83,7 +83,7 @@ agreeing in shape read from the code or from the polygons. The fourth
 separates the three ways a weave's ground can be empty, which look
 alike and are not the same kind of thing: an inset is a display
 setting applied last, an aspect gap is incidental and cannot be undone
-by rebuilding, and a dropped strand is declared by the code and is not
+by rebuilding, and a missing strand is declared by the code and is not
 a hole at all. It then says what an edit on a weave would have to
 preserve to be the analogue of an edit on a tiling, which is the
 interlacement rather than the cover. The fifth is the record of

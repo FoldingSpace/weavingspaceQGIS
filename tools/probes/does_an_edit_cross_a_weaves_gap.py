@@ -331,7 +331,7 @@ def _draw_reading(axis, name: str, reading: str, cells: float,
   # different reasons and "gaps" alone does not say which is being
   # decided about, which is the whole of the question (maintainer's
   # correction, 2026-09-11).
-  says = ("aspect gaps COUNT, as a dropped strand's gap does"
+  says = ("aspect gaps COUNT, as a missing strand's gap does"
           if reading == te.ASPECT_LIKE_A_DROP
           else "aspect gaps IGNORED, as an inset's gaps are")
   says += ("\nAND classes kept on one strand family"
@@ -399,7 +399,7 @@ def figure(path: str, weaves=(FIGURE_WEAVE,), cells: float = 1.15,
     f"The middle pair asks whether aspect gaps count. Each wing is that "
     f"column's own refinement, where a class may not hold edges of both "
     f"strand families.\n"
-    f"A dropped strand's ground counts under both readings; an inset's "
+    f"A missing strand's ground counts under both readings; an inset's "
     f"counts under neither. Only the aspect gap is in question.\n"
     f"The aimed-at class is thick with a filled label. Dashed is where "
     f"each ribbon was. Peach moved, blue did not, cream is the filler.",
@@ -485,7 +485,7 @@ def labelled_figure(path: str) -> None:
     axis.set_aspect("equal")
     axis.axis("off")
     axis.set_title(
-      f"{'gaps count, like a dropped strand' if reading == te.ASPECT_LIKE_A_DROP else 'gaps ignored, like an inset'}\n"
+      f"{'gaps count, like a missing strand' if reading == te.ASPECT_LIKE_A_DROP else 'gaps ignored, like an inset'}\n"
       f"{len(order)} edge class(es): {', '.join(order)}",
       fontsize=10, pad=8)
   figure_.suptitle(

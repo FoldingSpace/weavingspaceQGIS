@@ -12,7 +12,7 @@ ordinary aspect gaps flanking it, and those are different things that
 happen to touch. Cut a hole into tiles by what each piece is FOR, and
 the decomposition stops being arbitrary:
 
-  the band a dropped strand left empty, which the strands code names
+  the band a missing strand left empty, which the strands code names
   the daylight strand WIDTH opened, which divides again by the strand
     whose width opened it -- the nearest-strand share
 
@@ -116,7 +116,7 @@ def typed_hole_tiles(strands, width, conscious) -> list:
   Args:
     strands: the weave's own tiles.
     width: the daylight strand width opened, as components.
-    conscious: the band a dropped strand left, as components.
+    conscious: the band a missing strand left, as components.
 
   Returns:
     A list of (kind, polygon, owner) where kind is "aspect" or

@@ -1,4 +1,4 @@
-"""Insets, aspect and dropped strands: three absences that look alike.
+"""Insets, aspect and missing strands: three absences that look alike.
 
 A thin weave's drawing is full of empty ground, and the eye cannot
 tell one kind of emptiness from another. Three mechanisms open it, and
@@ -10,7 +10,7 @@ they are different KINDS of thing:
   an ASPECT gap is the daylight a strand narrower than its spacing
     leaves, incidental to the design and not removable by rebuilding
     at 1.0, which fuses same-label pieces into a different design
-  a DROPPED STRAND is declared by a hyphen in the strands code, and
+  a MISSING STRAND is declared by a hyphen in the strands code, and
     is the one absence the specification itself asserts
 
 This probe draws all three at once on a weave that has all three, so
@@ -169,7 +169,7 @@ def the_three_absences(path: str) -> dict:
      [(parts_of(ring), INSET_FILL, "#8fa8cd"), strands_last]),
     ("the aspect daylight, incidental",
      [(width, ASPECT_FILL, "#9a9a9a"), strands_last]),
-    ("the dropped strands, declared",
+    ("the missing strands, declared",
      [(conscious, DROPPED_FILL, "#c8a15a"), strands_last]),
   )
   for axis, (title, layers) in zip(axes, panels):
@@ -303,7 +303,7 @@ def main() -> None:
   print(f"  strand pieces           {found['strands']}")
   print(f"  inset ring              {found['inset_area']:.4f} of the ground")
   print(f"  aspect daylight         {found['aspect_area']:.4f}")
-  print(f"  dropped strands' bands  {found['dropped_area']:.4f}")
+  print(f"  missing strands' bands  {found['dropped_area']:.4f}")
   what_makes_an_edit_admissible(
     os.path.join(IMAGES, "what-an-edit-must-preserve.png"))
   print(f"\nfigures written to {IMAGES}")

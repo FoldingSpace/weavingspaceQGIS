@@ -3530,7 +3530,7 @@ class TopologyPanel(QWidget):
 
     Returns:
       "like-a-drop" where the daylight a strand width opens counts in
-      the structure as a dropped strand's ground does, or
+      the structure as a missing strand's ground does, or
       "like-an-inset" where it is glued away as an inset's is.
     """
     data = self.aspect_reading.currentData()

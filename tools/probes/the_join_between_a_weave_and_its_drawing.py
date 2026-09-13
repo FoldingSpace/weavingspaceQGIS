@@ -505,7 +505,7 @@ def membership(spec: dict, drawing: dict) -> dict:
   matches and the answer is reported as UNDECIDABLE rather than as a
   success, which would otherwise be the instrument agreeing with
   itself. It bites on a weave whose strands differ, which is what a
-  dropped strand produces.
+  missing strand produces.
   """
   code = floats_from_the_code(spec)
   drawn = {}

@@ -207,7 +207,7 @@ def abuts(region, other, reach: float = 1e-2) -> bool:
 
 
 def adjacency_with_a_veto(strands, width, conscious) -> tuple:
-  """Adjacency where a dropped strand PROHIBITS a join, rather than
+  """Adjacency where a missing strand PROHIBITS a join, rather than
   merely failing to make one.
 
   Args:
@@ -221,9 +221,9 @@ def adjacency_with_a_veto(strands, width, conscious) -> tuple:
 
   WHY A VETO RATHER THAN AN OMISSION. (Maintainer's proposal,
   2026-09-08.) Simply not bridging across conscious ground changes
-  nothing measurable: the strands either side of a dropped strand turn
+  nothing measurable: the strands either side of a missing strand turn
   out to be joined by some other route anyway. But the ground beside a
-  dropped strand is geometrically indistinguishable from ordinary
+  missing strand is geometrically indistinguishable from ordinary
   daylight while meaning something else, and a rule that reads it as
   ordinary will join strands the person deliberately separated. So a
   width component that ABUTS conscious ground is refused as a bridge:
@@ -252,7 +252,7 @@ def adjacency_with_a_veto(strands, width, conscious) -> tuple:
 
 
 def adjacency_with_a_targeted_veto(strands, width, conscious) -> tuple:
-  """Adjacency where a dropped strand vetoes only the pairs it lies BETWEEN.
+  """Adjacency where a missing strand vetoes only the pairs it lies BETWEEN.
 
   Args:
     strands: the weave's own tiles.
@@ -264,11 +264,11 @@ def adjacency_with_a_targeted_veto(strands, width, conscious) -> tuple:
 
   BETWEEN THE TWO RULES THAT BRACKET THE ANSWER. Declining to bridge
   across conscious ground changes nothing, because the fabric routes
-  around a dropped strand; refusing every width component that abuts
+  around a missing strand; refusing every width component that abuts
   conscious ground refuses almost all of them, since the empty slot is
   a long band that most of the daylight touches somewhere, and it
   isolates most of the strands. This asks the narrower question the
-  proposal is really about: does the dropped strand lie BETWEEN these
+  proposal is really about: does the missing strand lie BETWEEN these
   two strands? The segment joining their nearest points is tested
   against the conscious ground, so a join is refused exactly where
   taking it would cross the slot the person left empty.
@@ -440,7 +440,7 @@ def figure_the_hyphen_is_respected(name: str, path: str) -> tuple:
   ignoring["pairs"] = reading["through_all"]
   draw_structure(axes[1], ignoring,
                  f"contracting every gap\n{len(reading['through_all'])} pairs")
-  figure.suptitle(f"{name}: a dropped strand is an absence, not a gap "
+  figure.suptitle(f"{name}: a missing strand is an absence, not a gap "
                   f"to read across", fontsize=10)
   figure.tight_layout(rect=(0, 0, 1, 0.88))
   figure.savefig(path, dpi=140)
@@ -481,7 +481,7 @@ def main() -> None:
     print(f"    each cut in half   : {cut['fingerprint']}")
     print(f"    {'the halves lose adjacency, so the rule must take components whole' if whole['fingerprint'] != cut['fingerprint'] else 'unchanged here, which does not make the requirement idle'}")
 
-  print("\n=== is a dropped strand ever a gap that separates? ===")
+  print("\n=== is a missing strand ever a gap that separates? ===")
   for name in HYPHENS:
     slug = name.replace(" ", "-").replace("|", "_")
     honouring, ignoring, added = figure_the_hyphen_is_respected(
@@ -510,7 +510,7 @@ def main() -> None:
     aimed, aimed_withheld = adjacency_with_a_targeted_veto(
       reading["tiles"], reading["width"], reading["conscious"])
     print(f"    targeted veto: {fingerprint(reading['tiles'], aimed)}")
-    print(f"      the dropped strand lies between "
+    print(f"      the missing strand lies between "
           f"{len(aimed_withheld)} pair(s) {aimed_withheld[:6]}")
 
   print(f"\nfigures written to {IMAGES}")

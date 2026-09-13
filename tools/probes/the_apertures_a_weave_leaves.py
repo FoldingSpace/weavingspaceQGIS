@@ -17,7 +17,7 @@ low aspect opens should count as one. Two readings are open:
     conceptual full-width weave
 
 THE DISCRIMINATOR IS NOT A MATTER OF TASTE. An aperture left by two
-dropped strands SURVIVES as the strand width goes to one; an aperture
+missing strands SURVIVES as the strand width goes to one; an aperture
 opened by the strand width CLOSES. So the two readings can be told
 apart by measurement rather than argued, and what the choice costs can
 be measured too.

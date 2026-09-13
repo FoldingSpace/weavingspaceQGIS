@@ -27,7 +27,7 @@ The loom supplies the crossings; the structure is ours:
     passes over
   a FLOAT is a run of crossings a strand rides over without dipping,
     which is what a weaver means by the structure of a cloth
-  a DROPPED strand is absent from the model rather than being a hole in
+  a MISSING strand is absent from the model rather than being a hole in
     it, since the code says it was never threaded
 
 The comparison that matters is with a tiling, whose classes are few and
@@ -93,7 +93,7 @@ def loom_for(spec):
 
   Returns:
     (loom, warp, weft) with the two strand lists as the code gives
-    them, hyphens included so a dropped strand can be told from a
+    them, hyphens included so a missing strand can be told from a
     threaded one.
 
   NO GEOMETRY IS BUILT. This is the specification turned into its

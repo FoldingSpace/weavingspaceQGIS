@@ -1110,7 +1110,7 @@ skeleton, which is ruling 1 of C-346 already; an ASPECT gap is
 incidental and cannot be undone by rebuilding, since 1.0 fuses
 same-label pieces and a thin strand is LONGER along its axis, so the
 only treatment that ignores it entirely is one that measures no
-polygons; a DROPPED strand is declared by the code and is not a hole
+polygons; a MISSING strand is declared by the code and is not a hole
 at all but a strand that was never threaded, which is why ruling 2 of
 C-347 reads the hyphen rather than testing the geometry. Two of the
 three are handled by knowing something the picture does not contain,
@@ -1129,7 +1129,7 @@ survives provided a strand does not move across a crossing. The unit
 of aim is a STRAND CLASS rather than an edge class, so a weave edit
 must be recorded against a strand and never against a label that
 moves with the aspect. Changing the over and under, re-phasing, or
-dropping a strand are not edits of this kind at all: they compose a
+leaving a strand out are not edits of this kind at all: they compose a
 different cloth, and belong with the strands code.
 
 AND BOTH READINGS ARE BUILT, THE SECOND AS A QUOTIENT. A weave's
