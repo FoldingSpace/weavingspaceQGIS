@@ -1745,6 +1745,12 @@ def weave_topology(spec, spacing: float, aspect: float, crs=None,
   if filled is None:
     return None, None, kinds, None, note
   filled = modified(filled, modifiers)
+  # THE SCAFFOLD SAYS WHAT IT IS, on the unit the topology is of, so a
+  # question asked of the topology alone -- is there a dual to tile? --
+  # can tell a weave's structure from a tiling's (round ten, repairs25).
+  # It rides every copy the library and `apply` make, and a cloth cut
+  # from it carries no filler for the mark to name.
+  _mark_the_scaffold(filled, kinds)
   try:
     topology = _topology_class()(filled, True)
   except Exception as exc:                            # noqa: BLE001
@@ -3487,6 +3493,64 @@ def _is_its_own_half_turn(shape) -> bool:
     return False
 
 
+# WHAT THE OFFER AND THE MAP'S CHAIN BOTH SAY OF A THIN WEAVE, one
+# sentence so the two cannot drift apart (round ten, repairs25).
+SCAFFOLD_HAS_NO_DUAL = (
+  "This weave's structure is read with its gaps filled in, so it has no "
+  "dual of its own to tile with.")
+
+# WHERE A SCAFFOLDED UNIT KEEPS ITS OWN `kinds`, as an attribute of the
+# Tileable rather than of the Topology, since `apply` hands back a new
+# Topology per edit and the library copies the Tileable whole.
+_SCAFFOLD_KINDS = "_weavingspace_scaffold_kinds"
+
+
+def _mark_the_scaffold(unit, kinds) -> None:
+  """Record on a scaffolded unit which of its tiles are filler.
+
+  Args:
+    unit: the gap-free stand-in `weave_topology` built, or None.
+    kinds: the map `scaffolded_weave` returned, tile_id to kind.
+
+  Returns:
+    None; the unit gains an attribute holding a copy of `kinds`. Nothing
+    is marked where either is missing.
+  """
+  if unit is None or not kinds:
+    return
+  try:
+    setattr(unit, _SCAFFOLD_KINDS, dict(kinds))
+  except Exception:                                   # noqa: BLE001
+    pass
+
+
+def stands_on_scaffolding(topology) -> bool:
+  """Whether a topology is of a weave's scaffold rather than of a design.
+
+  Args:
+    topology: a built Topology, or None.
+
+  Returns:
+    True where the unit it is of still carries filler tiles its own
+    scaffold named, which is what a thin weave's topology is, edited or
+    not; False for a tiling, a weave that tiles at full width, a cloth
+    with its filler dropped, and None.
+
+  ASKED OF THE TILES, NOT OF THE MARK ALONE. `cloth_of` copies the
+  scaffold, mark and all, and drops the filler; a cloth is not a
+  scaffold, and its tiles say so.
+  """
+  unit = getattr(topology, "tileable", None)
+  kinds = getattr(unit, _SCAFFOLD_KINDS, None)
+  if not kinds:
+    return False
+  try:
+    return any(kinds.get(str(tile_id), "strand") != "strand"
+               for tile_id in unit.tiles["tile_id"])
+  except Exception:                                   # noqa: BLE001
+    return False
+
+
 def dual_on_offer(topology, promoted=None):
   """The dual a design can be tiled with, or the reason there is none.
 
@@ -3503,11 +3567,23 @@ def dual_on_offer(topology, promoted=None):
     person. Three refusals, each a different fact: no topology at all;
     a dual the library cannot lay out; a dual that would leave holes.
     The last is ruling 2 of 2026-09-05 -- a map with holes never ships
-    -- and is what the completed dual's coverage check guards.
+    -- and is what the completed dual's coverage check guards. A fourth,
+    before any of them: a topology of a weave's SCAFFOLD.
+
+  A THIN WEAVE HAS NO TOPOLOGY OF ITS OWN, ONLY ITS SCAFFOLD'S (ruling 1
+  of C-347: fill, take the topology, drop the filler), and the map's
+  dual is built from the design's own unit, which refuses. So the tab
+  offered the scaffold's dual and the press drew the source design in
+  the "— dual" group with its edits dropped (round ten, repairs25). What
+  a weave's dual should mean is not yet ruled; until it is, the offer
+  and the build give the same answer, which is the refusal ruling 2
+  names for a design with no topology.
   """
   if topology is None:
     return None, ("This design has no topology, so it has no dual to "
                   "tile with.")
+  if stands_on_scaffolding(topology):
+    return None, SCAFFOLD_HAS_NO_DUAL
   dual = promoted if promoted is not None else dual_as_tileable(topology)
   if dual is None:
     return None, "This design's dual cannot be laid out as a tiling."

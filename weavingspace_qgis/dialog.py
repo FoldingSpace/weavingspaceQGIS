@@ -6923,9 +6923,32 @@ class WeavingSpaceDialog(QDialog):
       chain = self._the_chain_of_this_map()
       level = 0
       for level, level_edits in enumerate(chain):
-        built, why = topology_edits.build(unit)
+        answer = topology_edits.build(unit)
+        built, why = answer
+        # EACH LEVEL IS BUILT AS THE TAB BUILT IT WHEN THE PRESS FROZE IT:
+        # a weave's own level under the weave's terms, every dual level as
+        # the tiling a dual is (`_weave_terms_at`). A weave built plainly
+        # here had the library's classes while its edits were aimed with
+        # the tab's refined ones (round ten, unreach13). ONLY WHERE THE
+        # PLAIN BUILD STANDS: a weave that needs scaffolding has no dual
+        # (`dual_on_offer` refuses its scaffold, round ten, repairs25), so
+        # the scaffold is never built here on the main thread for nothing.
+        terms = self._weave_terms_at(level) if built is not None else None
+        if terms is not None:
+          answer = topology_edits.build(unit, weave=terms)
+          built, why = answer[0], answer[1]
+        # ONLY THE EDITS FROZEN FOR THIS DESIGN, as the shelf's own key
+        # would have it: a family moved inside a dual group used to bend
+        # the new family's dual by the old one's labels (round ten,
+        # stoch14). Moving back brings them back.
+        level_edits = self._frozen_for_this_design(level, level_edits)
         if built is not None and level_edits:
-          edited, _refused, _state = topology_edits.apply(built, level_edits)
+          edited, refused, _state = topology_edits.apply(
+            built, level_edits, glue=answer[4] if len(answer) > 2 else None)
+          # AND WHAT THE REPLAY REFUSED OR FOUND MOVED IS SAID, as the
+          # tab says it for the shelf's edits; it was thrown away.
+          if refused:
+            self._report_quietly(" ".join(refused))
           rebuilt, why_edited = topology_edits.build(edited)
           if rebuilt is not None:
             built, why = rebuilt, why_edited
@@ -6994,6 +7017,112 @@ class WeavingSpaceDialog(QDialog):
       return 0
     chain = getattr(self, "_dual_chain", None)
     return len(chain) if chain else 1
+
+  def _weave_terms_at(self, depth):
+    """What a weave's topology is rebuilt from, at one depth of the chain.
+
+    Args:
+      depth: how many times over the design is dualled, 0 for itself.
+
+    Returns:
+      The dict `topology_edits.build` takes as `weave` -- the spec, the
+      spacing, the strand width, the typed strands, the tab's two
+      readings, the modifiers and the tile inset -- where the design is a
+      weave and the depth is 0; None for a tiling and for any dual. Read
+      on the MAIN THREAD, since the worker may not touch the controls.
+
+    H FOR WEAVES, G FOR TILES (maintainer's ruling of 2026-09-12), AND A
+    DUAL IS A TILING. The spec of a dual group is still the weave's, so
+    asking the spec alone sent a weave's terms for the dual too, and the
+    tab refined the dual tiling by warp and weft -- eight edge classes
+    where its own symmetry makes four, a zigzag on one moving two of the
+    four edges the class should hold (round ten, unreach13). One owner,
+    so the tab's build and the map's chain cannot come apart again.
+    """
+    from . import topology_edits
+    spec_now = self._current_spec()
+    if depth or spec_now is None or spec_now.get("type") != "weave":
+      return None
+    panel = getattr(self, "topology_panel", None)
+    terms = self._unit_kwargs()
+    return {
+      "spec": spec_now,
+      "spacing": terms.get("spacing"),
+      "aspect": terms.get("aspect"),
+      "strands": terms.get("strands"),
+      "reading": (panel.aspect_reading_in_force()
+                  if hasattr(panel, "aspect_reading_in_force")
+                  else topology_edits.ASPECT_LIKE_A_DROP),
+      "families": (panel.strand_families_in_force()
+                   if hasattr(panel, "strand_families_in_force")
+                   else topology_edits.WARP_AND_WEFT_APART),
+      # THE MODIFIERS, read here on the main thread, because a thin
+      # weave's topology is rebuilt from its settings and the unit the
+      # dialog rotated never reaches it (round ten, stoch12). The tile
+      # inset is applied to the cloth after the replay, an inset being
+      # gaps no topology can be built on.
+      "modifiers": {
+        "rotate": self.mod_rotate.value(),
+        "scale": (self.mod_scale_x.value(), self.mod_scale_y.value(),
+                  self.mod_glyph.isChecked()),
+        "skew": (self.mod_skew_x.value(), self.mod_skew_y.value()),
+      },
+      "tile_inset": (self.mod_t_inset.value() * terms.get("aspect", 1.0)
+                     * (terms.get("spacing") or 0.0) / 100),
+    }
+
+  def _frozen_for_this_design(self, depth, edits) -> list:
+    """The frozen edits of one chain level that belong to the design on screen.
+
+    Args:
+      depth: the level of the chain the edits were frozen for.
+      edits: that level's frozen edit list.
+
+    Returns:
+      The edits whose `frozen_for` names the shelf key of the design now
+      on screen at that depth, plus any carrying no such term -- a record
+      frozen before it existed, which can say nothing and is replayed as
+      it always was.
+
+    THE SHELF'S RULE, APPLIED TO THE FROZEN COPY. Edits are shelved by
+    family and element count, so a design moved away puts them away and
+    a design brought back returns them; the chain was frozen as a bare
+    list and followed nothing, so switching a dual group from `laves
+    3.3.4.3.4` to `hex-slice 4` drew and saved hex-slice 4's dual bent by
+    the laves zigzag, replayed by label, with the tab listing no changes
+    (round ten, stoch14).
+    """
+    from . import topology_edits
+    try:
+      here = topology_edits.shelf_key(self._family_key(),
+                                      self._element_count(), int(depth))
+    except Exception:                                 # noqa: BLE001
+      return list(edits or [])
+    return [edit for edit in edits or []
+            if edit.get("frozen_for") in (None, here)]
+
+  def _edits_a_replay_owes(self) -> bool:
+    """Whether the design on screen has edits a topology replay puts on.
+
+    Returns:
+      True where the shelf holds edits for the design at its own depth;
+      False otherwise, and False where the machinery is not set up.
+
+    NOT `_topology_edit_key`, which also carries a dual's FROZEN source
+    edits so the signatures and the frame cache move with them. Those are
+    applied by `_build_unit` itself and no replay ever lands them, so a
+    gate asking the key waited on a build it could not use and then said
+    the tab's changes were left off a map that was the edited design's
+    dual, with the tab listing none (round ten, unreach14).
+    """
+    try:
+      from . import topology_edits
+      key = topology_edits.shelf_key(self._family_key(),
+                                     self._element_count(),
+                                     self._dual_depth())
+      return bool((getattr(self, "_topology_shelf", None) or {}).get(key))
+    except Exception:                                 # noqa: BLE001
+      return False
 
   def _the_chain_of_this_map(self) -> list:
     """The frozen edit lists the map's dual is built through.
@@ -17271,7 +17400,7 @@ class WeavingSpaceDialog(QDialog):
     # edits are in force and `_restore_the_edited_unit` cannot put them
     # back, the unit about to be tiled is the wrong one, whatever the
     # task record says. Queue the build and keep the press.
-    if self._topology_edit_key() and not self._restore_the_edited_unit():
+    if self._edits_a_replay_owes() and not self._restore_the_edited_unit():
       # A PROMISE THAT CANNOT BE KEPT IS NOT RENEWED. (2026-08-31,
       # found by a hunt and measured at 81 builds in 20 seconds.) A
       # build has already answered about THIS design and came back
@@ -18649,7 +18778,7 @@ class WeavingSpaceDialog(QDialog):
     # queued choice would land against whatever the run leaves, which
     # is a design nobody has seen yet; the chooser is re-synced so it
     # goes on telling the truth.
-    if self._task is not None:
+    if self._task is not None or self._a_dual_press_is_waiting():
       self._report_quietly(
         "A map is still being generated; choose the group to work on "
         "once it finishes.")
@@ -24330,35 +24459,9 @@ class WeavingSpaceDialog(QDialog):
     # whatever is passed, so a weave at full width is not scaffolded.
     # The reading comes from the tab because it decides what the
     # classes are, and the tab is where somebody chooses among them.
-    weave_terms = None
-    spec_now = self._current_spec()
-    if spec_now is not None and spec_now.get("type") == "weave":
-      terms = self._unit_kwargs()
-      weave_terms = {
-        "spec": spec_now,
-        "spacing": terms.get("spacing"),
-        "aspect": terms.get("aspect"),
-        "strands": terms.get("strands"),
-        "reading": (panel.aspect_reading_in_force()
-                    if hasattr(panel, "aspect_reading_in_force")
-                    else topology_edits.ASPECT_LIKE_A_DROP),
-        "families": (panel.strand_families_in_force()
-                     if hasattr(panel, "strand_families_in_force")
-                     else topology_edits.WARP_AND_WEFT_APART),
-        # THE MODIFIERS, read here on the main thread, because a thin
-        # weave's topology is rebuilt from its settings and the unit the
-        # dialog rotated never reaches it (round ten, stoch12). The tile
-        # inset is applied to the cloth after the replay, an inset being
-        # gaps no topology can be built on.
-        "modifiers": {
-          "rotate": self.mod_rotate.value(),
-          "scale": (self.mod_scale_x.value(), self.mod_scale_y.value(),
-                    self.mod_glyph.isChecked()),
-          "skew": (self.mod_skew_x.value(), self.mod_skew_y.value()),
-        },
-        "tile_inset": (self.mod_t_inset.value() * terms.get("aspect", 1.0)
-                       * (terms.get("spacing") or 0.0) / 100),
-      }
+    # A DUAL GROUP'S SPEC IS STILL THE WEAVE'S, and its map is a tiling:
+    # the terms are asked at the map's own depth (round ten, unreach13).
+    weave_terms = self._weave_terms_at(self._dual_depth())
 
     def work(task):
       """The expensive half, on the worker thread."""
@@ -24964,8 +25067,14 @@ class WeavingSpaceDialog(QDialog):
     # so a press on a dual group takes the dual of the dual; the way
     # back to an earlier geometry is its own group, still in the
     # chooser.
+    # EACH FROZEN EDIT NAMES THE DESIGN IT WAS FROZEN FOR, so the chain
+    # replays it only onto that design, as the shelf would (round ten,
+    # stoch14).
+    frozen_for = topology_edits.shelf_key(
+      self._family_key(), self._element_count(), self._dual_depth())
     self._dual_chain = (self._the_chain_of_this_map()
-                        + [self._edits_of_the_source_design()])
+                        + [[dict(edit, frozen_for=frozen_for)
+                            for edit in self._edits_of_the_source_design()]])
     # THE DUAL WALKS THROUGH THE CREATE-NEW DOOR, so the path clears
     # here as it does there (row 9); a refusal puts it back below.
     self._a_new_map_does_not_inherit_the_file()
@@ -25009,6 +25118,27 @@ class WeavingSpaceDialog(QDialog):
     # having moved where the press was on a dual group.
     self._queue_preview()
     self._tell_the_panel_the_depth()
+
+  def _a_dual_press_is_waiting(self) -> bool:
+    """Whether the dual button's press is still coming back to `_generate`.
+
+    Returns:
+      True where a dual request stands and a press or live tick it made
+      is deferred -- waiting for a topology replay, say -- so a Generate
+      will return for it; False otherwise.
+
+    THE GROUP CHOOSER ASKS THIS BESIDE THE TASK, since a deferred dual
+    press is a run on its way with no task yet. Choosing group B in that
+    window restored B's record, then the press came back, took B's
+    restyle-only exit, and the settle read that as a refusal and put its
+    four stashed stores back OVER B's record: the new-group flag, the dual
+    box, the chain and the output path -- A's file, which the next Save
+    overwrote with B's map without a question (round ten, stores20).
+    """
+    if getattr(self, "_dual_request", None) is None:
+      return False
+    return bool(getattr(self, "_press_pending", False)
+                or getattr(self, "_live_pending", False))
 
   def _settle_a_dual_request(self) -> None:
     """Consume or revert the dual button's stores once a Generate ends.

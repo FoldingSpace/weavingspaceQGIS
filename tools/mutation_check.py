@@ -1514,7 +1514,7 @@ MUTATIONS = [
            "under a legend still listing the departed class"),
   dict(name="a-group-choice-waits-for-the-run",
        file=DIALOG,
-       old="""    if self._task is not None:
+       old="""    if self._task is not None or self._a_dual_press_is_waiting():
       self._report_quietly(
         "A map is still being generated; choose the group to work on "
         "once it finishes.")
@@ -2851,8 +2851,8 @@ MUTATIONS = [
   dict(name="a-weave-topology-is-built-on-the-modified-scaffold",
        file="weavingspace_qgis/topology_edits.py",
        old="""  filled = modified(filled, modifiers)
-  try:""",
-       new="""  try:""",
+  # THE SCAFFOLD SAYS WHAT IT IS""",
+       new="""  # THE SCAFFOLD SAYS WHAT IT IS""",
        test="test_an_edited_weave_keeps_its_rotation",
        why="one topology edit on a rotated thin weave draws the map "
            "un-rotated while the Rotate box keeps its value"),
@@ -3117,6 +3117,55 @@ MUTATIONS = [
        test="test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws",
        why="a two-direction code passing the box on a cube weave, "
            "whose unit is then never built"),
+  dict(name="a-weaves-scaffold-offers-no-dual", file=TOPOLOGY_EDITS,
+       # THE OFFER, which is what the button reads; the map's chain refuses
+       # a thin weave by its own plain build (round ten, repairs25).
+       old="""  if stands_on_scaffolding(topology):
+    return None, SCAFFOLD_HAS_NO_DUAL""",
+       new="""  if False:  # mutation: the scaffold's dual is offered""",
+       test="test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it",
+       why="the dual button offered on a thin weave, whose press tiles the "
+           "source design itself in a dual group with its edits dropped"),
+  dict(name="a-dual-is-built-with-a-tilings-terms", file=DIALOG,
+       # THE WHOLE DECISION, the one owner both the tab's build and the
+       # map's chain ask (round ten, unreach13).
+       old="""    if depth or spec_now is None or spec_now.get("type") != "weave":""",
+       new="""    if spec_now is None or spec_now.get("type") != "weave":  # mutation: depth unasked""",
+       test="test_a_weaves_dual_group_takes_the_classes_of_a_tiling",
+       why="the dual group of a full-width weave refining the dual tiling "
+           "by warp and weft, so an edit moved half the edges its class holds"),
+  dict(name="frozen-edits-owe-no-replay", file=DIALOG,
+       # THE GATE'S QUESTION: the frozen chain is applied by `_build_unit`
+       # and no replay lands it (round ten, unreach14).
+       old="""    if self._edits_a_replay_owes() and not self._restore_the_edited_unit():""",
+       new="""    if self._topology_edit_key() and not self._restore_the_edited_unit():  # mutation""",
+       test="test_a_dual_group_of_an_edited_design_draws_without_waiting",
+       why="every full run in the dual group of an edited design waiting on "
+           "a topology it cannot use, then saying the tab's changes were "
+           "left off a map that carries them"),
+  dict(name="a-frozen-edit-replays-only-onto-its-design", file=DIALOG,
+       # THE FILTER, which is the decision; the stamp at the freeze is
+       # its input (round ten, stoch14).
+       old="""    return [edit for edit in edits or []
+            if edit.get("frozen_for") in (None, here)]""",
+       new="""    return list(edits or [])  # mutation: onto whatever design""",
+       test="test_a_dual_groups_frozen_edits_follow_their_own_design",
+       why="a dual group moved to another family drawing and saving that "
+           "family's dual bent by the old family's edits, replayed by label"),
+  dict(name="a-group-choice-waits-for-a-dual-press", file=DIALOG,
+       # THE DUAL-PRESS TERM alone; the task term has its own entry
+       # (round ten, stores20).
+       old="""    return bool(getattr(self, "_press_pending", False)
+                or getattr(self, "_live_pending", False))
+
+  def _settle_a_dual_request(self) -> None:""",
+       new="""    return False  # mutation: a waiting dual press is not waited for
+
+  def _settle_a_dual_request(self) -> None:""",
+       test="test_a_group_chosen_while_a_dual_press_waits_keeps_its_own_file",
+       why="a group chosen while the dual button's press waited took the "
+           "saved group's file into its Save box, so the next Save "
+           "overwrote that file with another map"),
   dict(name="the-push-gain-is-frozen-at-the-press", file=TOPOLOGY_TAB,
        # Reading it live is the state the rail was in for an hour
        # after it gained a divisor: `_drawn()` is the drag's own
@@ -11851,9 +11900,9 @@ MUTATIONS = [
   dict(name="the-dual-is-of-the-design-as-edited",
        file=DIALOG,
        old="""        if built is not None and level_edits:
-          edited, _refused, _state = topology_edits.apply(built, level_edits)""",
+          edited, refused, _state = topology_edits.apply(""",
        new="""        if False:  # mutation: the dual of the catalogue unit
-          edited, _refused, _state = topology_edits.apply(built, level_edits)""",
+          edited, refused, _state = topology_edits.apply(""",
        test="test_the_dual_is_taken_of_the_design_as_edited",
        why="the dual button drawing and saving the dual of the design "
            "BEFORE the person's edits while the tab showed the edited "

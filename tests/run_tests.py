@@ -94048,6 +94048,445 @@ def test_a_weaves_dual_asks_no_search_of_a_rectangle():
     f"turn -- a rectangle's search is what froze QGIS at every landing")
 
 
+def _a_dual_test_dialog(family=None, count=None, kind=None, spacing=None,
+                        aspect=None):
+  """A dialog on one design, live update off, the Topology tab switched on.
+
+  Args:
+    family: the catalogue key to choose, or None for the dialog's own.
+    count: the element count to set first, or None to leave it.
+    kind: "weave" or "tiling" to set first, or None to leave it.
+    spacing: the spacing to type, or None to leave it.
+    aspect: a weave's strand width, or None to leave it.
+
+  Returns:
+    (dialog, layer): the dialog shown, with a region layer in the
+    project and the tab's topology answered.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  layer = make_region_layer()
+  QgsProject.instance().addMapLayer(layer)
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  dlg.live_check.setChecked(False)
+  dlg.opt_experimental.setChecked(True)
+  dlg.show()
+  _tick(200)
+  if kind is not None:
+    dlg.kind_combo.setCurrentText(kind)
+    _tick(200)
+  if count is not None:
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+  if family is not None:
+    _choose_family(dlg, family)
+    _tick(200)
+  if spacing is not None:
+    dlg.spacing_spin.setValue(float(spacing))
+  if aspect is not None:
+    dlg.opt_aspect.setValue(float(aspect))
+  _tick(300)
+  _settle(dlg, seconds=60)
+  _wait_for_the_topology(dlg, seconds=120)
+  return dlg, layer
+
+
+def _dual_areas_from_the_settings(family, count, spacing, edits=()):
+  """The tile areas of a design's dual, built from its settings alone.
+
+  Args:
+    family: the catalogue key.
+    count: the element count.
+    spacing: the spacing.
+    edits: an edit list replayed onto the design before its dual is
+      taken, or () for the plain design.
+
+  Returns:
+    The sorted tile areas of the dual, rounded to a part in a thousand
+    of the largest, so two duals compare as ground rather than as
+    coordinate sequences.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  unit = catalog.make_unit(catalog.TILINGS_BY_N[count][family],
+                           spacing=spacing, crs=None)
+  built, why = topology_edits.build(unit)
+  assert built is not None, f"PREMISE: {family} has no topology: {why}"
+  if edits:
+    edited, _refused, _state = topology_edits.apply(built, list(edits))
+    built, why = topology_edits.build(edited)
+    assert built is not None, f"PREMISE: the edited {family} has no topology: {why}"
+  dual = topology_edits.dual_as_tileable(built)
+  assert dual is not None, f"PREMISE: {family} has no dual"
+  areas = [float(g.area) for g in dual.tiles.geometry]
+  scale = max(areas)
+  return sorted(round(a / scale, 3) for a in areas)
+
+
+def _unit_areas(unit):
+  """The dialog unit's tile areas in the form `_dual_areas_from_the_settings` gives.
+
+  Args:
+    unit: a Tileable.
+
+  Returns:
+    Sorted tile areas relative to the largest, to three places.
+  """
+  areas = [float(g.area) for g in unit.tiles.geometry]
+  scale = max(areas)
+  return sorted(round(a / scale, 3) for a in areas)
+
+
+def test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it():
+  """On a thin weave the dual button refuses, as the map's own build does.
+
+  The tab's topology on a weave below full width is its SCAFFOLD's, the
+  daylight filled so a topology can be built (ruling 1 of C-347), and the
+  offer asked that topology -- so the button was enabled. The map's dual
+  is taken in `_build_unit` from the design's own unit, which refuses, so
+  the press made a "— dual" group tiled with the source design itself,
+  edits dropped, with a quiet sentence. What a weave's dual should mean
+  is not ruled; the offer and the map now give the same answer.
+
+  THE EXPECTATION COMES FROM THE SETTINGS: the unit built from the
+  catalogue at this strand width is asked directly whether it carries a
+  topology, and the scaffold's own dual is asked whether it would have
+  been offered, so the case can go red.
+
+  Regression: "Generate the dual and tile it" on a thin weave made a dual group whose map and saved tiles were the source design itself, its edits dropped, while the file's dual table held the scaffold's. [hunt]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  spacing, aspect = WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT
+  plain = catalog.make_unit(catalog.TILINGS_BY_N[count][name],
+                            spacing=spacing, crs=None, aspect=aspect)
+  own, _why = topology_edits.build(plain)
+  assert own is None, \
+    "PREMISE: the thin weave tiles as it stands, so the map could take its dual"
+  dlg, _layer = _a_dual_test_dialog(name, count, "weave", spacing, aspect)
+  try:
+    panel = dlg.topology_panel
+    assert panel._topology is not None, \
+      f"PREMISE: the tab holds no topology: {panel.note.text()!r}"
+    scaffold_dual = topology_edits.dual_as_tileable(panel._topology)
+    assert scaffold_dual is not None \
+        and topology_edits.covers_its_cell(scaffold_dual) is True, \
+      "PREMISE: the scaffold has no whole dual, so the old offer refused too"
+    _generate_and_wait(dlg)
+    assert dlg._task is None and dlg._element_layer_ids, \
+      "PREMISE: the source map did not land"
+    groups_before = {g.name() for g in
+                     QgsProject.instance().layerTreeRoot().findGroups()}
+    assert not panel.dual_button.isEnabled(), (
+      f"the dual button is offered on a thin weave whose own unit carries "
+      f"no topology, so a press tiles the design itself in a dual group; "
+      f"its tooltip reads {panel.dual_button.toolTip()!r}")
+    assert panel.dual_button.toolTip(), \
+      "the disabled button does not say why"
+    dlg._generate_the_dual()             # the press the button would make
+    _settle(dlg, seconds=60)
+    groups_after = {g.name() for g in
+                    QgsProject.instance().layerTreeRoot().findGroups()}
+    assert groups_after == groups_before and not dlg._mapping_the_dual(), (
+      f"the press on a thin weave made {sorted(groups_after - groups_before)} "
+      f"with mapping_the_dual={dlg._mapping_the_dual()}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_weaves_dual_group_takes_the_classes_of_a_tiling():
+  """In the dual group of a full-width weave the tab's classes are the dual tiling's.
+
+  A dual is a tiling ("H for weaves, G for tiles"), but the spec of a dual
+  group is still the weave's, and the build was handed the weave's terms
+  whenever the spec was a weave: the dual tiling was refined by warp and
+  weft, eight edge classes where its own symmetry makes four, so an edit
+  on one class moved two of the four edges the class should hold.
+
+  THE EXPECTATION COMES FROM THE SETTINGS: the weave is built from the
+  catalogue at full width, its dual taken, and the dual's classes read
+  with no weave terms. The premise asks that the refinement would have
+  split them, so the case can go red.
+
+  Regression: in the dual group of a weave at full width the Topology tab refined the dual tiling by warp and weft, so a zigzag on one class moved half the edges that class holds. [hunt]
+  """
+  from weavingspace_qgis import catalog, topology_edits
+
+  name, count, spacing = "plain weave ab-|c", 3, 1000.0
+  spec = catalog.TILINGS_BY_N[count][name]
+  unit = catalog.make_unit(spec, spacing=spacing, crs=None, aspect=1.0)
+  source, _why = topology_edits.build(unit)
+  assert source is not None, "PREMISE: the weave does not tile at full width"
+  dual = topology_edits.dual_as_tileable(source)
+  assert dual is not None, "PREMISE: the weave has no dual"
+  as_a_tiling = topology_edits.class_labels(topology_edits.build(dual)[0])["edge"]
+  refined = topology_edits.class_labels(topology_edits.build(dual, weave={
+    "spec": spec, "spacing": spacing, "aspect": 1.0,
+    "families": topology_edits.WARP_AND_WEFT_APART})[0])["edge"]
+  assert len(refined) > len(as_a_tiling), (
+    f"PREMISE: warp and weft apart gives the dual {refined}, no finer than "
+    f"{as_a_tiling}, so nothing here can tell the two builds apart")
+  dlg, _layer = _a_dual_test_dialog(name, count, "weave", spacing, 1.0)
+  try:
+    panel = dlg.topology_panel
+    assert panel._topology is not None, "PREMISE: the weave has no topology on the tab"
+    _generate_and_wait(dlg)
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    assert dlg._mapping_the_dual(), "PREMISE: the dual group did not land"
+    assert len(dlg._unit.tiles) == len(dual.tiles), (
+      f"PREMISE: the dual group's unit has {len(dlg._unit.tiles)} tiles "
+      f"where the dual from the settings has {len(dual.tiles)}")
+    stamp = dlg._topology_stamp()
+    import time as _time
+    deadline = _time.monotonic() + 120 * CONTENTION
+    while _time.monotonic() < deadline:
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+      if panel._topology is not None and getattr(dlg, "_topology_task", None) is None \
+          and len(panel._topology.tileable.tiles) == len(dual.tiles):
+        break
+    assert panel._topology is not None and dlg._topology_stamp() == stamp, \
+      "PREMISE: the dual group's topology never landed"
+    offered = topology_edits.class_labels(panel._topology)["edge"]
+    assert offered == as_a_tiling, (
+      f"the dual group's tab offers edge classes {offered}; the dual tiling "
+      f"has {as_a_tiling}, and warp and weft apart would give {refined}")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_dual_group_of_an_edited_design_draws_without_waiting():
+  """A full run in the dual group of an edited design launches at the press.
+
+  The dual group carries its source's edits frozen in its chain, and
+  `_build_unit` applies them itself. The signature key carries them too,
+  deliberately, and the Generate gate read that key as edits a topology
+  replay owed: every full run waited on a build it could not use, and
+  then said the Topology tab's changes were left off a map that WAS the
+  edited design's dual, with the tab listing none.
+
+  THE EXPECTATION COMES FROM THE SETTINGS: the dual of the edited design
+  at the new spacing, built from the catalogue with the same edit, and
+  the premise that it differs from the plain design's dual.
+
+  Regression: after a spacing change in the dual group of an edited design, every Generate waited on a topology build and then said the Topology-tab changes were left off the map, which was in fact the edited design's dual. [hunt]
+  """
+  family, count = "laves 3.3.4.3.4", 4
+  edit = {"classes": "b", "how": "zigzag_edge",
+          "args": {"n": 2, "h": 0.25, "smoothness": 3}}
+  dlg, _layer = _a_dual_test_dialog(family, count, "tiling", 600.0)
+  try:
+    panel = dlg.topology_panel
+    before = _unit_tiles(dlg)
+    panel._record(dict(edit))
+    import time as _time
+    deadline = _time.monotonic() + 90 * CONTENTION
+    while _time.monotonic() < deadline and not _unit_ground_moved(dlg, before):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert _unit_ground_moved(dlg, before), "PREMISE: the edit never reached the unit"
+    _generate_past_the_topology(dlg)
+    assert panel.dual_button.isEnabled(), \
+      f"PREMISE: the dual is not offered: {panel.dual_button.toolTip()!r}"
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    _settle_topology(dlg, seconds=60)
+    _settle(dlg, seconds=60)
+    assert dlg._mapping_the_dual() and dlg._dual_chain, \
+      "PREMISE: the dual group did not land with its source's edits"
+    assert dlg._topology_edit_key(), \
+      "PREMISE: the key carries no frozen edits, so the old gate could not wait"
+    spacing = 750.0
+    edited = _dual_areas_from_the_settings(family, count, spacing, [edit])
+    plain = _dual_areas_from_the_settings(family, count, spacing)
+    assert edited != plain, "PREMISE: the edit leaves the dual unchanged"
+    dlg.spacing_spin.setValue(spacing)
+    _tick(600)
+    dlg._generate()
+    launched = dlg._task is not None
+    waiting = bool(dlg._press_pending)
+    _settle(dlg, seconds=120)
+    _settle_topology(dlg, seconds=60)
+    _settle(dlg, seconds=120)
+    assert launched and not waiting, (
+      f"the Generate in the dual group of an edited design did not launch at "
+      f"the press (launched={launched}, deferred={waiting}): it waited for a "
+      f"topology replay that the frozen edits never need")
+    assert dlg._task is None, "PREMISE: the run never landed"
+    got = _unit_areas(dlg._unit)
+    assert got == edited, (
+      f"the dual group's unit is not the dual of the edited design at "
+      f"spacing {spacing}: {len(got)} tiles, matching the plain dual "
+      f"{got == plain}")
+    landed = []
+    for lid in dlg._element_layer_ids.values():
+      lyr = QgsProject.instance().mapLayer(lid)
+      landed += [f.geometry().area() for f in lyr.getFeatures()]
+    assert landed, "PREMISE: no element layer landed"
+    whole = [float(g.area) for g in dlg._unit.tiles.geometry]
+    matching = sum(1 for a in landed
+                   if any(abs(a - t) / max(t, 1e-9) < 0.01 for t in whole))
+    assert matching > len(landed) // 2, (
+      f"of {len(landed)} landed tiles only {matching} match the edited dual's "
+      f"tiles, so the map is not the unit the run was given")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_dual_groups_frozen_edits_follow_their_own_design():
+  """A dual group moved to another family draws that family's plain dual.
+
+  The chain froze the source's edits as a bare list, and `_build_unit`
+  replayed it onto whatever design was on screen: a dual group of laves
+  3.3.4.3.4 with a zigzag on `b`, moved to hex-slice 4, drew and saved
+  hex-slice 4's dual bent by the laves zigzag, replayed by label, the tab
+  listing no changes. The shelf's own rule is the answer -- edits belong
+  to the family and count they were made on, and come back with it.
+
+  THE EXPECTATIONS COME FROM THE SETTINGS: each family's dual built from
+  the catalogue, plain and with the edit, and a premise that the edit
+  bends hex-slice 4's dual when replayed by label. The return leg is the
+  control a repair that simply dropped the chain would fail.
+
+  Regression: in a dual group made from an edited design, switching the family drew and saved the new family's dual bent by the old family's edits, replayed by label, with nothing listed on the tab. [hunt]
+  """
+  family, other, count, spacing = "laves 3.3.4.3.4", "hex-slice 4", 4, 600.0
+  edit = {"classes": "b", "how": "zigzag_edge",
+          "args": {"n": 2, "h": 0.25, "smoothness": 3}}
+  bent = _dual_areas_from_the_settings(other, count, spacing, [edit])
+  other_plain = _dual_areas_from_the_settings(other, count, spacing)
+  assert bent != other_plain, \
+    f"PREMISE: the laves edit replayed by label leaves {other}'s dual unchanged"
+  source_edited = _dual_areas_from_the_settings(family, count, spacing, [edit])
+  dlg, _layer = _a_dual_test_dialog(family, count, "tiling", spacing)
+  try:
+    panel = dlg.topology_panel
+    before = _unit_tiles(dlg)
+    panel._record(dict(edit))
+    import time as _time
+    deadline = _time.monotonic() + 90 * CONTENTION
+    while _time.monotonic() < deadline and not _unit_ground_moved(dlg, before):
+      _settle_topology(dlg, seconds=5)
+      _tick(200)
+    assert _unit_ground_moved(dlg, before), "PREMISE: the edit never reached the unit"
+    _generate_past_the_topology(dlg)
+    panel.dual_button.click()
+    _settle(dlg, seconds=120)
+    _settle_topology(dlg, seconds=60)
+    _settle(dlg, seconds=60)
+    assert dlg._mapping_the_dual() and dlg._dual_chain, \
+      "PREMISE: the dual group did not land with its source's edits"
+    assert _unit_areas(dlg._unit) == source_edited, \
+      "PREMISE: the dual group is not the dual of the edited design"
+    _choose_family(dlg, other)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert dlg._family_key() == other and dlg._mapping_the_dual(), \
+      "PREMISE: the family move left the dual group"
+    got = _unit_areas(dlg._unit)
+    assert got == other_plain, (
+      f"the dual group moved to {other} draws {'the dual bent by the ' + family + ' edit' if got == bent else 'neither dual'}"
+      f" rather than {other}'s plain dual")
+    _choose_family(dlg, family)
+    _tick(300)
+    _settle(dlg, seconds=90)
+    assert _unit_areas(dlg._unit) == source_edited, (
+      f"moving the dual group back to {family} did not bring its frozen "
+      f"edits back: the unit is not the dual of the edited design")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+
+
+def test_a_group_chosen_while_a_dual_press_waits_keeps_its_own_file():
+  """A group chosen while the dual button's press waits keeps its own stores.
+
+  The press on saved group A was deferred for a topology replay, with no
+  task yet, and the chooser refused only while a task ran. Choosing a
+  never-saved group B restored B's record; the press came back, took B's
+  restyle exit, and the settle read that as a refusal and put its four
+  stashed stores back OVER B's record -- the new-group flag, the dual box,
+  the chain and the output path, which was A's file. The next Save
+  overwrote A's file with B's map with no question.
+
+  THE EXPECTATION COMES FROM THE SETTINGS: B was never saved, so while B
+  is the chosen group its Save box is empty and it is not a dual's map.
+  The deferral is staged through the shelf -- an edit standing on this
+  design's dual, which a person makes by editing a dual group -- and
+  asserted as a premise, since without it the press launches at once.
+
+  Regression: pressing "Generate the dual and tile it" on a saved group and choosing another group before the dual's topology was ready dropped the dual in silence and put the first group's file in the second group's Save box, so the next Save overwrote it. [hunt]
+  """
+  import os
+  from weavingspace_qgis import topology_edits
+
+  family, other, count = "laves 3.3.4.3.4", "hex-slice 4", 4
+  with _temp_dir() as folder:
+    dlg, _layer = _a_dual_test_dialog(family, count, "tiling", 600.0)
+    try:
+      _generate_and_wait(dlg)
+      a_group = dlg._group_name
+      a_path = os.path.join(folder, "a.gpkg")
+      dlg.gpkg_widget.setFilePath(a_path)
+      assert press_save(dlg, a_path), "PREMISE: A did not save"
+      _choose_a_new_group(dlg)
+      _tick(300)
+      _choose_family(dlg, other)
+      _tick(300)
+      _settle(dlg, seconds=60)
+      _generate_and_wait(dlg)
+      b_group = dlg._group_name
+      assert b_group and b_group != a_group, "PREMISE: B did not land as its own group"
+      assert not dlg.gpkg_widget.filePath(), "PREMISE: B has a file of its own"
+      _choose_the_group_named(dlg, a_group)
+      _tick(300)
+      _settle(dlg, seconds=60)
+      assert dlg.gpkg_widget.filePath() == a_path, "PREMISE: A's file did not come back with A"
+      _wait_for_the_topology(dlg, seconds=120)
+      # A DUAL OF THIS DESIGN EDITED EARLIER IN THE SESSION, on the shelf
+      # under the dual's key: the replay the press then owes is the window.
+      key = topology_edits.shelf_key(dlg._family_key(), dlg._element_count(), 1)
+      dlg._topology_shelf[key] = [{"classes": "a", "how": "zigzag_edge",
+                                   "args": {"n": 2, "h": 0.2, "smoothness": 3}}]
+      assert dlg.topology_panel.dual_button.isEnabled(), \
+        "PREMISE: the dual is not offered on A"
+      dlg.topology_panel.dual_button.click()
+      assert dlg._dual_request is not None and dlg._task is None \
+          and dlg._press_pending, (
+        f"PREMISE: the dual press did not wait for its topology (request "
+        f"{dlg._dual_request is not None}, task {dlg._task is not None}, "
+        f"deferred {dlg._press_pending})")
+      _choose_the_group_named(dlg, b_group)
+      _tick(300)
+      _settle(dlg, seconds=120)
+      _settle_topology(dlg, seconds=60)
+      _settle(dlg, seconds=120)
+      _tick(500)
+      here = dlg._group_name
+      assert not (here == b_group and dlg.gpkg_widget.filePath() == a_path), (
+        f"group {b_group!r}, never saved, holds A's file {a_path!r} in its "
+        f"Save box, so the next Save overwrites A with B's map")
+      assert not (here == b_group and dlg._mapping_the_dual()), \
+        f"group {b_group!r} was left carrying the dual box"
+      # AND THE CHOICE, MADE ONCE NOTHING WAITS, IS B'S OWN.
+      _choose_the_group_named(dlg, b_group)
+      _tick(300)
+      _settle(dlg, seconds=60)
+      assert dlg._group_name == b_group, "PREMISE: B could not be chosen once the dual landed"
+      assert dlg.gpkg_widget.filePath() != a_path and not dlg._mapping_the_dual(), (
+        f"group {b_group!r} chosen after the dual landed reads path "
+        f"{dlg.gpkg_widget.filePath()!r} and mapping_the_dual="
+        f"{dlg._mapping_the_dual()}")
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+
+
 def test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws():
   """On a cube weave, a code the box leaves unmarked is the code in force.
 
@@ -96806,6 +97245,16 @@ def main():
         test_a_strands_code_the_box_accepts_builds_exactly_its_letters)
   check("a cube strands code the box accepts is the code the map draws",
         test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws)
+  check("a thin weave's dual is not offered where the map cannot take it",
+        test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it)
+  check("a weave's dual group takes the classes of a tiling",
+        test_a_weaves_dual_group_takes_the_classes_of_a_tiling)
+  check("a dual group of an edited design draws without waiting",
+        test_a_dual_group_of_an_edited_design_draws_without_waiting)
+  check("a dual group's frozen edits follow their own design",
+        test_a_dual_groups_frozen_edits_follow_their_own_design)
+  check("a group chosen while a dual press waits keeps its own file",
+        test_a_group_chosen_while_a_dual_press_waits_keeps_its_own_file)
   check("every catalogue weave code is one the box would accept",
         test_every_catalogue_weave_code_is_one_the_box_would_accept)
   check("saving holds on every route", test_saving_holds_on_every_route)
