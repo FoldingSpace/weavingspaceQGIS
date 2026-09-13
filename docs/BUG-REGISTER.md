@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-583 defect(s) with a regression test.
+585 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -484,6 +484,8 @@ there is no separate list to remember.
   guarded by `test_a_filter_is_a_view_and_is_never_written_into_the_file`
 - **a dialog built at one font and met at a larger one kept its old field width, and the Pattern chooser could not tell two weaves apart.**  
   guarded by `test_a_font_change_moves_the_design_tab_s_fields`
+- **at full width "Apart" kept warp and weft in one class, the directions having been read off square tiles (round ten, spec10).**  
+  guarded by `test_a_full_width_weave_keeps_warp_and_weft_apart`
 - **setting an output path made every Generate write the GeoPackage, so a file chosen for later was written to at once and a live update rewrote somebody's file on every keystroke.**  
   guarded by `test_a_generate_draws_and_only_a_save_writes`
 - **under the glued reading the drawing lit 24 edges of a glued class where Apply moved 42, and a click selected a library label (round ten, repairs23).**  
@@ -624,6 +626,8 @@ there is no separate list to remember.
   guarded by `test_a_topology_landing_does_not_strand_a_live_tick`
 - **a topology built for one design was shown against another, so the tab described a unit the map was not made of.**  
   guarded by `test_a_topology_that_lands_late_is_discarded`
+- **a hyphen typed into a strands code was read as strand-width daylight and glued (round ten, spec10).**  
+  guarded by `test_a_typed_hyphen_leaves_its_ground_dropped`
 - **rotate and scale left the tiling full of gaps, every edit after one of them impossible to aim; the vertex-consistent reformulation is what makes them keep a tiling.**  
   guarded by `test_a_vertex_consistent_rotate_and_scale_keep_the_tiling`
 - **the dual's precise centre search ran on every rectangular strand piece of a scaffolded weave, freezing QGIS for tens of seconds at each landing (round ten, perf1).**  
@@ -1220,7 +1224,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 205
+- the mutation campaign: 207
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
