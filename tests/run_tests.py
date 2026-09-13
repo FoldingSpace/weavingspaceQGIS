@@ -93181,6 +93181,11 @@ def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
   assert te.labels_in(["a", "aa"], {"a", "aa"}) == ("a", "aa")
   assert te.labels_in("aab", {"a", "aa", "b"}) == ("aa", "b")
   assert te.labels_in("", {"a"}) == ()
+  # AND A STRING THAT CANNOT BE AN OLDER MULTI-CLASS RECORD IS ONE LABEL,
+  # even on a design that lacks it -- or `aa` replayed where there is no
+  # `aa` moves `a` (round ten, repairs24).
+  assert te.labels_in("aa", {"a", "b"}) == ("aa",)
+  assert te.labels_in("ab", {"a", "b"}, made_against="aaaabb") == ("ab",)
 
   spec = catalog.TILINGS_BY_N[4]["basket weave ab|cd"]
   topology, _unit, _kinds, glue, note = te.weave_topology(
@@ -93212,6 +93217,27 @@ def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
     "an edit aimed at class `aa` also moved class `a` -- the selector was "
     "matched as a substring, so a person's edit reached a class they "
     "never chose")
+
+  # THE SAME RECORD REPLAYED WHERE `aa` DOES NOT EXIST: the design at full
+  # width carries one-letter classes only, and the edit must be refused by
+  # name rather than read as two `a`s.
+  solid, _u, _k, solid_glue, solid_note = te.weave_topology(
+    spec, 1000.0, 1.0, reading=te.ASPECT_LIKE_A_DROP,
+    families=te.WARP_AND_WEFT_APART)
+  if solid is None:
+    raise AssertionError(f"PREMISE: the solid basket weave built nothing: {solid_note}")
+  solid_labels = {e.label for e in solid.edges.values() if e.label}
+  assert "aa" not in solid_labels and "a" in solid_labels, (
+    f"PREMISE: the solid weave's classes are {sorted(solid_labels)}")
+  aimed = dict(edit, against=te.classes(topology)["edge"])
+  solid_before = lines_of(solid, "a")
+  _t2, solid_refusals, solid_state = te.apply(solid, [aimed], glue=solid_glue)
+  solid_after = lines_of(solid_state.get("topology") or solid, "a")
+  assert solid_after == solid_before, (
+    f"an edit recorded against class `aa`, replayed on a design with no "
+    f"`aa`, moved class `a` instead ({solid_refusals})")
+  assert any("aa" in r for r in solid_refusals), (
+    f"the replay neither applied nor named the missing class: {solid_refusals}")
 
 
 def test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole():

@@ -2834,17 +2834,27 @@ MUTATIONS = [
            "class inside it"),
   dict(name="a-selector-string-that-is-a-label-is-that-label",
        file="weavingspace_qgis/topology_edits.py",
-       # THE WHOLE DECISION, because two limbs answer it: the exact-label
-       # check and the longest-first split both read `aa` as `aa`, so
-       # breaking either alone is inert (measured SURVIVED on the first
-       # form). Reading every string a character at a time is the fault.
+       # THE WHOLE DECISION, because several limbs answer it -- the exact
+       # label, the recorded alphabet, the distinct split, the repeated
+       # character -- and breaking any one alone was measured inert. Read
+       # every string a character at a time is the fault.
        old="""  if selector in known:
     return (selector,)
-  if not known or all(len(label) == 1 for label in known):""",
-       new="""  if True:""",
+  # A RECORD MADE AGAINST""",
+       new="""  return tuple(selector)
+  # A RECORD MADE AGAINST""",
        test="test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone",
        why="a record naming one two-letter class is read as several "
            "classes"),
+  dict(name="a-record-made-against-two-letter-labels-names-one-class",
+       file="weavingspace_qgis/topology_edits.py",
+       old="""  if len(set(made_against)) < len(made_against):
+    return (selector,)""",
+       new="""  if False:
+    return (selector,)""",
+       test="test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone",
+       why="an edit recorded against class ab, replayed on a design with "
+           "no ab, moves classes a and b instead"),
   dict(name="the-replay-carries-the-glued-reading",
        file="weavingspace_qgis/dialog.py",
        # THE DOOR THE MAP IS DRAWN THROUGH. Without the gluing the replay

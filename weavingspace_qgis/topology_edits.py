@@ -470,7 +470,7 @@ def classes(topology) -> dict:
   return {"edge": "".join(edges), "vertex": "".join(points)}
 
 
-def labels_in(selector, alphabet=()) -> tuple:
+def labels_in(selector, alphabet=(), made_against: str = "") -> tuple:
   """The class labels a selector names, as labels rather than characters.
 
   Args:
@@ -480,6 +480,8 @@ def labels_in(selector, alphabet=()) -> tuple:
     alphabet: the labels the design actually carries. Omitted, a string
       is read one character per label, which is what every record made
       before two-letter labels existed means.
+    made_against: the joined alphabet the edit was recorded against (an
+      edit's `against`), or "" where the record carries none.
 
   Returns:
     A tuple of labels, in the order the selector gives them.
@@ -503,18 +505,34 @@ def labels_in(selector, alphabet=()) -> tuple:
   known = {str(label) for label in alphabet if label}
   if selector in known:
     return (selector,)
-  if not known or all(len(label) == 1 for label in known):
-    return tuple(selector)
-  longest = max(len(label) for label in known)
-  found, at = [], 0
-  while at < len(selector):
-    for size in range(min(longest, len(selector) - at), 0, -1):
-      piece = selector[at:at + size]
-      if piece in known or size == 1:
-        found.append(piece)
-        at += size
+  # A RECORD MADE AGAINST AN ALPHABET THAT HELD TWO-LETTER LABELS (its
+  # `against` repeats a character) named a class as a label, so it is
+  # read as one even where this design lacks it -- split, a replay onto a
+  # design with no `aa` moved `a` (round ten, repairs24).
+  if len(set(made_against)) < len(made_against):
+    return (selector,)
+  # AN OLDER MULTI-CLASS RECORD is its classes' labels joined, each
+  # once, so a split into DISTINCT known labels is that record; longest
+  # first, since `aa` must not be taken for `a` then `a`.
+  if known:
+    longest = max(len(label) for label in known)
+    found, at = [], 0
+    while at < len(selector):
+      for size in range(min(longest, len(selector) - at), 0, -1):
+        if selector[at:at + size] in known:
+          found.append(selector[at:at + size])
+          at += size
+          break
+      else:
         break
-  return tuple(found)
+    if at == len(selector) and len(set(found)) == len(found):
+      return tuple(found)
+  # A REPEATED CHARACTER WITH NO SUCH SPLIT IS ONE LABEL, never a set
+  # of one-letter classes; anything else is read a character at a time,
+  # which is what every record made before two-letter labels meant.
+  if len(set(selector)) < len(selector):
+    return (selector,)
+  return tuple(selector)
 
 
 def _labels_on(topology) -> set:
@@ -931,7 +949,8 @@ def apply(topology, edits, glue=None):
         label=MANIPULATIONS[how]["label"], selector=selector,
         target=target, against=against, now=available or "none"))
     on_this_design = _labels_on(current)
-    wanted = list(dict.fromkeys(labels_in(selector, on_this_design)))
+    wanted = list(dict.fromkeys(
+      labels_in(selector, on_this_design, edit.get("against") or "")))
     missing = [label for label in wanted if label not in on_this_design]
     if missing:
       names = ", ".join(repr(label) for label in missing)
