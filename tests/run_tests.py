@@ -93718,6 +93718,131 @@ def test_a_glued_class_is_lit_and_clicked_as_the_class():
     panel.close()
 
 
+def test_a_full_width_weave_keeps_warp_and_weft_apart():
+  """At full width, "Apart" splits warp from weft as it does on a thin weave.
+
+  A weave at strand width 1.0 already tiles, so `build` takes its PLAIN
+  path and puts the strand-family question to the unit as it stands. The
+  refinement read the strand directions off the tiles' long axes, and a
+  plain weave's pieces at full width are SQUARES: one direction came
+  back, the refinement declined with a note `build` discards, and the
+  toggle said Apart while every class held warp and weft together.
+
+  THE ORACLE IS A PROPERTY OF THE SUBGROUP, not a count the code
+  produces. Orbits under transforms that keep each strand direction
+  where it is can never carry a horizontal edge onto a vertical one, so
+  under Apart no edge class may hold both. The premise is that under
+  Together a class does hold both, so the case can go red, and that the
+  build took the plain path, which is where the fault lived.
+
+  Regression: at full width "Apart" kept warp and weft in one class, the directions having been read off square tiles (round ten, spec10). [mutation]
+  """
+  import collections
+  from weavingspace_qgis import catalog, topology_edits as te
+
+  def orientations(topology):
+    """Each edge class's edge orientations, in whole degrees mod 180."""
+    found = collections.defaultdict(set)
+    for edge in topology.edges.values():
+      line = edge.get_geometry()
+      (x0, y0), (x1, y1) = line.coords[0], line.coords[-1]
+      found[edge.label].add(round(te._as_direction(x1 - x0, y1 - y0)) % 180)
+    return dict(found)
+
+  for name, count in (("plain weave a|b", 2), ("plain weave ab|cd", 4)):
+    spec = catalog.TILINGS_BY_N[count][name]
+    answers = {}
+    for families in te.STRAND_FAMILIES:
+      unit = catalog.make_unit(spec, spacing=WEAVE_TAB_MATRIX_SPACING,
+                               crs=None, aspect=1.0)
+      answer = te.build(unit, weave={
+        "spec": spec, "spacing": WEAVE_TAB_MATRIX_SPACING, "aspect": 1.0,
+        "reading": te.ASPECT_LIKE_A_DROP, "families": families})
+      assert answer[0] is not None, f"PREMISE: {name} built no topology"
+      assert answer[3] == {}, (
+        f"PREMISE: {name} at full width was scaffolded, so the plain path "
+        f"this guards was not taken")
+      answers[families] = orientations(answer[0])
+    mixed = [label for label, seen in
+             answers[te.WARP_AND_WEFT_TOGETHER].items() if len(seen) > 1]
+    assert mixed, (
+      f"PREMISE: no library class of {name} holds two orientations "
+      f"({answers[te.WARP_AND_WEFT_TOGETHER]}), so Apart could not show")
+    still = {label: seen for label, seen in
+             answers[te.WARP_AND_WEFT_APART].items() if len(seen) > 1}
+    assert not still, (
+      f"{name} at full width under Apart still has classes holding both "
+      f"strand directions: {still}")
+
+
+def test_a_typed_hyphen_leaves_its_ground_dropped():
+  """A hyphen TYPED into a strands code is a dropped strand, as in the catalogue.
+
+  `daylight_by_kind` read the hyphens off the catalogue entry rather
+  than off the code the unit was built from, so `a|b-` typed onto
+  `twill weave a|b` labelled the hyphen's ground strand-width daylight:
+  the scaffold carried no dropped filler, and under "Ignore, like an
+  inset" that ground was glued across like fabric, where the entry
+  `twill weave a|b-` keeps it dropped.
+
+  THE ORACLE IS THE CATALOGUE ENTRY WITH THAT CODE. `twill weave a|b-`
+  and `twill weave a|b` differ only in their strands code, so the typed
+  design IS the entry's design -- asserted first, on the strands'
+  ground -- and must be read the same way: the same kinds, the same
+  dropped ground, and the same number of glued holes. The entry is
+  chosen because it builds a topology under QGIS's own GEOS.
+
+  Regression: a hyphen typed into a strands code was read as strand-width daylight and glued (round ten, spec10). [mutation]
+  """
+  import collections
+  import shapely
+  from weavingspace_qgis import catalog, topology_edits as te
+  own = catalog.TILINGS_BY_N[2]["twill weave a|b-"]
+  typed_onto = catalog.TILINGS_BY_N[2]["twill weave a|b"]
+  assert {k: v for k, v in own.items() if k != "strands"} == {
+    k: v for k, v in typed_onto.items() if k != "strands"}, (
+    "PREMISE: the two entries differ in more than their strands code")
+
+  def read(spec, strands):
+    """The scaffold's kinds, its dropped ground and its strands' ground."""
+    unit, kinds, note = te.scaffolded_weave(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      strands=strands)
+    assert unit is not None, f"PREMISE: no scaffold ({note})"
+    by_kind = collections.defaultdict(list)
+    for tile_id, geometry in zip(unit.tiles["tile_id"], unit.tiles.geometry):
+      by_kind[kinds[str(tile_id)]].append(geometry)
+    return (collections.Counter(kinds.values()),
+            shapely.union_all(by_kind["dropped"]),
+            shapely.union_all(by_kind["strand"]))
+
+  wanted_kinds, wanted_dropped, wanted_strands = read(own, None)
+  got_kinds, got_dropped, got_strands = read(typed_onto, "a|b-")
+  assert wanted_strands.symmetric_difference(got_strands).area < 1.0, (
+    "PREMISE: the typed code did not build the entry's own strands")
+  assert wanted_kinds["dropped"] > 0 and wanted_dropped.area > 0, (
+    f"PREMISE: the entry's own scaffold has no dropped ground "
+    f"({dict(wanted_kinds)}), so a lost hyphen could not show")
+  assert got_kinds == wanted_kinds, (
+    f"`a|b-` typed onto `twill weave a|b` scaffolds as {dict(got_kinds)} "
+    f"where the entry with that code scaffolds as {dict(wanted_kinds)}")
+  assert wanted_dropped.symmetric_difference(got_dropped).area < 1.0, (
+    f"the typed hyphen's dropped ground is {got_dropped.area:.0f} where the "
+    f"entry's is {wanted_dropped.area:.0f}")
+
+  glued = []
+  for spec, strands in ((own, None), (typed_onto, "a|b-")):
+    topology, _unit, _kinds, glue, note = te.weave_topology(
+      spec, WEAVE_TAB_MATRIX_SPACING, WEAVE_TAB_MATRIX_ASPECT,
+      strands=strands, reading=te.ASPECT_LIKE_AN_INSET,
+      families=te.WARP_AND_WEFT_TOGETHER)
+    assert topology is not None, f"PREMISE: no topology ({note})"
+    glued.append(glue["glued"])
+  assert glued[1] == glued[0], (
+    f"under the glued reading the typed code glues {glued[1]} holes where "
+    f"the entry with that code glues {glued[0]}")
+
+
 def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
   """A Save pressed right after a weave reading switch waits for the motif.
 
@@ -96657,6 +96782,10 @@ def main():
         test_a_weaves_dual_asks_no_search_of_a_rectangle)
   check("a save just after a reading switch writes the new motif",
         test_a_save_just_after_a_reading_switch_writes_the_new_motif)
+  check("a full-width weave keeps warp and weft apart",
+        test_a_full_width_weave_keeps_warp_and_weft_apart)
+  check("a typed hyphen leaves its ground dropped",
+        test_a_typed_hyphen_leaves_its_ground_dropped)
   check("a landing keeps a selection of several classes",
         test_a_landing_keeps_a_selection_of_several_classes)
   check("a glued class is lit and clicked as the class",

@@ -397,8 +397,9 @@ def build(unit, weave=None):
     unit: the Tileable, before modifiers.
     weave: None for a design that tiles as it stands, or a dict of the
       terms a weave has to be rebuilt from -- `spec`, `spacing`,
-      `aspect`, `strands`, `reading` and `families` -- which lets a
-      design with daylight be scaffolded into one that tiles.
+      `aspect`, `strands`, `reading`, `families` and `modifiers` --
+      which lets a design with daylight be scaffolded into one that
+      tiles, and a full-width one have its strand directions read.
 
   Returns:
     `(topology, reason)` where the topology is None on a refusal, and
@@ -430,8 +431,21 @@ def build(unit, weave=None):
     # this reading declines to believe in. It sits OUTSIDE the build's
     # own `try`, or a refinement that raised would be reported as a
     # design with no topology at all.
+    # AND ITS DIRECTIONS ARE READ OFF THE DESIGN, NOT OFF THESE TILES.
+    # At full width a plain weave's pieces are SQUARES, which have no
+    # long axis, so `strand_directions` over them answered one
+    # direction -- [90] unrotated, and five twills [45] off their fused
+    # staircases -- and the refinement then declined with a note nobody
+    # read, leaving warp and weft in one class while the toggle said
+    # Apart (round ten, spec10). The same weave built thin has pieces
+    # that ARE longer along their strands, and the design's modifiers
+    # put those directions where this unit's are.
     if weave.get("families") == WARP_AND_WEFT_APART:
-      keep_warp_and_weft_apart(plain, None)
+      keep_warp_and_weft_apart(
+        plain, None,
+        directions=design_strand_directions(
+          weave.get("spec"), weave.get("spacing"),
+          strands=weave.get("strands"), modifiers=weave.get("modifiers")))
     return plain, "", unit, {}, None
   if weave is None:
     return None, reason
@@ -1192,7 +1206,8 @@ def gaps(unit):
 GAP_TOLERANCE = 1e-6
 
 
-def daylight_by_kind(unit, spec, spacing: float, aspect: float) -> dict:
+def daylight_by_kind(unit, spec, spacing: float, aspect: float,
+                     strands=None) -> dict:
   """Tell a weave's two kinds of daylight apart, using its strands code.
 
   Args:
@@ -1200,6 +1215,9 @@ def daylight_by_kind(unit, spec, spacing: float, aspect: float) -> dict:
     spec: its catalogue entry, which carries `strands` and `weave_type`.
     spacing: the spacing the unit was built at.
     aspect: the strand width the unit was built at.
+    strands: the typed strands code the unit was built with, or None
+      where it was built from the entry's own. It MUST be the code the
+      unit was built from, since the hyphens this reads are that code's.
 
   Returns:
     ``{"width": geometry, "conscious": geometry}`` -- the daylight that
@@ -1230,7 +1248,12 @@ def daylight_by_kind(unit, spec, spacing: float, aspect: float) -> dict:
   """
   import shapely
   from . import catalog
-  code = str(spec.get("strands", ""))
+  # THE CODE IS THE ONE THE UNIT WAS BUILT FROM. Read off the entry
+  # alone, `ab-|cd` typed onto `plain weave ab|cd` found no hyphen, so
+  # the hyphen's ground was labelled strand-width daylight and glued
+  # across like fabric, where the hyphen entry's own ground is dropped
+  # and never glued (round ten, spec10).
+  code = str(strands if strands else spec.get("strands", ""))
   gap = plane_coverage(unit)[2]
   empty = shapely.Polygon()
   daylight = gap if gap is not None else empty
@@ -1610,7 +1633,7 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
     geometries.append(geometry)
     ids.append(tile_id)
     kinds[tile_id] = "strand"
-  daylight = daylight_by_kind(unit, spec, spacing, built_at)
+  daylight = daylight_by_kind(unit, spec, spacing, built_at, strands=strands)
   filler = [("dropped", piece)
             for piece in _snapped_pieces(daylight["conscious"])]
   filler += [("aspect", piece)
@@ -1961,6 +1984,51 @@ def strand_directions(unit, kinds: dict = None) -> list:
   return sorted(found)
 
 
+THIN_ENOUGH_TO_READ = 0.5
+"""The strand width a weave is rebuilt at to read its directions.
+
+Any width that leaves a piece clearly longer than it is wide would do;
+at half the spacing all 77 catalogue weaves read two directions (three
+for a cube), rotated by 30 degrees or not, measured under QGIS 4.0.3.
+"""
+
+
+def design_strand_directions(spec, spacing: float, strands=None,
+                             modifiers=None) -> list:
+  """The directions a weave's strands run in, read off the design.
+
+  Args:
+    spec: the weave's catalogue entry; None reads nothing.
+    spacing: the spacing the design is built at.
+    strands: a typed strands code overriding the entry's own, or None.
+    modifiers: the rotate, scale and skew the unit in hand carries, as
+      `modified` takes them, or None for none. They must describe that
+      unit, or the directions read belong to a different drawing.
+
+  Returns:
+    A sorted list of angles as `strand_directions` gives them, or None
+    where the thin weave could not be built -- a caller then reads the
+    tiles it has, which is what it did before this existed.
+
+  WHY NOT THE TILES IN HAND. At full width a weave's pieces are squares
+  or fused staircases, and neither has a long axis that is a strand's:
+  a square's two sides tie, so which one is "longer" is decided by
+  rounding. Rebuilding the same weave thin gives pieces that are longer
+  along their strands by construction (C-347), and costs one
+  `make_unit`, which is small beside the topology this feeds.
+  """
+  from . import catalog
+  if spec is None or not spacing:
+    return None
+  try:
+    thin = catalog.make_unit(spec, spacing=spacing, crs=None,
+                             aspect=THIN_ENOUGH_TO_READ, strands=strands)
+    thin = modified(thin, modifiers)
+  except Exception:                                   # noqa: BLE001
+    return None
+  return strand_directions(thin) or None
+
+
 def _carries_every_direction(matrix, directions: list) -> bool:
   """Whether a transform leaves each strand direction where it is.
 
@@ -2140,7 +2208,8 @@ def _partition_of(marks: dict) -> set:
   return {frozenset(members) for members in groups.values()}
 
 
-def keep_warp_and_weft_apart(topology, kinds: dict = None) -> dict:
+def keep_warp_and_weft_apart(topology, kinds: dict = None,
+                             directions: list = None) -> dict:
   """Split each class that holds edges of two strand directions.
 
   Args:
@@ -2148,6 +2217,9 @@ def keep_warp_and_weft_apart(topology, kinds: dict = None) -> dict:
       REWRITTEN in place where the refinement applies.
     kinds: the map `scaffolded_weave` returned, or None to read every
       tile as cloth, which is what a weave at full width wants.
+    directions: the strand directions, from `design_strand_directions`,
+      where the tiles cannot say them -- a weave at full width, whose
+      square pieces have no long axis. None reads them off the tiles.
 
   Returns:
     A dict with `note` -- empty where the refinement was applied and a
@@ -2171,7 +2243,9 @@ def keep_warp_and_weft_apart(topology, kinds: dict = None) -> dict:
   that is not a refinement of the one somebody is looking at.
   (C-353.)
   """
-  directions = strand_directions(getattr(topology, "tileable", None), kinds)
+  if not directions:
+    directions = strand_directions(getattr(topology, "tileable", None),
+                                   kinds)
   before = (len(class_labels(topology)["edge"]),
             len(class_labels(topology)["vertex"]))
   if len(directions) < 2:

@@ -2856,6 +2856,29 @@ MUTATIONS = [
        test="test_an_edited_weave_keeps_its_rotation",
        why="one topology edit on a rotated thin weave draws the map "
            "un-rotated while the Rotate box keeps its value"),
+  dict(name="a-full-width-weave-reads-its-directions-off-the-design",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE WHOLE CALL, directions and all: without them the refinement
+       # reads square tiles, finds one direction and declines, so Apart
+       # keeps warp and weft in one class at full width.
+       old="""      keep_warp_and_weft_apart(
+        plain, None,
+        directions=design_strand_directions(
+          weave.get("spec"), weave.get("spacing"),
+          strands=weave.get("strands"), modifiers=weave.get("modifiers")))""",
+       new="""      keep_warp_and_weft_apart(plain, None)""",
+       test="test_a_full_width_weave_keeps_warp_and_weft_apart",
+       why="at strand width 1.0 the toggle says Apart while every class "
+           "holds warp and weft together"),
+  dict(name="a-typed-strands-code-names-its-own-hyphens",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE READING OF THE CODE: the entry's own code has no hyphen, so
+       # a typed one's ground is labelled strand-width daylight and glued.
+       old="""  code = str(strands if strands else spec.get("strands", ""))""",
+       new="""  code = str(spec.get("strands", ""))""",
+       test="test_a_typed_hyphen_leaves_its_ground_dropped",
+       why="a hyphen typed into a strands code is glued across like "
+           "fabric where the catalogue's hyphen is dropped"),
   dict(name="a-held-landing-keeps-its-glue",
        file="weavingspace_qgis/topology_tab.py",
        old="""                                message=message, ghost=ghost, glue=glue)""",
