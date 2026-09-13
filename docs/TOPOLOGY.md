@@ -1292,6 +1292,45 @@ trustworthy as the arithmetic its colours and its axes are chosen by
 `tools/probes/stacking_edge_manipulations_on_a_weave.py`, and its
 figure is `docs/process/images/holes-as-tiles/stacked-edge-edits.png`.
 
+## Round ten's measurements: 2026-09-12 and 13
+
+Twenty-one product defects were closed in the weave topology and the
+tab's shared code (docs/process/defects-2026-09-12.md); what belongs here
+is the evidence a later reader will want the numbers for.
+
+**THE FREEZE.** A thin weave's landing ran `polylabel` at a
+thousand-millionth of each tile's size on every copy in the patch: 56
+searches for 13 base tiles on `plain weave a|b`, 192 for 41, 392 for 85.
+In shapely alone a 1000 x 750 rectangle takes 73 ms against 0.1-0.2 ms
+for a square or a kite, its pole of inaccessibility being a segment, so a
+50 ms main-thread heartbeat saw a 47,343 ms gap on `basket weave ab|cd`
+overlapping `set_unit`. Answering a centrally symmetric tile with its
+centroid made the count zero; the floating-point sliver a half turn
+leaves is 1.3e-9 to 3.3e-9 of a strand piece's area, which is why that
+test's tolerance is a millionth.
+
+**TWO-LETTER CLASSES.** The default `basket weave ab|cd` carries 62 edge
+classes once scaffolded, so a label past `z` is the ordinary case on a
+weave; on tilings no plain design up to n=15 passed 16 edge classes, and
+`square-slice 15` needed a skew of 10 to reach 31.
+
+**THE GLUE ON THE MAP.** Under "Ignore, like an inset" a scale edge on
+glued class `a` of `plain weave a|b` moves 1,562.5 map units squared of
+cloth more than the same record aimed at `a` alone -- the other side of
+each hole -- and on `basket weave ab|cd` 8 of 16 strand pieces against 2.
+
+**FULL-WIDTH DIRECTIONS.** At strand width 1.0 `strand_directions` read
+`plain weave a|b` as one direction ([90], a rounding tie between a
+square's equal sides, [30, 120] once rotated) and five twills as [45];
+rebuilt at 0.5, all 77 catalogue weaves read the right number of
+directions, rotated or not.
+
+**THE DUAL OF A DUAL-GROUP WEAVE.** `plain weave ab-|c` at full width: its
+dual has 4 edge classes as a tiling, 8 when refined by the dual's own
+tile directions, and 4 when handed the weave's terms once directions come
+from the design -- which is why that repair and the dual group's own were
+found to hold one harm twice.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

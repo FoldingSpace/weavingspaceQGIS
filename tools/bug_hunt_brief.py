@@ -41,6 +41,16 @@ configuration tried. The difference was not the model. The first was
 asked for a structural property that either exists or does not; the
 second was asked, in effect, for a failure.
 
+Updated 2026-09-13, after ROUND TEN of 2026-09-12: thirty-one hunts,
+twenty-one product defects closed. MOST WERE ONE SHAPE, and a hunt is
+worth pointing at it by name: a TERM ADDED TO A FUNCTION that never
+reached a store remembering a call to it -- a key, a stamp, a saved
+record, an argument tuple kept for later. Where you are aimed at code
+whose signature just widened, enumerate those stores before anything
+else. And a weave's scaffold makes labels past `z` ordinary (62 edge
+classes on `basket weave ab|cd`), so any selector or label comparison is
+worth driving with two-letter classes.
+
 Updated 2026-09-08, after ROUND NINE of 2026-09-07: twenty-one hunts
 in six waves, twelve product defects closed, four dead axes tallied
 apart. NINE OF THE TWELVE WERE ONE OF TWO SHAPES, and a hunt is worth

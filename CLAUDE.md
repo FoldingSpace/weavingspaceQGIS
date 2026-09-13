@@ -881,7 +881,12 @@ are C-265 and the ids beside each rule.
   tile's own size gives the snub square's two at every spacing (the
   Topology tab audit, docs/TOPOLOGY.md). Ask of any numerical answer
   that feeds a symmetry or an equality what its tolerance is measured
-  in.
+  in -- and what it costs on a shape whose answer is a SEGMENT: a
+  rectangle's pole of inaccessibility is a midline, polylabel at a
+  relative tolerance subdivides it for ~100 ms, and a scaffolded weave
+  froze QGIS for 47 s. And the library selects with `label in
+  selector`, a SUBSTRING test on a string, so `aa` reached `a`: hand it
+  labels as a tuple, read through one owner (C-359).
 
 ### Records, stores, keys, landings and the file
 
@@ -979,7 +984,11 @@ and the ids beside each rule.
   ABSENT key on the way back, which fires the legacy fallback on the
   commonest journey (C-332); and a per-file memory answers absent
   for a file being CREATED, so a Save As asks the file the map came
-  in from (C-335).
+  in from (C-335). AND WHEN A FUNCTION GAINS A TERM, EVERY STORE THAT
+  CALLS IT LATER, KEYS ON IT OR RECORDS IT GAINS IT TOO: round ten's
+  weave readings reached the build and missed the topology stamp, the
+  edit key, the saved record and the tuple a held landing replays, and
+  each omission was a separate wrong map (C-358).
 - **A LIMIT WRITTEN BACK INTO A RECORD RATCHETS.** Where what a person
   asked for is legal only sometimes -- a zigzag whose depth the
   neighbouring geometry allows or does not, as other edits move it --
@@ -1377,6 +1386,12 @@ and the ids beside each rule.
   format, so a value copied out of a row is a display (C-207).
 
 **Repairing.**
+- **REPAIRS MAY RUN IN PARALLEL ON BRANCHES, AND ARE MERGED ONE AT A
+  TIME AND RE-JUDGED ON THE MERGED TREE.** One cluster of claims per
+  branch, each in its own worktree, the shared documents regenerated
+  only at the merge; and a merge can make ANOTHER branch's guard vacuous
+  -- a repair to how weave directions are read left the dual branch's
+  premise unable to go red (C-360).
 - **WHEN A CHANGE BREAKS A TEST, BISECT BY DISABLING AFTER ONE
   HYPOTHESIS FAILS** (C-87); when three attempts fail, the approach is
   wrong rather than the constant, and leaving the symptom visible beats
@@ -2109,19 +2124,10 @@ Confirmed with the user via an explicit design review:
   (C-347.)
 - **AND AN EDGE-AIMED EDIT DOES NOT KEEP A WEAVE'S RIBBONS AT
   CONSTANT WIDTH, WHICH IS WHY THE UNIT OF AIM MUST BECOME A STRAND.**
-  Ruling 3 of C-347 says an edit moves a strand's two long edges in
-  phase; measured across four weaves, three widths and both readings of
-  both switches, a SINGLE `rotate_edge` varies a strand's width by
-  51.4% along its own axis and three stacked reach 93.8% -- a strand
-  nearly pinched through. `still_has_a_topology` reports True through
-  all of it, asking as it does whether the result is GAP-FREE, which is
-  a question about a tiling. The daylight promise holds (coverage 0.932
-  to 0.941 against 0.937 as built); the ribbon promise does not. It is
-  REPORTED rather than gated, a ceiling above 93.8% catching nothing
-  and one below it reddening ordinary journeys, and it makes C-347's
-  unbuilt admissibility condition necessary rather than tidy. Vertex
-  manipulations are outside the promise, a moved vertex making a
-  trapezoid by construction. (C-355.)
+  One `rotate_edge` varies a strand's width by 51.4%, three stacked by
+  93.8%, while `still_has_a_topology` -- a question about a TILING --
+  reports success; REPORTED rather than gated, since no ceiling both
+  catches it and spares ordinary journeys. (C-355.)
 - **A WEAVE'S ASPECT GAPS ARE READ TWO WAYS, AND THE READING IS A
   QUOTIENT RATHER THAN A REBUILD: THE RULINGS OF 2026-09-11.**
   (Maintainer's construction and two corrections while it was built.)
@@ -2147,24 +2153,18 @@ Confirmed with the user via an explicit design review:
   reaches one side of a hole and leaves the other: measured at 8 of 16
   ribbon pieces moved against 16 of 16 on `twill weave a|b`. (C-352.)
 - **AND CLASSES MAY BE KEPT ON ONE STRAND FAMILY, WHICH IS A SECOND
-  AND INDEPENDENT SWITCH.** The library takes orbits under the design's
-  FULL symmetry group, which for a weave admits a mirror carrying warps
-  onto wefts, so a class holds edges of both directions -- 81 vertical
-  against 80 horizontal on one twill class. A CLOTH HAS NO SUCH
-  SYMMETRY, warp and weft differing physically whatever the drawing
-  does, so it is a symmetry of the picture rather than of the weave.
-  Orbits under the direction-preserving subgroup refine the library's
-  and cost exactly a factor of two on every weave, reading and width
-  measured. It applies under either answer to the aspect question, so
-  the two are separate controls; unlike that one it has an argument
-  pointing only one way. (C-353.) BUILT, AND THE TRANSFORM LIST IS NOT
-  A GROUP: the refinement takes orbits under `tile_matching_transforms`
-  PLUS its pairwise composites, and refuses unless that pool reproduces
-  the library's own classes. The labels are REWRITTEN, a split being
-  something no label map can express. AND AN EDGE'S DIRECTION IS NOT ITS
-  STRAND'S: a horizontal edge is a weft's flank or a warp's end cap, so
-  under the glued reading one refined class can reach both families.
-  (C-354.)
+  AND INDEPENDENT SWITCH.** The library's classes are orbits under the
+  FULL symmetry group, whose mirror carries warps onto wefts -- a
+  symmetry of the picture, never of a cloth -- so orbits under the
+  direction-preserving subgroup refine them, a factor of two on most
+  weaves; it applies under either aspect reading (C-353). BUILT, AND THE
+  TRANSFORM LIST IS NOT A GROUP: orbits are taken under
+  `tile_matching_transforms` PLUS its pairwise composites, refused unless
+  that pool reproduces the library's classes; the labels are REWRITTEN,
+  a split being something no label map expresses; and an edge's
+  direction is not its strand's, a horizontal edge being a weft's flank
+  or a warp's end cap (C-354). The directions are read off the DESIGN
+  rebuilt thin, never off tile shapes, since a square has no long axis.
 - **H FOR WEAVES, G FOR TILES.** (Maintainer's ruling, 2026-09-12.) A
   weave's classes default to orbits under the DIRECTION-PRESERVING
   SUBGROUP H, so the `Warp and weft classes` toggle opens on Apart; a

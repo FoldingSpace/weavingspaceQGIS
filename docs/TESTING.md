@@ -620,7 +620,13 @@ The accounts are T-135.
   was still waiting on -- and it counts a DEFERRED press as work still
   coming, since a Generate waiting for a topology replay leaves no
   task and no timer, and two dual tests read "nothing landed" under a
-  loaded machine (T-146).
+  loaded machine (T-146). AND A WAIT FOR A RESULT EXITS ON AGREEMENT,
+  NOT ON MOVEMENT: a design change moves the unit to the PLAIN rebuild
+  before any replay lands, so a guard that waited for "the unit moved"
+  read the in-between state; and a window a guard is about must be
+  STAGED -- a chooser that queues through a debounce leaves no build
+  outstanding at the press, which the guard's own FIXTURE assert caught
+  (T-152).
 - A PREMISE ASKED IN THE SAME BREATH AS A SETTLE READS THE OLD STATE
   (T-91); staging and asserting are different moves (T-98); a reading
   taken after a fixed number of ticks, or before the aiming clicks, is
@@ -790,7 +796,14 @@ The accounts are T-138.
   that passes first time has not been watched fail, and the entry over
   the save's in-place skip is what proves that matrix can go red. A
   guard's own first draft is where the next defect is -- a lookup by
-  class bounds stopping at the first match (T-64).
+  class bounds stopping at the first match (T-64). A FREEZE IS GUARDED
+  BY A COUNT, NOT A CLOCK -- the real search wrapped and counted against
+  what the domain allows, with a control that must still be searched --
+  and an ALLOWANCE a sibling shortcut already meets is loose: the
+  unrepaired code came in exactly at it and the entry survived. A merge
+  can make a guard's premise vacuous by closing the same harm by another
+  route; restage the premise on the old reading and record the arm as
+  held redundantly (T-151).
 - A VERDICT THAT LEGITIMATELY PASSES CAN ABSORB THE FAILURE IT SHOULD
   CATCH, and a grid with one needs to COUNT it: "this design refuses in
   words" is a correct pass, so a design that STOPS building reads

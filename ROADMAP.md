@@ -466,6 +466,40 @@ which is the maintainer's act.
 The discussion, with figures, is
 docs/process/the-topology-of-a-weave-and-its-holes.md.
 
+**ROUND TEN LEFT THREE DESIGN QUESTIONS AND A SHORT OWED LIST.**
+(2026-09-12 and 13; the ledger is docs/process/defects-2026-09-12.md,
+twenty-one rows closed.) THE QUESTIONS ARE THE MAINTAINER'S, each
+returned by a repairer rather than built:
+
+- THE TOPOLOGY SHELF IS SESSION-WIDE, NOT PER GROUP. Merely choosing a
+  group puts its edits on the shelf under its design key, and any other
+  group later moved onto that design -- or made with "Create new" --
+  draws and saves them (boundary13). Per-group scoping needs a stable
+  group identity the chooser does not have (its handle is a layer id that
+  changes on every re-tile); clearing the shelf at the chooser door
+  matches what a reopen already restores and costs a group revisited in
+  one session its idle edits. The repairer recommended the second.
+- A STRANDS CODE THAT MOVES THE ELEMENT COUNT RESETS A TYPED
+  OVER-UNDER to the new family's default (repairs28). C-348 carries the
+  weave type across such a move and not the pattern; the plugin cannot
+  tell a typed pattern from a family's own.
+- WHAT A THIN WEAVE'S DUAL MEANS. The button now refuses on a scaffold
+  (`SCAFFOLD_HAS_NO_DUAL`, ruling 2 of the dual read strictly), but a
+  Save still writes the scaffold's dual beside the cloth's unit.
+
+**ROUND TEN'S OWED LIST, NONE OF IT BLOCKING.** An entry that breaks row 12's Load arm alone,
+and one on the drag preview's glue widening; the symmetry gate passes
+glued vertex class names to `directions_a_class_may_move`, unjudged; a
+landing still computes the dual twice on the main thread, now cheaply;
+closing the window, File > New or a Load while a dual press waits may
+leave the request standing (the duals repairer, unverified); a rotated
+edited `twill weave a|b-` drops its edit on the upstream `get_edges`
+fault, announced (repairs27, withdrawn as a claim); the entries
+`moving-the-warp-and-weft-chooser-rebuilds-the-topology` and
+`a-file-holding-a-motif-gets-a-fresh-one` came back HUNG under load and
+want a judgement on a quiet machine; and the refinement's refusal notes
+are still discarded by both build paths.
+
 **THE SYMMETRY GROUP A TILING'S CLASSES ARE TAKEN UNDER -- LEFT FOR NOW,
 ON THE MAINTAINER'S DECISION OF 2026-09-12.** The Topology tab builds
 every topology with `ignore_tile_ids=True`, the symmetry group of the

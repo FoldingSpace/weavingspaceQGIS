@@ -392,6 +392,9 @@ quote them, do not renumber them.
 - **C-355** — An edge-aimed edit does not keep a weave's ribbons at constant width  <sub>minted</sub>
 - **C-356** — Reference-venv figures can describe designs the plugin cannot reach  <sub>minted</sub>
 - **C-357** — A chooser's width and the review round trip  <sub>minted</sub>
+- **C-358** — Every store that calls a function later, keys on it or records it gains its new term  <sub>minted</sub>
+- **C-359** — A library's label in selector is a substring test on a string  <sub>minted</sub>
+- **C-360** — Parallel repair branches are merged one at a time and re-judged on the merged tree  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -11980,3 +11983,74 @@ review file still held the OLD wording, and `--apply` treats any
 difference between the two as the reviewer's edit, so it would have
 written "dropped strand" back over their change. `--approve` records the
 source and reads no edits, and is what was run.
+
+### C-358 — Every store that calls a function later, keys on it or records it gains its new term
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-358).</sub>
+
+Round ten, 2026-09-12 and 13 (docs/process/defects-2026-09-12.md). The
+two weave readings -- "Gaps from strand width" and "Warp and weft
+classes" -- were built as terms of the topology BUILD and reached
+nothing else that stood on it. Each store found missing one was its own
+defect with its own hunt: the edit key and so the tiled-frame cache
+(row 4, harm15, stores18, repairs23: Generate kept the old reading's
+map); the topology stamp (row 8, repairs26: a Save in the window after a
+switch wrote the un-edited motif, a defect inside row 4's own repair);
+the working-state record (row 12, harm16 and stoch13: a Load or reopen
+replayed the edits under the defaults); and the tuple a landing HELD
+during a press replays through `set_unit(*held)`, written before `glue`
+existed (row 7, asym11). The glue itself missed the dialog's replay
+(row 1, five hunts). The shape: a function's signature widened, and the
+places that remember a call to make later -- a key, a stamp, a record,
+a stored argument tuple -- were never enumerated.
+
+### C-359 — A library's label in selector is a substring test on a string
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-359).</sub>
+
+Round ten. `vendor/weavingspace/topology.py:1286` selects edges and
+vertices with `e.label in selector`. The plugin handed it a joined
+string, which is a substring test, so past twenty-six classes -- the
+default `basket weave ab|cd` carries 62 edge classes once scaffolded --
+an edit aimed at `aa` also moved `a`, marked applied and sound (row 2;
+trigger10, stores18, unreach12 independently). The repair,
+`topology_edits.labels_in(selector, alphabet, made_against)`, was
+incomplete twice: a record naming `aa` replayed on a design with no `aa`
+still split into `a`, `a` (repairs24), and the gluing's widening split
+`af` without the record's alphabet (trigger11). Both are counted as row 2.
+In the same round a second library fact of the same kind: `polylabel`
+at a RELATIVE tolerance of a thousand-millionth of a tile's size (the
+Topology tab audit's repair for a spacing-dependent dual) subdivides a
+rectangle's midline for about 100 ms a tile, and a scaffolded weave is
+rectangles -- 56 searches, 13 s of frozen QGIS on `plain weave a|b` and
+47 s on `basket weave ab|cd`, twice per landing on the main thread (row
+9, perf1). A centrally symmetric tile's centre is its centroid.
+
+### C-360 — Parallel repair branches are merged one at a time and re-judged on the merged tree
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-360).</sub>
+
+Round ten, on the maintainer's ask to parallelise safely. Five repair
+agents each took one cluster of verified-by-a-hunt claims onto its own
+`round10/<slug>` branch in its own worktree under `dev/hunts/fix-*`,
+working to a common brief (`dev/hunts/briefs/FIX-COMMON.md`): reproduce
+by another route, repair, a registered test with a premise, an entry
+judged caught, commit on the branch, and NOT touch the ledger or the two
+generated documents, which conflict across branches. The session merged
+them one at a time by cherry-pick; two new tests inserted at one anchor
+interleave in git's conflict view, so the resolution took the main
+line's file and inserted the branch's functions and registrations whole.
+Every merged guard and entry was re-run on the merged tree before its
+ledger row was written. It paid for itself once: after the directions
+repair (rows 15 and 16) merged, the duals branch's premise that a dual
+refined by warp and weft would split its classes no longer held -- 4
+classes under both readings -- because the first repair had closed the
+same harm by another route; the premise was restaged on the old reading
+and the dialog arm recorded as held redundantly. Two branches judged a
+claim a DESIGN QUESTION rather than build it (the group shelf, the
+over-under reset), which is the outcome the brief asked for. And a
+catalogue judgement mutates source in the tree it runs in, so no merge
+or source edit may land while one runs.
+C-355's live entry was shortened in the same pass to pay for these
+lines; its account above is unchanged, and the live form it replaced
+read: see git history of CLAUDE.md at 9e8b065.

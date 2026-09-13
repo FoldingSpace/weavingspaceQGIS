@@ -12,7 +12,12 @@ bottom, and `tools/bug_hunt_brief.py` tells every hunt to come back
 here. A record nobody updates becomes a record nobody trusts, and this
 one earns its keep only while the numbers in it are real.
 
-Last updated 2026-09-08 (early morning), with ROUND NINE OF
+Last updated 2026-09-13, with ROUND TEN OF 2026-09-12 AND 13 CLOSED AT
+TWENTY-ONE: thirty-one hunts, eight then six at a time, twenty-one
+product defects closed against a target of sixteen, five of them by
+repair agents on parallel branches, three design questions put to the
+maintainer. Its section is immediately below. Before it,
+2026-09-08 (early morning), with ROUND NINE OF
 2026-09-07 CLOSED AT TWELVE: twenty-one hunts in six waves, twelve
 product defects closed, four dead axes tallied apart and all four
 repaired, and one ruling question that became a ruling. Its section is
@@ -468,6 +473,52 @@ described as looking for old bugs; here it was overwhelmingly a check
 on new work, and the directions that paid were the ones aimed at
 shapes (a paired identity, an order, a record that outlives its
 subject) rather than at features
+
+## ROUND TEN, 2026-09-12 and 13: twenty-one closed, most of them one term missing from one store
+
+Eight hunts at once on worktrees under `dev/hunts/wt10-*`, then six at
+the maintainer's word, aimed at the weave topology built between rc19 and
+rc20 and at the round's own repairs; replenished at first only as bugs
+CLOSED, which drained the round to one hunt within ninety minutes, and
+then kept at six on the maintainer's instruction with the queue allowed
+to grow. The ledger is `defects-2026-09-12.md`. Yields are what survived
+a route the hunt did not use.
+
+| Direction | Confirmed | The lesson |
+| --- | ---: | --- |
+| asymmetry (asym10, asym11) | 2 (rows 1, 7) | compare the arguments TESTS hand a function with what PRODUCT callers hand it; five hunts reached row 1's missing `glue` |
+| the round's own repairs (repairs23-28) | 5 (rows 8, 10, 11, 14, 17) + row 2's second door | row 4's own repair broke a Save within the hour (repairs26); a validator run before a cascade must be re-asked after it (repairs28) |
+| stochastic settled sessions (stoch12-14) | 3 (rows 3, 5, 20) | before trusting a shape invariant on a weave, check whether tile ids repeat; a sabotage must fire after the check's own exemptions |
+| the specification itself (spec10, spec11) | 3 (rows 6, 15, 16) | a justification's "control" can hold while its RESULT is discarded; when a validator claims to cover a parser, give both the same inputs |
+| two stores of one fact (stores18-20) | 2 (rows 13, 21) + converged on 3, 4 | a store rebuilt from its own display follows the display; look for stored values put BACK after an act, which is how a Save overwrote another group's file |
+| unreachable branches (unreach12-14) | 2 (rows 18, 19) + converged on 1, 2 | ask which OTHER design reaches a gate meant for one kind -- a dual reaching a weave-only branch |
+| one boundary but not another (boundary12, 13) | 0 + 1 design question, converged on 1 | when a clear pops only its own key, run the act with and without a read-only visit to a neighbour |
+| backwards from harm (harm15-17) | 1 (row 12) + converged on 4; 0 on tilings | a gap three hunts logged and set aside did damage only once a later repair gave it a map effect |
+| the prose (prose12) | converged on 6 | check validators against CLAUDE.md's own list of shapes to refuse |
+| the modifiers (modifiers1) | 0 live (row 5 repaired mid-hunt) | a modifier that opens gaps changes which code path runs, so drive each one |
+| tests that cannot fail (trigger10, 11) | row 2's third door + converged on 2; 4 dead axes | mutate EVERY call site of a repair; the drag preview's widening still has no entry |
+| performance and freezing (perf1) | 1 (row 9) | profile the whole landing first: the round's new code was cheap, and the cost was an older precision fix meeting new tile shapes |
+
+**WHAT THIS ROUND SETTLES.**
+
+**MOST OF THE TWENTY-ONE WERE ONE SHAPE: A TERM ADDED TO A FUNCTION AND
+MISSING FROM A STORE THAT REMEMBERS A CALL.** The weave readings reached
+the build and missed the edit key, the stamp, the record and a held
+argument tuple; the glue missed the replay; the modifiers missed the
+scaffold. CLAUDE.md now says so (C-358), and a future round on any widened
+signature should enumerate keys, stamps, records and stored tuples first.
+
+**PARALLEL REPAIR BRANCHES WORK, AND THE MERGE IS WHERE THEY ARE JUDGED.**
+Five agents closed eleven claims on `round10/*` branches; each was merged
+by cherry-pick and re-run on the merged tree, and one branch's guard lost
+its premise because another had closed the same harm (C-360, T-151).
+Two branches returned a DESIGN QUESTION instead of building, which is the
+outcome the brief asked for.
+
+**THE QUEUE, NOT THE HUNTS, WAS AGAIN THE LIMIT** -- until the repairs
+were parallelised, after which the limit became the machine: a hung run
+of seven hours at under two minutes of CPU, and several `HUNG` catalogue
+verdicts, under six hunts and four repairers at once.
 
 ## ROUND NINE, 2026-09-07 (night): twelve closed, and nine of them one shape
 

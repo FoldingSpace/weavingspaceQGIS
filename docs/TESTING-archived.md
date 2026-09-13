@@ -181,6 +181,8 @@ quote them, do not renumber them.
 - **T-148** — A premise that pumps a fixed number of ticks is a bet on the machine  <sub>minted</sub>
 - **T-149** — A drawing is only as trustworthy as the arithmetic its colours and axes use  <sub>minted</sub>
 - **T-150** — A stub narrower than the function it replaces fails about its own harness  <sub>minted</sub>
+- **T-151** — A freeze is guarded by a count, and an allowance a sibling shortcut already meets is loose  <sub>minted</sub>
+- **T-152** — A guard's premise can be made vacuous by another repair, and a staged window must open  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7245,3 +7247,42 @@ exact copies of their originals, defaults included, and one was about
 to be "repaired". The guard compares defaults because of it, and was
 watched to fire both on the restored one-argument stub and on a default
 removed by hand.
+
+### T-151 — A freeze is guarded by a count, and an allowance a sibling shortcut already meets is loose
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-151).</sub>
+
+Round ten, row 9 and the duals merge. A thin weave's landing froze QGIS
+for 13-47 s in a centre search; a timing test would have been a
+performance budget, which this project refuses, so the guard wraps the
+real `shapely.ops.polylabel`, counts the searches `complete_dual` asks,
+and compares with the base tiles that are not their own half turn by the
+test's own check -- the Cairo tiling as the control whose pentagons must
+still be searched. Its first allowance counted tiles that are not
+RECTANGLES: eight, and the unrepaired code made exactly eight searches,
+because the regular squares were already answered by the library's
+regular-polygon shortcut, so the catalogue entry SURVIVED. Tightened to
+half turns, caught. Separately, after the directions repair (rows 15 and
+16) merged, the duals branch's guard failed its PREMISE that refining a
+dual by warp and weft would split its classes: 4 classes under both,
+because the first repair now reads directions off the design. The
+premise was restaged on the dual's own tile directions, and the dialog
+arm recorded as held twice over.
+
+### T-152 — A guard's premise can be made vacuous by another repair, and a staged window must open
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-152).</sub>
+
+Round ten, rows 4 and 8. The guard for a weave reading switched under a
+standing edit first waited for the dialog's unit to MOVE after the
+switch, and read a unit 1562.5 map units squared from the expected
+replay -- the plain rebuild a design change makes lands before the
+replay does, so movement came first and the wrong state was measured.
+It waits for agreement with the replay computed from the settings now,
+bounded. Row 8's guard, a Save pressed in the window after a switch,
+first asserted that a build was outstanding at the press and FAILED ON
+IT: the chooser queues through the preview debounce, so nothing is
+outstanding until the debounce fires. The window is staged by running
+the rebuild the debounce would, the premise then holding. A guard for a
+narrow window that cannot open measures nothing, and asserting the
+window is what said so. (The title's first half is T-151's merge case.)
