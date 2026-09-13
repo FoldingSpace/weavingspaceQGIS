@@ -524,12 +524,32 @@ def strands_problem(code: str, weave_type: str = "plain") -> str | None:
     if character == " ":
       return "A strands code holds no spaces."
     return f"{character!r} is not something a strands code may hold."
-  if code.count("(") != code.count(")"):
-    return "The parentheses in this strands code do not match."
   for group in groups:
     if not group:
       return ("Every direction needs at least one strand, and this "
               "code leaves one empty.")
+  # PARENTHESES ARE MATCHED WITHIN EACH DIRECTION, in order and one deep,
+  # because that is how the library reads them: `get_strand_ids` splits
+  # on `|` BEFORE it looks at a bracket, so a count over the whole code
+  # passed `a(b|c)`, which builds an element called `)` and drops `b`
+  # (round ten, spec11 and prose12).
+  for group in groups:
+    depth, since_open = 0, 0
+    for character in group:
+      if character == "(":
+        if depth:
+          return "The parentheses in this strands code do not match."
+        depth, since_open = 1, 0
+      elif character == ")":
+        if not depth:
+          return "The parentheses in this strands code do not match."
+        if not since_open:
+          return "A pair of parentheses in a strands code must hold a strand."
+        depth = 0
+      else:
+        since_open += 1
+    if depth:
+      return "The parentheses in this strands code do not match."
   labels = elements_in_strands(code)
   if not labels:
     return "This code is all gaps, so there would be nothing to draw."

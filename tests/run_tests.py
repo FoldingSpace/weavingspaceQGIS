@@ -93857,7 +93857,8 @@ def test_a_strands_code_that_cannot_be_used_changes_nothing():
     before = sorted(set(dlg._unit.tiles.tile_id))
     count_before = dlg._element_count()
 
-    for bad in ("a|", "AB|cd", "a a|b", "a|b)", "a|b|c", "-|-"):
+    for bad in ("a|", "AB|cd", "a a|b", "a|b)", "a|b|c", "-|-",
+                "a(b|c)", "ab(|)c", "()a|b", "(ab|cd)"):
       dlg.opt_strands.setText(bad)
       assert catalog.strands_problem(bad, "plain"), \
         f"{bad!r} should have been refused"
@@ -93872,6 +93873,65 @@ def test_a_strands_code_that_cannot_be_used_changes_nothing():
         f"{bad!r} was refused without the box saying why"
   finally:
     dlg.close()
+
+
+def test_a_strands_code_the_box_accepts_builds_exactly_its_letters():
+  """Every bracketed code the box accepts builds the elements it names.
+
+  `catalog.strands_problem` promises that every refusal is ours because
+  the library validates nothing. It counted parentheses over the whole
+  code while the library splits on `|` BEFORE it reads a bracket, so
+  `a(b|c)` passed the box and built an element called `)` with `b` gone,
+  into the map and the saved file.
+
+  THE ORACLE IS THE LIBRARY'S OWN BUILD: every code over `a`, `b`, the
+  two brackets, `|` and `-` up to six characters that holds a bracket
+  and that the box ACCEPTS is built through `catalog.make_unit`, and its
+  tile ids must be exactly the code's letters. The validator is never
+  asked for its own reasons, so a rule it has not learned shows as a
+  code it wrongly accepts. The premises assert that the sweep reaches
+  both accepted and refused codes.
+
+  Regression: a strands code whose brackets crossed a direction passed the box and built a `)` element in place of `b` (round ten, spec11). [mutation]
+  """
+  import itertools
+  from weavingspace_qgis import catalog
+  spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+  accepted, refused, wrong = 0, 0, []
+  # FIVE CHARACTERS OVER FIVE SYMBOLS, the hyphen left to the table
+  # above: every bracket shape the fault needs -- crossing a `|`, out of
+  # order, empty, nested -- fits in five, and six characters over six
+  # symbols built units for long enough to hang the catalogue's judge.
+  for size in range(3, 6):
+    for letters in itertools.product("ab()|", repeat=size):
+      code = "".join(letters)
+      if "(" not in code and ")" not in code:
+        continue
+      if catalog.strands_problem(code, "plain"):
+        refused += 1
+        continue
+      accepted += 1
+      wanted = set(catalog.elements_in_strands(code))
+      try:
+        unit = catalog.make_unit(spec, 1000.0, None, strands=code)
+        built = {str(t) for t in unit.tiles["tile_id"]} - {"-"}
+      except Exception as exc:                        # noqa: BLE001
+        built = {f"raised {type(exc).__name__}"}
+      if built != wanted:
+        wrong.append((code, sorted(built), sorted(wanted)))
+        if len(wrong) >= 12:
+          # ENOUGH TO NAME THE FAULT, and a broken validator accepts
+          # thousands of codes whose builds would otherwise outlast any
+          # judge's patience.
+          break
+    if len(wrong) >= 12:
+      break
+  assert accepted >= 5 and refused > 50, (
+    f"PREMISE: the sweep accepted {accepted} and refused {refused} "
+    f"bracketed codes, so it did not reach both sides")
+  assert not wrong, (
+    f"{len(wrong)} bracketed codes the box accepts build other elements "
+    f"than they name, e.g. {wrong[:6]}")
 
 
 def test_every_catalogue_weave_code_is_one_the_box_would_accept():
@@ -95749,6 +95809,8 @@ def main():
         test_a_typed_strands_code_draws_the_elements_it_names)
   check("a strands code that cannot be used changes nothing",
         test_a_strands_code_that_cannot_be_used_changes_nothing)
+  check("a strands code the box accepts builds exactly its letters",
+        test_a_strands_code_the_box_accepts_builds_exactly_its_letters)
   check("every catalogue weave code is one the box would accept",
         test_every_catalogue_weave_code_is_one_the_box_would_accept)
   check("saving holds on every route", test_saving_holds_on_every_route)

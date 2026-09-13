@@ -2830,6 +2830,17 @@ MUTATIONS = [
        test="test_an_edited_weave_keeps_its_rotation",
        why="one topology edit on a rotated thin weave draws the map "
            "un-rotated while the Rotate box keeps its value"),
+  dict(name="strands-brackets-match-within-each-direction",
+       file="weavingspace_qgis/catalog.py",
+       # THE WHOLE PER-DIRECTION CHECK, since the library reads brackets
+       # after splitting on `|`: without it `a(b|c)` builds a `)` element.
+       old="""  for group in groups:
+    depth, since_open = 0, 0""",
+       new="""  for group in ():
+    depth, since_open = 0, 0""",
+       test="test_a_strands_code_the_box_accepts_builds_exactly_its_letters",
+       why="a strands code with a bracket crossing a direction builds an "
+           "element called ) and drops a letter the person typed"),
   dict(name="the-map-adopts-the-cloth-not-the-scaffold",
        file="weavingspace_qgis/dialog.py",
        # THE FILLER IS DROPPED BEFORE ADOPTION, or Generate tiles the

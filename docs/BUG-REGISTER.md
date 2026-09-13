@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-575 defect(s) with a regression test.
+576 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -594,6 +594,8 @@ there is no separate list to remember.
   guarded by `test_a_second_reconciliation_adopts_no_colour_the_plugin_painted`
 - **a spacing a person typed was destroyed by a round trip through another dataset -- 137 typed, another layer chosen, and 500 on return with nothing said -- because auto-spacing re-derived once per newly chosen layer id and a return counts as new.**  
   guarded by `test_a_spacing_a_person_typed_outlives_a_change_of_dataset`
+- **a strands code whose brackets crossed a direction passed the box and built a `)` element in place of `b` (round ten, spec11).**  
+  guarded by `test_a_strands_code_the_box_accepts_builds_exactly_its_letters`
 - **a stub left by a stopped save made the file nobody's for the rest of the session.**  
   guarded by `test_a_stub_from_a_stopped_save_is_not_somebody_elses_file`
 - **clearing a group's field-keyed records on a silent record destroyed a pinned bound belonging to an element that had merely been switched to another style, and stamped its absence onto the layer.**  
@@ -1204,7 +1206,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 197
+- the mutation campaign: 198
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57
