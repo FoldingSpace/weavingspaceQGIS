@@ -384,8 +384,10 @@ docs/process/the-topology-of-a-weave-and-its-holes.md. WHAT IS OWED:
   `rotate_edge` and 93.8% on three stacked, while every check reports
   success, `still_has_a_topology` asking about a TILING (C-347,
   C-355). Reported per cell by the weave structure matrix.
-- A TWO-LETTER CLASS LABEL is handled by `class_labels`, which reads
-  labels off the topology rather than splitting the joined selector.
+- A TWO-LETTER CLASS LABEL is handled end to end since round ten:
+  `class_labels` lists labels as labels, and `labels_in` is the one
+  reading of a selector, so the library is handed a tuple and `aa` no
+  longer reaches `a` (docs/process/defects-2026-09-12.md, row 2).
 - THE CUBE WEAVES ARE DIAGNOSED, all three failing in `set_precision`;
   `_snapped_pieces` is the right patch and does not reach them. TWO
   notes await a SENDING, the maintainer's act.

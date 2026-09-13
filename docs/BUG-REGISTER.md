@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-571 defect(s) with a regression test.
+572 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -616,6 +616,8 @@ there is no separate list to remember.
   guarded by `test_an_act_about_one_field_spares_anothers_ladder`
 - **the glued reading's widening never reached the product's replay, so an edit moved one side of a hole (round ten, asym10).**  
   guarded by `test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole`
+- **a two-letter class selector matched every one-letter class inside it, so an edit moved classes nobody chose (round ten, trigger10).**  
+  guarded by `test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone`
 - **an edit naming a class the design does not have was replayed silently, leaving a list describing a design the map did not have.**  
   guarded by `test_an_edit_for_a_class_that_has_gone_is_reported`
 - **an edit made on the dual was replayed onto the design's own like-named edge the moment the box came off.**  
@@ -1196,7 +1198,7 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 193
+- the mutation campaign: 194
 - a bug hunt pointed in a named direction: 163
 - not written down at the time: 88
 - reported by a user: 57

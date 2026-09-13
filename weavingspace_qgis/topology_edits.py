@@ -470,6 +470,69 @@ def classes(topology) -> dict:
   return {"edge": "".join(edges), "vertex": "".join(points)}
 
 
+def labels_in(selector, alphabet=()) -> tuple:
+  """The class labels a selector names, as labels rather than characters.
+
+  Args:
+    selector: what an edit or a selection holds -- a list of labels, one
+      label as a string, or an older record's labels joined into one
+      string.
+    alphabet: the labels the design actually carries. Omitted, a string
+      is read one character per label, which is what every record made
+      before two-letter labels existed means.
+
+  Returns:
+    A tuple of labels, in the order the selector gives them.
+
+  WHY A JOINED STRING CANNOT BE THE SELECTOR PAST TWENTY-SIX CLASSES.
+  The library asks `label in selector`, which on a string is a SUBSTRING
+  test, so an edit aimed at `aa` also moved `a` on a basket weave with 62
+  edge classes and said nothing (round ten, trigger10, stores18,
+  unreach12). A tuple makes the same test a membership test, so this is
+  what every door to the library hands it.
+
+  A STRING THAT IS ITSELF A LABEL IS THAT LABEL; where every label is one
+  character it is read a character at a time, as it always was; and a
+  joined string on a design with longer labels is split longest-first,
+  which is the only reading such a record can have been meant to carry.
+  """
+  if not selector:
+    return ()
+  if not isinstance(selector, str):
+    return tuple(str(label) for label in selector)
+  known = {str(label) for label in alphabet if label}
+  if selector in known:
+    return (selector,)
+  if not known or all(len(label) == 1 for label in known):
+    return tuple(selector)
+  longest = max(len(label) for label in known)
+  found, at = [], 0
+  while at < len(selector):
+    for size in range(min(longest, len(selector) - at), 0, -1):
+      piece = selector[at:at + size]
+      if piece in known or size == 1:
+        found.append(piece)
+        at += size
+        break
+  return tuple(found)
+
+
+def _labels_on(topology) -> set:
+  """Every edge and vertex class label a topology carries.
+
+  Args:
+    topology: a built Topology.
+
+  Returns:
+    The set of labels, edge and vertex alike; the library issues them
+    in lower and upper case respectively, so the two never collide.
+  """
+  return ({e.label for e in topology.edges.values()
+           if getattr(e, "label", None)}
+          | {v.label for v in topology.points.values()
+             if getattr(v, "label", None)})
+
+
 def class_labels(topology, glue=None) -> dict:
   """The class labels as labels, collapsed by a gluing where given.
 
@@ -678,6 +741,10 @@ def move_as_applied(topology, selector, how, ready):
   that stops the three drifting apart again; when a reformulation
   reroutes a library call, its callers are the door list.
   """
+  # A TUPLE AT THE LIBRARY'S DOOR, never a joined string: every route
+  # below asks `label in selector`, which a string answers as a
+  # substring, so `aa` would reach `a` (round ten, trigger10).
+  selector = labels_in(selector, _labels_on(topology))
   if how == "rotate_edge":
     return rotate_edges_vertex_consistent(
       topology, selector, ready.get("angle", 0.0))
@@ -687,7 +754,7 @@ def move_as_applied(topology, selector, how, ready):
   return topology.transform_geometry(True, True, selector, how, **ready)
 
 
-def _expanded(selector: str, glue, target: str = "") -> str:
+def _expanded(selector, glue, target: str = ""):
   """Every library label a glued class stands for.
 
   Args:
@@ -697,8 +764,8 @@ def _expanded(selector: str, glue, target: str = "") -> str:
     target: "edge" or "vertex", saying which of the two maps to read.
 
   Returns:
-    The selector, widened to every label whose class is one the
-    selector names. Without a gluing it is returned unchanged.
+    A list of every library label whose class is one the selector
+    names, or the selector unchanged without a gluing.
 
   THIS IS WHAT MAKES AN EDIT CROSS A HOLE. Under the reading that glues
   a strand-width gap away, the two strands facing each other across it
@@ -710,9 +777,11 @@ def _expanded(selector: str, glue, target: str = "") -> str:
   if not glue or not selector:
     return selector
   which = glue.get("points" if target == "vertex" else "edges", {})
-  wanted = {which.get(label, label) for label in selector}
-  return "".join(sorted(label for label, klass in which.items()
-                        if klass in wanted)) or selector
+  named = labels_in(selector, set(which) | set(which.values()))
+  wanted = {which.get(label, label) for label in named}
+  widened = sorted((label for label, klass in which.items()
+                    if klass in wanted), key=lambda label: (len(label), label))
+  return widened or selector
 
 
 def widen_selector(selector: str, glue, how: str) -> str:
@@ -861,11 +930,12 @@ def apply(topology, edits, glue=None):
       refusals.append(CLASSES_MOVED.format(
         label=MANIPULATIONS[how]["label"], selector=selector,
         target=target, against=against, now=available or "none"))
-    wanted = list(dict.fromkeys(selector))
-    missing = [label for label in wanted if label not in available]
+    on_this_design = _labels_on(current)
+    wanted = list(dict.fromkeys(labels_in(selector, on_this_design)))
+    missing = [label for label in wanted if label not in on_this_design]
     if missing:
       names = ", ".join(repr(label) for label in missing)
-      kept = "".join(label for label in wanted if label in available)
+      kept = [label for label in wanted if label in on_this_design]
       if not kept:
         refusals.append(
           f"{MANIPULATIONS[how]['label']} on {selector or 'nothing'!r} "
@@ -880,7 +950,8 @@ def apply(topology, edits, glue=None):
       # a change that half happened and looked complete.
       refusals.append(
         f"{MANIPULATIONS[how]['label']} on {selector!r} was applied to "
-        f"{kept!r} only: this design has no {target} class {names}.")
+        f"{', '.join(kept)!r} only: this design has no {target} class "
+        f"{names}.")
       selector = kept
     # FRACTIONS IN THE RECORD, MAP UNITS AT THE LIBRARY, and the unit
     # asked is the CURRENT one so a chain of edits keeps meaning the
@@ -933,7 +1004,8 @@ def apply(topology, edits, glue=None):
             whole_where_needed({**(edit.get("args") or {}), "h": ceiling}),
             current.tileable)
           moved = current.transform_geometry(
-            True, True, selector, how, **clamped)
+            True, True, labels_in(selector, _labels_on(current)), how,
+            **clamped)
           drawable, _repaired = _make_drawable(moved.tileable)
         except Exception:                               # noqa: BLE001
           drawable = None

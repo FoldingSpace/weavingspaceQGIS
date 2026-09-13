@@ -2810,6 +2810,30 @@ MUTATIONS = [
        test="test_the_weave_topology_tab_matrix",
        why="a chooser that takes a click and leaves the tab describing "
            "the structure it held before"),
+  dict(name="the-library-is-handed-labels-not-a-joined-string",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE ONE DOOR TO THE LIBRARY. Without it a record naming `aa`
+       # reaches the library as a string, `label in selector` becomes a
+       # substring test, and every `a` edge moves with it.
+       old="""  selector = labels_in(selector, _labels_on(topology))
+  if how == "rotate_edge":""",
+       new="""  if how == "rotate_edge":""",
+       test="test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone",
+       why="an edit aimed at a two-letter class also moves the one-letter "
+           "class inside it"),
+  dict(name="a-selector-string-that-is-a-label-is-that-label",
+       file="weavingspace_qgis/topology_edits.py",
+       # THE WHOLE DECISION, because two limbs answer it: the exact-label
+       # check and the longest-first split both read `aa` as `aa`, so
+       # breaking either alone is inert (measured SURVIVED on the first
+       # form). Reading every string a character at a time is the fault.
+       old="""  if selector in known:
+    return (selector,)
+  if not known or all(len(label) == 1 for label in known):""",
+       new="""  if True:""",
+       test="test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone",
+       why="a record naming one two-letter class is read as several "
+           "classes"),
   dict(name="the-replay-carries-the-glued-reading",
        file="weavingspace_qgis/dialog.py",
        # THE DOOR THE MAP IS DRAWN THROUGH. Without the gluing the replay
@@ -10048,9 +10072,9 @@ MUTATIONS = [
            "`b: landcover`"),
   dict(name="the-handles-follow-the-class-that-is-chosen",
        file=TOPOLOGY_TAB,
-       old="""    self._chosen = (target, label)
+       old="""                    else tuple(label or ()))
     self._settle_what_the_handles_sit_on()""",
-       new="""    self._chosen = (target, label)  # mutation: leave the handles""",
+       new="""                    else tuple(label or ()))  # mutation: leave the handles""",
        test="test_the_handles_follow_a_class_chosen_from_the_list",
        why="choosing a class in the chooser or the tick list moving "
            "the SELECTION -- which Apply, the drag preview and the "

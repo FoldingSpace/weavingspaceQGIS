@@ -747,7 +747,11 @@ class TopologyView(QWidget):
     Returns:
       None.
     """
-    self._chosen = (target, label)
+    # A TUPLE OF LABELS, because the paint and the handles ask
+    # `label in chosen`, and on a string that is a substring test: `a`
+    # lit as a classmate of `aa` (round ten).
+    self._chosen = (target, (label,) if isinstance(label, str) and label
+                    else tuple(label or ()))
     self._settle_what_the_handles_sit_on()
     self.update()
 
@@ -3279,7 +3283,7 @@ class TopologyPanel(QWidget):
       return
     free = max(
       (edits_module.directions_a_class_may_move(self._topology, target, label)
-       for label in labels), default=2)
+       for label in self._held_labels()), default=2)
     if free > 0:
       return
     for index in range(self.how_combo.count()):
@@ -3583,11 +3587,13 @@ class TopologyPanel(QWidget):
     view, so the handles follow the pointer to the instance under it;
     only the CLASS selection stands still.
     """
-    held_target, held = self._selection
+    held_target, _held = self._selection
+    held = self._held_labels()
     if adding and target == held_target:
       labels = [x for x in held if x != label] if label in held \
           else list(held) + [label]
-      self._select_classes(target, "".join(sorted(labels)) or label)
+      self._select_classes(target, self._in_class_order(target, labels)
+                           or label)
       return
     if target == held_target and label in held:
       # ALREADY IN HAND. Refreshing the manipulations is still right --
@@ -3612,6 +3618,8 @@ class TopologyPanel(QWidget):
       otherwise fire the handler that set it right, which is the same
       discipline `_sync_pin_controls` carries.
     """
+    if isinstance(labels, (list, tuple)):
+      labels = labels[0] if len(labels) == 1 else list(labels)
     self._selection = (target, labels)
     self._sync_the_selection()
     self.view.set_chosen(target, labels)
@@ -3642,7 +3650,7 @@ class TopologyPanel(QWidget):
         # that row is replaced rather than accumulated: one temporary
         # entry at a time, removed as soon as the selection is
         # something the list already names.
-        text = (f"{len(labels)} of "
+        text = (f"{len(self._held_labels())} of "
                 f"{len(self._labels_of(target))} {target} classes")
         if self._subset_row is not None:
           self.class_combo.removeItem(self._subset_row)
@@ -3665,12 +3673,41 @@ class TopologyPanel(QWidget):
         data = item.data(Qt.ItemDataRole.UserRole)
         if not data:
           continue
-        ticked = (data[0] == target and data[1] in labels)
+        ticked = (data[0] == target and data[1] in self._held_labels())
         item.setCheckState(Qt.CheckState.Checked if ticked
                            else Qt.CheckState.Unchecked)
     finally:
       self.class_combo.blockSignals(False)
       self.class_list.blockSignals(False)
+
+  def _held_labels(self) -> tuple:
+    """The labels the selection holds, one per class.
+
+    Returns:
+      A tuple of labels, empty where nothing is selected. The selection
+      holds one label as a string and several as a list; this is the
+      one reader that turns either into labels, so no site iterates a
+      string a character at a time and reads `aa` as two `a`s.
+    """
+    target, labels = self._selection
+    return edits_module.labels_in(labels, self._labels_of(target or "")
+                                  or ())
+
+  def _in_class_order(self, target: str, labels) -> list:
+    """Labels in the order the class chooser lists them.
+
+    Args:
+      target: "edge" or "vertex".
+      labels: any collection of labels of that kind.
+
+    Returns:
+      A list, so a subset that happens to be every class compares equal
+      to the chooser's own "every" entry rather than growing a row.
+    """
+    order = list(self._labels_of(target) or [])
+    return sorted(set(labels), key=lambda label: (
+      order.index(label) if label in order else len(order),
+      len(label), label))
 
   def _labels_of(self, target: str) -> str:
     """Every class label of one kind, as one string.
@@ -3703,7 +3740,8 @@ class TopologyPanel(QWidget):
     if not data:
       return
     target, label = data
-    held_target, held = self._selection
+    held_target, _held = self._selection
+    held = self._held_labels()
     if item.checkState() == Qt.CheckState.Checked:
       labels = (list(held) + [label]) if target == held_target else [label]
     else:
@@ -3713,7 +3751,8 @@ class TopologyPanel(QWidget):
       if not labels:
         self._sync_the_selection()      # put the last tick back
         return
-    self._select_classes(target, "".join(sorted(set(labels))))
+    self._select_classes(target,
+                         self._in_class_order(target, set(labels)))
 
   def _on_grabbed(self, key: str):
     """Take the manipulation from the handle somebody took hold of.

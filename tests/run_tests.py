@@ -93063,6 +93063,65 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
   return ("ok", f"{'moved' if moved else 'said something'}")
 
 
+def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
+  """An edit aimed at `aa` moves `aa`, and never `a` beside it.
+
+  Past twenty-six classes the library issues `aa` after `z`, and it
+  selects with `label in selector`, which on a string is a SUBSTRING
+  test. The default basket weave carries 62 edge classes, so an edit a
+  person aimed at `aa` also moved every `a` edge, silently.
+
+  THE ORACLE IS EACH EDGE'S OWN GEOMETRY, read before and after off the
+  topology the replay hands back, by label -- no selector is involved in
+  the reading. A zigzag is used because it rewrites only the edge it is
+  aimed at; the aimed class moving is the premise, and a one-letter
+  class that is not a substring of the aim is the control.
+
+  Regression: a two-letter class selector matched every one-letter class inside it, so an edit moved classes nobody chose (round ten, trigger10). [mutation]
+  """
+  from weavingspace_qgis import catalog, topology_edits as te
+  # THE READING OF A SELECTOR, as a table: a label is itself, an older
+  # joined record on a one-letter design is its characters, a list is
+  # its members, and a joined record on a longer alphabet is split
+  # longest-first.
+  assert te.labels_in("aa", {"a", "aa", "b"}) == ("aa",)
+  assert te.labels_in("ab", {"a", "b"}) == ("a", "b")
+  assert te.labels_in(["a", "aa"], {"a", "aa"}) == ("a", "aa")
+  assert te.labels_in("aab", {"a", "aa", "b"}) == ("aa", "b")
+  assert te.labels_in("", {"a"}) == ()
+
+  spec = catalog.TILINGS_BY_N[4]["basket weave ab|cd"]
+  topology, _unit, _kinds, glue, note = te.weave_topology(
+    spec, 1000.0, 0.75, reading=te.ASPECT_LIKE_A_DROP,
+    families=te.WARP_AND_WEFT_APART)
+  assert topology is not None, f"the basket weave built nothing: {note}"
+  labels = {e.label for e in topology.edges.values() if e.label}
+  assert {"a", "aa", "b"} <= labels, (
+    f"PREMISE: this design no longer carries both `a` and `aa`: "
+    f"{sorted(labels, key=lambda l: (len(l), l))[:40]}")
+
+  def lines_of(topo, label):
+    """Every edge of one class, as WKB, in a stable order."""
+    return sorted(e.get_geometry().wkb for e in topo.edges.values()
+                  if e.label == label)
+
+  before = {label: lines_of(topology, label) for label in ("a", "aa", "b")}
+  edit = {"classes": "aa", "how": "zigzag_edge",
+          "args": {"n": 2, "h": 0.2, "smoothness": 3}}
+  _tileable, refusals, state = te.apply(topology, [edit], glue=glue)
+  after_topology = state.get("topology")
+  assert after_topology is not None, f"the replay kept no topology: {refusals}"
+  after = {label: lines_of(after_topology, label)
+           for label in ("a", "aa", "b")}
+  assert after["aa"] != before["aa"], (
+    f"PREMISE: the zigzag aimed at `aa` moved no `aa` edge ({refusals})")
+  assert after["b"] == before["b"], "the control class `b` moved"
+  assert after["a"] == before["a"], (
+    "an edit aimed at class `aa` also moved class `a` -- the selector was "
+    "matched as a substring, so a person's edit reached a class they "
+    "never chose")
+
+
 def test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole():
   """An edit on a glued weave class reaches the map on both sides of a hole.
 
@@ -95347,6 +95406,8 @@ def main():
         test_the_weave_topology_tab_matrix)
   check("an edit aimed at a glued class moves every side of the hole",
         test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole)
+  check("an edit aimed at a two-letter class moves that class alone",
+        test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone)
   check("a unit can be copied with new tiles whatever kind it is",
         test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is)
   check("a typed strands code draws the elements it names",
