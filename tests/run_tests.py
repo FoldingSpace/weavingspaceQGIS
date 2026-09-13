@@ -94971,14 +94971,19 @@ def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
     "matched as a substring, so a person's edit reached a class they "
     "never chose")
 
-  # THE SAME RECORD REPLAYED WHERE `aa` DOES NOT EXIST: the design at full
-  # width carries one-letter classes only, and the edit must be refused by
-  # name rather than read as two `a`s.
+  # THE SAME RECORD REPLAYED WHERE `aa` DOES NOT EXIST: a full-width weave
+  # carries one-letter classes only, and the edit must be refused by name
+  # rather than read as two `a`s. `plain weave ab|cd`, NOT the basket
+  # weave: the library cannot work out the solid basket weave's structure
+  # on the Windows runner's QGIS, same shapely and GEOS as the Mac that
+  # builds it (measured 2026-09-13 by
+  # `tools/probes/which_weave_topologies_build_here.py`), and the arm's
+  # question does not depend on which one-letter design answers it.
   solid, _u, _k, solid_glue, solid_note = te.weave_topology(
-    spec, 1000.0, 1.0, reading=te.ASPECT_LIKE_A_DROP,
-    families=te.WARP_AND_WEFT_APART)
+    catalog.TILINGS_BY_N[4]["plain weave ab|cd"], 1000.0, 1.0,
+    reading=te.ASPECT_LIKE_A_DROP, families=te.WARP_AND_WEFT_APART)
   if solid is None:
-    raise AssertionError(f"PREMISE: the solid basket weave built nothing: {solid_note}")
+    raise AssertionError(f"PREMISE: the solid plain weave built nothing: {solid_note}")
   solid_labels = {e.label for e in solid.edges.values() if e.label}
   assert "aa" not in solid_labels and "a" in solid_labels, (
     f"PREMISE: the solid weave's classes are {sorted(solid_labels)}")
