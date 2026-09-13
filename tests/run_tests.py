@@ -93382,9 +93382,10 @@ def test_a_weaves_dual_asks_no_search_of_a_rectangle():
 
   THE MEASURE IS A COUNT, NOT A CLOCK: the real `polylabel` is wrapped so
   it still answers, and the number of times it is asked is compared with
-  the number of base tiles that are NOT rectangles, told apart by an
-  independent predicate -- four corners and the area of the tile's own
-  minimum rotated rectangle. The CONTROL is the Cairo tiling, whose
+  the number of base tiles that are NOT their own half turn, told apart
+  by the test's own coarser check. The first allowance counted tiles that
+  are not rectangles, which the regular squares' own shortcut already
+  met, so its entry survived. The CONTROL is the Cairo tiling, whose
   pentagons must still be searched, so the instrument is shown to count.
 
   Regression: the dual's precise centre search ran on every rectangular strand piece of a scaffolded weave, freezing QGIS for tens of seconds at each landing (round ten, perf1). [mutation]
