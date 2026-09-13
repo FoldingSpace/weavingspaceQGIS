@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-585 defect(s) with a regression test.
+590 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -110,6 +110,10 @@ there is no separate list to remember.
   guarded by `test_a_drag_delivered_in_many_moves_records_one_position`
 - **reopening the plugin on a dual map and re-tiling it redrew the dual of the un-edited design, so the topology edit it was built from was lost in silence.**  
   guarded by `test_a_dual_group_keeps_its_sources_edits_across_a_reopen`
+- **after a spacing change in the dual group of an edited design, every Generate waited on a topology build and then said the Topology-tab changes were left off the map, which was in fact the edited design's dual.**  
+  guarded by `test_a_dual_group_of_an_edited_design_draws_without_waiting`
+- **in a dual group made from an edited design, switching the family drew and saved the new family's dual bent by the old family's edits, replayed by label, with nothing listed on the tab.**  
+  guarded by `test_a_dual_groups_frozen_edits_follow_their_own_design`
 - **pressing "Generate the dual and tile it" on the dual's group landed a copy of the first dual under `-- dual -- dual` rather than the dual of the dual.**  
   guarded by `test_a_dual_of_a_dual_is_a_different_map`
 - **a dual made from an unedited design followed its source's later edits on the next Generate, the record having stored no frozen copy for an empty edit list.**  
@@ -140,6 +144,8 @@ there is no separate list to remember.
   guarded by `test_a_graduated_dock_recolour_survives_the_plugin_being_shut`
 - **after picking a saved map's group in the chooser and switching to another dataset, the output path stayed aimed at that map's GeoPackage in silence, and the next Save replaced its tables with the other dataset's tiles.**  
   guarded by `test_a_group_chosen_in_the_chooser_counts_as_this_sessions_work`
+- **pressing "Generate the dual and tile it" on a saved group and choosing another group before the dual's topology was ready dropped the dual in silence and put the first group's file in the second group's Save box, so the next Save overwrote it.**  
+  guarded by `test_a_group_chosen_while_a_dual_press_waits_keeps_its_own_file`
 - **a project saved under one spelling of its own folder and reopened under another stopped recognising its dataset's output group, so Generate built a rival group beside the user's map and orphaned it. Shipped in v0.24.3; found by the cross-platform hunt of 2026-08-28, which is the seam nobody had hunted deliberately.**  
   guarded by `test_a_group_is_bound_to_its_dataset_however_the_path_is_spelt`
 - **picking a saved map whose layer had been removed left the region chooser on another dataset with that map's group and file path in force, so Generate and Save put the other dataset's tiles in that map's group and file.**  
@@ -252,12 +258,16 @@ there is no separate list to remember.
   guarded by `test_a_style_pasted_mid_run_survives_the_landing`
 - **a text column counted 0 distinct values, so the many-categories question was never asked for one. Found by the manyareas hunt of 2026-08-28.**  
   guarded by `test_a_text_column_is_counted_before_the_many_categories_question`
+- **"Generate the dual and tile it" on a thin weave made a dual group whose map and saved tiles were the source design itself, its edits dropped, while the file's dual table held the scaffold's.**  
+  guarded by `test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it`
 - **an odd zigzag count typed without Return reached the record through Apply, and through the chooser switched away and back, so the map was tiled with a count the library lays out with gaps.**  
   guarded by `test_a_typed_odd_count_is_even_at_every_door`
 - **a zigzag count typed as 3 and followed by a drag on the handle was recorded as 3, so the map was tiled with an odd count the library lays out with gaps.**  
   guarded by `test_a_typed_odd_count_is_settled_when_the_handle_is_taken`
 - **the moved-data notice read a fingerprint that cannot see a value edit, so retyping numbers between Generate and Save wrote old tiles beside new data in silence -- the case the notice was written for. Found by the undo hunt of 2026-08-28.**  
   guarded by `test_a_value_edited_after_the_map_was_drawn_is_reported`
+- **in the dual group of a weave at full width the Topology tab refined the dual tiling by warp and weft, so a zigzag on one class moved half the edges that class holds.**  
+  guarded by `test_a_weaves_dual_group_takes_the_classes_of_a_tiling`
 - **2026-08-19. Found by a hunt reading the saved project with `zipfile` and the exported GeoPackage with `sqlite3`, neither of which involves QGIS: the retyped ranges were in the file's QML and the stamp appeared nowhere.**  
   guarded by `test_an_adopted_ladder_is_stamped_for_a_reopen`
 - **an area whose value was NULL was not drawn at all, leaving a hole in the map that reads as absence rather than as missing data.**  
@@ -1225,7 +1235,7 @@ there is no separate list to remember.
 ## Which shape of test found them
 
 - the mutation campaign: 207
-- a bug hunt pointed in a named direction: 163
+- a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
 - reported by a user: 57
 - reading the code: 18

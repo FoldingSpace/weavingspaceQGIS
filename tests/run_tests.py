@@ -94220,12 +94220,21 @@ def test_a_weaves_dual_group_takes_the_classes_of_a_tiling():
   dual = topology_edits.dual_as_tileable(source)
   assert dual is not None, "PREMISE: the weave has no dual"
   as_a_tiling = topology_edits.class_labels(topology_edits.build(dual)[0])["edge"]
-  refined = topology_edits.class_labels(topology_edits.build(dual, weave={
-    "spec": spec, "spacing": spacing, "aspect": 1.0,
-    "families": topology_edits.WARP_AND_WEFT_APART})[0])["edge"]
+  # THE PREMISE STAGES THE REFINEMENT WITH THE DIRECTIONS THE DUAL'S OWN
+  # TILES GIVE, which is what the build read when this was found. Since
+  # row 15 (round ten) a weave's directions come from its DESIGN, and the
+  # refinement handed the weave's terms no longer splits a dual's classes
+  # at all -- measured 4 and 4 on the merged tree -- so the dialog arm
+  # below is held twice over and its catalogue entry is expected to
+  # survive as redundant rather than weak.
+  staged = topology_edits.build(dual)[0]
+  topology_edits.keep_warp_and_weft_apart(
+    staged, None, directions=topology_edits.strand_directions(dual))
+  refined = topology_edits.class_labels(staged)["edge"]
   assert len(refined) > len(as_a_tiling), (
-    f"PREMISE: warp and weft apart gives the dual {refined}, no finer than "
-    f"{as_a_tiling}, so nothing here can tell the two builds apart")
+    f"PREMISE: a refinement by the dual's own tile directions gives "
+    f"{refined}, no finer than {as_a_tiling}, so a dual refined as cloth "
+    f"could not show")
   dlg, _layer = _a_dual_test_dialog(name, count, "weave", spacing, 1.0)
   try:
     panel = dlg.topology_panel
