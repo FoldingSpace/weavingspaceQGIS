@@ -189,7 +189,10 @@ before they are built, and all new wording goes through text review.
 - THE WINDOW GROWS TALLER ON THE TOPOLOGY TAB AND RETURNS ON LEAVING IT
   (the maintainer's clarification of the height ask), while the width goes
   on growing and staying. Prototyped as 220 px on arrival.
-- FOUND WHILE PROTOTYPING, A DEFECT IN rc21: the manipulation's argument
+
+**OUTSTANDING: WHAT PROTOTYPING THOSE ASKS FOUND, AND ONE QUESTION ANSWERED.**
+
+- A DEFECT IN rc21: the manipulation's argument
   boxes are laid from grid row 4, and `d8f38b7` put the warp-and-weft row
   above them, so they are drawn OVER the symmetry line and the "Do"
   chooser on every design. Prototyped fix: start them below "Do". Wants a
