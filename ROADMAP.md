@@ -240,11 +240,6 @@ to reword: "Set the insets to 0, or a weave's strand width to 1.0" names two
 controls that no longer take the tab away. What still does: tiles scaled in
 place, a `grid N` with a remainder, a weave scaffold the library refuses.
 
-**`a-reopen-does-not-take-the-motif-out-of-the-file` SURVIVES**, on a clean HEAD
-as well as after this work, so it predates it: the Save a reopened file defers
-for a topology now writes the motif before the drop the entry breaks. Re-aim
-at a journey that reaches the drop, or retire with that measurement.
-
 **Queue item 6**: judge `moving-the-warp-and-weft-chooser-rebuilds-the-topology`
 and `a-file-holding-a-motif-gets-a-fresh-one` on a quiet machine (HUNG before).
 And the changelog owes sentences for the UI asks, whole weave gaps, patch 7

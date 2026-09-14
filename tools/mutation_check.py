@@ -2649,6 +2649,10 @@ MUTATIONS = [
        # TABLES ARE ABOUT -- a key written beside them, which the file
        # can answer without building anything. Dropping whenever the
        # file is ours restores the original harm exactly.
+       # SURVIVED 2026-09-14, on a clean HEAD too: a reopened file with our
+       # unit table defers its Save for a build, so every journey wrote
+       # before reaching this limb. The test gained the one door left, a
+       # Save holding no topology for a file whose key names this design.
        old="""    if ours and described is not None and described != key:""",
        new="""    if ours:""",
        test="test_a_reopen_does_not_take_the_motif_out_of_the_file",

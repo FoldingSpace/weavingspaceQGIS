@@ -5190,6 +5190,27 @@ def test_a_reopen_does_not_take_the_motif_out_of_the_file():
       assert press_save(first), "PREMISE: the first save did not write"
       assert bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(out), \
         "PREMISE: no motif was written, so none can be lost"
+      # A SAVE WITH NO TOPOLOGY IN HAND, FOR A FILE THAT DESCRIBES THIS
+      # VERY DESIGN. Every journey below writes the motif before the drop
+      # is reached -- a reopened file with our unit table defers the Save
+      # for a build -- so the limb that SPARES a file whose key matches was
+      # held by that deferral alone, and its catalogue entry survived
+      # (2026-09-14, on a clean HEAD as well). This is the one door left to
+      # it: a build that never landed, or a write that failed, leaves the
+      # writer holding nothing about a design the file already describes.
+      described = (bridge.read_working_state(out) or {}).get("topology_design")
+      assert described is not None \
+        and described == first._topology_description_key(), \
+        "PREMISE: the file's key does not name the design on screen"
+      held_topology = first.topology_panel._topology
+      first.topology_panel._topology = None
+      try:
+        first._write_or_drop_the_topology(out, ours=True, record=None)
+      finally:
+        first.topology_panel._topology = held_topology
+      assert bridge.UNIT_TABLE_NAME in bridge.gpkg_tables(out), (
+        "a Save holding no topology removed the motif from a file whose "
+        "own key says it describes the design on screen")
     finally:
       first.close()
 
