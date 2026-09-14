@@ -727,7 +727,8 @@ The accounts are T-137.
   memory (T-71); one can be green BECAUSE of the defect it will later
   catch (T-66); and a verdict is read with its oracle in one breath,
   since a control and the arithmetic behind it calling one function
-  cannot disagree (T-102). Instrumentation must not be able to replace
+  cannot disagree (T-102) -- nor an expected side built through the helper
+  the product calls, which agreed with the defect it hid (T-156). Instrumentation must not be able to replace
   the verdict: a `[found]` block that can crash is evidence you will
   not have, and it reads every store a refusal can land in -- CLEARED
   before the act rather than sliced by length after it, since a

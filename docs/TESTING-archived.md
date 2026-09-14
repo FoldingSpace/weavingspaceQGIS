@@ -186,6 +186,7 @@ quote them, do not renumber them.
 - **T-153** — A subset runner that sets no platform measures Cocoa  <sub>minted</sub>
 - **T-154** — A fixture in a form the product no longer writes  <sub>minted</sub>
 - **T-155** — A probe patched the library under a second import name  <sub>minted</sub>
+- **T-156** — an expected side computed through the helper under test  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7357,3 +7358,20 @@ wrapper had run at all: the wrapped setup never printed its own line. Imported
 as `weavingspace_qgis.vendor.weavingspace.topology`, the watcher found the key
 deleted in the very method the repair targeted, and the repair then built the
 weaves. A patch that counts its own calls would have said so in one line.
+
+### T-156 — an expected side computed through the helper under test
+
+<sub>From docs/TESTING.md, the assertions theme, 2026-09-14.</sub>
+
+The inset topology's differential compared the dialog's unit after a
+zigzag with the edited skeleton inset by `topology_edits.inset_the_skeleton`
+-- the function the dialog itself calls to put the insets on. It passed on
+its first run. A separate measurement then found that function clipping an
+edited unit by the plain design's regularised prototile, losing 83,333 of a
+1,000,000 cell. Rewritten to compute the insets from what they mean (each
+tile buffered in by the tile inset, clipped by the union of the edited tiles
+buffered in by the group inset), the same test failed at 0.0805 of a cell
+with the repair removed, and passed with it. This is "write the expected
+side from the settings, never from `_build_unit`" one level down: a helper
+extracted to give two callers one owner is shared by the test as well,
+unless the test is written not to call it.
