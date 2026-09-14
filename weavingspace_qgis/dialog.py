@@ -6991,6 +6991,7 @@ class WeavingSpaceDialog(QDialog):
     # after, R-40), and where the map is a dual, which is taken of the
     # inset unit below.
     self._skeleton_parts = None
+    skeleton, tiles_in, group_in = unit, 0.0, 0.0
     if spec["type"] == "tiling":
       from . import topology_edits
       tiles_in = self.mod_t_inset.value() * spacing / 100
@@ -7018,9 +7019,20 @@ class WeavingSpaceDialog(QDialog):
     if getattr(self, "opt_map_dual", None) is not None \
         and self.opt_map_dual.isChecked():
       from . import topology_edits
-      # A DUAL HAS NO SKELETON: it is taken of the inset unit, so the
-      # topology of a dual group is built from what this branch returns.
+      # THE DUAL IGNORES THE INSETS, AND THEN WEARS THEM (maintainer's
+      # ruling of 2026-09-14): it is taken of the SKELETON, which has a
+      # topology where the inset unit has none, and the insets are put on
+      # the dual's own tiles last, as on any design -- so the inset boxes
+      # still mean something on a dual group, and the dual group's own
+      # topology is its dual skeleton's. `finish` below is that last step.
       self._skeleton_parts = None
+      unit = skeleton
+
+      def finish(result):
+        if not (tiles_in or group_in):
+          return result
+        self._skeleton_parts = (result, tiles_in, group_in)
+        return topology_edits.inset_the_skeleton(result, tiles_in, group_in)
       # OF THE DESIGN AS EDITED. The tab shows the edited motif and its
       # dual, and the dual group's record carries the source design's
       # edits, yet the dual was taken of the CATALOGUE unit: the source's
@@ -7078,7 +7090,7 @@ class WeavingSpaceDialog(QDialog):
           break
         unit = dual
       else:
-        return unit
+        return finish(unit)
       if level == 0:
         self._report_quietly(
           "This design has no dual to tile with"
@@ -7089,6 +7101,7 @@ class WeavingSpaceDialog(QDialog):
           "The dual has no further dual to tile with"
           + (f": {why}" if why else "")
           + ", so the map is tiled with the dual as far as it goes.")
+      return finish(unit)
     return unit
 
   def _edits_of_the_source_design(self) -> list:

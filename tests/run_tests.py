@@ -11760,11 +11760,11 @@ def test_the_dual_can_be_the_design_the_map_is_tiled_with():
       f"for the dual, so a colleague opening this map would be given "
       f"the design rather than the tiling that was sent")
 
-    # ---- AND A DESIGN WITH NO DUAL FALLS THROUGH, SAYING SO. An
-    # inset opens gaps and a gapped design has no topology, so this is
-    # the ordinary way to reach it.
+    # ---- AND A DESIGN WITH NO DUAL FALLS THROUGH, SAYING SO. Tiles
+    # scaled in place leave gaps, and a gapped design has no topology.
+    # (An inset no longer reaches this: its dual is its skeleton's.)
     BAR_MESSAGES.clear()
-    dlg.mod_t_inset.setValue(25.0)
+    _take_the_topology_away(dlg)
     _tick(300)
     fallen = dlg._build_unit()
     assert fallen is not None, (
@@ -13078,8 +13078,10 @@ def test_an_inset_design_s_topology_is_its_skeleton_s():
   skeleton's own tile geometry are what they are at no inset, which is
   the differential the whole design rests on;
   THE INSET DESIGN IS GHOSTED under the skeleton, and smaller than it;
-  THE DUAL IS REFUSED on an inset design, whose map dual is taken of the
-  inset unit, until a ruling says what that dual is;
+  THE DUAL IGNORES THE INSETS AND THEN WEARS THEM (maintainer's ruling of
+  2026-09-14): it is offered, and the dual the map is tiled with is the
+  skeleton's dual with both insets put on its tiles, compared at 5% and
+  10% with one written from what that means;
   THE MAP IS THE EDITED SKELETON, INSET: after a zigzag at 5% and 10%
   the dialog's unit is the library's own replay onto the skeleton with
   both insets applied;
@@ -13162,9 +13164,40 @@ def test_an_inset_design_s_topology_is_its_skeleton_s():
       assert ghost_area < skeleton_area, (
         f"the ghost ({ghost_area:.0f}) is not the inset design: it covers "
         f"as much as the skeleton ({skeleton_area:.0f})")
-      assert not dlg.topology_panel.dual_button.isEnabled(), (
-        f"at insets {tiles_pct}%/{group_pct}% the dual is offered, but the "
-        f"map's dual is taken of the inset unit, which has no topology")
+      assert dlg.topology_panel.dual_button.isEnabled(), (
+        f"at insets {tiles_pct}%/{group_pct}% the dual is not offered: "
+        f"{dlg.topology_panel.dual_button.toolTip()!r}")
+
+    # THE DUAL, at 5% and 10%, before any edit: the skeleton's dual with
+    # both insets on its tiles, written from what that means.
+    spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+    skeleton = catalog.make_unit(spec, spacing=spacing, crs=None)
+    from shapely.ops import unary_union
+    dual = topology_edits.dual_as_tileable(topology_edits.build(skeleton)[0])
+    assert dual is not None, "PREMISE: the skeleton has no dual"
+    dual_held = unary_union([g.buffer(1e-6) for g in dual.tiles.geometry])
+    dual_shrunk = dual_held.buffer(-10.0 * spacing / 100, join_style="mitre",
+                                   cap_style="square")
+    dual_wanted = [g.buffer(-5.0 * spacing / 100, join_style="mitre",
+                            cap_style="square").intersection(dual_shrunk)
+                   for g in dual.tiles.geometry]
+    dlg.opt_map_dual.setChecked(True)
+    _tick(200)
+    try:
+      mapped = dlg._build_unit()
+    finally:
+      dlg.opt_map_dual.setChecked(False)
+      _tick(200)
+    assert mapped is not None and len(mapped.tiles) == len(dual_wanted), (
+      f"the dual of an inset design builds "
+      f"{None if mapped is None else len(mapped.tiles)} tiles where the "
+      f"skeleton's dual has {len(dual_wanted)}")
+    dual_cell = sum(g.area for g in dual.tiles.geometry)
+    dual_apart = sum(a.symmetric_difference(b).area for a, b in
+                     zip(mapped.tiles.geometry, dual_wanted)) / dual_cell
+    assert dual_apart < 1e-4, (
+      f"the dual an inset design is tiled with differs from the skeleton's "
+      f"dual with both insets on by {dual_apart:.3g} of a cell")
 
     # THE EDIT, at 5% and 10%, where the skeleton route is doing the most.
     panel = dlg.topology_panel
@@ -13184,8 +13217,6 @@ def test_an_inset_design_s_topology_is_its_skeleton_s():
     assert dlg._restore_the_edited_unit(), \
       "PREMISE: the edited unit never came back from the build"
 
-    spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
-    skeleton = catalog.make_unit(spec, spacing=spacing, crs=None)
     built = topology_edits.build(skeleton)
     assert built[0] is not None, f"PREMISE: the skeleton refused: {built[1]}"
     edited, refused, _after = topology_edits.apply(built[0], panel.edits())
@@ -13195,7 +13226,6 @@ def test_an_inset_design_s_topology_is_its_skeleton_s():
     # the union of the edited tiles shrunk by the group inset. The helper
     # once clipped an edited unit by the PLAIN design's prototile, cutting
     # away every zigzag bulge, and a test built on the helper agreed.
-    from shapely.ops import unary_union
     held = unary_union([g.buffer(1e-6) for g in edited.tiles.geometry])
     shrunk = held.buffer(-10.0 * spacing / 100, join_style="mitre",
                          cap_style="square")

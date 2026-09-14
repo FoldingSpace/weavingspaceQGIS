@@ -2888,14 +2888,23 @@ MUTATIONS = [
        test="test_an_inset_design_s_topology_is_its_skeleton_s",
        why="the tab drawing a skeleton with nothing to say the map is "
            "tiled with the inset design beneath it (ruling 1 of C-346)"),
-  dict(name="an-inset-design-offers-no-dual", file=TOPOLOGY_EDITS,
-       old="""  if stands_on_a_skeleton(topology):
-    return None, INSET_HAS_NO_DUAL""",
-       new="""  if False:  # mutation: the skeleton's dual is offered
-    return None, INSET_HAS_NO_DUAL""",
+  dict(name="an-inset-design-s-dual-is-of-its-skeleton", file=DIALOG,
+       old="""      self._skeleton_parts = None
+      unit = skeleton
+""",
+       new="""      self._skeleton_parts = None
+""",
        test="test_an_inset_design_s_topology_is_its_skeleton_s",
-       why="the dual button offering a skeleton's dual that the map, which "
-           "takes the dual of the inset unit, cannot draw"),
+       why="the dual of an inset design taken of the inset unit, which has "
+           "no topology, so the dual group is tiled with the source design "
+           "(maintainer's ruling of 2026-09-14)"),
+  dict(name="an-inset-design-s-dual-wears-the-insets", file=DIALOG,
+       old="""        self._skeleton_parts = (result, tiles_in, group_in)
+        return topology_edits.inset_the_skeleton(result, tiles_in, group_in)""",
+       new="""        return result  # mutation: the dual drops the insets""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="a dual group ignoring its inset boxes, controls that look alive "
+           "and move nothing (maintainer's ruling of 2026-09-14)"),
   dict(name="a-group-inset-keeps-an-edit-s-ground", file=TOPOLOGY_EDITS,
        old="""  if group:
     unit = _with_a_prototile_that_holds_its_tiles(unit)""",

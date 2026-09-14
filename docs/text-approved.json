@@ -2519,6 +2519,11 @@
   "excerpt": "Begin with the data: one polygon layer, in the projected CRS",
   "where": "docs/USER-GUIDE.md"
  },
+ "d481e614e3a02c12": {
+  "approved": "2026-09-14",
+  "excerpt": "A design with insets has no dual defined yet. Set both inset",
+  "where": "weavingspace_qgis/topology_edits.py"
+ },
  "d4a7524d0d47a768": {
   "approved": "2026-08-08",
   "excerpt": "Run this element's ramp the other way round",

@@ -3595,14 +3595,6 @@ def _is_its_own_half_turn(shape) -> bool:
 # sentence so the two cannot drift apart (round ten, repairs25).
 SCAFFOLD_HAS_NO_DUAL = "A weave with gaps has no dual."
 
-# AND OF A TILING WITH INSETS, whose topology is its skeleton's (C-346):
-# the map's dual chain takes the dual of the INSET unit, which has gaps
-# and no topology, so a dual offered from the skeleton would draw the
-# source design in the dual group. Refused until a ruling says what an
-# inset design's dual is (ROADMAP.md, the inset topology's build notes).
-INSET_HAS_NO_DUAL = ("A design with insets has no dual to tile with yet. "
-                     "Set both insets to 0 to use its dual.")
-
 # WHERE A SKELETON KEEPS THE INSETS IT STANDS IN FOR, as the scaffold
 # keeps its kinds: on the Tileable, which the library copies whole into
 # every Topology `apply` hands back.
@@ -3830,8 +3822,6 @@ def dual_on_offer(topology, promoted=None):
                   "tile with.")
   if stands_on_scaffolding(topology):
     return None, SCAFFOLD_HAS_NO_DUAL
-  if stands_on_a_skeleton(topology):
-    return None, INSET_HAS_NO_DUAL
   dual = promoted if promoted is not None else dual_as_tileable(topology)
   if dual is None:
     return None, "This design's dual cannot be laid out as a tiling."
