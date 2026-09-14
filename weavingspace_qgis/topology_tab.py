@@ -2617,12 +2617,12 @@ class TopologyPanel(QWidget):
     reading_stack.setContentsMargins(0, 0, 0, 0)
     reading_stack.setSpacing(2)
     for label, value in (
-        ("Count, like a hole made by a 'missing' strand/tile", "like-a-drop"),
+        ("Count as holes like a hole made by a 'missing' strand/tile", "like-a-drop"),
         ("Ignore, like an inset", "like-an-inset")):
       button = QRadioButton(label)
       button.setToolTip(
-        "Whether gaps between tiles or strands count, like a hole left by "
-        "a missing strand/tile.")
+        "Whether gaps count as holes, like a hole left by a missing "
+        "strand/tile.")
       self.aspect_reading.addButton(button)
       button.setProperty("reading", value)
       reading_stack.addWidget(button)
