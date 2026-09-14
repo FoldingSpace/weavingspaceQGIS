@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-600 defect(s) with a regression test.
+602 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -856,6 +856,10 @@ there is no separate list to remember.
   guarded by `test_a_value_on_a_break_belongs_to_the_class_below`
 - **the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers.**  
   guarded by `test_an_infinity_alone_still_asks_for_the_split`
+- **an inset design's file would have carried the skeleton's dual beside the inset unit, a pair of two designs, had the skeleton route shipped without ruling 3 (C-346).**  
+  guarded by `test_an_inset_design_s_file_carries_its_skeleton`
+- **any tile or group inset took the Topology tab away outright, where the design before its insets carries a topology (C-346).**  
+  guarded by `test_an_inset_design_s_topology_is_its_skeleton_s`
 - **choosing a layer produced nothing until Generate was pressed, leaving a first-time user with an empty canvas and no indication that anything was meant to happen.**  
   guarded by `test_auto_first_render`
 - **a project reopened after an element was styled in QGIS lost the fact that the plugin had stopped styling it, so the next Generate destroyed the user's work.**  
@@ -1258,7 +1262,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
 - reported by a user: 63
-- reading the code: 19
+- reading the code: 21
 - the functional suite, run whole: 11
 - running the suite somewhere other than the machine it was written on: 10
 - race and stress testing: 6

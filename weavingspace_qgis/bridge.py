@@ -4130,6 +4130,12 @@ REGION_TABLE_NAME = "weavingspace_region"
 # about a memory layer handed EPSG:4326, arriving through a new door.
 UNIT_TABLE_NAME = "weavingspace_unit_no_crs"
 DUAL_TABLE_NAME = "weavingspace_dual_no_crs"
+# AND A THIRD FOR A DESIGN WITH INSETS (ruling 3 of 2026-09-08, C-346):
+# its topology and dual are its SKELETON's, the unit before the insets,
+# so the file carries the skeleton beside the as-built unit and the dual
+# describes the skeleton. Absent wherever the design has no inset, where
+# the unit table IS the skeleton; older plugins do not read it.
+SKELETON_TABLE_NAME = "weavingspace_skeleton_no_crs"
 
 # The GeoPackage primary key this plugin writes, named so it cannot
 # collide with a user column called `fid`. Named here rather than

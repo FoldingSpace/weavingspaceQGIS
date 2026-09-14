@@ -4094,6 +4094,29 @@ def _topology_matrix_shapes():
   return builds + refuses
 
 
+def _take_the_topology_away(dlg):
+  """Stage a design that carries no topology, its shelf key unmoved.
+
+  Args:
+    dlg: the dialog, on a tiling.
+
+  Returns:
+    None. Scales every tile to 0.8 IN PLACE ("Scale as glyph"), which
+    opens gaps between them, so `Topology` has no gap-free tiling to build
+    from -- measured on `laves 3.3.4.3.4` on 2026-09-14.
+
+  NOT AN INSET ANY MORE. A tile or group inset was how this suite staged
+  "no topology" until insets took the skeleton route (C-346): an inset
+  design now carries its skeleton's topology, so a premise staged with one
+  holds nothing. Glyph scaling is a modifier the skeleton route does not
+  reach, and it leaves the family, element count and depth -- the shelf
+  key -- exactly where they were, so edits already made stay on the shelf.
+  """
+  dlg.mod_scale_x.setValue(0.8)
+  dlg.mod_scale_y.setValue(0.8)
+  dlg.mod_glyph.setChecked(True)
+
+
 def _wait_for_the_topology(dlg, seconds: float = 40.0,
                            explain: bool = True) -> bool:
   """Wait until the tab has a topology, or has said why it has none.
@@ -5091,8 +5114,8 @@ def test_the_motif_s_key_ignores_the_crs_and_nothing_else():
 
     # AND THE CONTROL: the key must still move for a term that really
     # does change what those tables describe. A tile inset is the
-    # sharpest of them -- it opens gaps, so the design stops carrying
-    # a topology at all.
+    # sharpest of them -- the unit table is the design as built, and an
+    # inset changes every tile in it.
     moved = {}
     for label, widget, value in (
         ("a tile inset", dlg.mod_t_inset, 5.0),
@@ -5235,9 +5258,9 @@ def test_a_reopen_does_not_take_the_motif_out_of_the_file():
       _tick(300)
       fourth._resume_from_gpkg(out)
       _settle(fourth)
-      # A tile inset opens gaps, and `Topology` needs a gap-free
-      # tiling, so this design genuinely carries none.
-      fourth.mod_t_inset.setValue(25.0)
+      # Tiles scaled in place leave gaps, and `Topology` needs a
+      # gap-free tiling, so this design genuinely carries none.
+      _take_the_topology_away(fourth)
       _tick(300)
       fourth._generate()
       _settle(fourth)
@@ -5580,10 +5603,11 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
   in twenty seconds, with the map never drawn, the file never saved,
   and the plugin saying it was working the whole time.
 
-  A TILE INSET IS THE ORDINARY WAY IN, and it is not exotic: insetting
-  shrinks every tile by a fixed distance, which opens gaps, and
-  `Topology` needs a gap-free tiling. So this is a person with a
-  topology edit reaching for a control on another tab.
+  A MODIFIER THAT OPENS GAPS IS THE WAY IN: scaling each tile in place
+  opens gaps, and `Topology` needs a gap-free tiling. So this is a person
+  with a topology edit reaching for a control on another tab. It was a
+  tile inset until insets took the skeleton route (C-346), which is why
+  the regression line names one.
 
   THE CONTROL ARM IS THE SAME JOURNEY WITH NO EDIT, where one build
   and one redraw is the whole of it -- without it a bounded count
@@ -5645,9 +5669,8 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
         _settle_topology(dlg, seconds=30)
         _tick(400)
         assert panel.edits(), "PREMISE: no edit was recorded"
-      # THE INSET, which opens the gaps that leave this design with no
-      # topology at all.
-      dlg.mod_t_inset.setValue(25.0)
+      # THE GAPS, which leave this design with no topology at all.
+      _take_the_topology_away(dlg)
       _tick(400)
       BAR_MESSAGES.clear()
       MODALS.clear()
@@ -5671,7 +5694,7 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
     topology_edits.build = real_build
 
   assert quiet_layers, \
-    "PREMISE: the control arm drew nothing, so the inset alone " \
+    "PREMISE: the control arm drew nothing, so the gaps alone " \
     "refuses this design and the edited arm proves nothing"
   # A CEILING SIZED FROM THE CONTROL rather than written down: what
   # matters is that the edited arm does not run away, and the control
@@ -5764,7 +5787,7 @@ def test_a_design_that_cannot_carry_its_edits_still_draws():
     # came to measure zero and assert "at most one".
     BAR_MESSAGES.clear()
     MODALS.clear()
-    live_dlg.mod_t_inset.setValue(25.0)
+    _take_the_topology_away(live_dlg)
     _tick(400)
     live_dlg._generate()
     _settle(live_dlg)
@@ -7503,7 +7526,8 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
   BOTH ANSWERS ARE ASSERTED, because a repair that simply stopped
   dropping would pass half of this and reintroduce the fault the
   method exists for: a design that genuinely carries no topology --
-  here the same family with a tile inset, which opens gaps -- must
+  here the same family with its tiles scaled in place, which opens
+  gaps -- must
   still lose the stale pair. The first attempt at the repair did
   exactly that, carrying the stale object into the rebuild so the
   pair was WRITTEN over a design it does not describe.
@@ -7565,7 +7589,7 @@ def test_a_later_save_replaces_a_motif_rather_than_dropping_it():
       _settle_topology(dlg, seconds=40)
       _tick(200)
       if inset:
-        dlg.mod_t_inset.setValue(25.0)
+        _take_the_topology_away(dlg)
       else:
         dlg.n_spin.setValue(3)
         _tick(200)
@@ -8948,8 +8972,8 @@ def test_a_design_without_a_topology_leaves_none_in_the_file():
   """What the file holds stops when the map stops having it.
 
   The other half of the same write, and the reason it is one method:
-  a design that STOPS carrying a topology -- somebody sets a tile
-  inset, so the tiling is no longer gap-free -- would otherwise leave
+  a design that STOPS carrying a topology -- somebody scales its tiles
+  in place, so the tiling is no longer gap-free -- would otherwise leave
   the previous design's motif in the file, describing a map it is no
   longer made of. That is the ruling of 2026-08-26 that a file shows
   the limit of what it contains.
@@ -8994,9 +9018,9 @@ def test_a_design_without_a_topology_leaves_none_in_the_file():
       "PREMISE: the first save wrote no unit, so there is nothing " \
       "for the second to leave behind"
 
-    # A DESIGN THAT GENUINELY LOSES ITS TOPOLOGY, which is a tile
-    # inset: `Topology` needs a GAP-FREE tiling and any inset opens
-    # gaps, so `can_build` refuses and the build reports there is none.
+    # A DESIGN THAT GENUINELY LOSES ITS TOPOLOGY: `Topology` needs a
+    # GAP-FREE tiling and tiles scaled in place leave gaps, so the build
+    # reports there is none. (An inset no longer does, C-346.)
     #
     # THIS USED TO UNTICK THE EXPERIMENTAL BOX, and that was the wrong
     # contract -- corrected 2026-08-30 after a hunt showed the box is a
@@ -9006,7 +9030,7 @@ def test_a_design_without_a_topology_leaves_none_in_the_file():
     # it deleted the motif from files people had merely reopened. The
     # box stays ON here so a build actually runs and can report the
     # absence, which is the only thing that licenses a drop.
-    dlg.mod_t_inset.setValue(25.0)
+    _take_the_topology_away(dlg)
     _tick(300)
     _settle_topology(dlg)
     assert dlg.topology_panel._topology is None, (
@@ -13037,6 +13061,299 @@ def test_warp_and_weft_are_offered_only_for_a_weave():
     _tick(50)
 
 
+def test_an_inset_design_s_topology_is_its_skeleton_s():
+  """A tiling with insets keeps its Topology tab, built from its skeleton.
+
+  Regression: any tile or group inset took the Topology tab away outright, where the design before its insets carries a topology (C-346). [review]
+
+  The three rulings of 2026-09-08 (CLAUDE.md, "TOPOLOGY EDITS SURVIVE AN
+  INSET"): the insets are the last two steps of `_build_unit`, so the
+  topology is built from the unit before them, edits are replayed there
+  and the insets put on the result. Five arms, each a promise the rulings
+  make, on `laves 3.3.4.3.4` with the expected side written from the
+  settings rather than from `_build_unit`:
+
+  THE TOPOLOGY DOES NOT MOVE WITH THE INSETS -- at tile insets of 1% and
+  5%, group insets of 5% and 10%, and both together, the classes and the
+  skeleton's own tile geometry are what they are at no inset, which is
+  the differential the whole design rests on;
+  THE INSET DESIGN IS GHOSTED under the skeleton, and smaller than it;
+  THE DUAL IS REFUSED on an inset design, whose map dual is taken of the
+  inset unit, until a ruling says what that dual is;
+  THE MAP IS THE EDITED SKELETON, INSET: after a zigzag at 5% and 10%
+  the dialog's unit is the library's own replay onto the skeleton with
+  both insets applied;
+  AND VALIDITY IS JUDGED ON THE SKELETON: that zigzag leaves the tiles
+  meeting, so its mark is sound and nothing is hatched, where the inset
+  design itself leaves a third of the cell bare (ruling 2; 0.358 of a
+  cell at 5%, docs/TOPOLOGY.md).
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+
+  def landed():
+    """Wait until a topology for the design on screen has landed."""
+    deadline = time.monotonic() + 60 * CONTENTION
+    while time.monotonic() < deadline:
+      _tick(100)
+      held = getattr(dlg, "_topology_dual", None)
+      if (dlg._topology_task is None and held is not None
+          and held[0] == dlg._topology_stamp()):
+        return True
+    return False
+
+  def reading():
+    """The classes and the drawn tiles of the topology the tab holds."""
+    topo = dlg.topology_panel._topology
+    assert topo is not None, (
+      f"the tab holds no topology at insets "
+      f"{dlg.mod_t_inset.value()}/{dlg.mod_p_inset.value()}: "
+      f"{dlg.topology_panel.note.text()!r}")
+    labels = topology_edits.class_labels(topo, dlg.topology_panel._glue)
+    shapes = tuple(sorted(
+      (round(t.shape.area, 1),) + tuple(round(b, 1) for b in t.shape.bounds)
+      for t in topo.tiles))
+    return labels, shapes, topo
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), \
+      "PREMISE: laves 3.3.4.3.4 carries no topology"
+    assert landed(), "PREMISE: the plain design's topology never landed"
+    plain_labels, plain_shapes, _ = reading()
+    assert plain_labels.get("edge") and plain_labels.get("vertex"), \
+      f"PREMISE: the plain design reads no classes: {plain_labels}"
+    spacing = dlg.spacing_spin.value()
+
+    for tiles_pct, group_pct in ((1.0, 0.0), (5.0, 0.0), (0.0, 5.0),
+                                 (0.0, 10.0), (5.0, 10.0)):
+      dlg.mod_t_inset.setValue(tiles_pct)
+      dlg.mod_p_inset.setValue(group_pct)
+      _tick(400)
+      assert landed(), (
+        f"no topology landed for insets {tiles_pct}%/{group_pct}%: "
+        f"{dlg.topology_panel.note.text()!r}")
+      labels, shapes, topo = reading()
+      assert labels == plain_labels, (
+        f"at insets {tiles_pct}%/{group_pct}% the classes are {labels}, "
+        f"against {plain_labels} with none: the topology moved with an "
+        f"inset, which the skeleton route exists to prevent")
+      assert shapes == plain_shapes, (
+        f"at insets {tiles_pct}%/{group_pct}% the tab draws tiles other "
+        f"than the skeleton's, so its handles no longer sit on the ink "
+        f"they aim at")
+      assert topology_edits.stands_on_a_skeleton(topo), \
+        "an inset design's topology is not marked as its skeleton's"
+      ghost = dlg.topology_panel.view._ghost
+      assert ghost is not None and ghost.tiles, (
+        f"at insets {tiles_pct}%/{group_pct}% nothing is ghosted, so the "
+        f"design the map is tiled with is not shown under its skeleton")
+      ghost_area = sum(t.shape.area for t in ghost.tiles)
+      skeleton_area = sum(t.shape.area for t in topo.tiles)
+      assert ghost_area < skeleton_area, (
+        f"the ghost ({ghost_area:.0f}) is not the inset design: it covers "
+        f"as much as the skeleton ({skeleton_area:.0f})")
+      assert not dlg.topology_panel.dual_button.isEnabled(), (
+        f"at insets {tiles_pct}%/{group_pct}% the dual is offered, but the "
+        f"map's dual is taken of the inset unit, which has no topology")
+
+    # THE EDIT, at 5% and 10%, where the skeleton route is doing the most.
+    panel = dlg.topology_panel
+    wanted = next(
+      i for i in range(panel.class_combo.count())
+      if (panel.class_combo.itemData(i) or ("", ""))[0] == "edge")
+    panel.class_combo.setCurrentIndex(wanted)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+    _tick(150)
+    panel.apply_button.click()
+    _tick(400)
+    assert panel.edits(), "PREMISE: no edit was recorded"
+    deadline = time.monotonic() + 60 * CONTENTION
+    while time.monotonic() < deadline and not dlg._restore_the_edited_unit():
+      _tick(100)
+    assert dlg._restore_the_edited_unit(), \
+      "PREMISE: the edited unit never came back from the build"
+
+    spec = catalog.TILINGS_BY_N[4]["laves 3.3.4.3.4"]
+    skeleton = catalog.make_unit(spec, spacing=spacing, crs=None)
+    built = topology_edits.build(skeleton)
+    assert built[0] is not None, f"PREMISE: the skeleton refused: {built[1]}"
+    edited, refused, _after = topology_edits.apply(built[0], panel.edits())
+    assert not refused, f"PREMISE: the library refused the edit: {refused}"
+    # THE INSETS BY HAND, from what they MEAN rather than through the
+    # plugin's helper: each tile shrunk by the tile inset, then clipped by
+    # the union of the edited tiles shrunk by the group inset. The helper
+    # once clipped an edited unit by the PLAIN design's prototile, cutting
+    # away every zigzag bulge, and a test built on the helper agreed.
+    from shapely.ops import unary_union
+    held = unary_union([g.buffer(1e-6) for g in edited.tiles.geometry])
+    shrunk = held.buffer(-10.0 * spacing / 100, join_style="mitre",
+                         cap_style="square")
+    wanted_tiles = [
+      g.buffer(-5.0 * spacing / 100, join_style="mitre",
+               cap_style="square").intersection(shrunk)
+      for g in edited.tiles.geometry]
+    drawn = list(dlg._unit.tiles.geometry)
+    assert len(drawn) == len(wanted_tiles), (
+      f"the map's unit has {len(drawn)} tiles where the edited skeleton, "
+      f"inset, has {len(wanted_tiles)}")
+    cell = sum(g.area for g in skeleton.tiles.geometry)
+    apart = sum(a.symmetric_difference(b).area
+                for a, b in zip(drawn, wanted_tiles)) / cell
+    assert apart < 1e-4, (
+      f"the map's unit differs from the edited skeleton with both insets "
+      f"applied by {apart:.3g} of a cell: the map is not what the edit and "
+      f"the insets make together")
+    plain_inset = topology_edits.inset_the_skeleton(
+      skeleton, 5.0 * spacing / 100, 10.0 * spacing / 100)
+    moved = sum(a.symmetric_difference(b).area for a, b in
+                zip(drawn, plain_inset.tiles.geometry)) / cell
+    assert moved > 1e-4, \
+      f"PREMISE: the zigzag moved the map by only {moved:.3g} of a cell"
+
+    marks = panel._marks
+    assert marks and all(m.get("sound") for m in marks), (
+      f"a zigzag that leaves the skeleton's tiles meeting is marked "
+      f"{marks}: the judgement ran on the inset design, whose insets "
+      f"leave a third of the cell bare by design")
+    assert panel.view._gaps is None, (
+      "the drawing hatches a tear on a sound edit of an inset design, so "
+      "the insets' own gaps are being read as damage")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
+def test_an_inset_design_s_file_carries_its_skeleton():
+  """A saved inset design carries its skeleton, its dual, and the unit as built.
+
+  Regression: an inset design's file would have carried the skeleton's dual beside the inset unit, a pair of two designs, had the skeleton route shipped without ruling 3 (C-346). [review]
+
+  Ruling 3 of 2026-09-08: THE FILE CARRIES THREE FRAMES -- the skeleton,
+  its dual, and the as-built unit -- so a colleague can open any of them
+  without reconstructing one. Two arms. With a 5% tile inset and a
+  zigzag, the three tables are written and each describes what it names:
+  the skeleton covers its cell and is the edited design, the unit is that
+  design inset and covers less, and the dual covers the skeleton's cell.
+  Then with the inset set back to 0 the skeleton table is taken out, the
+  unit table being the skeleton again, and the other two stay -- the arm
+  that tells a writer that keeps a stale frame from one that follows the
+  design.
+  """
+  import os
+  from weavingspace_qgis import bridge
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  QgsProject.instance().addMapLayer(make_region_layer())
+  holder = _temp_dir()
+  td = holder.__enter__()
+  out = os.path.join(td, "inset-skeleton.gpkg")
+  dlg = WeavingSpaceDialog(iface=_Iface())
+
+  def landed():
+    deadline = time.monotonic() + 60 * CONTENTION
+    while time.monotonic() < deadline:
+      _tick(100)
+      held = getattr(dlg, "_topology_dual", None)
+      if (dlg._topology_task is None and held is not None
+          and held[0] == dlg._topology_stamp()):
+        return True
+    return False
+
+  def areas(table):
+    layer = QgsVectorLayer(f"{out}|layername={table}", table, "ogr")
+    assert layer.isValid(), f"the file's {table} table does not open"
+    return [f.geometry().area() for f in layer.getFeatures()]
+
+  def tables():
+    return sorted(name for name in bridge.gpkg_tables(out)
+                  if name.startswith("weavingspace_") and name.endswith("_no_crs"))
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.gpkg_widget.setFilePath(out)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    dlg.mod_t_inset.setValue(5.0)
+    _tick(400)
+    assert landed(), \
+      f"PREMISE: no topology landed for the inset design: " \
+      f"{dlg.topology_panel.note.text()!r}"
+    panel = dlg.topology_panel
+    wanted = next(
+      i for i in range(panel.class_combo.count())
+      if (panel.class_combo.itemData(i) or ("", ""))[0] == "edge")
+    panel.class_combo.setCurrentIndex(wanted)
+    _tick(150)
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
+    _tick(150)
+    panel.apply_button.click()
+    _tick(400)
+    assert panel.edits(), "PREMISE: no edit was recorded"
+    assert landed(), "PREMISE: the edited topology never landed"
+    dlg._generate()
+    _settle(dlg)
+    assert press_save(dlg), "PREMISE: the save did not write"
+
+    held = tables()
+    assert held == sorted([bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME,
+                           bridge.SKELETON_TABLE_NAME]), (
+      f"a saved inset design holds {held}: ruling 3 asks for the skeleton, "
+      f"its dual and the unit as built")
+    skeleton = sum(areas(bridge.SKELETON_TABLE_NAME))
+    unit = sum(areas(bridge.UNIT_TABLE_NAME))
+    dual = sum(areas(bridge.DUAL_TABLE_NAME))
+    cell = 1.0 * dlg.spacing_spin.value() ** 2
+    assert skeleton > 0 and unit > 0 and dual > 0, \
+      f"PREMISE: an empty table: skeleton {skeleton}, unit {unit}, dual {dual}"
+    assert unit < skeleton * 0.99, (
+      f"the unit table ({unit:.0f}) is not the design as built with its "
+      f"inset: it covers as much as the skeleton ({skeleton:.0f})")
+    assert abs(dual - skeleton) / skeleton < 1e-3, (
+      f"the dual table covers {dual:.0f} against the skeleton's "
+      f"{skeleton:.0f}: it is not the skeleton's dual, so the file's pair "
+      f"describes two designs")
+
+    dlg.mod_t_inset.setValue(0.0)
+    _tick(400)
+    assert landed(), "PREMISE: no topology landed with the inset back at 0"
+    deadline = time.monotonic() + 60 * CONTENTION
+    while time.monotonic() < deadline and not dlg._restore_the_edited_unit():
+      _tick(100)
+    dlg._generate()
+    _settle(dlg)
+    assert press_save(dlg), "PREMISE: the second save did not write"
+    held = tables()
+    assert held == sorted([bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME]), (
+      f"with no inset the file holds {held}: a skeleton table left from the "
+      f"inset design describes a design this map is no longer made of, and "
+      f"the unit table is the skeleton now")
+    assert abs(sum(areas(bridge.UNIT_TABLE_NAME))
+               - sum(areas(bridge.DUAL_TABLE_NAME))) / cell < 1e-3, \
+      "with no inset the unit and the dual no longer cover one cell"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+    holder.__exit__(None, None, None)
+
+
 def test_the_window_grows_on_the_topology_tab_and_gives_the_height_back():
   """Arriving on the Topology tab adds height, and leaving returns it.
 
@@ -14474,7 +14791,7 @@ def test_the_dual_button_refuses_where_there_is_no_dual():
   """The button is offered only where a dual can be tiled, and says why not.
 
   Three refusals in `dual_on_offer`, each a different fact: no
-  topology at all (staged with a tile inset, which opens gaps); a dual
+  topology at all (staged with tiles scaled in place, which opens gaps); a dual
   the library cannot lay out; and a dual that would leave holes, which
   is ruling 2 of 2026-09-05 -- a map with holes never ships -- staged
   by handing the check a dual with a tile taken away, since every
@@ -14487,11 +14804,13 @@ def test_the_dual_button_refuses_where_there_is_no_dual():
   # 1. no topology: the button is disabled and its tooltip says why
   dlg, layer, tid = _categorical_dialog()
   dlg.opt_experimental.setChecked(True)
-  dlg.mod_t_inset.setValue(2.0)
+  _take_the_topology_away(dlg)
+  _tick(300)
   _wait_for_the_topology(dlg)
+  _settle_topology(dlg)
   panel = dlg.topology_panel
   assert panel._topology is None, \
-    "PREMISE: the inset design still carries a topology"
+    "PREMISE: the gapped design still carries a topology"
   assert not panel.dual_button.isEnabled(), \
     "the button is offered on a design with no topology"
   assert "no topology" in panel.dual_button.toolTip(), \
@@ -96361,6 +96680,10 @@ def main():
         test_a_topology_built_under_one_reading_is_not_adopted_after_a_switch)
   check("warp and weft are offered only for a weave",
         test_warp_and_weft_are_offered_only_for_a_weave)
+  check("an inset design's topology is its skeleton's",
+        test_an_inset_design_s_topology_is_its_skeleton_s)
+  check("an inset design's file carries its skeleton",
+        test_an_inset_design_s_file_carries_its_skeleton)
   check("the window grows on the topology tab and gives the height back",
         test_the_window_grows_on_the_topology_tab_and_gives_the_height_back)
   check("a refusal in the topology drawing wraps inside it",

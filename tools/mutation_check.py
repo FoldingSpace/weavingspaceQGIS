@@ -2665,8 +2665,12 @@ MUTATIONS = [
                        built.get("edited_topology")
                        or built.get("topology"),
                        built.get("why", ""),
-                       ghost=built.get("topology")
-                       if built.get("edited") is not None else None,
+                       # ONE GHOST CHANNEL, AND AN INSET DESIGN'S IS THE
+                       # INSET DESIGN (ruling 1 of C-346): what the map is
+                       # tiled with outranks the design before the edits.
+                       ghost=built.get("inset_ghost") or (
+                         built.get("topology")
+                         if built.get("edited") is not None else None),
                        glue=built.get("glue"))""",
        new="""        panel.set_unit(built.get("unit"), built.get("topology"),
                        built.get("why", ""))""",
@@ -2860,6 +2864,67 @@ MUTATIONS = [
        why="a topology built under Count drawn after the reading moved to "
            "Ignore, so the tab offers classes of a structure the reading "
            "denies and an edit is aimed at them"),
+  dict(name="an-inset-design-builds-from-its-skeleton", file=DIALOG,
+       old="""    if skeleton is not None:
+      unit = copy.deepcopy(skeleton[0])""",
+       new="""    if False:  # mutation: the inset unit, which has gaps
+      unit = copy.deepcopy(skeleton[0])""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="any tile or group inset taking the Topology tab away, where "
+           "the design before its insets carries a topology (C-346)"),
+  dict(name="an-edited-skeleton-gets-its-insets-back", file=DIALOG,
+       old="""        if any(insets) and built["edited_cloth"] is not None:
+          built["edited_cloth"] = topology_edits.inset_the_skeleton(
+            built["edited_cloth"], *insets)""",
+       new="""        if False:  # mutation: the edited map loses its insets
+          built["edited_cloth"] = topology_edits.inset_the_skeleton(
+            built["edited_cloth"], *insets)""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="an edit on an inset design drawing the map with no insets at "
+           "all, so the gaps a person set vanish the moment they edit"),
+  dict(name="an-inset-design-is-ghosted-under-its-skeleton", file=DIALOG,
+       old="""                       ghost=built.get("inset_ghost") or (""",
+       new="""                       ghost=None or (""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="the tab drawing a skeleton with nothing to say the map is "
+           "tiled with the inset design beneath it (ruling 1 of C-346)"),
+  dict(name="an-inset-design-offers-no-dual", file=TOPOLOGY_EDITS,
+       old="""  if stands_on_a_skeleton(topology):
+    return None, INSET_HAS_NO_DUAL""",
+       new="""  if False:  # mutation: the skeleton's dual is offered
+    return None, INSET_HAS_NO_DUAL""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="the dual button offering a skeleton's dual that the map, which "
+           "takes the dual of the inset unit, cannot draw"),
+  dict(name="a-group-inset-keeps-an-edit-s-ground", file=TOPOLOGY_EDITS,
+       old="""  if group:
+    unit = _with_a_prototile_that_holds_its_tiles(unit)""",
+       new="""  if False:  # mutation: clip by the plain design's prototile
+    unit = _with_a_prototile_that_holds_its_tiles(unit)""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="a group inset on an edited design cutting away the ground the "
+           "edit moved outside the plain prototile, a map with holes"),
+  dict(name="an-inset-design-is-judged-on-its-skeleton", file=DIALOG,
+       old="""        panel.set_unit(built.get("edited") or built.get("unit"),""",
+       new="""        panel.set_unit(built.get("edited_cloth") or built.get("edited") or built.get("unit"),""",
+       test="test_an_inset_design_s_topology_is_its_skeleton_s",
+       why="a sound edit of an inset design hatched as torn, the insets' "
+           "own gaps read as damage (ruling 2 of C-346)"),
+  dict(name="an-inset-design-s-file-carries-its-skeleton", file=DIALOG,
+       old="""        if skeleton_frame is not None:
+          frames = frames + ((bridge.SKELETON_TABLE_NAME, skeleton_frame),)""",
+       new="""        if False:  # mutation: no skeleton table
+          frames = frames + ((bridge.SKELETON_TABLE_NAME, skeleton_frame),)""",
+       test="test_an_inset_design_s_file_carries_its_skeleton",
+       why="a saved inset design carrying its skeleton's dual beside the "
+           "inset unit with nothing to say which design the dual is of "
+           "(ruling 3 of C-346)"),
+  dict(name="a-skeleton-table-leaves-with-the-inset", file=DIALOG,
+       old="""            if skeleton_frame is None and ours and \\""",
+       new="""            if False and \\""",
+       test="test_an_inset_design_s_file_carries_its_skeleton",
+       why="a skeleton table left in the file after the inset is taken "
+           "away, describing a design the map is no longer made of"),
   dict(name="a-weave-s-holes-are-filled-whole", file=TOPOLOGY_EDITS,
        old="""    width = _whole_holes(width, unit)""",
        new="""    pass  # mutation: the holes stay cut""",
@@ -4107,8 +4172,17 @@ MUTATIONS = [
        # about nothing -- this project's own rule that a treatment
        # whose control also holds has measured nothing, met inside the
        # catalogue.
-       old="""             self.mod_t_inset.value(), self.mod_p_inset.value()))""",
-       new="""             0.0, self.mod_p_inset.value()))""",
+       # RE-AIMED AGAIN 2026-09-14, having SURVIVED the same way: the test
+       # takes the topology away by scaling the tiles in place now, since
+       # an inset design keeps its skeleton's topology (C-346), and this
+       # still neutralised the tile inset alone. The whole modifier tuple
+       # is the decision, so the whole tuple goes.
+       old="""             (self.mod_rotate.value(),
+              self.mod_scale_x.value(), self.mod_scale_y.value(),
+              self.mod_glyph.isChecked(),
+              self.mod_skew_x.value(), self.mod_skew_y.value(),
+              self.mod_t_inset.value(), self.mod_p_inset.value()))""",
+       new="""             ())""",
        test="test_a_design_without_a_topology_leaves_none_in_the_file",
        why="a topology answer being about the design in front of you, "
            "modifiers included, rather than about the one before the "
@@ -4809,8 +4883,8 @@ MUTATIONS = [
            "assertion failed like the two before it. Being caught here "
            "would be news"),
   dict(name="inset-percentage-divisor", file=DIALOG,
-       old="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 100)",
-       new="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 101)",
+       old="      tiles_in = self.mod_t_inset.value() * spacing / 100",
+       new="      tiles_in = self.mod_t_inset.value() * spacing / 101",
        test="test_an_inset_percentage_is_a_percentage_of_the_spacing",
        why="an inset percentage meaning that percentage of the "
            "spacing; a one percent error passes every comparison in "
@@ -5551,8 +5625,8 @@ MUTATIONS = [
        test='test_ui_library_modifier_chain',
        why='skew reaching the unit'),
   dict(name='prototile-inset-ignored', file=DIALOG,
-       old='        unit = unit.inset_prototile(\n          self.mod_p_inset.value() * spacing / 100)',
-       new='        pass  # mutation: group inset never applied',
+       old='      group_in = self.mod_p_inset.value() * spacing / 100',
+       new='      group_in = 0.0  # mutation: group inset never applied',
        test='test_ui_library_modifier_chain',
        why='the group (prototile) inset reaching the unit'),
   dict(name='selective-reseed-inverted', file=DIALOG,
@@ -7114,8 +7188,8 @@ MUTATIONS = [
            "of the pattern agree because they were told to, not "
            "because the data does"),
   dict(name="tile-inset-is-percent-of-spacing", file=DIALOG,
-       old="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 100)",
-       new="        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 1000)",
+       old="      tiles_in = self.mod_t_inset.value() * spacing / 100",
+       new="      tiles_in = self.mod_t_inset.value() * spacing / 1000",
        test="test_an_inset_that_swallows_tiles_leaves_no_half_map",
        why="the inset is a percentage of the spacing, and a tenth of "
            "that is a control that looks alive and barely moves the "

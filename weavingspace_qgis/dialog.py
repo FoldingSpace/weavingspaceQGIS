@@ -6982,12 +6982,22 @@ class WeavingSpaceDialog(QDialog):
       unit = unit.transform_skew(self.mod_skew_x.value(),
                                  self.mod_skew_y.value())
     spacing = self.spacing_spin.value()
+    # THE SKELETON, kept beside the design it is the skeleton of: a
+    # tiling's insets are the last two steps of this chain and every step
+    # before them preserves the tiling, so the topology is built from the
+    # unit as it stands HERE and the insets go on afterwards (the three
+    # rulings of 2026-09-08, C-346). None where there is no inset, where
+    # the design is a weave (its strand width is not a transform applied
+    # after, R-40), and where the map is a dual, which is taken of the
+    # inset unit below.
+    self._skeleton_parts = None
     if spec["type"] == "tiling":
-      if self.mod_t_inset.value():
-        unit = unit.inset_tiles(self.mod_t_inset.value() * spacing / 100)
-      if self.mod_p_inset.value():
-        unit = unit.inset_prototile(
-          self.mod_p_inset.value() * spacing / 100)
+      from . import topology_edits
+      tiles_in = self.mod_t_inset.value() * spacing / 100
+      group_in = self.mod_p_inset.value() * spacing / 100
+      if tiles_in or group_in:
+        self._skeleton_parts = (unit, tiles_in, group_in)
+      unit = topology_edits.inset_the_skeleton(unit, tiles_in, group_in)
     elif self.mod_t_inset.value():
       # a weave's tile inset is scaled by strand width, or thin
       # strands would vanish at inset values a tiling shrugs off
@@ -7008,6 +7018,9 @@ class WeavingSpaceDialog(QDialog):
     if getattr(self, "opt_map_dual", None) is not None \
         and self.opt_map_dual.isChecked():
       from . import topology_edits
+      # A DUAL HAS NO SKELETON: it is taken of the inset unit, so the
+      # topology of a dual group is built from what this branch returns.
+      self._skeleton_parts = None
       # OF THE DESIGN AS EDITED. The tab shows the edited motif and its
       # dual, and the dual group's record carries the source design's
       # edits, yet the dual was taken of the CATALOGUE unit: the source's
@@ -23048,6 +23061,17 @@ class WeavingSpaceDialog(QDialog):
                   (bridge.DUAL_TABLE_NAME, dual_frame))
         if no_dual_here:
           frames = frames[:1]
+        # THE THIRD FRAME, for a design with insets: the skeleton its
+        # topology and dual are of (ruling 3 of C-346). Held with the same
+        # stamp as the dual, so the three are of one design or none is
+        # written; a design with no inset has no skeleton table, and one
+        # an earlier design left in a file that was ours is taken out.
+        held_skeleton = getattr(self, "_topology_skeleton", None)
+        skeleton_frame = (held_skeleton[1] if held_skeleton is not None
+                          and held_skeleton[0] == self._topology_stamp()
+                          else None)
+        if skeleton_frame is not None:
+          frames = frames + ((bridge.SKELETON_TABLE_NAME, skeleton_frame),)
         # BOTH OR NEITHER, AND THE PAIR MUST BE OF ONE DESIGN -- where
         # the design has a dual. The count test below is necessary and
         # was never sufficient: two frames that are both present
@@ -23062,6 +23086,9 @@ class WeavingSpaceDialog(QDialog):
             if no_dual_here and ours and bridge.DUAL_TABLE_NAME in (
                 bridge.gpkg_tables(path)):
               bridge.drop_gpkg_layer(path, bridge.DUAL_TABLE_NAME)
+            if skeleton_frame is None and ours and \
+                bridge.SKELETON_TABLE_NAME in bridge.gpkg_tables(path):
+              bridge.drop_gpkg_layer(path, bridge.SKELETON_TABLE_NAME)
             return True, key
       except Exception:                               # noqa: BLE001
         _dump("STATE", "topology-write-failed",
@@ -23105,7 +23132,8 @@ class WeavingSpaceDialog(QDialog):
     described = (bridge.read_working_state(path) or {}).get(
       "topology_design")
     if ours and described is not None and described != key:
-      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME):
+      for name in (bridge.UNIT_TABLE_NAME, bridge.DUAL_TABLE_NAME,
+                   bridge.SKELETON_TABLE_NAME):
         if name in already:
           bridge.drop_gpkg_layer(path, name)
       return False, None
@@ -24566,6 +24594,17 @@ class WeavingSpaceDialog(QDialog):
     # a change list saying once.
     unit = copy.deepcopy(
       getattr(self, "_unit_before_topology", None) or self._unit)
+    # AN INSET DESIGN'S TOPOLOGY IS ITS SKELETON'S (C-346): the unit
+    # before its two insets, marked so the dual offer knows it is not the
+    # design the map is tiled with. The edits are replayed there and the
+    # insets put on the result, which is what the map is drawn from.
+    skeleton = getattr(self, "_skeleton_parts", None)
+    insets = (0.0, 0.0)
+    if skeleton is not None:
+      unit = copy.deepcopy(skeleton[0])
+      insets = (skeleton[1], skeleton[2])
+      from . import topology_edits as _edits
+      _edits.mark_the_skeleton(unit, *insets)
     unit.crs = None
     for attribute in ("tiles", "prototile", "regularised_prototile"):
       part = getattr(unit, attribute, None)
@@ -24614,6 +24653,14 @@ class WeavingSpaceDialog(QDialog):
       built["topology"] = topology
       built["why"] = why
       built["unit"] = scaffolded if scaffolded is not None else unit
+      # THE INSET DESIGN, GHOSTED UNDER ITS SKELETON (ruling 1 of C-346):
+      # the tab draws and aims with the skeleton, so the handles sit on
+      # the ink they aim at, and the design the map is tiled with shows
+      # beneath it. Replaced below by the EDITED design's where edits
+      # stand; on the worker, since insetting copies the unit.
+      if any(insets) and topology is not None:
+        built["inset_ghost"] = topology_edits.inset_ghost(
+          topology_edits.inset_the_skeleton(unit, *insets))
       # THE EDITS ARE REPLAYED HERE, where the topology already exists
       # and the thread is not the one drawing the window. Replaying on
       # the main thread would put a 0.75-4.4s build plus a rebuild per
@@ -24636,6 +24683,14 @@ class WeavingSpaceDialog(QDialog):
         inset = (weave_terms or {}).get("tile_inset") or 0.0
         if built.get("scaffolded") and inset and built["edited_cloth"] is not None:
           built["edited_cloth"] = built["edited_cloth"].inset_tiles(inset)
+        # AND A TILING'S INSETS GO ON THE EDITED SKELETON, through the one
+        # owner `_build_unit` also calls, so the map an edit draws is the
+        # plain design's map wherever the edit moves nothing.
+        if any(insets) and built["edited_cloth"] is not None:
+          built["edited_cloth"] = topology_edits.inset_the_skeleton(
+            built["edited_cloth"], *insets)
+          built["inset_ghost"] = topology_edits.inset_ghost(
+            built["edited_cloth"])
         built["refusals"] = refusals
         # ONE MARK PER EDIT, so the change list can say which of them
         # left a design that still carried a topology -- which is how
@@ -24771,8 +24826,12 @@ class WeavingSpaceDialog(QDialog):
                        built.get("edited_topology")
                        or built.get("topology"),
                        built.get("why", ""),
-                       ghost=built.get("topology")
-                       if built.get("edited") is not None else None,
+                       # ONE GHOST CHANNEL, AND AN INSET DESIGN'S IS THE
+                       # INSET DESIGN (ruling 1 of C-346): what the map is
+                       # tiled with outranks the design before the edits.
+                       ghost=built.get("inset_ghost") or (
+                         built.get("topology")
+                         if built.get("edited") is not None else None),
                        glue=built.get("glue"))
         panel.set_marks(built.get("marks") or [])
         panel.report(built.get("refusals") or [])
@@ -24829,6 +24888,16 @@ class WeavingSpaceDialog(QDialog):
         self._topology_dual = (
           (stamp, None if topology_edits.stands_on_scaffolding(for_dual)
            else topology_edits.dual_frame(for_dual))
+          if for_dual is not None else None)
+        # AND AN INSET DESIGN'S SKELETON, kept with the same stamp: the
+        # dual above is the SKELETON's, and the file carries the skeleton
+        # as a frame of its own beside the as-built unit so the pair it
+        # writes is of one design (ruling 3 of C-346). None for any other
+        # design, whose unit table is its own skeleton.
+        skeleton_unit = built.get("edited") or built.get("unit")
+        self._topology_skeleton = (
+          (stamp, topology_edits.unit_frame(skeleton_unit)
+           if topology_edits.stands_on_a_skeleton(for_dual) else None)
           if for_dual is not None else None)
         # `_topology_assessed` USED TO BE RECORDED HERE and is gone
         # (2026-08-31). It was what licensed the save to remove a motif

@@ -3595,6 +3595,156 @@ def _is_its_own_half_turn(shape) -> bool:
 # sentence so the two cannot drift apart (round ten, repairs25).
 SCAFFOLD_HAS_NO_DUAL = "A weave with gaps has no dual."
 
+# AND OF A TILING WITH INSETS, whose topology is its skeleton's (C-346):
+# the map's dual chain takes the dual of the INSET unit, which has gaps
+# and no topology, so a dual offered from the skeleton would draw the
+# source design in the dual group. Refused until a ruling says what an
+# inset design's dual is (ROADMAP.md, the inset topology's build notes).
+INSET_HAS_NO_DUAL = ("A design with insets has no dual to tile with yet. "
+                     "Set both insets to 0 to use its dual.")
+
+# WHERE A SKELETON KEEPS THE INSETS IT STANDS IN FOR, as the scaffold
+# keeps its kinds: on the Tileable, which the library copies whole into
+# every Topology `apply` hands back.
+_SKELETON_INSETS = "_weavingspace_skeleton_insets"
+
+
+def inset_the_skeleton(unit, tiles=0.0, group=0.0):
+  """Apply a tiling's two insets, in the order `_build_unit` applies them.
+
+  Args:
+    unit: the Tileable before its insets -- the design's skeleton, edited
+      or not.
+    tiles: the tile inset in map units; 0 applies none.
+    group: the group (prototile) inset in map units; 0 applies none.
+
+  Returns:
+    A new Tileable with each non-zero inset applied, tiles first, or the
+    unit itself where both are 0.
+
+  ONE OWNER FOR THE ORDER AND THE IDENTITY SKIP, so the map drawn from an
+  edited skeleton and the map drawn from the plain design cannot come
+  apart: the dialog's `_build_unit` and the topology build's replay both
+  call this. An identity inset is skipped rather than applied, for the
+  reason `_build_unit` gives at its modifiers -- a rebuild's rounding can
+  flip a tie-prone join.
+  """
+  if unit is None:
+    return None
+  # THE PROTOTILE IS SETTLED BEFORE THE TILE INSET, because the library's
+  # is the union of the tiles as they stand before any inset: rebuilt
+  # after it, the union would carry the tile inset's channels and the
+  # group inset would bite twice along every inner edge.
+  if group:
+    unit = _with_a_prototile_that_holds_its_tiles(unit)
+  if tiles:
+    unit = unit.inset_tiles(tiles)
+  if group:
+    unit = unit.inset_prototile(group)
+  return unit
+
+
+def _with_a_prototile_that_holds_its_tiles(unit):
+  """The unit, with its regularised prototile rebuilt where its tiles overhang it.
+
+  Args:
+    unit: a Tileable about to be group-inset.
+
+  Returns:
+    The unit itself where every tile lies inside its regularised
+    prototile, which is every design nobody has edited; otherwise a copy
+    whose prototile is rebuilt from its own tiles, or the unit itself
+    where the library will not make one.
+
+  AN EDITED UNIT KEEPS THE PLAIN DESIGN'S PROTOTILE. `inset_prototile`
+  clips every tile by that prototile shrunk, and neither
+  `transform_geometry` nor the library's own setup (which does nothing
+  where a prototile already exists) rebuilds it after an edit -- so a
+  group inset of a thousandth of a map unit cut away all the ground a
+  zigzag had moved outside it, 83,333 of a 1,000,000 cell on `laves
+  3.3.4.3.4`, and 100,000 after a nudge: a map with holes, measured
+  2026-09-14 while the inset topology was built. A design nobody has
+  edited is left exactly as it was, so no map already drawn moves.
+  """
+  try:
+    proto = unit.regularised_prototile.geometry.iloc[0]
+    cell = sum(g.area for g in unit.tiles.geometry)
+    overhang = sum(g.difference(proto).area for g in unit.tiles.geometry)
+  except Exception:                                   # noqa: BLE001
+    return unit
+  # A MILLIONTH OF THE CELL, not zero: the library builds its prototile
+  # through a buffer and a simplify at ten times its grid resolution, so a
+  # plain design's tiles overhang it by a sliver along every edge.
+  if not cell or overhang <= cell * 1e-6:
+    return unit
+  twin = _shallow_copy_with_tiles(unit, unit.tiles)
+  return twin if twin is not None else unit
+
+
+def mark_the_skeleton(unit, tiles, group) -> None:
+  """Record on a skeleton the insets its design carries.
+
+  Args:
+    unit: the un-inset Tileable a topology is about to be built from.
+    tiles: the tile inset in map units.
+    group: the group inset in map units.
+
+  Returns:
+    None; the unit gains an attribute holding the pair. Nothing is marked
+    where both insets are 0, since that design is its own skeleton.
+  """
+  if unit is None or not (tiles or group):
+    return
+  try:
+    setattr(unit, _SKELETON_INSETS, (float(tiles), float(group)))
+  except Exception:                                   # noqa: BLE001
+    pass
+
+
+def stands_on_a_skeleton(topology) -> bool:
+  """Whether a topology is of a tiling's skeleton rather than of its design.
+
+  Args:
+    topology: a built Topology, or None.
+
+  Returns:
+    True where the unit it is of was marked by `mark_the_skeleton`, which
+    is a tiling whose insets were put on AFTER the topology; False
+    otherwise, None included.
+  """
+  unit = getattr(topology, "tileable", None)
+  return bool(getattr(unit, _SKELETON_INSETS, None))
+
+
+def inset_ghost(inset_unit):
+  """The inset design as a wireframe the Topology tab's ghost channel draws.
+
+  Args:
+    inset_unit: the Tileable with its insets on -- the design the map is
+      tiled with -- or None.
+
+  Returns:
+    An object whose `tiles` hold one `shape` per tile of the unit's
+    radius-1 patch, including the unit itself, or None where there is
+    nothing to draw. The view asks nothing of a ghost but that.
+
+  THE SAME PATCH THE SKELETON'S TOPOLOGY DRAWS, and that is what makes it
+  line up: `Topology` lays `get_local_patch(r=1, include_0=True)` over the
+  unit's vectors, and neither inset moves the vectors, so the inset patch
+  sits under the skeleton's copy for copy (ruling 1 of C-346: the handles
+  sit on the ink they aim at, the inset result ghosted underneath).
+  """
+  from types import SimpleNamespace
+  if inset_unit is None:
+    return None
+  try:
+    patch = inset_unit.get_local_patch(r=1, include_0=True).geometry
+  except Exception:                                   # noqa: BLE001
+    return None
+  shapes = [SimpleNamespace(shape=shape) for shape in patch
+            if shape is not None and not shape.is_empty]
+  return SimpleNamespace(tiles=shapes) if shapes else None
+
 # WHERE A SCAFFOLDED UNIT KEEPS ITS OWN `kinds`, as an attribute of the
 # Tileable rather than of the Topology, since `apply` hands back a new
 # Topology per edit and the library copies the Tileable whole.
@@ -3680,6 +3830,8 @@ def dual_on_offer(topology, promoted=None):
                   "tile with.")
   if stands_on_scaffolding(topology):
     return None, SCAFFOLD_HAS_NO_DUAL
+  if stands_on_a_skeleton(topology):
+    return None, INSET_HAS_NO_DUAL
   dual = promoted if promoted is not None else dual_as_tileable(topology)
   if dual is None:
     return None, "This design's dual cannot be laid out as a tiling."
