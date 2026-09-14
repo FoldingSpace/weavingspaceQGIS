@@ -166,14 +166,11 @@ shipped version owes nothing.)
 the Topology tab, its local gates green and CI published past three
 harness faults on the maintainer's word (docs/process/defects-2026-09-12.md).
 
-**THE MAINTAINER'S UI ASKS OF 2026-09-13 ARE BUILT, THEIR WORDING AWAITING
-REVIEW.** The mockups were approved on 2026-09-13 (late): the Design tab's
-named box columns, warp and weft hidden on a tiling, the two-line refusal
-wrapped in the drawing, the gaps label and option, and the window growing
-220 px on the Topology tab. OUTSTANDING: the five new sentences in the text
-review queue, which is the maintainer's act. The short box names (Left-Right,
-Tiles/strands) fall below the queue's three-space filter (R-71) and were
-approved in the mockup.
+**THE MAINTAINER'S UI ASKS OF 2026-09-13 ARE BUILT AND THEIR WORDING
+APPROVED** (`e589f00`, the option and tooltip reworded to "count as holes").
+The short box names (Left-Right, Tiles/strands) fall below the queue's
+three-space filter (R-71) and were approved in the mockup. The refusal's
+second sentence names the insets, and goes stale when inset topology lands.
 
 **A WEAVE'S HOLES ARE WHOLE TILES, AND VENDOR PATCH 7 IS CARRIED (built
 2026-09-13, `74e821b`).** Each gap the measured cell cut is rejoined, and the
