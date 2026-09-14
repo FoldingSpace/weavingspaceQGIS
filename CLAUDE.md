@@ -2059,8 +2059,8 @@ Confirmed with the user via an explicit design review:
   the library's parameter, as the Amplitude box shows the crest and
   holds `h`. A gain factor nobody can see is what this tab rejected
   twice already. (C-344.)
-- **TOPOLOGY EDITS SURVIVE AN INSET: THREE RULINGS OF 2026-09-08, NOT
-  YET BUILT.** (Settled by grilling, each measurement taken before its
+- **TOPOLOGY EDITS SURVIVE AN INSET: THREE RULINGS OF 2026-09-08, BUILT
+  2026-09-14.** (Settled by grilling, each measurement taken before its
   question was asked.) The insets are the LAST two steps of
   `_build_unit`'s chain and every step before them preserves the
   tiling, so an inset design's structure is one call back rather than
@@ -2089,10 +2089,10 @@ Confirmed with the user via an explicit design review:
   and its price is a table name older plugins will not read plus three
   rules that must each learn about it: the stale-table drop, the
   `topology_design` key, and the both-or-neither test. WEAVES ARE OUT
-  OF SCOPE, measured rather than assumed: strand width is an argument
-  to `make_unit` rather than a transform applied after, so there is no
-  un-thinned unit to edit and thin later, which is the R-40 boundary.
-  (C-346.)
+  OF SCOPE: strand width is not a transform applied after (R-40). AN
+  EDIT DOES NOT MOVE THE REGULARISED PROTOTILE, so a group inset clipped
+  away all it moved until the prototile was rebuilt; AND THE DUAL IGNORES
+  THE INSETS, THEN WEARS THEM (maintainer, 2026-09-14; C-346, C-362).
 - **A WEAVE REACHES A TOPOLOGY BY SCAFFOLDING, AND AN EDIT IS AIMED AT
   A STRAND: THE RULINGS OF 2026-09-08, NOT YET BUILT.** (Maintainer's
   construction, after the inset grilling had ruled weaves out.) A thin

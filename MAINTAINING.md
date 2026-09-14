@@ -518,6 +518,22 @@ colleague can open without the plugin at all. And anything travelling
 as a tuple comes home as a list, JSON having no tuple, so every reader
 has to put it back.
 
+### An inset design's topology is its skeleton's
+
+A tiling's insets are the last two steps of `_build_unit`, so the design
+before them is a tiling (C-346). `_build_unit` keeps it as
+`_skeleton_parts`; `_queue_topology` builds from a copy marked by
+`mark_the_skeleton`, replays the edits there, and puts both insets on the
+result through `inset_the_skeleton`, which `_build_unit` also calls, so
+the two cannot order them differently. The tab draws and judges the
+skeleton, the inset design ghosted; the file writes
+`weavingspace_skeleton_no_crs` beside unit and dual. **THE DUAL IGNORES
+THE INSETS, THEN WEARS THEM** (maintainer, 2026-09-14): `_build_unit`
+takes it of the skeleton and `finish` insets the dual's tiles.
+**THE STAMP KEEPS ITS INSET TERMS**, the landing adopting a unit already
+inset; **AN EDIT DOES NOT MOVE THE REGULARISED PROTOTILE** `inset_prototile`
+clips by, so it is rebuilt wherever tiles overhang it (C-362).
+
 ### A weave reaches a topology through scaffolding, read two ways
 
 `Topology` needs a gap-free tiling and a weave below full width is not
@@ -1537,9 +1553,9 @@ discriminator rides in `tools/probes/how_often_a_build_never_starts.py`
 since the gate that reads these references matches one line. (M-3.)
 
 **Not every design has a topology.** `Topology` needs a GAP-FREE
-tiling, so a design with insetting or a family that does not close up
-refuses, and `can_build` says which it is in words rather than letting
-the constructor raise. Zigzag additionally needs its unit REPAIRED
+tiling, so a design that does not close up -- tiles scaled in place, a
+`grid N` with a remainder -- refuses, and `can_build` says so in words; an
+inset does not, being built from its skeleton (below). Zigzag additionally needs its unit REPAIRED
 first: the manipulation emits repeated vertices — six coincident pairs
 among thirty-seven points on the case measured — which is what makes
 the result invalid, not floating point and not the amplitude.
@@ -1609,32 +1625,17 @@ unlabelled corners. AND EVERY MANIPULATION IS REACHABLE ON THE DRAWING:
 `push_vertex` has a rail along the one direction a push can take, and
 no handle at all where that direction cancels.
 
-AND THE TWO PANES HAVE FLOORS, WHICH IS WHAT MAKES ANY OF THE ABOVE
-REACHABLE. (2026-09-01, on the last of the maintainer's editing asks:
-"everything needs to be clickable at realistic sizes of course".) The
-drawing's floor was 180px and the column of controls beside it claims
-its own preferred width first, so that floor WAS the whole allowance --
-180px of an 825px window for the thing the tab exists to edit. Raising
-it alone moved the complaint rather than answering it, measured at 71px
-of viewport for controls wanting 271; the horizontal scrollbar there is
-deliberately off, so a column narrower than its content does not
-scroll, it CLIPS. Both have floors now, 420 and 271, taken from the
-content itself in `showEvent` once a layout pass has made the answer
-meaningful. The window grows to 1025 when the tab is chosen and the
-Design tab still opens at 825, the size policy of 2026-08-30 keeping
-the stack off it.
+AND THE TWO PANES HAVE FLOORS, 420 and 271, taken from the content in
+`showEvent` after a layout pass: a column narrower than its content CLIPS
+rather than scrolls, and a floor on one pane alone moves the complaint
+to the other (M-36).
 
 AND TWO HANDLES CLOSER THAN TWICE THE HIT TEST'S REACH MAKE ONE OF THEM
-UNREACHABLE EVERYWHERE, since `_handle_at` returns the first within
-reach in a fixed order: turn and zigzag stand at 30 and 60 along the
-same normal now, having been 20.4px apart inside a 26px reach on two
-designs of three; the other side of the edge was tried first and lands
-on the vertices, which are tested after handles (M-29).
+UNREACHABLE EVERYWHERE, `_handle_at` returning the first within reach in
+a fixed order, so turn and zigzag stand at 30 and 60 along one normal (M-29).
 
-WHAT IS STILL NOT BUILT is the audit's other design, merging scale and
-rotate into one end handle. It is refused rather than pending: one
-handle would have to say two things, which is what the glyphs exist not
-to do. The argument is in docs/TOPOLOGY.md.
+MERGING SCALE AND ROTATE INTO ONE END HANDLE IS REFUSED: one handle would
+have to say two things (docs/TOPOLOGY.md).
 
 ### What a drag means, and in whose units
 

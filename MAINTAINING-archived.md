@@ -50,6 +50,7 @@ quote them, do not renumber them.
 - **M-33** — The vendoring record of 2026-08-31: twelve commits under one version string, and the tw...  <sub>The fourth pass of 2026-09-05</sub>
 - **M-34** — The live path's refusal of a repaint, the ten named gates, and the two diagnoses silenc...  <sub>The fourth pass of 2026-09-05</sub>
 - **M-35** — The ceiling's settlement and the vacuous setColor row  <sub>minted</sub>
+- **M-36** — the two panes' floors on the Topology tab  <sub>minted</sub>
 
 
 ## Long jobs: the accounts behind the rules
@@ -1209,3 +1210,22 @@ probe recoloured a temporary and the renderer never changed -- the
 fixture-that-cannot-move trap, inside the measurement meant to settle
 this. `updateRangeSymbol` is the honest in-place row, and its edit was
 verified to reach the layer.)
+
+### M-36 — the two panes' floors on the Topology tab
+
+<sub>From MAINTAINING.md, the Topology tab's interaction section, 2026-09-14.</sub>
+
+AND THE TWO PANES HAVE FLOORS, WHICH IS WHAT MAKES ANY OF THE ABOVE
+REACHABLE. (2026-09-01, on the last of the maintainer's editing asks:
+"everything needs to be clickable at realistic sizes of course".) The
+drawing's floor was 180px and the column of controls beside it claims
+its own preferred width first, so that floor WAS the whole allowance --
+180px of an 825px window for the thing the tab exists to edit. Raising
+it alone moved the complaint rather than answering it, measured at 71px
+of viewport for controls wanting 271; the horizontal scrollbar there is
+deliberately off, so a column narrower than its content does not
+scroll, it CLIPS. Both have floors now, 420 and 271, taken from the
+content itself in `showEvent` once a layout pass has made the answer
+meaningful. The window grows to 1025 when the tab is chosen and the
+Design tab still opens at 825, the size policy of 2026-08-30 keeping
+the stack off it.

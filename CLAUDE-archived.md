@@ -396,6 +396,7 @@ quote them, do not renumber them.
 - **C-359** — A library's label in selector is a substring test on a string  <sub>minted</sub>
 - **C-360** — Parallel repair branches are merged one at a time and re-judged on the merged tree  <sub>minted</sub>
 - **C-361** — The twill's QGIS refusal was the incentre offset  <sub>minted</sub>
+- **C-362** — the inset topology as built, and the prototile an edit does not move  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -12085,3 +12086,51 @@ differently only where construction raised. With it `twill weave a|b` builds
 under QGIS at 6 edge and 4 vertex classes, the venv's own figures -- so the
 version-sensitivity C-356 recorded was where a GEOS release puts polylabel on
 a segment, not a different library.
+
+### C-362 — the inset topology as built, and the prototile an edit does not move
+
+<sub>From CLAUDE.md, the inset rulings' entry, 2026-09-14.</sub>
+
+Built 2026-09-14 on `pre-0.24.4` (`731f40b`). `_build_unit` keeps
+`_skeleton_parts` -- the unit after rotate, scale and skew, before the
+insets -- for a tiling at depth 0 with a non-zero inset; `_queue_topology`
+builds from a deep copy of it, marked by `mark_the_skeleton`, replays the
+edits there and puts both insets on the edited result through
+`inset_the_skeleton`, the one function `_build_unit` also calls. The tab
+draws the skeleton and ghosts the inset design (`inset_ghost`, the unit's
+own radius-1 patch, which lines up because neither inset moves the
+vectors). The dual was first refused, the map's chain taking the dual of
+the inset unit; the maintainer ruled the same night that the dual IGNORES
+the insets and then wears them -- taken of the skeleton, the insets put on
+the dual's own tiles last -- and `_build_unit` does that. The file carries
+`weavingspace_skeleton_no_crs` beside the as-built unit and the skeleton's
+dual, dropped when the inset goes.
+
+TWO DEPARTURES FROM THE ROADMAP'S BUILD LIST, both deliberate. The stamp
+KEEPS its inset terms: the roadmap said to drop them after the
+differential, but the landing adopts a unit with the insets already on,
+so a build launched at one inset and landing after a move to another
+would put the wrong insets on the map; dropping them would need the
+insets applied at the landing instead. And the differential is a
+registered test through the dialog
+(`test_an_inset_design_s_topology_is_its_skeleton_s`) rather than a probe:
+classes and skeleton geometry identical at tile insets 1% and 5%, group
+insets 5% and 10%, and both.
+
+THE DEFECT FOUND WHILE BUILDING IT. An edited unit keeps the plain
+design's regularised prototile: `transform_geometry` never rebuilds it,
+and the library's own `_setup_regularised_prototile` does nothing where
+one already exists -- which also makes the plugin's call in
+`_move_edges_vertex_consistent`, made without `override`, a no-op.
+`inset_prototile` clips each tile by that prototile shrunk, so a group
+inset of 0.001 map units on `laves 3.3.4.3.4` removed 83,335 of a
+1,000,000 cell after a zigzag (n=2, h=0.5) and 100,002 after a nudge,
+the whole of the ground the edit had moved outside the old outline.
+C-346's probe measured "no empty or invalid tile" and could not see it;
+the first draft of the differential computed its expected side through
+the same helper and agreed with the defect, and failed at 0.0805 of a
+cell once the insets were computed by hand from what they mean. The
+repair rebuilds the prototile from the tiles before the tile inset,
+wherever tiles overhang it by more than a millionth of the cell -- before
+the tile inset, since a union of inset tiles carries the channels and
+would bite twice along every inner edge.
