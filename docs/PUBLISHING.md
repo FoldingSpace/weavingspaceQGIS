@@ -363,6 +363,16 @@ reviewed and applied by the USER). A stale generated document stops
 the build on a count mismatch, and no gate can approve prose on
 somebody's behalf.
 
+**And the machine itself, since each of these spent a build.** Free
+disk: the suite writes a GeoPackage per test, and a full volume fails
+tests that cannot make a temporary folder and leaves shards with no
+verdict line at all. No process of your own still holding a core: a
+probe left running contends with every measurement after it. And a
+`.venv-reference` on Python 3.10 or newer: `release.py` rebuilds a
+missing one with the interpreter it was started under, and the vendored
+library's `dataclass(slots=True)` refuses 3.9, so create it by hand
+with a newer Python rather than deleting it to save space. (P-26.)
+
 ## What a release stopped doing, and why that is not a weakening
 
 Three stages left the release path within a day of each other, about

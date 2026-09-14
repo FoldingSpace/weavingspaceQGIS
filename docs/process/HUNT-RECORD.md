@@ -528,6 +528,18 @@ bisect named row 12's repair, whose readings-as-design-terms had made the
 guard's oracle stale (T-151, T-153). Re-run the round's guards offscreen
 before believing any verdict a bare `run_some` gave.
 
+**AND THE CANDIDATE'S GATES FOUND WHAT THE REPAIRS DID TO EACH OTHER.**
+Every round-ten guard passed alone, and the first full suite on rc21
+failed a dual test deterministically: row 12's restore dropped the
+selection on every group choice and row 13's landing restored from that
+store, so together a group choice sent the tab to the first class (ledger
+row 22, bisected to `787933f`). CI then found two faults only other
+machines could show -- a fixture staging a selection in a form the product
+no longer writes (T-154), and a design Windows's QGIS cannot build on the
+same library versions -- and the stable leg and macOS met timing and the
+R-4 stall. A round of parallel repairs is judged against its siblings
+only when the whole suite runs, which is the candidate, as T-72 says.
+
 ## ROUND NINE, 2026-09-07 (night): twelve closed, and nine of them one shape
 
 Eight hunts at once on worktrees under `dev/hunts/`, replenished as

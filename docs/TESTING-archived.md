@@ -184,6 +184,7 @@ quote them, do not renumber them.
 - **T-151** — A freeze is guarded by a count, and an allowance a sibling shortcut already meets is loose  <sub>minted</sub>
 - **T-152** — A guard's premise can be made vacuous by another repair, and a staged window must open  <sub>minted</sub>
 - **T-153** — A subset runner that sets no platform measures Cocoa  <sub>minted</sub>
+- **T-154** — A fixture in a form the product no longer writes  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7317,3 +7318,23 @@ it was restaged. The hang was the platform hiding a red.
 The seven-hour stall recorded the same day as R-93 was a `run_some` run of
 the same kind, so that attribution is unproven. `run_some.py` now sets
 `offscreen` by default, keeping a caller's explicit choice.
+
+### T-154 — A fixture in a form the product no longer writes
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-154).</sub>
+
+From docs/TESTING.md, "FIXTURES THAT CANNOT REACH THEIR OWN CASE", 2026-09-13.
+
+`test_a_plain_click_inside_the_selection_keeps_it` built its two-class
+selection with `panel._select_classes(target, first + second)`, the joined
+string `'ab'` -- the selector form the library once took. Round ten's row 2
+made a multi-class selection a LIST at every product writer, and row 13
+made a landing restore the selection from the store, reading a string as
+ONE label. The fixture waited only for the first topology, so on the Linux
+stable runner a further build landed between the select and the click,
+`'ab'` matched no class, and the selection fell to `('vertex', 'A')`: "a
+plain click on 'a', already in ('edge', 'ab'), narrowed the selection".
+Staged by hand with `_refresh_classes()` between the two: the string became
+`('vertex', 'A')`, a list `['a', 'b']` survived. Every product caller was
+checked and passes a list, so no person reaches it. Repaired in `b4940e7`:
+a list, and the tab quiet before either arm.

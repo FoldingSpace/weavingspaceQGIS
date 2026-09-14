@@ -1246,6 +1246,19 @@ the same findings on designs that build in both places. A figure taken
 in the venv carries the venv's name until it is reproduced under
 `$QGIS_PY` (C-356).
 
+AND A SECOND PLATFORM CAN DISAGREE ON THE SAME VERSIONS. Measured
+2026-09-13 by `tools/probes/which_weave_topologies_build_here.py` on the
+Windows runner's QGIS, reporting shapely 2.1.2 and GEOS 3.14.1 exactly as
+this Mac does: `basket weave ab|cd` at full width carries no topology
+there ("the library could not work out its structure") and builds here,
+while `plain weave a|b`, `plain weave ab|cd` and `twill weave a|b` at full
+width build on both, and `twill weave a|b` at 0.75 refuses on both. So the
+version string does not settle what a design reaches. A guard that needs a
+design to build stands on one every leg builds, and the probe is the cheap
+way to ask the targeted Windows run before choosing it; round ten's
+two-letter guard met this and moved its full-width arm to `plain weave
+ab|cd`.
+
 ## Stacking edge manipulations on a weave: 2026-09-11
 
 An edit on a weave is measured one at a time everywhere above.

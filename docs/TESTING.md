@@ -670,7 +670,11 @@ fail before staging until it holds (T-45, T-56). The accounts are T-136.
   records (T-92); a cell that cannot set its own stage says so rather
   than falling through with the previous cell's selection (T-93); build
   the fixture through the product's own door, since `catalog.make_unit`
-  parses what `WeaveUnit(**spec)` cannot (T-87).
+  parses what `WeaveUnit(**spec)` cannot (T-87); and stage a state in the
+  form the product WRITES now, since a multi-class selection given as the
+  joined string two repairs had retired passed on a quiet machine and
+  failed where a landing interleaved, being read as one missing label
+  (T-154).
 - THE CONTROL ARM: its own act can travel into the arm it controls --
   every arm picked one colour and the control's pick was saved into the
   file the second arm opened (T-5); a control that could not fail

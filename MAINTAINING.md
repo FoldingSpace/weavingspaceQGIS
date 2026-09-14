@@ -683,8 +683,8 @@ landing, a held dual and a Save's owed-topology question see a switch; and
 `_capture_design` writes them for a weave (not a tiling, so older tiling
 records stay current), the restore setting both choosers through
 `TopologyPanel.put_the_readings`, signals blocked, BEFORE any edit is
-replayed, a missing key giving Count and Apart. A held landing keeps every
-`set_unit` argument by name.
+replayed (a missing key giving Count and Apart; the selection dropped
+only where a reading moved). A held landing keeps every argument by name.
 
 **WARP AND WEFT ARE READ OFF THE DESIGN.** `design_strand_directions`
 rebuilds the same weave at strand width 0.5 with its modifiers and reads
@@ -715,7 +715,7 @@ tile, and `_consistent_centre` searches once per base tile, keyed by its
 shape.
 
 **A LANDING KEEPS A SELECTION OF SEVERAL.** `_refresh_classes` restores
-from `_selection` and only where every class survives, compared as labels.
+from `_selection` (several held as a LIST) where every label survives.
 
 ### A strands code you can type, and what follows what
 

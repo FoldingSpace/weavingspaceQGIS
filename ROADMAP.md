@@ -161,6 +161,11 @@ shipped version owes nothing.)
 
 ## 0.24.4 — next
 
+**rc21 IS PUBLISHED** (2026-09-13, pre-release `v0.24.4rc21` on
+`54b3f9c`): round ten's twenty-two repairs, the Strands box and weaves on
+the Topology tab, its local gates green and CI published past three
+harness faults on the maintainer's word (docs/process/defects-2026-09-12.md).
+
 **NOTHING OUTSTANDING IN CODE.** The honest preview, which was the
 last of it, is built and its entry is below; the palette and the stall
 recovery went back to 0.24.5 on the maintainer's decision, the first
@@ -509,7 +514,11 @@ of R-93 until one is seen offscreen. A CANDIDATE'S BODY COUNTS CHECKS, NOT TESTS
 `publish_candidate.gate_numbers` counts the testing report's PASS lines,
 and three checks run from inside other tests (`sharded=False`), so rc21's
 page says 876 of 876 where every shard's own tally sums to 873 and CI says
-873; the body should read the suites' verdict lines or say "checks".
+873; the body should read the suites' verdict lines or say "checks". AND
+`release.py` REBUILDS A MISSING `.venv-reference` WITH ITS OWN INTERPRETER,
+the system Python 3.9 here, which the vendored library's
+`dataclass(slots=True)` refuses: it should find a Python of 3.10 or newer
+or refuse in words before the stage (P-26).
 
 **THE SYMMETRY GROUP A TILING'S CLASSES ARE TAKEN UNDER -- LEFT FOR NOW,
 ON THE MAINTAINER'S DECISION OF 2026-09-12.** The Topology tab builds

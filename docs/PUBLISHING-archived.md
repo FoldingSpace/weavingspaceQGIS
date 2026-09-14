@@ -40,6 +40,7 @@ quote them, do not renumber them.
 - **P-23** — Why a changelog entry opens with a sentence and groups the rest, in full  <sub>The fourth pass of 2026-09-05</sub>
 - **P-24** — The 0.24.3 summary the maintainer struck out, and the reasoning  <sub>The fourth pass of 2026-09-05</sub>
 - **P-25** — What the published images must show: the argument in full  <sub>The fourth pass of 2026-09-05</sub>
+- **P-26** — What spent rc21's first two builds  <sub>minted</sub>
 
 
 ## Publishing: the accounts behind the procedure
@@ -915,3 +916,23 @@ decorative. Where a figure from the published article can be used
 under its licence, that is better still, since those figures were made
 to carry exactly this argument — attribute them in the caption and
 record the licence beside the file.
+
+### P-26 — What spent rc21's first two builds
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (P-26).</sub>
+
+From docs/PUBLISHING.md, "What to do BEFORE a candidate", 2026-09-13.
+
+rc21 took four builds. The first stopped at the functional suite with two
+shards printing no verdict and seven `OSError: [Errno 28] No space left on
+device` failures: the data volume stood at 100%, 3.0 GB free of 926 GB.
+The same build carried a probe of the assistant's own, `cube_qgis.py`,
+still running after a day and a half at 2,269 minutes of CPU. Clearing the
+project's worktrees, the suite's 246 temporary folders and `.venv-reference`
+gave 6.7 GB. The second build found a real defect (ledger row 22 of
+defects-2026-09-12.md). The third passed the suite, 873 of 873, and
+stopped at the reference comparison: `release.py` had rebuilt the deleted
+venv with `sys.executable`, the system Python 3.9.6, and the vendored
+library raised `TypeError: dataclass() got an unexpected keyword argument
+'slots'`. Rebuilt with `/opt/homebrew/bin/python3.14`, the fourth passed
+every gate on `54b3f9c`.
