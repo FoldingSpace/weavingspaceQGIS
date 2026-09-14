@@ -175,22 +175,14 @@ review queue, which is the maintainer's act. The short box names (Left-Right,
 Tiles/strands) fall below the queue's three-space filter (R-71) and were
 approved in the mockup.
 
-**OUTSTANDING: A WEAVE'S HOLES AS WHOLE TILES, AND VENDOR PATCH 7 (2026-09-13,
-late).** The maintainer read clusters of tiny cells in the drawing of `plain
-weave a|b`; they were holes cut by the one cell the daylight is measured over,
-filled as halves and quarters. `_whole_holes` rejoins each across the lattice.
-Whole holes met the upstream KeyError, whose mechanism is now measured -- the
-copy-matching loop's incentre offset wanders on a rectangle, inserts at index 0,
-and duplicates the edge list -- and patch 7 takes the centroid offset. It lifts
-the twill's refusal under QGIS (C-356). BUILT IN THE TREE, NOT COMMITTED. OWED
-before it lands: the catalogue census proving the patch changes no design that
-builds today (`tools/probes/which_designs_the_centre_offset_misreads.py`); the
-weave tests re-judged, three of which stood on the cut holes' extra classes and
-now use `basket weave ab|cd`; and `WEAVE_TAB_MATRIX_REFUSER`, a cube weave the
-patch may now build. LEFT OPEN, not blocking: whole holes are made only on a
-weave with no hyphen, since beside a hyphen's band the library refused them
-(`basket weave ab|c-`) for a reason not yet found, so a hyphen weave's drawing
-still shows the cut cells the maintainer noticed.
+**A WEAVE'S HOLES ARE WHOLE TILES, AND VENDOR PATCH 7 IS CARRIED (built
+2026-09-13, `74e821b`).** Each gap the measured cell cut is rejoined, and the
+copy-matching loop takes a centroid offset, identical on the 24 thin weaves and
+every tiling the census reached; `twill weave a|b` now builds under QGIS
+(C-356's blocker). LEFT OPEN, not blocking: a weave with a hyphen keeps its cut
+gaps, since the library refused them whole beside a band (`basket weave ab|c-`)
+for a reason not yet found; and on whole gaps a design's symmetry now forces
+scale and rotate of an edge to nothing on the basket, only zigzag moving it.
 
 **TOPOLOGY EDITS ON A DESIGN WITH AN INSET (INTO 0.24.4, 2026-09-13). THE PRINCIPLE IS
 RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
