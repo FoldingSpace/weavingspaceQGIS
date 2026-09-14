@@ -181,58 +181,13 @@ gaps, since the library refused them whole beside a band (`basket weave ab|c-`)
 for a reason not yet found; and on whole gaps a design's symmetry now forces
 scale and rotate of an edge to nothing on the basket, only zigzag moving it.
 
-**TOPOLOGY EDITS ON A DESIGN WITH AN INSET (INTO 0.24.4, 2026-09-13). THE PRINCIPLE IS
-RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
-that the gap be written here rather than inferred from a rule reading
-as though it were in force). `can_build` refuses any gapped design, so
-TODAY an inset takes the Topology tab away outright, which is a large
-loss: insetting is how a tiled map is made to read as separate
-elements, so the two things somebody most wants to combine are the two
-the plugin will not. It is buildable, `_build_unit` applying the
-insets LAST and every step before them preserving the tiling: build
-the topology from the un-inset unit, replay the edits there, inset the
-result. The three rulings are in CLAUDE.md, the measurements C-346 and
-docs/TOPOLOGY.md. WHAT IS OWED BEFORE ANY CODE, in this order:
-
-- A DIFFERENTIAL PROVING THE TOPOLOGY IS THE SAME AT EVERY INSET
-  VALUE, class labels included, since the whole design rests on the
-  topology being a function of the design WITHOUT its insets.
-- `_topology_stamp` THEN DROPS ITS TWO INSET TERMS, in the same commit
-  as that differential or not at all: a key narrowing is the shape
-  behind three of this project's wrong maps. `_geometry_signature`
-  KEEPS them, and the two keys answering differently about one term is
-  the point rather than an oversight.
-- THE THIRD FRAME IN THE FILE, per ruling 3, which the stale-table
-  drop, the `topology_design` key and the both-or-neither test must
-  each learn about. Read M-4 first: the drop was wrong four times and
-  redesigned rather than patched a fifth, and "both or neither" needs
-  a meaning when there are three.
-- THE VALIDITY JUDGEMENT RE-AIMED AT THE SKELETON, with a guard,
-  since judging the inset design reads every inset design as torn.
-
-WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
-rather than a transform applied after, so there is no un-thinned unit
-to edit and thin later. That is the R-40 boundary, measured.
-
-**BUILD NOTES FOR THE INSET TOPOLOGY (2026-09-13).** THE SKELETON, NOT THE
-SCAFFOLD: filling a weave's daylight exists because a thin weave has no
-gap-free form to build from, while an inset design does -- the same design
-before its last two steps -- and an inset joins every gap to every other, so
-filler would be one connected region that is no tile (C-352). THE WEAVE PATH
-ALREADY DOES IT for a strand inset: `_queue_topology` puts `tile_inset` on the
-cloth after the replay; a tiling needs the same for both of its insets, the
-topology taken from `_build_unit` without them. ONE QUESTION IT RAISES: the
-dual chain takes each dual of the INSET unit, so once an inset design carries
-a topology the button would offer a dual the map cannot take (row 17's shape);
-until decided, the dual is refused on an inset design. The stamp keeps its
-inset terms until the differential is written.
-
-**OUTSTANDING: WHAT PROTOTYPING THOSE ASKS FOUND, AND ONE QUESTION ANSWERED.**
-
-- THE ARGUMENT BOXES DRAWN OVER THE DO CHOOSER are FIXED (ledger row 23),
-  AND THE DRAWING'S REFUSAL now wraps inside a margin (built with the asks).
-- ASKED AND DECIDED: a group inset on a laves tiling gets a topology by
-  the skeleton route, moved into 0.24.4 and being built (entry above).
+**TOPOLOGY EDITS ON A DESIGN WITH AN INSET ARE BUILT** (2026-09-14, `731f40b`,
+`0dbea4d`), the three rulings of C-346 and the maintainer's dual ruling of the
+same night: the topology is its skeleton's, the inset design ghosted under it,
+validity judged on the skeleton, three frames in the file, and the dual taken
+of the skeleton with the insets on its tiles. Found while building it: an edit
+does not move the regularised prototile, so a group inset cut away every bulge
+until it was rebuilt (C-362). The stamp keeps its inset terms, deliberately.
 
 **NOTHING ELSE OUTSTANDING IN CODE BEFORE THOSE.** The honest preview, which was the
 last of it, is built and its entry is below; the palette and the stall
@@ -276,6 +231,32 @@ chain, the count interpolates along the edge, the amplitude box
 shows the crest (C-334, C-336, C-337) -- every sentence was approved,
 and rc17 carries the lot; its first build found eight failures in
 ground the targeted runs had passed (T-145, T-146, C-338).
+
+### Still owed before the next candidate
+
+**DOES THE STALE PROTOTILE REACH ANYTHING BUT THE INSET?** An edited unit keeps
+the plain design's regularised prototile, and `_move_edges_vertex_consistent`
+asks the library to rebuild it without `override`, which does nothing. What
+else reads it -- "Join data using whole tileable", retained tileables -- has not
+been measured on an edited design. Measure first; repair where a map moves.
+
+**THE REFUSAL'S SECOND SENTENCE IS NOW WRONG FOR A TILING**, the maintainer's
+to reword: "Set the insets to 0, or a weave's strand width to 1.0" names two
+controls that no longer take the tab away. What still does: tiles scaled in
+place, a `grid N` with a remainder, a weave scaffold the library refuses.
+
+**A DUAL GROUP WITH INSETS** builds its tab from its dual skeleton by the same
+route, and nothing drives it through the dialog yet; owed a test.
+
+**`a-reopen-does-not-take-the-motif-out-of-the-file` SURVIVES**, on a clean HEAD
+as well as after this work, so it predates it: the Save a reopened file defers
+for a topology now writes the motif before the drop the entry breaks. Re-aim
+at a journey that reaches the drop, or retire with that measurement.
+
+**Queue item 6**: judge `moving-the-warp-and-weft-chooser-rebuilds-the-topology`
+and `a-file-holding-a-motif-gets-a-fresh-one` on a quiet machine (HUNG before).
+And the changelog owes sentences for the UI asks, whole weave gaps, patch 7
+and the inset topology -- a person's to write and approve.
 
 ### Closed: the two suite failures and the harness race
 
