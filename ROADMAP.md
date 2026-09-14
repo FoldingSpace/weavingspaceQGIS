@@ -186,7 +186,18 @@ before they are built, and all new wording goes through text review.
 - TOPOLOGY TAB: "Gaps from strand width" becomes "Gaps between existing
   tiles/strands" or similar, and "a hole made by a 'missing' strand"
   becomes "strand/tile".
-- THE DEFAULT WINDOW HEIGHT is a little taller.
+- THE WINDOW GROWS TALLER ON THE TOPOLOGY TAB AND RETURNS ON LEAVING IT
+  (the maintainer's clarification of the height ask), while the width goes
+  on growing and staying. Prototyped as 220 px on arrival.
+- FOUND WHILE PROTOTYPING, A DEFECT IN rc21: the manipulation's argument
+  boxes are laid from grid row 4, and `d8f38b7` put the warp-and-weft row
+  above them, so they are drawn OVER the symmetry line and the "Do"
+  chooser on every design. Prototyped fix: start them below "Do". Wants a
+  guard that no two of the tab's rows share a place.
+- AND THE DRAWING'S REFUSAL SENTENCE was painted on one unwrapped line and
+  cut off at both sides; prototyped with word wrap inside a margin. The
+  prototype hides warp and weft by the unit's class, which a weave's DUAL
+  shares, so the build should ask the dialog whether the map is a weave.
 - ASKED, AND ANSWERED FROM THE RECORD: why a group inset on a laves tiling
   gets no topology. `can_build` refuses any gapped design; the route is
   ruled (build from the un-inset unit, replay, inset afterwards) and is
