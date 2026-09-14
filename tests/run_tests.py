@@ -13265,6 +13265,88 @@ def test_an_inset_design_s_topology_is_its_skeleton_s():
     _tick(50)
 
 
+def test_a_dual_group_with_insets_keeps_its_topology():
+  """An inset design's dual lands as a group that is inset and still editable.
+
+  Regression: the dual of an inset design was taken of the inset unit, which has no topology, so the dual group was the source design under another name. [user]
+
+  The maintainer's ruling of 2026-09-14: the dual ignores the insets and
+  then wears them. Driven through the button as a person drives it, on a
+  design carrying a 5% tile inset and a 10% group inset: the dual lands in
+  its own group; the map there is the dual with its insets on (fewer
+  square metres than the dual it was taken of, as many tiles); and the
+  dual group's own Topology tab has a topology, its dual skeleton's, with
+  the inset dual ghosted beneath -- which is what lets somebody edit a
+  dual group whose source was inset.
+  """
+  from weavingspace_qgis import topology_edits
+
+  dlg, layer, tid = _categorical_dialog()
+
+  def landed():
+    deadline = time.monotonic() + 60 * CONTENTION
+    while time.monotonic() < deadline:
+      _tick(100)
+      held = getattr(dlg, "_topology_dual", None)
+      if (dlg._topology_task is None and held is not None
+          and held[0] == dlg._topology_stamp()):
+        return True
+    return False
+
+  try:
+    dlg.spacing_spin.setValue(600.0)
+    dlg.mod_t_inset.setValue(5.0)
+    dlg.mod_p_inset.setValue(10.0)
+    _tick(300)
+    _generate_and_wait(dlg)
+    source = dlg._group_name
+    assert source and dlg._element_layer_ids, "PREMISE: the source map did not land"
+    dlg.opt_experimental.setChecked(True)
+    assert landed(), \
+      f"PREMISE: the inset source has no topology: " \
+      f"{dlg.topology_panel.note.text()!r}"
+    panel = dlg.topology_panel
+    assert panel.dual_button.isEnabled(), (
+      f"the dual of an inset design is not offered: "
+      f"{panel.dual_button.toolTip()!r}")
+    dual = topology_edits.dual_on_offer(panel._topology)[0]
+    assert dual is not None, "PREMISE: the skeleton offers no dual"
+    dual_area = sum(g.area for g in dual.tiles.geometry)
+
+    panel.dual_button.click()
+    _settle(dlg, seconds=60)
+    assert dlg._task is None, "the dual's run never landed"
+    assert dlg._group_name == f"{source} — dual", \
+      f"the dual did not land in its own group: {dlg._group_name!r}"
+    assert dlg._mapping_the_dual(), "PREMISE: the map is not the dual's"
+    mapped = dlg._build_unit()
+    assert mapped is not None and len(mapped.tiles) == len(dual.tiles), (
+      f"the dual group's unit has "
+      f"{None if mapped is None else len(mapped.tiles)} tiles where the dual "
+      f"has {len(dual.tiles)}")
+    mapped_area = sum(g.area for g in mapped.tiles.geometry)
+    assert mapped_area < dual_area * 0.95, (
+      f"the dual group's tiles cover {mapped_area:.0f} against the dual's "
+      f"{dual_area:.0f}: its insets were not put on the dual")
+
+    assert landed(), (
+      f"the dual group's Topology tab never landed a topology: "
+      f"{panel.note.text()!r}")
+    topo = panel._topology
+    assert topo is not None, (
+      f"the dual group of an inset design has no topology to edit: "
+      f"{panel.note.text()!r}")
+    assert topology_edits.stands_on_a_skeleton(topo), \
+      "the dual group's topology is not its dual skeleton's"
+    assert panel.view._ghost is not None, \
+      "the dual group's inset design is not ghosted under its skeleton"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+    QgsProject.instance().removeAllMapLayers()
+
+
 def test_an_inset_design_s_file_carries_its_skeleton():
   """A saved inset design carries its skeleton, its dual, and the unit as built.
 
@@ -96714,6 +96796,8 @@ def main():
         test_an_inset_design_s_topology_is_its_skeleton_s)
   check("an inset design's file carries its skeleton",
         test_an_inset_design_s_file_carries_its_skeleton)
+  check("a dual group with insets keeps its topology",
+        test_a_dual_group_with_insets_keeps_its_topology)
   check("the window grows on the topology tab and gives the height back",
         test_the_window_grows_on_the_topology_tab_and_gives_the_height_back)
   check("a refusal in the topology drawing wraps inside it",

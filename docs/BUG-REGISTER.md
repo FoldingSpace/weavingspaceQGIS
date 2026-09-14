@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-602 defect(s) with a regression test.
+603 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1145,6 +1145,8 @@ there is no separate list to remember.
   guarded by `test_a_data_defined_fill_is_drawn_as_an_unknown`
 - **a deferring element's ramp cell went on naming a ramp, and its swatch did not follow the colours set in QGIS's styling panel.**  
   guarded by `test_a_deferring_row_shows_the_colours_qgis_is_drawing`
+- **the dual of an inset design was taken of the inset unit, which has no topology, so the dual group was the source design under another name.**  
+  guarded by `test_a_dual_group_with_insets_keeps_its_topology`
 - **compat.layer_data_is_available checked isValid() and the provider's isValid() and nothing else, so a layer whose file had moved out from under it passed the guard and was refused far downstream, in terms of the wrong thing.**  
   guarded by `test_a_layer_whose_file_moved_is_refused_before_it_is_read`
 - **2026-08-19. The dock-bounds adoption pinned whatever the first class's upper bound had become, including when that was exactly the element's own floor, producing a zero-width class.**  
@@ -1261,7 +1263,7 @@ there is no separate list to remember.
 - the mutation campaign: 209
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
-- reported by a user: 63
+- reported by a user: 64
 - reading the code: 21
 - the functional suite, run whole: 11
 - running the suite somewhere other than the machine it was written on: 10

@@ -187,7 +187,8 @@ same night: the topology is its skeleton's, the inset design ghosted under it,
 validity judged on the skeleton, three frames in the file, and the dual taken
 of the skeleton with the insets on its tiles. Found while building it: an edit
 does not move the regularised prototile, so a group inset cut away every bulge
-until it was rebuilt (C-362). The stamp keeps its inset terms, deliberately.
+until it was rebuilt (C-362), and measured to reach nothing else
+(docs/TOPOLOGY.md). The stamp keeps its inset terms, deliberately.
 
 **NOTHING ELSE OUTSTANDING IN CODE BEFORE THOSE.** The honest preview, which was the
 last of it, is built and its entry is below; the palette and the stall
@@ -234,19 +235,10 @@ ground the targeted runs had passed (T-145, T-146, C-338).
 
 ### Still owed before the next candidate
 
-**DOES THE STALE PROTOTILE REACH ANYTHING BUT THE INSET?** An edited unit keeps
-the plain design's regularised prototile, and `_move_edges_vertex_consistent`
-asks the library to rebuild it without `override`, which does nothing. What
-else reads it -- "Join data using whole tileable", retained tileables -- has not
-been measured on an edited design. Measure first; repair where a map moves.
-
 **THE REFUSAL'S SECOND SENTENCE IS NOW WRONG FOR A TILING**, the maintainer's
 to reword: "Set the insets to 0, or a weave's strand width to 1.0" names two
 controls that no longer take the tab away. What still does: tiles scaled in
 place, a `grid N` with a remainder, a weave scaffold the library refuses.
-
-**A DUAL GROUP WITH INSETS** builds its tab from its dual skeleton by the same
-route, and nothing drives it through the dialog yet; owed a test.
 
 **`a-reopen-does-not-take-the-motif-out-of-the-file` SURVIVES**, on a clean HEAD
 as well as after this work, so it predates it: the Save a reopened file defers

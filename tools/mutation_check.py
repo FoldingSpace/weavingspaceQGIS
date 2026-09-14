@@ -2898,6 +2898,16 @@ MUTATIONS = [
        why="the dual of an inset design taken of the inset unit, which has "
            "no topology, so the dual group is tiled with the source design "
            "(maintainer's ruling of 2026-09-14)"),
+  dict(name="a-dual-group-with-insets-builds-from-its-dual-skeleton",
+       file=DIALOG,
+       old="""        if not (tiles_in or group_in):
+          return result
+        self._skeleton_parts = (result, tiles_in, group_in)""",
+       new="""        if not (tiles_in or group_in):
+          return result""",
+       test="test_a_dual_group_with_insets_keeps_its_topology",
+       why="a dual group whose source was inset showing no topology to "
+           "edit, its tab built from the inset dual, which has gaps"),
   dict(name="an-inset-design-s-dual-wears-the-insets", file=DIALOG,
        old="""        self._skeleton_parts = (result, tiles_in, group_in)
         return topology_edits.inset_the_skeleton(result, tiles_in, group_in)""",

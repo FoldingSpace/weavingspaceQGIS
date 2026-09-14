@@ -1324,6 +1324,44 @@ strand's tile inset already travels this way, put on the cloth after the
 replay. So a tiling's insets follow the weave's: topology from the skeleton,
 edits replayed there, insets applied to the result.
 
+## The inset topology as built, and the prototile an edit leaves behind: 2026-09-14
+
+BUILT BY THE SKELETON ROUTE (C-346, C-362): the topology of a tiling with
+insets is built from the unit before them, edits are replayed there, and
+both insets go on the result through `inset_the_skeleton`, which
+`_build_unit` also calls. The differential through the dialog
+(`test_an_inset_design_s_topology_is_its_skeleton_s`) finds the classes and
+the skeleton's tiles on `laves 3.3.4.3.4` identical at tile insets of 1%
+and 5%, group insets of 5% and 10%, and both together.
+
+AN EDIT DOES NOT MOVE THE REGULARISED PROTOTILE. `transform_geometry` never
+rebuilds it and the library's setup does nothing where one exists, so an
+edited unit carries the plain design's outline -- and `inset_prototile`
+clips every tile by that outline shrunk:
+
+    edit on laves 3.3.4.3.4        moved    outside the old outline   lost to a 0.001 group inset
+    zigzag_edge (n=2, h=0.5)     333,333                     83,333                        83,336
+    nudge_vertex (0.1, 0.05)     294,770                    100,000                       100,002
+    rotate_edge (15 deg)               0                          0                             4
+
+(Map units squared, of a 1,000,000 cell; the rotate is refused by the
+design's symmetry, which is the control.) So `inset_the_skeleton` rebuilds
+the prototile from the tiles wherever they overhang it by more than a
+millionth of the cell, BEFORE the tile inset, since a union of inset tiles
+carries the channels and would bite twice along every inner edge.
+
+AND IT REACHES NOTHING ELSE, measured rather than read: tiling a
+three-zone region with the edited unit as it stands and with its prototile
+rebuilt gives identical maps -- tile id, area, centroid and joined value --
+under all four settings of "Join data using whole tileable" and retained
+tileables, 1,084 tiles compared. The tiling joins by the lattice's own
+prototile, which an edit rightly leaves alone.
+
+THE DUAL IGNORES THE INSETS, THEN WEARS THEM (maintainer, 2026-09-14): the
+map's dual is the skeleton's, with both insets put on the dual's tiles, so
+the dual group is inset like its source and its own topology is its dual
+skeleton's (`test_a_dual_group_with_insets_keeps_its_topology`).
+
 ## A weave's holes are whole tiles, and patch 7 lets them build: 2026-09-13
 
 The maintainer read the drawing of `plain weave a|b` at strand width 0.75
