@@ -142,10 +142,7 @@ plain QGIS 4 spellings, ready to grow fallback branches. The routine:
    the honest moment is when `compat.py` has a branch for the new
    spellings and the suite is green under the new QGIS. Until then the
    published prose says "QGIS 4.x", which is what the metadata
-   enforces. (Settled 2026-08-18, on being asked whether the ceiling
-   could legitimately be lifted: it could be, and could not be
-   justified. CI proves 4.0.0, 4.0.3 and stable; compat.py holds plain
-   QGIS 4 spellings and no fallback at all.)
+   enforces. (M-35.)
 
 Known risk points (where future breakage is most likely): enum access
 patterns, `QgsField` construction, `QgsVectorFileWriter` options,
@@ -406,13 +403,7 @@ in place". The second half is FALSE, measured on QGIS 4.0.3,
     updateRangeSymbol on the live renderer        NOTHING
     recolour a clone, then setRenderer            rendererChanged, styleChanged
 
-(An earlier version of that table carried a `symbol().setColor()` row.
-It was VACUOUS and is removed: `ranges()` hands back copies, so the
-probe recoloured a temporary and the renderer never changed -- the
-fixture-that-cannot-move trap, inside the measurement meant to settle
-this. `updateRangeSymbol` is the honest in-place row, and its edit was
-verified to reach the layer.)
-
+(A vacuous `setColor()` row once stood in that table, M-35.)
 `repaintRequested` was connected for that measurement too and fired on
 none of the rows above by themselves. What DOES fire is the
 `triggerRepaint()` the styling dock calls after an in-place edit -- it
@@ -574,6 +565,14 @@ become its own tile, which the scaffolding wants anyway since
 `_setup_regularised_prototile` dissolves by `tile_id`. Measured on the
 three cube weaves at aspect 0.75: 3 filler pieces of 68, 11 of 65 and
 13 of 21 stop being a single polygon under the library's own gridify.
+
+**EACH HOLE IS ONE TILE, EXCEPT BESIDE A HYPHEN.** `plane_coverage` measures
+one cell, so a hole crossing its edge came back in pieces with cuts the cloth
+has not; `_whole_holes` rejoins them across the lattice, one per orbit, only
+where the parts partition, and `scaffolded_weave` calls it only for a code with
+no hyphen, whole holes beside a band having been refused by the library. It
+stands on vendor patch 7: the copy-matching loop's incentre offset wandered on
+a rectangle and corrupted an edge list, which was the twill's KeyError.
 
 ### Warp and weft, kept apart by a subgroup of the design's own symmetries
 

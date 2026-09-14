@@ -395,6 +395,7 @@ quote them, do not renumber them.
 - **C-358** — Every store that calls a function later, keys on it or records it gains its new term  <sub>minted</sub>
 - **C-359** — A library's label in selector is a substring test on a string  <sub>minted</sub>
 - **C-360** — Parallel repair branches are merged one at a time and re-judged on the merged tree  <sub>minted</sub>
+- **C-361** — The twill's QGIS refusal was the incentre offset  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -12054,3 +12055,33 @@ or source edit may land while one runs.
 C-355's live entry was shortened in the same pass to pay for these
 lines; its account above is unchanged, and the live form it replaced
 read: see git history of CLAUDE.md at 9e8b065.
+
+### C-361 — The twill's QGIS refusal was the incentre offset
+
+<sub>Written 2026-09-13; the live half is the C-356 lesson on `.venv-reference`.</sub>
+
+The maintainer read clusters of tiny cells in the Topology tab's drawing of
+`plain weave a|b` at strand width 0.75 and said the gaps should have been
+merged before the topology was worked out. They were holes cut by the one
+cell `plane_coverage` measures the daylight over. Rejoined, they raised the
+upstream KeyError that had kept `twill weave a|b` off the tab under QGIS.
+
+Instrumented with a dict recording deletions -- on the RIGHT module object,
+at the second attempt (T-155) -- the missing edge was deleted by
+`_match_reference_tile_vertices` while the tile it had just been inserted on
+still named it. The loop compares corner offsets with the offset between two
+tiles' `centre`s, and `centre` is a polylabel incentre, which lands anywhere
+along a rectangle's midline; a strand's copy read as displaced, a vertex was
+inserted at index 0, and `insert_vertex_at` with `i == 0` rebuilt the edge
+list as the whole list again. Counted over three failing and three building
+designs, every failure inserted at index 0 and no success did.
+
+Patch 7 takes the offset between the shapes' centroids and ends the loop on a
+pass that inserts nothing. The 24 thin weave scaffolds that built without it
+give identical edge and vertex classes with it
+(`tools/probes/does_patch_7_move_a_weave_that_built.py`), and the catalogue
+census over tilings and full-width weaves found the two offsets deciding
+differently only where construction raised. With it `twill weave a|b` builds
+under QGIS at 6 edge and 4 vertex classes, the venv's own figures -- so the
+version-sensitivity C-356 recorded was where a GEOS release puts polylabel on
+a segment, not a different library.

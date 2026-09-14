@@ -185,6 +185,7 @@ quote them, do not renumber them.
 - **T-152** — A guard's premise can be made vacuous by another repair, and a staged window must open  <sub>minted</sub>
 - **T-153** — A subset runner that sets no platform measures Cocoa  <sub>minted</sub>
 - **T-154** — A fixture in a form the product no longer writes  <sub>minted</sub>
+- **T-155** — A probe patched the library under a second import name  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7338,3 +7339,21 @@ Staged by hand with `_refresh_classes()` between the two: the string became
 `('vertex', 'A')`, a list `['a', 'b']` survived. Every product caller was
 checked and passes a list, so no person reaches it. Repaired in `b4940e7`:
 a list, and the tab quiet before either arm.
+
+### T-155 — A probe patched the library under a second import name
+
+<sub>2026-09-13, chasing the KeyError behind whole weave holes.</sub>
+
+Two probes replaced `Topology._match_reference_tile_vertices` and wrapped
+`Topology._setup_edges` to watch `self.edges`, having imported
+`from weavingspace import topology`. The vendor directory was on `sys.path`, so
+that import succeeded -- and gave a SECOND module object, while the plugin's
+`topology_edits` builds with `from .vendor.weavingspace.topology import
+Topology`. The first probe's candidate repair reported "touched {}" and gave
+the same failures as the control, which read as "the repair does not help";
+the second reported zero deletions from the edge dict, which read as "the edge
+was never created" and sent the diagnosis the wrong way for a turn. Neither
+wrapper had run at all: the wrapped setup never printed its own line. Imported
+as `weavingspace_qgis.vendor.weavingspace.topology`, the watcher found the key
+deleted in the very method the repair targeted, and the repair then built the
+weaves. A patch that counts its own calls would have said so in one line.

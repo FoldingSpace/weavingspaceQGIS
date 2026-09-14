@@ -51,6 +51,11 @@ believe: two hypotheses of ours were refuted by their own controls
 first, and the run that finally showed it observed the dict rather
 than replacing any logic.
 
+**That note's reading was corrected on 2026-09-13**, by a measurement
+rather than a reading: the edge goes missing where a copy is matched to its
+base tile by an incentre offset that wanders on a rectangle, and the note now
+says so and describes the one-line repair the plugin carries as patch 7.
+
 **The second upstream note**, `upstream-note-a-unit-from-supplied-
 tiles.md`, asks the weavingspace project for a constructor that builds
 a Tileable from tiles you already have. The plugin needs one to tile a

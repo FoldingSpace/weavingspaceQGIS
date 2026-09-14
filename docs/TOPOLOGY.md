@@ -1359,9 +1359,16 @@ rule is declarative: a weave whose strands code carries a hyphen keeps the
 cut holes, and gains patch 7 alone (`plain weave ab-|cd` builds, 24 edge
 classes, where it raised).
 
-Across the catalogue's 77 weaves at 0.75, 24 carried a topology before;
-the after figure is in `tools/probes/whole_holes_in_a_weave_scaffold.py`'s
-run of the same date. The census that the patch changes nothing that
+Of the 15 weaves with no hyphen that `tools/probes/whole_holes_in_a_weave_scaffold.py`
+reached in both runs, 8 carried a topology before and 12 after, every one of
+the 8 with fewer classes (254 edge classes to 9 on `twill weave a|b 3`); three
+twills with over-unders `1,2,2,1` and `4` raise still. Across all 77 at 0.75,
+24 carried a topology before.
+
+AND WHOLE HOLES CAN MAKE AN EDGE IMMOVABLE. On `basket weave ab|cd` every
+scale and rotate of an edge class is refused as leaving it unchanged, the
+design's symmetry forcing the vertex-consistent displacement to zero; a zigzag
+still moves each class. Two weave tests were re-aimed at a zigzag for this. The census that the patch changes nothing that
 builds today is `tools/probes/which_designs_the_centre_offset_misreads.py`.
 The twill's refusal under QGIS (C-356) was this defect, which is why
 another interpreter's GEOS reached it: where polylabel lands on a segment

@@ -919,7 +919,13 @@ document lines naming three gitignored `dev/` files passed here and
 reddened all six runner legs on rc16's commit, so the command gate
 asks git whether a runner would have the file, with a control proving
 the helper can answer, and a probe worth citing is committed under
-`tools/probes/` rather than named from `dev/` (T-144.)
+`tools/probes/` rather than named from `dev/` (T-144.) And a monkeypatch
+lands on the module OBJECT it names: a probe importing the vendored library
+as `weavingspace` holds a second copy of the one the plugin loads as
+`weavingspace_qgis.vendor.weavingspace`, so two probes patched nothing and
+read "no deletions" and "no neighbour touched" as findings; patch what
+`topology_edits._topology_class()` returns, and make the patch count its own
+calls (T-155.)
 
 ## Lessons, each paid for once
 

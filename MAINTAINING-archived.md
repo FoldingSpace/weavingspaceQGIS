@@ -49,6 +49,7 @@ quote them, do not renumber them.
 - **M-32** — The two doors to a new group, the readers that disagreed, and the checkbox's retirement  <sub>The fourth pass of 2026-09-05</sub>
 - **M-33** — The vendoring record of 2026-08-31: twelve commits under one version string, and the tw...  <sub>The fourth pass of 2026-09-05</sub>
 - **M-34** — The live path's refusal of a repaint, the ten named gates, and the two diagnoses silenc...  <sub>The fourth pass of 2026-09-05</sub>
+- **M-35** — The ceiling's settlement and the vacuous setColor row  <sub>minted</sub>
 
 
 ## Long jobs: the accounts behind the rules
@@ -1188,3 +1189,23 @@ has cost this project two diagnoses -- the icon-mode estimate of
 2026-08-19 and this one -- and the dump answered the second in one
 run, after the site had been named wrongly by reading in four
 documents at once.
+
+### M-35 — The ceiling's settlement and the vacuous setColor row
+
+<sub>Moved from MAINTAINING.md on 2026-09-13 to make room for the whole-holes mechanism; both passages verbatim.</sub>
+
+From "When a new QGIS version breaks things", step 5:
+
+   (Settled 2026-08-18, on being asked whether the ceiling
+   could legitimately be lifted: it could be, and could not be
+   justified. CI proves 4.0.0, 4.0.3 and stable; compat.py holds plain
+   QGIS 4 spellings and no fallback at all.)
+
+From "What the plugin hears from QGIS", below the signal table:
+
+(An earlier version of that table carried a `symbol().setColor()` row.
+It was VACUOUS and is removed: `ranges()` hands back copies, so the
+probe recoloured a temporary and the renderer never changed -- the
+fixture-that-cannot-move trap, inside the measurement meant to settle
+this. `updateRangeSymbol` is the honest in-place row, and its edit was
+verified to reach the layer.)

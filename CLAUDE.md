@@ -1372,8 +1372,8 @@ and the ids beside each rule.
   The venv exists because it drives the library with no QGIS in the
   way, and it answers a question the product may answer differently:
   `twill weave a|b` builds a topology at every strand width there and
-  NONE under QGIS's own GEOS, on the upstream KeyError that note
-  already records. Every twill figure in the weave work was a venv
+  NONE under QGIS's own GEOS, on a KeyError since traced to the library's
+  incentre offset and mended by vendor patch 7 (C-361). Every twill figure in the weave work was a venv
   figure describing a design the plugin cannot reach, and the numbers
   were not wrong -- their conditions were unstated, which is the same
   fault as a figure with no instrument beside it. (C-356.)
