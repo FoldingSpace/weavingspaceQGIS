@@ -14475,6 +14475,96 @@ def test_a_promoted_dual_covers_its_cell_and_the_library_builds_it():
     f"where the catalogue's own snub square has {expected}")
 
 
+def test_a_topology_match_does_its_work_once():
+  """Vendor patch 8 builds the same Topology, rebuilding each edge's line once.
+
+  Regression: a whole-holes weave scaffold's topology took 230 cpu seconds on `plain weave abcd|efgh` and did not finish in half an hour on `plain weave abcde|fghi`, so its Topology tab never landed. [review]
+
+  `Topology._match_geoms_under_transform` rebuilt every candidate edge's
+  LineString on every comparison, so the edge-class search grew as
+  transforms x edges x edges, and whole holes (74e821b) keep enough
+  transforms to make that a freeze. A FREEZE IS GUARDED BY A COUNT, NOT A
+  CLOCK (docs/TESTING.md): on `plain weave a|b` at strand width 0.75 the
+  patched build calls `Edge.get_geometry` T x E + E times (1,575 for 44
+  transforms and 35 base edges) where upstream's loop called it 85,800
+  times, so the count is held under (T + 2) x E. And the answer is held to be
+  the SAME: upstream's own method, compiled from the anchor patch 8 carries in
+  tools/vendor_weavingspace.py, builds the same scaffold, and every label,
+  transitivity class and kept transform must agree -- with the count arm's
+  control being that upstream's method, on the same scaffold, exceeds the
+  bound.
+  """
+  import ast
+  import inspect
+  import textwrap
+  from weavingspace_qgis import catalog, topology_edits
+
+  topology_class = topology_edits._topology_class()
+  vendored = sys.modules[topology_class.__module__]
+  tool = open(os.path.join(HERE, "..", "tools", "vendor_weavingspace.py"),
+              encoding="utf-8").read()
+  upstream_body = None
+  for node in ast.walk(ast.parse(tool)):
+    if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "targeted"
+        and len(node.args) >= 4 and isinstance(node.args[1], ast.Constant)
+        and str(node.args[1].value).startswith("8 ")):
+      upstream_body = node.args[2].value
+  assert upstream_body, "PREMISE: the vendoring tool carries no patch 8"
+  scope = dict(vars(vendored))
+  exec(compile("def upstream_match(self, geom1, geoms2, transform):\n"
+               + textwrap.indent(textwrap.dedent(upstream_body), "  "),
+               "upstream patch 8 anchor", "exec"), scope)
+  upstream_match = scope["upstream_match"]
+  patched_match = topology_class._match_geoms_under_transform
+  assert "PLUGIN PATCH 8" in inspect.getsource(patched_match), \
+    "PREMISE: the vendored method is not patch 8's"
+
+  spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+  unit, _kinds, note = topology_edits.scaffolded_weave(spec, 1000.0, 0.75)
+  assert unit is not None, f"PREMISE: the weave did not scaffold: {note}"
+  calls = {"n": 0}
+  real_geometry = vendored.Edge.get_geometry
+
+  def counted(self, *args, **kwargs):
+    calls["n"] += 1
+    return real_geometry(self, *args, **kwargs)
+
+  def build(method):
+    topology_class._match_geoms_under_transform = method
+    vendored.Edge.get_geometry = counted
+    calls["n"] = 0
+    try:
+      topo = topology_class(unit, True)
+    finally:
+      topology_class._match_geoms_under_transform = patched_match
+      vendored.Edge.get_geometry = real_geometry
+    structure = dict(
+      edges=sorted((k, e.label, e.base_ID) for k, e in topo.edges.items()),
+      vertices=sorted((k, v.label, v.base_ID) for k, v in topo.points.items()),
+      tiles=[(t.ID, t.base_ID) for t in topo.tiles],
+      tile_classes=topo.tile_transitivity_classes,
+      edge_classes=[sorted(c) for c in topo.edge_transitivity_classes],
+      vertex_classes=[sorted(c) for c in topo.vertex_transitivity_classes],
+      transforms=sorted(topo.tile_matching_transforms))
+    base_edges = len(topo.edges_in_tiles(topo.tiles[:topo.n_tiles]))
+    return structure, calls["n"], base_edges, len(topo.tile_matching_transforms)
+
+  patched, patched_calls, edges, transforms = build(patched_match)
+  upstream, upstream_calls, _edges, _transforms = build(upstream_match)
+  bound = (transforms + 2) * edges
+  assert upstream_calls > bound, (
+    f"PREMISE: upstream's method made {upstream_calls} edge lines, within the "
+    f"bound of {bound}, so the bound cannot tell the two apart")
+  assert patched_calls <= bound, (
+    f"the topology build made {patched_calls} edge lines for {edges} base "
+    f"edges and {transforms} transforms, past {bound}: the match is "
+    f"rebuilding them per comparison again (upstream made {upstream_calls})")
+  for key in patched:
+    assert patched[key] == upstream[key], (
+      f"patch 8 builds a different topology from upstream's method: the "
+      f"{key} disagree")
+
+
 def test_the_library_still_misreads_a_copy_by_its_centre():
   """CANARY: patch 7's upstream defect is still in the library's own loop.
 
@@ -96957,6 +97047,8 @@ def main():
         test_the_refusal_tells_gaps_from_a_library_refusal)
   check("a promoted dual covers its cell and the library builds it",
         test_a_promoted_dual_covers_its_cell_and_the_library_builds_it)
+  check("a topology match does its work once",
+        test_a_topology_match_does_its_work_once)
   check("the library still misreads a copy by its centre",
         test_the_library_still_misreads_a_copy_by_its_centre)
   check("a weave's scaffold fills each hole with one tile",

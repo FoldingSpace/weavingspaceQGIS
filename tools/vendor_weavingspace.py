@@ -612,6 +612,41 @@ def main():
            '    while len(tile1.corners) > len(tile2.corners):\n      # find the reference x-y offset\n      dxy = (tile2.centre.x - tile1.centre.x, tile2.centre.y - tile1.centre.y)\n      for i, t1c in enumerate([c.point for c in tile1.get_corners()]):\n        t2c = tile2.get_corners()[i % len(tile2.get_corners())].point\n        if abs((t2c.x - t1c.x) - dxy[0]) > 10 * tiling_utils.RESOLUTION or \\\n           abs((t2c.y - t1c.y) - dxy[1]) > 10 * tiling_utils.RESOLUTION:\n          # add vertex to t2 by copying the t1 vertex appropriately offset\n          # note that this might alter the length of t2.corners\n          v = self.add_vertex(geom.Point(t1c.x + dxy[0], t1c.y + dxy[1]))\n          v.is_tiling_vertex = True\n          old_edge, new_edges = tile2.insert_vertex_at(v, i)\n          del self.edges[old_edge]\n          for new_edge in new_edges:\n            e = self.add_edge(new_edge)\n            self.edges[e.ID] = e\n',
            "    while len(tile1.corners) > len(tile2.corners):\n      # PLUGIN PATCH 7: the offset between a tile and its copy is taken\n      # from their SHAPES' centroids, which are exact for a translate.\n      # `centre` is the incentre, a numerical search that wanders along\n      # a rectangle's midline, so copies of one strand read as offset,\n      # a corner is judged missing at index 0, and the insertion there\n      # corrupts the tile's edge list (a KeyError in get_edges later).\n      a_centre, b_centre = tile1.shape.centroid, tile2.shape.centroid\n      dxy = (b_centre.x - a_centre.x, b_centre.y - a_centre.y)\n      inserted = False\n      for i, t1c in enumerate([c.point for c in tile1.get_corners()]):\n        t2c = tile2.get_corners()[i % len(tile2.get_corners())].point\n        if abs((t2c.x - t1c.x) - dxy[0]) > 10 * tiling_utils.RESOLUTION or \\\n           abs((t2c.y - t1c.y) - dxy[1]) > 10 * tiling_utils.RESOLUTION:\n          # add vertex to t2 by copying the t1 vertex appropriately offset\n          # note that this might alter the length of t2.corners\n          v = self.add_vertex(geom.Point(t1c.x + dxy[0], t1c.y + dxy[1]))\n          v.is_tiling_vertex = True\n          old_edge, new_edges = tile2.insert_vertex_at(v, i)\n          del self.edges[old_edge]\n          for new_edge in new_edges:\n            e = self.add_edge(new_edge)\n            self.edges[e.ID] = e\n          inserted = True\n      # A PASS THAT FINDS NOTHING TO INSERT ENDS THE LOOP, where upstream\n      # would spin for ever on a copy that is not the same shape.\n      if not inserted:\n        break\n")
 
+  # PATCH 8: a match under a transform does its work once, exactly.
+  #
+  # `Topology._match_geoms_under_transform` answers "which candidate does this
+  # tile, edge or vertex land on under this transform", and upstream's loop
+  # re-applies the transform to the source for every candidate, rebuilds each
+  # edge's LineString to take its centroid on every comparison, and compares
+  # one scalar shapely call at a time. The edge-class search calls it once per
+  # transform per edge, so it grows as transforms x edges x edges -- and the
+  # plugin's whole-hole weave scaffolds (74e821b) are symmetric enough to keep
+  # many transforms: MEASURED 2026-09-14 under QGIS 4.0.3, `plain weave
+  # abcd|efgh` at 0.75 took 230.7 cpu s with whole holes against 28.6 cut, 312
+  # of 333 profiled seconds inside this method, and `plain weave abcde|fghi`
+  # did not finish in 1,800 cpu s -- a Topology tab that never lands.
+  #
+  # EXACT BY CONSTRUCTION, and measured so: the source moved once is the same
+  # value; `shapely.distance` over an array is the GEOS call a Point's
+  # `.distance` makes; the first hit in order is the candidate the loop
+  # returned; and a tile candidate whose bounding box cannot meet the moved
+  # source's has an intersection area of 0, which `polygon_matches` rejects for
+  # any tile larger than its 1e-4 tolerance (the skip is off below that).
+  # tools/probes/does_a_faster_match_build_the_same_topology.py compares every
+  # label, transitivity class and kept transform on tilings and weave
+  # scaffolds, with a sabotage control that must read DIFFERS.
+  #
+  # THE EDGE CENTROIDS ARE HELD per list of candidates, keyed by the list
+  # object AND its edge IDs, so a list rebuilt or re-ordered is recomputed. No
+  # caller mutates an edge's geometry between the calls of one search.
+  #
+  # Upstream's experimental branch rewrites this construction and makes the
+  # method unnecessary (docs/process/study-upstream-topology-rewrite-2026-09-14.md);
+  # when that merges, retire this patch rather than re-anchoring it.
+  targeted(VENDOR_DIR / "topology.py", "8 a match under a transform does its work once",
+           '    match_id = -1\n    for geom2 in geoms2:\n      if isinstance(geom1, Tile):\n        # an area of intersection based test\n        match = self.polygon_matches(\n          affine.affine_transform(geom1.shape, transform), geom2.shape)\n      elif isinstance(geom1, Vertex):\n        # distance test\n        match = affine.affine_transform(geom1.point, transform).distance(\n          geom2.point) <= 10 * tiling_utils.RESOLUTION\n      else: # must be an Edge\n        # since edges _should not_ intersect this test should work in\n        # lieu of a more complete point by point comparison\n        c1 = geom1.get_geometry().centroid\n        c2 = geom2.get_geometry().centroid\n        match = affine.affine_transform(c1, transform) \\\n          .distance(c2) <= 10 *tiling_utils.RESOLUTION\n      if match:\n        return geom2.base_ID\n    return match_id\n',
+           '    # PLUGIN PATCH 8: the same answer, with the work done once. Upstream\n    # re-applies the transform to the source for every candidate, rebuilds\n    # each edge\'s LineString to take its centroid on every comparison, and\n    # compares with one scalar shapely call at a time, so an edge search\n    # grows as transforms x edges x edges: 312 of 333 s on a whole-holes\n    # weave scaffold. Here the source is moved once, an edge list\'s\n    # centroids are computed once, and one array `shapely.distance` (the\n    # call a Point\'s `.distance` makes) returns the FIRST candidate in order\n    # within the tolerance, which is the candidate the loop returned. A tile\n    # candidate is skipped only where its box cannot meet the moved source\'s,\n    # where the intersection test is false for any tile larger than its\n    # tolerance.\n    import shapely\n    if not geoms2:\n      return -1\n    tolerance = 10 * tiling_utils.RESOLUTION\n    if isinstance(geom1, Tile):\n      moved = affine.affine_transform(geom1.shape, transform)\n      skip = moved.area > 1000 * tiling_utils.RESOLUTION\n      x0, y0, x1, y1 = moved.bounds\n      for geom2 in geoms2:\n        if skip:\n          bx0, by0, bx1, by1 = geom2.shape.bounds\n          if bx0 > x1 or bx1 < x0 or by0 > y1 or by1 < y0:\n            continue\n        if self.polygon_matches(moved, geom2.shape):\n          return geom2.base_ID\n      return -1\n    if isinstance(geom1, Vertex):\n      moved = affine.affine_transform(geom1.point, transform)\n      targets = [geom2.point for geom2 in geoms2]\n    else:\n      moved = affine.affine_transform(geom1.get_geometry().centroid, transform)\n      held = getattr(self, "_plugin_edge_centroids", None)\n      key = tuple(edge.ID for edge in geoms2)\n      if held is None or held[0] is not geoms2 or held[1] != key:\n        held = (geoms2, key, [edge.get_geometry().centroid for edge in geoms2])\n        self._plugin_edge_centroids = held\n      targets = held[2]\n    hits = np.flatnonzero(shapely.distance(moved, targets) <= tolerance)\n    return geoms2[hits[0]].base_ID if len(hits) else -1\n')
+
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself
   # (commit 8235837), in its own variant — per-geometry convex hulls,

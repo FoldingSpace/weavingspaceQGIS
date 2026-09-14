@@ -2955,6 +2955,21 @@ MUTATIONS = [
        why="a weave's gaps filled as halves and quarters where the cell "
            "cuts them, so the Topology tab draws clusters of tiny cells "
            "and gives each a class the cloth does not have"),
+  dict(name="patch-8-builds-each-edge-line-once",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="""      if held is None or held[0] is not geoms2 or held[1] != key:""",
+       new="""      if True:  # mutation: the lines rebuilt for every comparison""",
+       test="test_a_topology_match_does_its_work_once",
+       why="a weave scaffold's topology rebuilding every candidate edge's "
+           "line on every comparison, the freeze that kept a large plain "
+           "weave's Topology tab from landing"),
+  dict(name="patch-8-skips-only-a-tile-it-cannot-meet",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="""          if bx0 > x1 or bx1 < x0 or by0 > y1 or by1 < y0:""",
+       new="""          if bx0 <= x1:  # mutation: skips tiles that can meet""",
+       test="test_a_topology_match_does_its_work_once",
+       why="a faster match that skips a candidate tile it could have matched, "
+           "which changes the design's classes"),
   dict(name="patch-7-matches-a-copy-by-its-centroid",
        file="weavingspace_qgis/vendor/weavingspace/topology.py",
        old="""      dxy = (b_centre.x - a_centre.x, b_centre.y - a_centre.y)""",

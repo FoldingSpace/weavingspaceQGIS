@@ -780,26 +780,47 @@ class Topology:
         edges note that the ID is a tuple.
 
     """
-    match_id = -1
-    for geom2 in geoms2:
-      if isinstance(geom1, Tile):
-        # an area of intersection based test
-        match = self.polygon_matches(
-          affine.affine_transform(geom1.shape, transform), geom2.shape)
-      elif isinstance(geom1, Vertex):
-        # distance test
-        match = affine.affine_transform(geom1.point, transform).distance(
-          geom2.point) <= 10 * tiling_utils.RESOLUTION
-      else: # must be an Edge
-        # since edges _should not_ intersect this test should work in
-        # lieu of a more complete point by point comparison
-        c1 = geom1.get_geometry().centroid
-        c2 = geom2.get_geometry().centroid
-        match = affine.affine_transform(c1, transform) \
-          .distance(c2) <= 10 *tiling_utils.RESOLUTION
-      if match:
-        return geom2.base_ID
-    return match_id
+    # PLUGIN PATCH 8: the same answer, with the work done once. Upstream
+    # re-applies the transform to the source for every candidate, rebuilds
+    # each edge's LineString to take its centroid on every comparison, and
+    # compares with one scalar shapely call at a time, so an edge search
+    # grows as transforms x edges x edges: 312 of 333 s on a whole-holes
+    # weave scaffold. Here the source is moved once, an edge list's
+    # centroids are computed once, and one array `shapely.distance` (the
+    # call a Point's `.distance` makes) returns the FIRST candidate in order
+    # within the tolerance, which is the candidate the loop returned. A tile
+    # candidate is skipped only where its box cannot meet the moved source's,
+    # where the intersection test is false for any tile larger than its
+    # tolerance.
+    import shapely
+    if not geoms2:
+      return -1
+    tolerance = 10 * tiling_utils.RESOLUTION
+    if isinstance(geom1, Tile):
+      moved = affine.affine_transform(geom1.shape, transform)
+      skip = moved.area > 1000 * tiling_utils.RESOLUTION
+      x0, y0, x1, y1 = moved.bounds
+      for geom2 in geoms2:
+        if skip:
+          bx0, by0, bx1, by1 = geom2.shape.bounds
+          if bx0 > x1 or bx1 < x0 or by0 > y1 or by1 < y0:
+            continue
+        if self.polygon_matches(moved, geom2.shape):
+          return geom2.base_ID
+      return -1
+    if isinstance(geom1, Vertex):
+      moved = affine.affine_transform(geom1.point, transform)
+      targets = [geom2.point for geom2 in geoms2]
+    else:
+      moved = affine.affine_transform(geom1.get_geometry().centroid, transform)
+      held = getattr(self, "_plugin_edge_centroids", None)
+      key = tuple(edge.ID for edge in geoms2)
+      if held is None or held[0] is not geoms2 or held[1] != key:
+        held = (geoms2, key, [edge.get_geometry().centroid for edge in geoms2])
+        self._plugin_edge_centroids = held
+      targets = held[2]
+    hits = np.flatnonzero(shapely.distance(moved, targets) <= tolerance)
+    return geoms2[hits[0]].base_ID if len(hits) else -1
 
 
   def _get_exclusive_supersets(

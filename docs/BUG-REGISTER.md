@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-603 defect(s) with a regression test.
+604 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -852,6 +852,8 @@ there is no separate list to remember.
   guarded by `test_a_refusal_in_the_topology_drawing_wraps_inside_it`
 - **`_settle_layer_choice` (0f6f5c0) and `_layers_removed` (c0b91e9) hooked the project without the retirement gate that `_on_project_read` already had, so every dialog ever opened rebuilt its tile unit on every project change. Measured 2026-08-16 over one test: `_layers_removed` fired 231 times across 22 dialogs, which is sum(0..21), and unit rebuilds ran 1,282 times against 461 at v0.24.2. Real geometry, on the GUI thread, for retired windows.**  
   guarded by `test_a_retired_dialog_rebuilds_nothing_when_the_project_moves`
+- **a whole-holes weave scaffold's topology took 230 cpu seconds on `plain weave abcd|efgh` and did not finish in half an hour on `plain weave abcde|fghi`, so its Topology tab never landed.**  
+  guarded by `test_a_topology_match_does_its_work_once`
 - **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
   guarded by `test_a_value_on_a_break_belongs_to_the_class_below`
 - **the split widened from "missing" to "the classifier cannot place this" so it would catch an infinity, and this scan went on looking for NULL alone. A full Generate still drew correctly, since the split is not gated by it -- but on a column of infinities with no nulls the signature said no split was needed, so a style change was answered by the restyle path and the holes came back. Opened and closed the same day, 2026-08-16, by widening a predicate without enumerating its readers.**  
@@ -1264,7 +1266,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
 - reported by a user: 64
-- reading the code: 21
+- reading the code: 22
 - the functional suite, run whole: 11
 - running the suite somewhere other than the machine it was written on: 10
 - race and stress testing: 6
