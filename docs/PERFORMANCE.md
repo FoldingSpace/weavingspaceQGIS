@@ -655,11 +655,33 @@ held**, which is a correctness decision rather than a saving: read
 live it changes under the gesture, because the preview moves the
 neighbours it is summed from.
 
+## PATCH 8 IS BUILT: a topology match done once, 2026-09-14
+
+Whole-hole weave scaffolds (74e821b) keep many transforms, and the vendored
+`Topology._match_geoms_under_transform` rebuilt every candidate edge's
+LineString on every comparison, so the edge-class search grew as transforms x
+edges x edges: profiled, 312 of 333 seconds on `plain weave abcd|efgh` at 0.75.
+Patch 8 moves the source once, holds an edge list's centroids and asks one array
+`shapely.distance`, and is EXACT -- every label, transitivity class and kept
+transform identical on eleven designs, with a sabotage control
+(`tools/probes/does_a_faster_match_build_the_same_topology.py`):
+
+    design                          before     after     cpu seconds, QGIS 4.0.3
+    hex-colouring 7                   17.5       2.6
+    twill weave a|b, whole holes      69.4      13.1
+    plain weave abcd|efgh, whole     235.3      21.3
+    plain weave abcde|fghi, whole    >1800     197.5
+
+WHAT IS LEFT is the rest of the construction's per-object loops, and upstream's
+experimental rewrite answers it wholesale -- `hex-colouring 7` in 0.32 s and
+`plain weave abcde|fghi` with whole holes in 23.6 -- at the price of six changes
+the plugin leans on (docs/process/study-upstream-topology-rewrite-2026-09-14.md).
+
 ## The costs that are known and are somebody else's
 
 **`Topology.__init__` is eager and expensive**: 0.8s to 21s depending on
 the design's shape rather than its element count, with `hex-colouring 7`
-the worst in the catalogue. Decomposed across five arms in
+the worst in the catalogue -- 2.6 s since patch 8, above. Decomposed across five arms in
 docs/TOPOLOGY.md, which shows the cost belongs to the LIBRARY rather
 than to this machine or to our wrapper, and that upstream's experimental
 branch roughly halves it.
