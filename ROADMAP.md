@@ -166,7 +166,35 @@ shipped version owes nothing.)
 the Topology tab, its local gates green and CI published past three
 harness faults on the maintainer's word (docs/process/defects-2026-09-12.md).
 
-**NOTHING OUTSTANDING IN CODE.** The honest preview, which was the
+**OUTSTANDING: THE MAINTAINER'S ASKS OF 2026-09-13 (evening), after rc21.**
+Recorded so none is lost; the UI ones want a prototype image approved
+before they are built, and all new wording goes through text review.
+
+- DESIGN TAB, TWO-COLUMN MODIFIER ROWS. "Scale Left-Right / Up-Down" and
+  the similar lines become one label with its boxes side by side --
+  `Scale   Left-Right [box]   Up-Down [box]` -- and so on down the tab,
+  with every column of boxes and choosers still lining up vertically.
+  A PROTOTYPE IMAGE IS OWED FIRST, for approval.
+- DESIGN TAB, THE INSET LINE says "tiles/strands" where it says "tiles".
+- TOPOLOGY TAB: "Warp and weft classes" is HIDDEN on a tiling, and the
+  class controls move up into the space it leaves.
+- TOPOLOGY TAB, THE GAPS REFUSAL: "...can only be worked out for a design
+  whose tiles meet." and the next sentence go on TWO LINES, the break at
+  that period placed in code; and "Set the strand width" becomes wording
+  that applies beyond strands (it appeared on a tiling with a group
+  inset), such as the insets or an aspect ratio.
+- TOPOLOGY TAB: "Gaps from strand width" becomes "Gaps between existing
+  tiles/strands" or similar, and "a hole made by a 'missing' strand"
+  becomes "strand/tile".
+- THE DEFAULT WINDOW HEIGHT is a little taller.
+- ASKED, AND ANSWERED FROM THE RECORD: why a group inset on a laves tiling
+  gets no topology. `can_build` refuses any gapped design; the route is
+  ruled (build from the un-inset unit, replay, inset afterwards) and is
+  the 0.24.5 entry "TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET", with its
+  owed differential and three frames. Whether it moves to this version is
+  the maintainer's decision.
+
+**NOTHING ELSE OUTSTANDING IN CODE BEFORE THOSE.** The honest preview, which was the
 last of it, is built and its entry is below; the palette and the stall
 recovery went back to 0.24.5 on the maintainer's decision, the first
 waiting on their eye and the second on a recurrence. The selection rule
