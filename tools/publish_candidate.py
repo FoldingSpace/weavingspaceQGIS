@@ -117,6 +117,38 @@ def gate_numbers(report):
   return suite[0], suite[1], visual[0], visual[1]
 
 
+def suite_tally(reports_dir):
+  """How many TESTS the suite ran, read off each shard's own verdict line.
+
+  Args:
+    reports_dir: the reports/v<version> directory; the stage log is at
+      its sibling reports/stage-logs/functional-suite.log.
+
+  Returns:
+    (passed, failed) summed over the shards' "N passed, M failed" lines,
+    or None where the log is missing or holds fewer verdicts than the
+    shards it names -- a partial tally is not a count.
+
+  WHY NOT THE REPORT'S PASS LINES. Three checks run from INSIDE other
+  tests (`sharded=False`), and the report lists them as lines of their
+  own, so rc21's page said 876 of 876 where every shard's tally summed
+  to 873 and CI said 873 (owed from round ten). The shards count tests;
+  the report counts checks.
+  """
+  log = os.path.join(os.path.dirname(reports_dir), "stage-logs",
+                     "functional-suite.log")
+  if not os.path.exists(log):
+    return None
+  text = open(log, encoding="utf-8").read()
+  shards = re.findall(r"^shard \d+ of (\d+): \d+ of \d+ tests run", text,
+                      re.M)
+  verdicts = re.findall(r"^(\d+) passed, (\d+) failed\s*$", text, re.M)
+  if not shards or len(verdicts) != int(shards[0]):
+    return None
+  return (sum(int(p) for p, _f in verdicts),
+          sum(int(f) for _p, f in verdicts))
+
+
 def shard_words(reports_dir):
   """How many shards the suite ran in, read off the suite's own log.
 
@@ -309,6 +341,11 @@ def main():
 
   passed, failed, seen, unseen = gate_numbers(assets[1])
   reports_dir = os.path.dirname(assets[1])
+  # TESTS WHERE THE SHARDS SAY SO, CHECKS OTHERWISE: the report's lines
+  # include checks run inside tests, so its count is named for what it is.
+  tally = suite_tally(reports_dir)
+  suite_count = (f"{tally[0]} of {sum(tally)} tests" if tally
+                 else f"{passed} of {passed + failed} checks")
   body = (
     f"Release candidate for testing. **Not a release** — nothing is "
     f"promoted, `main` is untouched, and the plugin manager will show "
@@ -316,7 +353,7 @@ def main():
     f"Built from `{sha}`"
     + ("" if not dirty else " (with uncommitted files that do not ship)")
     + f". Every local gate passed on that tree: the functional suite "
-    f"in {shard_words(reports_dir)} shards, {passed} of {passed + failed} "
+    f"in {shard_words(reports_dir)} shards, {suite_count} "
     f"with no failures, "
     f"the visual gallery {seen} of {seen + unseen}, and the "
     f"colourspace comparison against the library's own renderer. "

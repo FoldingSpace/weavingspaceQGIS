@@ -539,11 +539,7 @@ build launched under one reading and landing after a switch, with row 4's
 rebuild held back, is what would give the term its own. The seven-hour
 dual-group stall was a Cocoa `run_some` run (T-153) and the same guard passed
 offscreen with nineteen others on the merged tree, so it is not a recurrence
-of R-93 until one is seen offscreen. A CANDIDATE'S BODY COUNTS CHECKS, NOT TESTS:
-`publish_candidate.gate_numbers` counts the testing report's PASS lines,
-and three checks run from inside other tests (`sharded=False`), so rc21's
-page says 876 of 876 where every shard's own tally sums to 873 and CI says
-873; the body should read the suites' verdict lines or say "checks". (`release.py`'s reference venv now comes
+of R-93 until one is seen offscreen. A CANDIDATE'S BODY NOW COUNTS THE SHARDS' TESTS, and says checks where no log does. (`release.py`'s reference venv now comes
 from a Python of 3.10 or newer, or it refuses in words; P-26.)
 
 **THE SYMMETRY GROUP A TILING'S CLASSES ARE TAKEN UNDER -- LEFT FOR NOW,

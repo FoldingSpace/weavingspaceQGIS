@@ -32498,8 +32498,25 @@ def test_a_candidate_is_published_only_when_it_is_gated():
   code, said = attempt("--notes", notes, "--dry-run")
   assert code == 0, f"a gated candidate was refused: {said!r}"
   assert "**Not a release**" in said, "the body does not say what it is"
-  assert "7 of 7" in said and "3 of 3" in said, \
+  assert "7 of 7 checks" in said and "3 of 3" in said, \
     f"the gate numbers were not read off the report: {said!r}"
+
+  # ...AND TESTS ARE COUNTED WHERE THE SHARDS COUNTED THEM. The report's
+  # PASS lines include checks run from inside tests, so rc21's page said
+  # 876 of 876 for a suite of 873. With the stage log present, the body
+  # takes each shard's own verdict line: here two shards of three tests
+  # each against the report's seven lines.
+  stage_logs = os.path.join(folder, "reports", "stage-logs")
+  os.makedirs(stage_logs, exist_ok=True)
+  _io.open(os.path.join(stage_logs, "functional-suite.log"), "w",
+           encoding="utf-8").write(
+    "--- shard 0 of 2 ---\nshard 0 of 2: 3 of 6 tests run\n"
+    "3 passed, 0 failed\n--- shard 1 of 2 ---\n"
+    "shard 1 of 2: 3 of 6 tests run\n3 passed, 0 failed\n")
+  code, said = attempt("--notes", notes, "--dry-run")
+  assert code == 0, f"a gated candidate was refused: {said!r}"
+  assert "6 of 6 tests" in said and "7 of 7" not in said, \
+    f"the body did not count the shards' tests: {said!r}"
   assert "--prerelease" not in said and "9.9.9rc1" in said, \
     "the dry run does not name the candidate"
   assert not [a for a in asked if a[:3] == ("gh", "release", "create")], \

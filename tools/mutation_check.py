@@ -2851,6 +2851,13 @@ MUTATIONS = [
        test="test_the_reference_venv_is_built_on_a_python_the_library_accepts",
        why="a deleted reference venv is rebuilt from Python 3.9 and the "
            "reference comparison fails after the whole suite"),
+  dict(name="a-candidate-body-counts-tests-not-checks",
+       file="tools/publish_candidate.py",
+       old="""  tally = suite_tally(reports_dir)""",
+       new="""  tally = None  # mutation: count the report's lines, checks and all""",
+       test="test_a_candidate_is_published_only_when_it_is_gated",
+       why="a candidate page claiming more tests than the suite has, "
+           "counting the checks run inside tests -- 876 of 876 for 873"),
   dict(name="the-transformation-names-share-a-column-width", file=DIALOG,
        old="""        name.setFixedWidth(column_width)""",
        new="""        pass  # mutation: each name keeps its own width""",
