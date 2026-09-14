@@ -2955,6 +2955,13 @@ MUTATIONS = [
        why="a weave's gaps filled as halves and quarters where the cell "
            "cuts them, so the Topology tab draws clusters of tiny cells "
            "and gives each a class the cloth does not have"),
+  dict(name="patch-9-compares-against-every-unique",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="""      kept = np.vstack((kept, row))""",
+       new="""      kept = row[None, :]  # mutation: compares against the last only""",
+       test="test_a_symmetry_filter_compares_against_every_unique_at_once",
+       why="a symmetry filter that forgets all but the last kept transform, "
+           "so duplicates survive and every class search pays for them"),
   dict(name="patch-8-builds-each-edge-line-once",
        file="weavingspace_qgis/vendor/weavingspace/topology.py",
        old="""      if held is None or held[0] is not geoms2 or held[1] != key:""",

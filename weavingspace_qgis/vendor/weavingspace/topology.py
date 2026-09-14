@@ -648,16 +648,21 @@ class Topology:
       dict[int,Transform]: the filtered dictionary with duplicates removed.
 
     """
+    # PLUGIN PATCH 9: the same filter, compared against every unique at once.
+    # Upstream calls `np.allclose` once per candidate per unique kept so far,
+    # 5.26 million calls and 106 of 239 profiled seconds on a whole-hole weave
+    # scaffold. `np.allclose(a, b)` is all(|a - b| <= atol + rtol * |b|), so
+    # the same expression over the stacked uniques gives each row's verdict,
+    # and the candidate is kept exactly where no row is close.
     uniques = {}
+    kept = np.empty((0, 6))
     for k, v in transforms.items():
-      already_exists = False
-      for u in uniques.values():
-        already_exists = np.allclose(
-          v.transform, u.transform, atol = 1e-4, rtol = 1e-4)
-        if already_exists:
-          break
-      if not already_exists:
-        uniques[k] = v
+      row = np.asarray(v.transform, dtype=float)
+      if len(kept) and np.any(np.all(
+          np.abs(row - kept) <= 1e-4 + 1e-4 * np.abs(kept), axis=1)):
+        continue
+      uniques[k] = v
+      kept = np.vstack((kept, row))
     return uniques
 
 

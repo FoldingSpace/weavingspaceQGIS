@@ -14565,6 +14565,90 @@ def test_a_topology_match_does_its_work_once():
       f"{key} disagree")
 
 
+def test_a_symmetry_filter_compares_against_every_unique_at_once():
+  """Vendor patch 9 keeps exactly the transforms upstream's filter keeps.
+
+  Regression: after patch 8 a whole-hole weave scaffold's topology still spent 106 of 239 cpu seconds de-duplicating its symmetries, one `np.allclose` per candidate per unique. [review]
+
+  `Topology._remove_duplicate_symmetries` keeps a candidate transform unless
+  it is close to one already kept. Upstream asks with one `np.allclose` call
+  per pair; patch 9 asks the same expression over the stacked uniques. Held
+  on the raw candidates of a real scaffold, `plain weave a|b` at strand width
+  0.75 with whole holes, captured before the filter runs: upstream's method,
+  compiled from the anchor patch 9 carries in tools/vendor_weavingspace.py,
+  and the vendored method must keep the same keys in the same order -- and the
+  vendored one must make no `np.allclose` call at all, with upstream's making
+  more calls than there are candidates as the control that the count moves.
+  """
+  import ast
+  import textwrap
+  from weavingspace_qgis import catalog, topology_edits
+
+  topology_class = topology_edits._topology_class()
+  vendored = sys.modules[topology_class.__module__]
+  tool = open(os.path.join(HERE, "..", "tools", "vendor_weavingspace.py"),
+              encoding="utf-8").read()
+  upstream_body = None
+  for node in ast.walk(ast.parse(tool)):
+    if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "targeted"
+        and len(node.args) >= 4 and isinstance(node.args[1], ast.Constant)
+        and str(node.args[1].value).startswith("9 ")):
+      upstream_body = node.args[2].value
+  assert upstream_body, "PREMISE: the vendoring tool carries no patch 9"
+  scope = dict(vars(vendored))
+  exec(compile("def upstream_filter(self, transforms):\n"
+               + textwrap.indent(textwrap.dedent(upstream_body), "  "),
+               "upstream patch 9 anchor", "exec"), scope)
+  upstream_filter = scope["upstream_filter"]
+  patched_filter = topology_class._remove_duplicate_symmetries
+
+  spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+  unit, _kinds, note = topology_edits.scaffolded_weave(spec, 1000.0, 0.75)
+  assert unit is not None, f"PREMISE: the weave did not scaffold: {note}"
+  raw = {}
+
+  def capture(self, transforms):
+    raw.update(transforms)
+    return patched_filter(self, transforms)
+
+  topology_class._remove_duplicate_symmetries = capture
+  try:
+    topo = topology_class(unit, True)
+  finally:
+    topology_class._remove_duplicate_symmetries = patched_filter
+  assert len(raw) > 20, f"PREMISE: only {len(raw)} candidate transforms"
+
+  calls = {"n": 0}
+  real_allclose = vendored.np.allclose
+
+  def counted(*args, **kwargs):
+    calls["n"] += 1
+    return real_allclose(*args, **kwargs)
+
+  def run(method):
+    vendored.np.allclose = counted
+    calls["n"] = 0
+    try:
+      kept = method(topo, dict(raw))
+    finally:
+      vendored.np.allclose = real_allclose
+    return list(kept), calls["n"]
+
+  upstream_kept, upstream_calls = run(upstream_filter)
+  patched_kept, patched_calls = run(patched_filter)
+  assert upstream_calls > len(raw), (
+    f"PREMISE: upstream's filter made {upstream_calls} allclose calls for "
+    f"{len(raw)} candidates, so the count cannot tell the two apart")
+  assert len(upstream_kept) < len(raw), \
+    "PREMISE: no candidate was a duplicate, so the filter decided nothing"
+  assert patched_kept == upstream_kept, (
+    f"patch 9 keeps {len(patched_kept)} transforms where upstream's filter "
+    f"keeps {len(upstream_kept)}, or keeps them in another order")
+  assert patched_calls == 0, (
+    f"the vendored filter made {patched_calls} allclose calls: it is comparing "
+    f"pair by pair again (upstream made {upstream_calls})")
+
+
 def test_the_library_still_misreads_a_copy_by_its_centre():
   """CANARY: patch 7's upstream defect is still in the library's own loop.
 
@@ -97049,6 +97133,8 @@ def main():
         test_a_promoted_dual_covers_its_cell_and_the_library_builds_it)
   check("a topology match does its work once",
         test_a_topology_match_does_its_work_once)
+  check("a symmetry filter compares against every unique at once",
+        test_a_symmetry_filter_compares_against_every_unique_at_once)
   check("the library still misreads a copy by its centre",
         test_the_library_still_misreads_a_copy_by_its_centre)
   check("a weave's scaffold fills each hole with one tile",
