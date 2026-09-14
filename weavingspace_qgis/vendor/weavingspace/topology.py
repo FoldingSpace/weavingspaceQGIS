@@ -403,8 +403,15 @@ class Topology:
 
     """
     while len(tile1.corners) > len(tile2.corners):
-      # find the reference x-y offset
-      dxy = (tile2.centre.x - tile1.centre.x, tile2.centre.y - tile1.centre.y)
+      # PLUGIN PATCH 7: the offset between a tile and its copy is taken
+      # from their SHAPES' centroids, which are exact for a translate.
+      # `centre` is the incentre, a numerical search that wanders along
+      # a rectangle's midline, so copies of one strand read as offset,
+      # a corner is judged missing at index 0, and the insertion there
+      # corrupts the tile's edge list (a KeyError in get_edges later).
+      a_centre, b_centre = tile1.shape.centroid, tile2.shape.centroid
+      dxy = (b_centre.x - a_centre.x, b_centre.y - a_centre.y)
+      inserted = False
       for i, t1c in enumerate([c.point for c in tile1.get_corners()]):
         t2c = tile2.get_corners()[i % len(tile2.get_corners())].point
         if abs((t2c.x - t1c.x) - dxy[0]) > 10 * tiling_utils.RESOLUTION or \
@@ -418,6 +425,11 @@ class Topology:
           for new_edge in new_edges:
             e = self.add_edge(new_edge)
             self.edges[e.ID] = e
+          inserted = True
+      # A PASS THAT FINDS NOTHING TO INSERT ENDS THE LOOP, where upstream
+      # would spin for ever on a copy that is not the same shape.
+      if not inserted:
+        break
 
 
   def _match_reference_tile_corners(

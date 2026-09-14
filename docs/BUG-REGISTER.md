@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-597 defect(s) with a regression test.
+600 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -632,6 +632,8 @@ there is no separate list to remember.
   guarded by `test_a_tick_dropped_by_a_save_comes_back`
 - **element ids were capped at 26 for every family, so a tiling could not carry more variables than the lowercase alphabet has letters. Raised for tilings at the maintainer's asking, 2026-08-27.**  
   guarded by `test_a_tiling_may_carry_two_letter_elements`
+- **the readings in the topology stamp had no guard that failed without them (round ten, owed).**  
+  guarded by `test_a_topology_built_under_one_reading_is_not_adopted_after_a_switch`
 - **an edit could produce a unit that no longer tiles, and the library's own error names its internals rather than the control.**  
   guarded by `test_a_topology_edit_reaches_the_map`
 - **a Generate pressed during a topology build left a live tick standing, and every later Save was deferred for ever.**  
@@ -922,6 +924,8 @@ there is no separate list to remember.
   guarded by `test_nothing_asks_whether_a_file_exists_before_removing_it`
 - **three callables outliving their dialog reached it through a bare lambda, so a destroyed dialog was touched and QGIS died with a segmentation fault. Found while running twelve tests in one process, 2026-08-29.**  
   guarded by `test_nothing_long_lived_is_connected_to_a_bare_lambda`
+- **not a defect in the plugin -- a canary, per .claude/skills/dependency-bug-workaround, so the day upstream mends the loop the suite says so and patch 7 comes out.**  
+  guarded by `test_the_library_still_misreads_a_copy_by_its_centre`
 - **not a defect in the plugin -- a canary, per .claude/skills/dependency-bug-workaround, so the day upstream fixes either half the suite says so and the workaround comes out.**  
   guarded by `test_the_library_still_truncates_and_drifts_the_dual`
 - **2026-08-19. The tenth candidate's dossier and receipt were written as the ninth's, over the published ninth's own files.**  
@@ -1175,6 +1179,8 @@ there is no separate list to remember.
   guarded by `test_a_style_pasted_between_elements_carries_its_pins`
 - **a subset string set by the user on an element layer was discarded at every regeneration, silently, while the hand styling beside it survived.**  
   guarded by `test_a_user_subset_survives_regeneration`
+- **the Topology tab drew clusters of tiny cells at a plain weave's gaps and gave each a class, because a gap straddling the measured cell's edge was filled as halves and quarters.**  
+  guarded by `test_a_weave_s_scaffold_fills_each_hole_with_one_tile`
 - **a zigzag past its neighbours was dropped entirely, so the edit vanished and the design did not move.**  
   guarded by `test_a_zigzag_too_deep_is_clamped_rather_than_dropped`
 - **a class recoloured in place in QGIS's styling panel reached the map and neither the row's swatch nor the colour editor, because styleChanged only fires on setRenderer and nothing else was connected.**  
@@ -1248,13 +1254,13 @@ there is no separate list to remember.
 
 ## Which shape of test found them
 
-- the mutation campaign: 208
+- the mutation campaign: 209
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
-- reported by a user: 62
+- reported by a user: 63
 - reading the code: 19
+- the functional suite, run whole: 11
 - running the suite somewhere other than the machine it was written on: 10
-- the functional suite, run whole: 10
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5

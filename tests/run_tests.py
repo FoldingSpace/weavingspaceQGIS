@@ -14015,6 +14015,113 @@ def test_a_promoted_dual_covers_its_cell_and_the_library_builds_it():
     f"where the catalogue's own snub square has {expected}")
 
 
+def test_the_library_still_misreads_a_copy_by_its_centre():
+  """CANARY: patch 7's upstream defect is still in the library's own loop.
+
+  `Topology._match_reference_tile_vertices` compares a tile with its
+  copies using the offset between their `centre`s, an incentre found by
+  a numerical search that wanders along a rectangle's midline. On a weave
+  scaffold two copies of one strand then read as offset, a corner is
+  judged missing at index 0, and the insertion there corrupts the edge
+  list, which surfaces as a KeyError. Patch 7 in
+  tools/vendor_weavingspace.py takes the offset from the shapes'
+  centroids instead.
+
+  This runs UPSTREAM'S OWN LOOP -- the text the vendoring tool anchors
+  patch 7 on, compiled from the tool itself -- on `plain weave a|b` at
+  strand width 0.75, and requires it still to fail, with the vendored
+  (patched) loop building the same unit as the control. Measured
+  2026-09-13 on vendor 6190917.
+
+  Regression: not a defect in the plugin -- a canary, per .claude/skills/dependency-bug-workaround, so the day upstream mends the loop the suite says so and patch 7 comes out. [suite]
+  """
+  import ast
+  import textwrap
+  from weavingspace_qgis import catalog, topology_edits
+  from weavingspace_qgis.vendor.weavingspace import topology as vendored
+  from weavingspace_qgis.vendor.weavingspace import tiling_utils  # noqa: F401
+  import shapely.geometry as geom  # noqa: F401
+
+  tool = open(os.path.join(HERE, "..", "tools", "vendor_weavingspace.py"),
+              encoding="utf-8").read()
+  upstream_loop = None
+  for node in ast.walk(ast.parse(tool)):
+    if (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "targeted"
+        and len(node.args) >= 4 and isinstance(node.args[1], ast.Constant)
+        and str(node.args[1].value).startswith("7 ")):
+      upstream_loop = node.args[2].value
+  assert upstream_loop, "PREMISE: the vendoring tool carries no patch 7"
+  source = ("def upstream_match(self, tile1, tile2):\n"
+            + textwrap.indent(textwrap.dedent(upstream_loop), "  "))
+  scope = {"tiling_utils": vendored.tiling_utils, "geom": vendored.geom}
+  exec(compile(source, "upstream patch 7 anchor", "exec"), scope)
+
+  spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+  unit, kinds, note = topology_edits.scaffolded_weave(spec, 1000.0, 0.75)
+  assert unit is not None, f"PREMISE: the weave did not scaffold: {note}"
+  built = vendored.Topology(unit, True)
+  assert built is not None, "PREMISE: the patched library did not build the weave"
+  patched = vendored.Topology._match_reference_tile_vertices
+  vendored.Topology._match_reference_tile_vertices = scope["upstream_match"]
+  try:
+    raised = None
+    try:
+      vendored.Topology(unit, True)
+    except Exception as exc:                          # noqa: BLE001
+      raised = exc
+  finally:
+    vendored.Topology._match_reference_tile_vertices = patched
+  assert raised is not None, (
+    "GOOD NEWS, PROBABLY: upstream's own copy-matching loop now builds a "
+    "weave scaffold whose strands are rectangles, so patch 7 in "
+    "tools/vendor_weavingspace.py may be redundant. Confirm with "
+    "tools/probes/which_designs_the_centre_offset_misreads.py and retire "
+    "the patch with this test. Do NOT relax this assertion to make the "
+    "suite green.")
+
+
+def test_a_weave_s_scaffold_fills_each_hole_with_one_tile():
+  """Every gap in a thin weave is one filler tile, however the cell cut it.
+
+  Regression: the Topology tab drew clusters of tiny cells at a plain weave's gaps and gave each a class, because a gap straddling the measured cell's edge was filled as halves and quarters. [user]
+
+  The maintainer, reading the drawing of `plain weave a|b` at 0.75 on
+  2026-09-13: those gaps should have been merged before the topology was
+  calculated. The daylight is measured over one fundamental cell, so a
+  hole crossing that cell's edge came back in pieces -- nine filler
+  tiles for four holes -- each cut an edge and two corners the cloth does
+  not have.
+
+  THE EXPECTATION IS WRITTEN FROM THE SETTINGS: a biaxial weave with no
+  hyphen has one hole per strand crossing-square, so a cell of area A at
+  spacing s holds A / s**2 holes, each ((1 - aspect) * s)**2 in area. And
+  the scaffold must still carry a topology, which whole holes reach only
+  with patch 7.
+  """
+  from weavingspace_qgis import catalog, topology_edits
+  spacing, aspect = 1000.0, 0.75
+  hole = ((1 - aspect) * spacing) ** 2
+  checked = 0
+  for n, name in ((2, "plain weave a|b"), (4, "basket weave ab|cd")):
+    spec = catalog.TILINGS_BY_N[n][name]
+    unit, kinds, note = topology_edits.scaffolded_weave(spec, spacing, aspect)
+    assert unit is not None, f"PREMISE: {name} did not scaffold: {note}"
+    cell = unit.prototile.geometry.iloc[0].area
+    wanted = round(cell / spacing ** 2)
+    filler = [(tid, geometry.area) for tid, geometry in
+              zip(unit.tiles["tile_id"], unit.tiles.geometry)
+              if kinds.get(str(tid)) == "aspect"]
+    assert len(filler) == wanted, (
+      f"{name}: {len(filler)} filler tiles for {wanted} holes -- "
+      f"areas {sorted(round(a) for _t, a in filler)}")
+    pieces = [(t, round(a)) for t, a in filler if abs(a - hole) > 1e-3 * hole]
+    assert not pieces, f"{name}: filler tiles that are part of a hole: {pieces}"
+    topology, why = topology_edits.build(unit)
+    assert topology is not None, f"{name}: whole holes carry no topology: {why}"
+    checked += 1
+  assert checked == 2, f"only {checked} weaves were checked"
+
+
 def test_the_library_still_truncates_and_drifts_the_dual():
   """CANARY: the two dual defects `complete_dual` works around are still
   in the vendored library.
@@ -93225,6 +93332,12 @@ def test_the_weave_structure_matrix():
 WEAVE_TAB_MATRIX_SPACING = 1000.0
 WEAVE_TAB_MATRIX_ASPECT = 0.75
 WEAVE_TAB_MATRIX_WEAVE = ("plain weave a|b", 2)
+# A WEAVE WHOSE GLUING UNITES TWO EDGE LABELS, for the tests about a glued
+# class. Since each hole became one tile (2026-09-13) a plain weave's hole
+# has its opposite sides in one class already, so gluing unites vertices
+# and no edges there; `basket weave ab|cd` at 0.75 still unites `k` with
+# `o` and `l` with `p` apart, and `f` with `h` together (measured that day).
+WEAVE_TAB_GLUED_WEAVE = ("basket weave ab|cd", 4)
 # A WEAVE THE TAB CANNOT BUILD, so "it refuses in words" is asked of
 # the tab and not only of the module beneath it. Every cube weave
 # refuses today; this is the cheapest.
@@ -93691,7 +93804,11 @@ def test_a_weaves_readings_come_back_with_its_record():
     stands_for = {}
     for label, klass in glue["edges"].items():
       stands_for.setdefault(klass, []).append(label)
-    klass = sorted(k for k, v in stands_for.items() if len(v) > 1)[0]
+    # ANY EDGE CLASS WILL DO: the premise below asks that the same label
+    # lands elsewhere under the defaults, which is what makes a lost
+    # reading visible. Whole holes left `plain weave a|b` no glued edge
+    # class of two labels (2026-09-13), and a class of two is not needed.
+    klass = sorted(stands_for)[0]
     deadline = _time.monotonic() + 120.0 * CONTENTION
     chosen = -1
     while _time.monotonic() < deadline and chosen < 0:
@@ -93704,7 +93821,7 @@ def test_a_weaves_readings_come_back_with_its_record():
     assert chosen >= 0, f"the tab never offered glued class {klass!r}"
     panel.class_combo.setCurrentIndex(chosen)
     _tick(150)
-    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
     _tick(150)
     before = _unit_tiles(dlg)
     panel.apply_button.click()
@@ -93919,6 +94036,112 @@ def test_a_landing_keeps_a_selection_of_several_classes():
     "landing, from the chooser's own row")
 
 
+def test_a_topology_built_under_one_reading_is_not_adopted_after_a_switch():
+  """A weave's build is refused when its reading moved while it was built.
+
+  `_topology_stamp` carries a weave's two readings, so a build launched
+  under "Count" that lands after the reading became "Ignore" is about a
+  different structure and is dropped rather than drawn. The entry that
+  guarded the term was retired on 2026-09-13 as HELD REDUNDANTLY: every
+  test that reached it met row 4's rebuild, row 12's leave-alone or the
+  wait for a build already running first.
+
+  THIS STAGES THE LANDING ALONE. The build is held on its worker until the
+  main thread has moved the reading through `put_the_readings`, the
+  silent restore door, which queues no rebuild -- so row 4's answer is
+  held back and the stamp is the only thing between the stale topology
+  and the tab. The observable is identity: the object the held build
+  returned must not be the one the panel holds. THE CONTROL ARM lands a
+  held build with no switch and requires it adopted, so the identity
+  check is shown able to answer both ways.
+
+  Regression: the readings in the topology stamp had no guard that failed without them (round ten, owed). [mutation]
+  """
+  import threading
+  import time as _time
+  from weavingspace_qgis import topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  name, count = WEAVE_TAB_MATRIX_WEAVE
+  original = te.build
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  release = threading.Event()
+  held = []
+
+  def holding_build(*args, **kwargs):
+    """The real build, whose answer is kept until the test lets it go."""
+    answer = original(*args, **kwargs)
+    held.append(answer[0] if answer else None)
+    release.wait(120.0 * CONTENTION)
+    return answer
+
+  def a_held_build(spacing):
+    """Queue a build by moving the spacing, and wait until it is held."""
+    held.clear()
+    release.clear()
+    dlg.spacing_spin.setValue(spacing)
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while not held and _time.monotonic() < deadline:
+      _tick(100)
+    assert held and held[0] is not None, \
+      f"PREMISE: no build was held at spacing {spacing} ({held})"
+
+  def landed():
+    """Wait for the held build's landing to run."""
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while getattr(dlg, "_topology_task", None) is not None \
+        and _time.monotonic() < deadline:
+      _tick(100)
+    _tick(300)
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(int(count))
+    _tick(200)
+    _choose_family(dlg, name)
+    _tick(200)
+    dlg.spacing_spin.setValue(WEAVE_TAB_MATRIX_SPACING)
+    dlg.opt_aspect.setValue(WEAVE_TAB_MATRIX_ASPECT)
+    _tick(300)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    assert _the_topology_tab_is_quiet(dlg), "PREMISE: the weave's tab never went quiet"
+    panel = dlg.topology_panel
+    assert panel.aspect_reading_in_force() == te.ASPECT_LIKE_A_DROP, \
+      f"PREMISE: the tab opened on {panel.aspect_reading_in_force()!r}"
+    te.build = holding_build
+
+    # THE CONTROL: nothing moves while the build is held, so it is adopted.
+    a_held_build(WEAVE_TAB_MATRIX_SPACING + 100)
+    release.set()
+    landed()
+    assert panel._topology is held[0], \
+      "PREMISE: a held build with nothing changed was not adopted"
+
+    # THE CASE: the reading moves silently while the build is held.
+    a_held_build(WEAVE_TAB_MATRIX_SPACING + 200)
+    panel.put_the_readings(te.ASPECT_LIKE_AN_INSET,
+                           panel.strand_families_in_force())
+    assert panel.aspect_reading_in_force() == te.ASPECT_LIKE_AN_INSET, \
+      "PREMISE: the reading did not move"
+    release.set()
+    landed()
+    assert panel._topology is not held[0], (
+      "a topology built under \"Count\" was adopted after the reading "
+      "moved to \"Ignore\", so the tab draws a structure the reading denies")
+  finally:
+    release.set()
+    te.build = original
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
 def test_a_glued_class_is_lit_and_clicked_as_the_class():
   """Under a gluing the drawing lights and clicks whole glued classes.
 
@@ -93944,7 +94167,7 @@ def test_a_glued_class_is_lit_and_clicked_as_the_class():
   from weavingspace_qgis import catalog, topology_edits as te
   from weavingspace_qgis import topology_tab
   from weavingspace_qgis.topology_tab import TopologyPanel
-  name, count = WEAVE_TAB_MATRIX_WEAVE
+  name, count = WEAVE_TAB_GLUED_WEAVE
   topology, unit, _kinds, glue, note = te.weave_topology(
     catalog.TILINGS_BY_N[count][name], WEAVE_TAB_MATRIX_SPACING,
     WEAVE_TAB_MATRIX_ASPECT, reading=te.ASPECT_LIKE_AN_INSET,
@@ -95390,7 +95613,7 @@ def test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole():
   """
   from weavingspace_qgis import catalog, topology_edits as te
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  name, count = WEAVE_TAB_MATRIX_WEAVE
+  name, count = WEAVE_TAB_GLUED_WEAVE
   spec = catalog.TILINGS_BY_N[count][name]
   reading, families = te.ASPECT_LIKE_AN_INSET, te.WARP_AND_WEFT_APART
 
@@ -95472,7 +95695,7 @@ def test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole():
       f"{[panel.class_combo.itemData(i) for i in range(panel.class_combo.count())]}")
     panel.class_combo.setCurrentIndex(chosen)
     _tick(150)
-    panel.how_combo.setCurrentIndex(panel.how_combo.findData("scale_edge"))
+    panel.how_combo.setCurrentIndex(panel.how_combo.findData("zigzag_edge"))
     _tick(150)
     before = _unit_tiles(dlg)
     panel.apply_button.click()
@@ -96134,6 +96357,8 @@ def main():
         test_a_held_drag_says_so_on_the_drawing)
   check("no two controls on the topology tab share a place",
         test_no_two_controls_on_the_topology_tab_share_a_place)
+  check("a topology built under one reading is not adopted after a switch",
+        test_a_topology_built_under_one_reading_is_not_adopted_after_a_switch)
   check("warp and weft are offered only for a weave",
         test_warp_and_weft_are_offered_only_for_a_weave)
   check("the window grows on the topology tab and gives the height back",
@@ -96264,6 +96489,10 @@ def main():
         test_the_refusal_tells_gaps_from_a_library_refusal)
   check("a promoted dual covers its cell and the library builds it",
         test_a_promoted_dual_covers_its_cell_and_the_library_builds_it)
+  check("the library still misreads a copy by its centre",
+        test_the_library_still_misreads_a_copy_by_its_centre)
+  check("a weave's scaffold fills each hole with one tile",
+        test_a_weave_s_scaffold_fills_each_hole_with_one_tile)
   check("the library still truncates and drifts the dual",
         test_the_library_still_truncates_and_drifts_the_dual)
   check("the zigzag handle keeps its amplitude when moved along",

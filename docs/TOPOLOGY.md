@@ -1324,6 +1324,49 @@ strand's tile inset already travels this way, put on the cloth after the
 replay. So a tiling's insets follow the weave's: topology from the skeleton,
 edits replayed there, insets applied to the result.
 
+## A weave's holes are whole tiles, and patch 7 lets them build: 2026-09-13
+
+The maintainer read the drawing of `plain weave a|b` at strand width 0.75
+and saw clusters of tiny cells where the gaps should be single holes, and
+said the gaps should have been merged before the topology was worked out.
+They were not insets. The daylight is measured over ONE fundamental cell
+(`plane_coverage`), and a hole straddling that cell's edge came back as
+halves and quarters: nine filler tiles for four holes on the plain weave,
+twenty-five for sixteen on `basket weave ab|cd`, each cut an edge and two
+corners the cloth does not have. `_whole_holes` puts each hole back
+together across the lattice and keeps one per orbit.
+
+WHOLE HOLES DID NOT BUILD, and the reason was the library's rather than
+the geometry's. `_match_reference_tile_vertices` compares a tile with its
+patch copies by the offset between their `centre`s, an incentre that
+wanders along a rectangle's midline, so a strand's copy read as displaced,
+a corner was inserted at index 0, and `insert_vertex_at` with `i == 0`
+duplicated the edge list -- the KeyError of the upstream note, whose
+source reading this measurement corrects. Counted over three failing and
+three building designs, every failure inserted at index 0 and no success
+did. Patch 7 takes the offset from the shapes' centroids.
+
+    design (aspect 0.75)     cut holes, unpatched   whole holes, patch 7
+    plain weave a|b          10 edge / 7 vertex     2 / 1 (4 / 2 apart)
+    basket weave ab|cd       31 / 21                8 / 4
+    twill weave a|b          KeyError under QGIS    6 / 4 (12 / 8 apart)
+
+NOT BESIDE A HYPHEN. `basket weave ab|c-` built with its holes cut (104
+edge classes) and refused with them whole, in `_assign_edge_base_IDs`,
+under either copy-matching loop and whichever copy of each hole was kept;
+`plain weave ab-|cd` the same. The mechanism is not established, so the
+rule is declarative: a weave whose strands code carries a hyphen keeps the
+cut holes, and gains patch 7 alone (`plain weave ab-|cd` builds, 24 edge
+classes, where it raised).
+
+Across the catalogue's 77 weaves at 0.75, 24 carried a topology before;
+the after figure is in `tools/probes/whole_holes_in_a_weave_scaffold.py`'s
+run of the same date. The census that the patch changes nothing that
+builds today is `tools/probes/which_designs_the_centre_offset_misreads.py`.
+The twill's refusal under QGIS (C-356) was this defect, which is why
+another interpreter's GEOS reached it: where polylabel lands on a segment
+is exactly what a GEOS release moves.
+
 ## Round ten's measurements: 2026-09-12 and 13
 
 Twenty-one product defects were closed in the weave topology and the

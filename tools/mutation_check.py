@@ -2851,6 +2851,30 @@ MUTATIONS = [
        test="test_the_reference_venv_is_built_on_a_python_the_library_accepts",
        why="a deleted reference venv is rebuilt from Python 3.9 and the "
            "reference comparison fails after the whole suite"),
+  dict(name="a-weave-topology-landing-carries-its-readings", file=DIALOG,
+       old="""    if spec is not None and spec.get("type") == "weave" and panel is not None:
+      stamp = stamp + ((""",
+       new="""    if False:  # mutation: the stamp forgets the readings
+      stamp = stamp + ((""",
+       test="test_a_topology_built_under_one_reading_is_not_adopted_after_a_switch",
+       why="a topology built under Count drawn after the reading moved to "
+           "Ignore, so the tab offers classes of a structure the reading "
+           "denies and an edit is aimed at them"),
+  dict(name="a-weave-s-holes-are-filled-whole", file=TOPOLOGY_EDITS,
+       old="""    width = _whole_holes(width, unit)""",
+       new="""    pass  # mutation: the holes stay cut""",
+       test="test_a_weave_s_scaffold_fills_each_hole_with_one_tile",
+       why="a weave's gaps filled as halves and quarters where the cell "
+           "cuts them, so the Topology tab draws clusters of tiny cells "
+           "and gives each a class the cloth does not have"),
+  dict(name="patch-7-matches-a-copy-by-its-centroid",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="""      dxy = (b_centre.x - a_centre.x, b_centre.y - a_centre.y)""",
+       new="""      dxy = (tile2.centre.x - tile1.centre.x, tile2.centre.y - tile1.centre.y)""",
+       test="test_a_weave_s_scaffold_fills_each_hole_with_one_tile",
+       why="the library judging a strand's copy offset by its wandering "
+           "incentre, corrupting an edge list and refusing the weave's "
+           "topology with a KeyError"),
   dict(name="a-candidate-body-counts-tests-not-checks",
        file="tools/publish_candidate.py",
        old="""  tally = suite_tally(reports_dir)""",

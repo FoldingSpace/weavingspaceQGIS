@@ -1573,6 +1573,76 @@ def _snapped_pieces(geometry, floor: float = 1.0) -> list:
   return out
 
 
+def _whole_holes(pieces: list, unit, floor: float = 1.0) -> list:
+  """A weave's daylight with each hole put back together as one piece.
+
+  Args:
+    pieces: filler polygons cut from daylight measured over one
+      fundamental cell, already snapped by `_snapped_pieces`.
+    unit: the weave it was measured on, whose lattice vectors say which
+      pieces are parts of one hole.
+    floor: the smallest piece to keep, in squared map units.
+
+  Returns:
+    A list holding one polygon per hole, each hole whole even where it
+    runs past the cell's edge, or `pieces` unchanged where the holes
+    cannot be put back together exactly.
+
+  WHY. `plane_coverage` measures ONE cell, and a hole straddling that
+  cell's edge comes back as halves and quarters: on `plain weave a|b`
+  at strand width 0.75, nine filler tiles for four holes. Each cut is
+  an edge and a pair of corners the cloth does not have, so the
+  structure grew classes for them, the drawing showed clusters of tiny
+  cells (the maintainer's reading of 2026-09-13), and a quarter hole's
+  "opposite sides" glued a strand's flank to a cut. A tile may overhang
+  the cell -- a strand piece already does -- so the hole is kept whole.
+
+  HOW. The pieces are taken AFTER snapping, since the daylight a cell
+  difference leaves carries zero-width spikes along the strands' edges
+  and an unsnapped union of them joins nothing (`basket weave ab|cd`,
+  measured). The pieces and their eight neighbouring translates are unioned,
+  and one part is kept per lattice orbit of its centroid, the one
+  nearest the cell. KEPT ONLY WHERE IT PARTITIONS: the kept parts must
+  hold the same area as the pieces, which a hyphen's band running the
+  whole length of the design does not, since it joins its own
+  translates into a strip; that daylight is handed back as it came.
+  """
+  import shapely
+  from shapely import affinity
+  basis = _lattice_of_unit(unit)
+  if len(pieces) < 2 or basis is None:
+    return pieces
+  (ax, ay), (bx, by) = basis
+  # GROWN BY A HAIR AND SHRUNK BACK, square-cornered, so two halves of
+  # one hole union as one: snapping leaves their shared edge up to two
+  # grid steps apart, and an exact union joins nothing across that.
+  # Holes are a strand's width apart, so nothing else can meet.
+  reach = 10 * _A_WHISKER
+  copies = [affinity.translate(piece, i * ax + j * bx, i * ay + j * by)
+            .buffer(reach, join_style="mitre")
+            for piece in pieces for i in (-1, 0, 1) for j in (-1, 0, 1)]
+  joined = shapely.union_all(copies).buffer(-reach, join_style="mitre")
+  here = shapely.union_all(pieces)
+  centre = here.centroid
+  reduce = _reducer(basis)
+  kept = {}
+  for part in _pieces_of(joined, floor):
+    # A PART THAT HOLDS NONE OF THE CELL'S OWN PIECES is a fragment at
+    # the rim of the nine copies, cut there as the cell cut the pieces.
+    if part.intersection(here).area <= floor:
+      continue
+    point = part.centroid
+    key = tuple(round(c, 4) % 1.0 for c in reduce((point.x, point.y)))
+    distance = point.distance(centre)
+    if key not in kept or distance < kept[key][0]:
+      kept[key] = (distance, part)
+  wanted = sum(piece.area for piece in pieces)
+  holes = [part for _distance, part in kept.values()]
+  if abs(sum(hole.area for hole in holes) - wanted) > 1e-6 * max(wanted, 1.0):
+    return pieces
+  return _snapped_pieces(shapely.MultiPolygon(holes), floor)
+
+
 def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
                      strands=None, reading: str = ASPECT_LIKE_A_DROP):
   """A gap-free stand-in for a weave, and what each of its tiles is.
@@ -1639,10 +1709,22 @@ def scaffolded_weave(spec, spacing: float, aspect: float, crs=None,
     ids.append(tile_id)
     kinds[tile_id] = "strand"
   daylight = daylight_by_kind(unit, spec, spacing, built_at, strands=strands)
-  filler = [("dropped", piece)
-            for piece in _snapped_pieces(daylight["conscious"])]
-  filler += [("aspect", piece)
-             for piece in _snapped_pieces(daylight["width"])]
+  # EACH HOLE IS ONE TILE, however the cell the daylight was measured
+  # over happened to cut it (`_whole_holes`) -- ON A WEAVE WITH NO HYPHEN.
+  # Beside a hyphen's band the library refuses the whole holes in
+  # `_assign_edge_base_IDs` where it took the cut ones: `basket weave
+  # ab|c-` and `plain weave ab-|cd` built with their holes cut and raised
+  # with them whole, under either copy-matching loop and whichever copy of
+  # each hole is kept (measured 2026-09-13). The mechanism is not
+  # established, so the rule is declarative, as the hyphen's own is: a
+  # weave whose code leaves a strand out keeps the cut holes it built with.
+  typed = str(strands or spec.get("strands", ""))
+  bands = _snapped_pieces(daylight["conscious"])
+  width = _snapped_pieces(daylight["width"])
+  if "-" not in typed:
+    width = _whole_holes(width, unit)
+  filler = [("dropped", piece) for piece in bands]
+  filler += [("aspect", piece) for piece in width]
   for index, (kind, piece) in enumerate(filler):
     tile_id = f"{'d' if kind == 'dropped' else 'w'}{index}"
     geometries.append(piece)
@@ -3084,7 +3166,18 @@ def _lattice_of(topology):
     and a square one by pairs -- the same fault the dual's own repeat
     was drawn wrongly by until 2026-09-01.
   """
-  unit = getattr(topology, "tileable", None)
+  return _lattice_of_unit(getattr(topology, "tileable", None))
+
+
+def _lattice_of_unit(unit):
+  """The two shortest independent translations of a unit, or None.
+
+  Args:
+    unit: a Tileable carrying `vectors`, or None.
+
+  Returns:
+    As `_lattice_of`, which asks this of a topology's own unit.
+  """
   vectors = getattr(unit, "vectors", None) or {}
   candidates = sorted((tuple(float(c) for c in v) for v in vectors.values()),
                       key=lambda v: v[0] * v[0] + v[1] * v[1])

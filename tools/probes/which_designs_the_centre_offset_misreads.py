@@ -95,7 +95,18 @@ def main() -> int:
         cases.append((n, name, 0.75))
       else:
         cases.append((n, name, None))
-  mine = cases[shard::of]
+  mine = cases[shard::of][int(os.environ.get("CENSUS_FROM", "0")):]
+  # A DESIGN WHOSE CONSTRUCTION SPINS is recorded as such rather than
+  # holding its shard for ever: upstream's loop repeats while a copy has
+  # fewer corners and nothing matches, and `cube weave abc|def|ghi` at full
+  # width sat there for an hour on the first run.
+  import signal
+
+  def spun(_signum, _frame):
+    raise TimeoutError("the construction did not end")
+
+  signal.signal(signal.SIGALRM, spun)
+  ceiling = int(os.environ.get("CENSUS_CEILING", "900"))
   print(f"shard {shard}/{of}: {len(mine)} of {len(cases)} cases", flush=True)
   totals = {"cases": 0, "reached": 0, "differ": 0, "crashed": 0}
   for n, name, aspect in mine:
@@ -116,14 +127,20 @@ def main() -> int:
       continue
     totals["cases"] += 1
     outcome = "raised before the copy ended"
+    signal.alarm(ceiling)
     try:
       T.Topology(unit, True)
     except StopAfterTheCopy:
       outcome = "copied"
       totals["reached"] += 1
+    except TimeoutError:
+      outcome = f"SPUN past {ceiling}s"
+      totals["crashed"] += 1
     except Exception as exc:                          # noqa: BLE001
       outcome = f"raised {type(exc).__name__}"
       totals["crashed"] += 1
+    finally:
+      signal.alarm(0)
     if seen.get("differ"):
       totals["differ"] += 1
     print(f"{name:34} {aspect} {outcome}: calls {seen.get('calls', 0)} "

@@ -576,6 +576,42 @@ def main():
            '        overlaps = self.region.overlay(join_layer, make_valid = False)\n        if debug:\n          t3 = perf_counter()\n          print(f"STEP A2: overlay zones with tiling: {t3 - t2:.3f}")\n        overlaps[area_name] = overlaps.geometry.area\n        if debug:\n          t4 = perf_counter()\n          print(f"STEP A3: calculate areas: {t4 - t3:.3f}")\n        overlaps = overlaps.drop(columns = region_vars)\n        if debug:\n          t5 = perf_counter()\n          print(f"STEP A4: drop columns prior to join: {t5 - t4:.3f}")\n        # make a lookup by largest area tile to region id\n        lookup = overlaps \\\n          .iloc[overlaps.groupby("joinUID")[area_name] \\\n          .agg("idxmax")][["joinUID", id_var]]',
            '        # PLUGIN PATCH 6: a tile lying wholly inside ONE zone has a\n        # FOREGONE argmax -- the fragment is the tile, its area is the\n        # tile\'s area, and the winner is that zone -- so clipping it\n        # computes something already known. Those are assigned by a\n        # `within` join and only what is left is clipped. Nothing\n        # downstream draws the fragments; they exist to carry an area.\n        #\n        # THE GUARD IS THE WHOLE OF ITS SAFETY. If any tile lands\n        # inside two zones at once then the zones overlap, "interior"\n        # does not mean what this assumes, and the split falls back to\n        # clipping everything rather than guessing.\n        inside = join_layer.sjoin(\n          self.region, predicate = "within", how = "inner")[\n            ["joinUID", id_var]]\n        if not inside["joinUID"].is_unique:\n          inside = inside.iloc[0:0]\n        rest = join_layer[~join_layer["joinUID"].isin(inside["joinUID"])]\n        overlaps = self.region.overlay(rest, make_valid = False)\n        if debug:\n          t3 = perf_counter()\n          print(f"STEP A2: overlay zones with tiling: {t3 - t2:.3f} "\n                f"({len(inside)} interior, {len(rest)} clipped)")\n        overlaps[area_name] = overlaps.geometry.area\n        if debug:\n          t4 = perf_counter()\n          print(f"STEP A3: calculate areas: {t4 - t3:.3f}")\n        overlaps = overlaps.drop(columns = region_vars)\n        if debug:\n          t5 = perf_counter()\n          print(f"STEP A4: drop columns prior to join: {t5 - t4:.3f}")\n        # make a lookup by largest area tile to region id\n        straddlers = overlaps \\\n          .iloc[overlaps.groupby("joinUID")[area_name] \\\n          .agg("idxmax")][["joinUID", id_var]]\n        lookup = pd.concat([inside, straddlers], ignore_index = True) \\\n          if len(inside) else straddlers')
 
+  # PATCH 7: a tile is matched with its copies by an exact offset.
+  #
+  # `Topology._copy_base_tiles_to_patch` asks, for every copy of a base
+  # tile in the radius-1 patch, whether the copy lacks one of the base
+  # tile's corners, by comparing corner offsets against the offset
+  # between the two tiles' `centre`s. `centre` is `get_incentre`, a
+  # polylabel search, and a rectangle's pole of inaccessibility is a
+  # SEGMENT, so the search lands at different places along it for two
+  # copies of one strand. The copy then reads as offset, corner 0 is
+  # judged missing, and `insert_vertex_at(v, 0)` rebuilds the edge list
+  # as `edges[:-1] + new + edges[0:]` -- duplicating it -- so the tile
+  # goes on naming an edge that `del self.edges[old_edge]` has just
+  # removed: the KeyError of
+  # docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md,
+  # whose reading of the source it corrects.
+  #
+  # MEASURED 2026-09-13 under QGIS 4.0.3: every weave that raised that
+  # KeyError had a centre-based decision disagreeing with a
+  # centroid-based one, and with the centroid `twill weave a|b` builds
+  # (6 edge and 4 vertex classes, as the reference venv always said),
+  # as do the weave scaffolds whose holes are whole tiles. MEASURED EXACT
+  # ON WHAT BUILT WITHOUT IT, which is what makes it safe to carry: the 24
+  # thin weave scaffolds that built give identical edge and vertex classes
+  # (tools/probes/does_patch_7_move_a_weave_that_built.py), and
+  # tools/probes/which_designs_the_centre_offset_misreads.py, run to the
+  # copy step over tilings and full-width weaves, found the two offsets
+  # deciding differently only where construction raises.
+  #
+  # The loop also ends on a pass that inserts nothing, where upstream
+  # would spin for ever. Guarded by
+  # `test_the_library_still_misreads_a_copy_by_its_centre`, which runs
+  # upstream's own loop and fails the day it no longer raises.
+  targeted(VENDOR_DIR / "topology.py", "7 match a tile's copies by centroid",
+           '    while len(tile1.corners) > len(tile2.corners):\n      # find the reference x-y offset\n      dxy = (tile2.centre.x - tile1.centre.x, tile2.centre.y - tile1.centre.y)\n      for i, t1c in enumerate([c.point for c in tile1.get_corners()]):\n        t2c = tile2.get_corners()[i % len(tile2.get_corners())].point\n        if abs((t2c.x - t1c.x) - dxy[0]) > 10 * tiling_utils.RESOLUTION or \\\n           abs((t2c.y - t1c.y) - dxy[1]) > 10 * tiling_utils.RESOLUTION:\n          # add vertex to t2 by copying the t1 vertex appropriately offset\n          # note that this might alter the length of t2.corners\n          v = self.add_vertex(geom.Point(t1c.x + dxy[0], t1c.y + dxy[1]))\n          v.is_tiling_vertex = True\n          old_edge, new_edges = tile2.insert_vertex_at(v, i)\n          del self.edges[old_edge]\n          for new_edge in new_edges:\n            e = self.add_edge(new_edge)\n            self.edges[e.ID] = e\n',
+           "    while len(tile1.corners) > len(tile2.corners):\n      # PLUGIN PATCH 7: the offset between a tile and its copy is taken\n      # from their SHAPES' centroids, which are exact for a translate.\n      # `centre` is the incentre, a numerical search that wanders along\n      # a rectangle's midline, so copies of one strand read as offset,\n      # a corner is judged missing at index 0, and the insertion there\n      # corrupts the tile's edge list (a KeyError in get_edges later).\n      a_centre, b_centre = tile1.shape.centroid, tile2.shape.centroid\n      dxy = (b_centre.x - a_centre.x, b_centre.y - a_centre.y)\n      inserted = False\n      for i, t1c in enumerate([c.point for c in tile1.get_corners()]):\n        t2c = tile2.get_corners()[i % len(tile2.get_corners())].point\n        if abs((t2c.x - t1c.x) - dxy[0]) > 10 * tiling_utils.RESOLUTION or \\\n           abs((t2c.y - t1c.y) - dxy[1]) > 10 * tiling_utils.RESOLUTION:\n          # add vertex to t2 by copying the t1 vertex appropriately offset\n          # note that this might alter the length of t2.corners\n          v = self.add_vertex(geom.Point(t1c.x + dxy[0], t1c.y + dxy[1]))\n          v.is_tiling_vertex = True\n          old_edge, new_edges = tile2.insert_vertex_at(v, i)\n          del self.edges[old_edge]\n          for new_edge in new_edges:\n            e = self.add_edge(new_edge)\n            self.edges[e.ID] = e\n          inserted = True\n      # A PASS THAT FINDS NOTHING TO INSERT ENDS THE LOOP, where upstream\n      # would spin for ever on a copy that is not the same shape.\n      if not inserted:\n        break\n")
+
   # PATCH 2 (hull buffer in _get_rect_to_tile) was RETIRED on
   # 2026-08-07: upstream adopted the same optimisation itself
   # (commit 8235837), in its own variant — per-geometry convex hulls,

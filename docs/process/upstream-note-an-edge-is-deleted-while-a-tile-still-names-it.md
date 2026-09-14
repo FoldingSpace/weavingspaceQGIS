@@ -135,3 +135,45 @@ machine may see a clean build, and the tiles reaching the constructor
 are identical either way. The scaffolding hands over a partition
 measured at gap 0.000000001 and overlap 0.000000000 before the
 constructor is called.
+
+## The mechanism, measured, and a one-line repair
+
+Added 2026-09-13, and it corrects the reading of the source above: the
+merge in `_match_reference_tile_corners` is not where the edge goes
+missing. Instrumenting `self.edges` with a dict that records deletions,
+on the scaffolded `plain weave a|b` at aspect 0.75 with each hole filled
+as ONE tile, the missing key was deleted inside
+`_match_reference_tile_vertices`, and the tile still naming it was the
+very tile the insertion had been made on.
+
+WHAT HAPPENS, in order. The loop compares each corner of a base tile
+with the same-indexed corner of its copy, against the offset between
+the two tiles' `centre`s. `centre` is `get_incentre`, a polylabel
+search, and a rectangle's pole of inaccessibility is a segment: two
+copies of one strand get centres at different places along it. The
+copy's corner 0 then reads as displaced, so the loop inserts a vertex
+at index 0, and `insert_vertex_at` with `i == 0` rebuilds the edge
+list as `edges[:-1] + new_edges + edges[0:]` -- the whole list again.
+The duplicate still names the edge that `del self.edges[old_edge]`
+removes on the next line, and `get_edges` raises on the next pass.
+
+THE CONTROL THAT SETTLES IT. Counting insertions at index 0 across
+three designs that fail and three that build: every failure had one,
+no success had any. Recomputing each decision with the offset between
+the two tiles' SHAPE centroids -- exact for a translate -- disagreed
+with the centre-based decision on every failing design we checked, and
+the patched loop gave the same edge and vertex classes on all 24 of our
+thin weave scaffolds that built without it.
+
+THE REPAIR we carry is that one line: `dxy` from
+`tile2.shape.centroid - tile1.shape.centroid`, with the loop ending on a
+pass that inserts nothing, where the original would spin. With it the
+scaffolded `twill weave a|b` builds under QGIS's own GEOS (six edge and
+four vertex classes, the figures the other interpreter always gave),
+which explains the version-sensitivity recorded above: whether the
+incentre search lands on one point of the midline or another is exactly
+the kind of thing a GEOS release moves. Our probe is
+`tools/probes/which_designs_the_centre_offset_misreads.py`, and the
+patch is patch 7 in our vendoring tool. Whether `insert_vertex_at`
+should also handle `i == 0` is a separate question we have not tried to
+answer.

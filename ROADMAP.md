@@ -175,6 +175,23 @@ review queue, which is the maintainer's act. The short box names (Left-Right,
 Tiles/strands) fall below the queue's three-space filter (R-71) and were
 approved in the mockup.
 
+**OUTSTANDING: A WEAVE'S HOLES AS WHOLE TILES, AND VENDOR PATCH 7 (2026-09-13,
+late).** The maintainer read clusters of tiny cells in the drawing of `plain
+weave a|b`; they were holes cut by the one cell the daylight is measured over,
+filled as halves and quarters. `_whole_holes` rejoins each across the lattice.
+Whole holes met the upstream KeyError, whose mechanism is now measured -- the
+copy-matching loop's incentre offset wanders on a rectangle, inserts at index 0,
+and duplicates the edge list -- and patch 7 takes the centroid offset. It lifts
+the twill's refusal under QGIS (C-356). BUILT IN THE TREE, NOT COMMITTED. OWED
+before it lands: the catalogue census proving the patch changes no design that
+builds today (`tools/probes/which_designs_the_centre_offset_misreads.py`); the
+weave tests re-judged, three of which stood on the cut holes' extra classes and
+now use `basket weave ab|cd`; and `WEAVE_TAB_MATRIX_REFUSER`, a cube weave the
+patch may now build. LEFT OPEN, not blocking: whole holes are made only on a
+weave with no hyphen, since beside a hyphen's band the library refused them
+(`basket weave ab|c-`) for a reason not yet found, so a hyphen weave's drawing
+still shows the cut cells the maintainer noticed.
+
 **TOPOLOGY EDITS ON A DESIGN WITH AN INSET (INTO 0.24.4, 2026-09-13). THE PRINCIPLE IS
 RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
 that the gap be written here rather than inferred from a rule reading
@@ -531,12 +548,7 @@ fault, announced (repairs27, withdrawn as a claim); the entries
 `moving-the-warp-and-weft-chooser-rebuilds-the-topology` and
 `a-file-holding-a-motif-gets-a-fresh-one` came back HUNG under load and
 want a judgement on a quiet machine; and the refinement's refusal notes
-are still discarded by both build paths. THE READINGS IN `_topology_stamp`
-NOW HAVE NO GUARD THAT FAILS WITHOUT THEM: row 12's leave-alone, the wait
-for a build already running and row 4's rebuild each answer first, so the
-entry was retired as held redundantly (2026-09-13) -- a guard staging a
-build launched under one reading and landing after a switch, with row 4's
-rebuild held back, is what would give the term its own. The seven-hour
+are still discarded by both build paths. THE READINGS IN `_topology_stamp` HAVE A GUARD AGAIN, staging a held build and a silent switch. The seven-hour
 dual-group stall was a Cocoa `run_some` run (T-153) and the same guard passed
 offscreen with nineteen others on the merged tree, so it is not a recurrence
 of R-93 until one is seen offscreen. A CANDIDATE'S BODY NOW COUNTS THE SHARDS' TESTS, and says checks where no log does. (`release.py`'s reference venv now comes

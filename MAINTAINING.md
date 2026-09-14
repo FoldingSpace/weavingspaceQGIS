@@ -2266,13 +2266,13 @@ python3 release.py
 The script copies the upstream package into `vendor/weavingspace/` and
 re-applies every plugin patch, reporting each one.
 
-**FOUR FAMILIES ARE CARRIED, and three of them are PERFORMANCE patches
-offered upstream**; know what is carried before you read a re-vendor
-report. The commit rule paid for itself on 2026-08-31: bf1bbbf to
-6190917 carried TWELVE commits with the version string `0.0.7.89` at
-both ends, and two patches retired themselves in that round when
-upstream dropped the scipy spline, the tool NAMING them rather than
-writing a broken vendor (M-33).
+**FIVE FAMILIES ARE CARRIED, three of them PERFORMANCE patches offered
+upstream and one a CORRECTNESS patch**; know what is carried before you read a
+re-vendor report. The commit rule paid for itself on 2026-08-31: bf1bbbf to
+6190917 carried TWELVE commits with the version string `0.0.7.89` at both
+ends, and two patches retired themselves in that round when upstream dropped
+the scipy spline, the tool NAMING them rather than writing a broken vendor
+(M-33).
 
 | family | what it does | offered upstream |
 |---|---|---|
@@ -2281,6 +2281,7 @@ writing a broken vendor (M-33).
 | **4a-4d** | the grid disc reaches only what the region occupies, keeping the any-rotation promise | `docs/process/upstream-note-the-grid-disc-is-larger-than-it-needs.md` |
 | **5a-5d** | a caller may DECLARE which rotations it will ask for; default `None` is today's behaviour exactly | the same note |
 | **6** | the overlay clips only the tiles that straddle a zone boundary | `docs/process/upstream-note-the-overlay-clips-what-it-already-knows.md` |
+| **7** | a tile is matched to its patch copies by centroid, not by an incentre that wanders on a rectangle; exact on every design that builds, and it lets weave scaffolds build | `docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md` |
 
 **AND TWO PAIRS OF THEM CHAIN**: patch 6 anchors on the block patch 3
 produces, and 5b on the tail of the method 4b produces. Fine on a
@@ -2293,13 +2294,12 @@ superseded patch cannot say that of its whole form, so `targeted` takes
 and the anchor does not already carry, and the tool asserts both.
 (M-7.)
 
-WHAT TO DO WHEN ONE OF THEM FAILS TO APPLY. The tool NAMES the patch
-rather than writing a broken vendor, and for the performance family the
-honest first question is whether upstream has taken it -- in which case
-retire the patch as patch 2 was retired, rather than re-anchoring it.
-Each carries its measurement and its probe in
-`docs/PERFORMANCE.md`, so "is this still worth carrying" is a question
-with an answer.
+WHAT TO DO WHEN ONE OF THEM FAILS TO APPLY. The tool NAMES the patch rather
+than writing a broken vendor, and for the performance family the honest first
+question is whether upstream has taken it -- in which case retire the patch as
+patch 2 was retired, rather than re-anchoring it. Each carries its measurement
+and its probe in `docs/PERFORMANCE.md`, so "is this still worth carrying" is a
+question with an answer.
 
 AND PATCHES 4, 5 AND 6 ARE EXACT RATHER THAN MERELY FAST, which is what
 makes them safe to re-apply blind. Each has a committed probe that
