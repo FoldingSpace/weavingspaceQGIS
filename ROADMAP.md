@@ -238,12 +238,15 @@ scaffolds had made a large plain weave's Topology tab never land (230.7 cpu s on
 `plain weave abcd|efgh`, over half an hour on `abcde|fghi`); the construction now does
 its per-object work once, exactly, 12.0 s and 68.5 s (docs/PERFORMANCE.md).
 
-### Still owed before the next candidate
+### Before the next candidate
 
-**Queue item 6**: judge `moving-the-warp-and-weft-chooser-rebuilds-the-topology`
-and `a-file-holding-a-motif-gets-a-fresh-one` on a quiet machine (HUNG before).
-And the changelog owes sentences for the UI asks, whole weave gaps, patch 7
-and the inset topology -- a person's to write and approve.
+NOTHING OUTSTANDING IN CODE as of 2026-09-14. The two HUNG catalogue entries were
+judged on a quiet machine: `a-file-holding-a-motif-gets-a-fresh-one` caught, and
+`moving-the-warp-and-weft-chooser-rebuilds-the-topology` SURVIVED -- the matrix
+moved its choosers before the design's first topology landed, so the landing's
+stamp check rebuilt for it -- and is caught since the cell waits for that landing.
+What remains is a person's: the changelog sentences for the UI asks, whole weave
+gaps, patch 7, the inset topology with its dual ruling, and patches 8 to 10.
 
 ### Closed: the two suite failures and the harness race
 

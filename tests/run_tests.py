@@ -94173,6 +94173,17 @@ def _weave_tab_matrix_cell(dlg, reading, families, route):
   """
   from weavingspace_qgis import catalog, topology_edits
   panel = dlg.topology_panel
+  # THE DESIGN'S OWN TOPOLOGY LANDS FIRST, AND THE CHOOSERS MOVE AFTER IT.
+  # Moved while the build the design change queued was still in flight, a
+  # chooser's own rebuild was never needed: the landing's stamp no longer
+  # matched and the dialog rebuilt anyway, so the handler that answers a
+  # click could return having done nothing and every cell still passed --
+  # `moving-the-warp-and-weft-chooser-rebuilds-the-topology` SURVIVED on a
+  # quiet machine (2026-09-14). A person moves a chooser on a tab that is
+  # already showing a structure, which is the moment the handler is for.
+  if not _wait_for_the_topology(dlg, explain=False):
+    return ("STALLED", _why_the_topology_tab_is_busy(dlg))
+  _settle_topology(dlg, seconds=30)
   _put_the_chooser_on(panel.aspect_reading, reading, "aspect-gap")
   _tick(150)
   _put_the_strand_families_on(panel, families)
