@@ -2962,18 +2962,39 @@ MUTATIONS = [
        test="test_a_symmetry_filter_compares_against_every_unique_at_once",
        why="a symmetry filter that forgets all but the last kept transform, "
            "so duplicates survive and every class search pays for them"),
+  dict(name="patch-10a-places-a-corner-with-one-distance",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="""        hits = np.flatnonzero(
+          shapely.distance(c, found_points) <= 2 * tiling_utils.RESOLUTION) \\
+          if found_points else ()""",
+       new="""        hits = [i for i, p in enumerate(found_points)
+                if c.distance(p) <= 2 * tiling_utils.RESOLUTION][:1]""",
+       test="test_the_vertex_scans_ask_one_distance_each",
+       why="a topology build placing every patch corner by one scalar distance "
+           "per vertex found, the scan that held a large weave's tab"),
+  dict(name="patch-10b-finds-incident-vertices-with-one-distance",
+       file="weavingspace_qgis/vendor/weavingspace/topology.py",
+       old="""      near = shapely.distance(vertex_points, shape) <= 2 * tiling_utils.RESOLUTION""",
+       new="""      near = np.array([p.distance(shape) <= 2 * tiling_utils.RESOLUTION for p in vertex_points])""",
+       test="test_the_vertex_scans_ask_one_distance_each",
+       why="a topology build asking every vertex of the patch, one call at a "
+           "time, whether it lies on each tile"),
   dict(name="patch-8-builds-each-edge-line-once",
        file="weavingspace_qgis/vendor/weavingspace/topology.py",
-       old="""      if held is None or held[0] is not geoms2 or held[1] != key:""",
-       new="""      if True:  # mutation: the lines rebuilt for every comparison""",
+       old="""      held = getattr(self, "_plugin_edge_centroids", None)
+      key = tuple(edge.ID for edge in geoms2)
+      if held is None or held[0] is not geoms2 or held[1] != key:""",
+       new="""      held = getattr(self, "_plugin_edge_centroids", None)
+      key = tuple(edge.ID for edge in geoms2)
+      if True:  # mutation: the lines rebuilt for every comparison""",
        test="test_a_topology_match_does_its_work_once",
        why="a weave scaffold's topology rebuilding every candidate edge's "
            "line on every comparison, the freeze that kept a large plain "
            "weave's Topology tab from landing"),
   dict(name="patch-8-skips-only-a-tile-it-cannot-meet",
        file="weavingspace_qgis/vendor/weavingspace/topology.py",
-       old="""          if bx0 > x1 or bx1 < x0 or by0 > y1 or by1 < y0:""",
-       new="""          if bx0 <= x1:  # mutation: skips tiles that can meet""",
+       old="""          (boxes[:, 0] > x1) | (boxes[:, 2] < x0)""",
+       new="""          (boxes[:, 0] <= x1) | (boxes[:, 2] < x0)  # mutation: skips tiles that can meet""",
        test="test_a_topology_match_does_its_work_once",
        why="a faster match that skips a candidate tile it could have matched, "
            "which changes the design's classes"),

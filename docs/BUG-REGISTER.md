@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-605 defect(s) with a regression test.
+606 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -890,6 +890,8 @@ there is no separate list to remember.
   guarded by `test_the_ramp_a_row_names_is_the_ramp_the_map_draws`
 - **both generators searched for `Regression:` ANYWHERE in a docstring, so test_support_logic's sentence saying it deliberately carries no such line was published as a guarded defect -- the entry reading "`` line, deliberately", a count of 190 where the suite supported 189, and a shape tally overstating "not written down at the time" by one. check_standards then demanded a [shape] tag for the phantom and one was supplied, so the suite carried a tag on a paragraph declaring it had nothing to tag. Neither checker could see it: check_standards recounts the register with the GENERATOR'S OWN rules, so it agreed with the bug.**  
   guarded by `test_the_report_generators_survive_hostile_docstrings`
+- **after patches 8 and 9 a whole-hole weave scaffold's topology still made 3.4 million scalar distance calls placing corners on vertices and finding each tile's incident vertices.**  
+  guarded by `test_the_vertex_scans_ask_one_distance_each`
 
 ## Found by running the suite somewhere other than the machine it was written on
 
@@ -1268,7 +1270,7 @@ there is no separate list to remember.
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
 - reported by a user: 64
-- reading the code: 23
+- reading the code: 24
 - the functional suite, run whole: 11
 - running the suite somewhere other than the machine it was written on: 10
 - race and stress testing: 6

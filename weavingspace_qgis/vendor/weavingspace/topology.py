@@ -189,6 +189,8 @@ class Topology:
     labels = list(self.tileable.tiles.tile_id) * (len(shapes) // self.n_tiles)
     self.tiles = []
     self.points = {}
+    import shapely
+    found_points, found_vertices = [], []
     for (i, shape), label in zip(enumerate(shapes), labels, strict = True):
       tile = Tile(self, i)
       tile.label = label
@@ -197,18 +199,20 @@ class Topology:
       tile.corners = []
       corners = tiling_utils.get_corners(shape, repeat_first = False)
       for c in corners:
-        prev_vertex = None
-        for p in self.points.values():
-          if c.distance(p.point) <= 2 * tiling_utils.RESOLUTION:
-            # an already existing vertex, so add to tile and break
-            tile.corners.append(p.ID)
-            # set flag so we know that we're done with this one
-            prev_vertex = p
-            break
-        if prev_vertex is None:
+        # PLUGIN PATCH 10a: one array distance against the vertices found so
+        # far, the first within reach in insertion order being the one the
+        # loop's `break` stopped at.
+        hits = np.flatnonzero(
+          shapely.distance(c, found_points) <= 2 * tiling_utils.RESOLUTION) \
+          if found_points else ()
+        if len(hits):
+          tile.corners.append(found_vertices[hits[0]].ID)
+        else:
           # new vertex, add it to topology dictionary and to tile
           v = self.add_vertex(c)
           tile.corners.append(v.ID)
+          found_points.append(v.point)
+          found_vertices.append(v)
           if debug:
             print(f"Added new Vertex {v} to Tile {i}")
 
@@ -225,6 +229,13 @@ class Topology:
 
     """
     # we do this for all tiles in the radius-1 local patch
+    # PLUGIN PATCH 10b: each tile asks one array distance of every vertex, in
+    # the dictionary's order, where upstream asked one call per vertex per
+    # tile; no vertex is added or moved inside this loop. NOT `all_points`,
+    # which the loop below binds to a side's vertex IDs.
+    import shapely
+    all_vertices = list(self.points.values())
+    vertex_points = [v.point for v in all_vertices]
     for tile in self.tiles:
       if debug:
         print(f"Checking for vertices incident on Tile {tile.ID}")
@@ -233,9 +244,9 @@ class Topology:
       # we need current shape (not yet set) to check for incident vertices
       shape = geom.Polygon([c.point for c in tile.get_corners()])
       # get points incident on tile boundary, not already in tile corners
-      new_points = [v for v in self.points.values()
-                    if v.ID not in tile.corners and
-                    v.point.distance(shape) <= 2 * tiling_utils.RESOLUTION]
+      near = shapely.distance(vertex_points, shape) <= 2 * tiling_utils.RESOLUTION
+      new_points = [all_vertices[i] for i in np.flatnonzero(near)
+                    if all_vertices[i].ID not in tile.corners]
       # iterate over sides of tile to see which side vertex is incident on
       for c1, c2 in tile.get_corner_pairs():
         to_insert = []
@@ -796,22 +807,28 @@ class Topology:
     # within the tolerance, which is the candidate the loop returned. A tile
     # candidate is skipped only where its box cannot meet the moved source's,
     # where the intersection test is false for any tile larger than its
-    # tolerance.
+    # tolerance; a candidate list's boxes, like its centroids, are held.
     import shapely
     if not geoms2:
       return -1
     tolerance = 10 * tiling_utils.RESOLUTION
     if isinstance(geom1, Tile):
       moved = affine.affine_transform(geom1.shape, transform)
-      skip = moved.area > 1000 * tiling_utils.RESOLUTION
-      x0, y0, x1, y1 = moved.bounds
-      for geom2 in geoms2:
-        if skip:
-          bx0, by0, bx1, by1 = geom2.shape.bounds
-          if bx0 > x1 or bx1 < x0 or by0 > y1 or by1 < y0:
-            continue
-        if self.polygon_matches(moved, geom2.shape):
-          return geom2.base_ID
+      candidates = range(len(geoms2))
+      if moved.area > 1000 * tiling_utils.RESOLUTION:
+        x0, y0, x1, y1 = moved.bounds
+        held = getattr(self, "_plugin_tile_bounds", None)
+        key = tuple(tile.ID for tile in geoms2)
+        if held is None or held[0] is not geoms2 or held[1] != key:
+          held = (geoms2, key, shapely.bounds([tile.shape for tile in geoms2]))
+          self._plugin_tile_bounds = held
+        boxes = held[2]
+        candidates = np.flatnonzero(~(
+          (boxes[:, 0] > x1) | (boxes[:, 2] < x0)
+          | (boxes[:, 1] > y1) | (boxes[:, 3] < y0)))
+      for index in candidates:
+        if self.polygon_matches(moved, geoms2[index].shape):
+          return geoms2[index].base_ID
       return -1
     if isinstance(geom1, Vertex):
       moved = affine.affine_transform(geom1.point, transform)

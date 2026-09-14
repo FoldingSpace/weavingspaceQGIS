@@ -14649,6 +14649,115 @@ def test_a_symmetry_filter_compares_against_every_unique_at_once():
     f"pair by pair again (upstream made {upstream_calls})")
 
 
+def test_the_vertex_scans_ask_one_distance_each():
+  """Vendor patch 10's two vertex scans build what upstream's scans build.
+
+  Regression: after patches 8 and 9 a whole-hole weave scaffold's topology still made 3.4 million scalar distance calls placing corners on vertices and finding each tile's incident vertices. [review]
+
+  Patch 10 replaces two per-vertex `Point.distance` scans in `Topology`'s
+  construction with one array `shapely.distance` each. Its anchors are
+  fragments of two methods, so upstream's methods are REBUILT here: the
+  vendored source of `_initialise_points_into_tiles` and
+  `_setup_vertex_tile_relations`, with every patch-10 replacement in
+  tools/vendor_weavingspace.py reversed, compiled and swapped in. Built both
+  ways on `plain weave a|b` at strand width 0.75 with whole holes, every
+  tile's corners and every vertex's point, tiles and neighbours must agree --
+  and the vendored scans must make under a tenth of upstream's scalar
+  `distance` calls, upstream's making more than there are vertices being the
+  control that the count moves.
+  """
+  import ast
+  import inspect
+  import textwrap
+  from weavingspace_qgis import catalog, topology_edits
+
+  topology_class = topology_edits._topology_class()
+  vendored = sys.modules[topology_class.__module__]
+  tool = open(os.path.join(HERE, "..", "tools", "vendor_weavingspace.py"),
+              encoding="utf-8").read()
+  pairs = [(node.args[2].value, node.args[3].value)
+           for node in ast.walk(ast.parse(tool))
+           if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "targeted"
+           and len(node.args) >= 4 and isinstance(node.args[1], ast.Constant)
+           and str(node.args[1].value).startswith("10")]
+  assert len(pairs) == 3, f"PREMISE: the tool carries {len(pairs)} patch-10 hunks"
+  upstream = {}
+  for name in ("_initialise_points_into_tiles", "_setup_vertex_tile_relations"):
+    source = textwrap.dedent(inspect.getsource(getattr(topology_class, name)))
+    reversed_any = False
+    for old, new in pairs:
+      # `inspect.getsource` of a method, dedented, sits two spaces left of
+      # the module text the tool's hunks were written against.
+      indented_new = "\n".join(line[2:] if line.startswith("  ") else line
+                               for line in new.split("\n"))
+      indented_old = "\n".join(line[2:] if line.startswith("  ") else line
+                               for line in old.split("\n"))
+      if indented_new in source:
+        source = source.replace(indented_new, indented_old)
+        reversed_any = True
+    assert reversed_any and "PLUGIN PATCH 10" not in source, \
+      f"PREMISE: patch 10 could not be reversed out of {name}"
+    scope = dict(vars(vendored))
+    exec(compile(source, f"upstream {name}", "exec"), scope)
+    upstream[name] = scope[name]
+
+  spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
+  unit, _kinds, note = topology_edits.scaffolded_weave(spec, 1000.0, 0.75)
+  assert unit is not None, f"PREMISE: the weave did not scaffold: {note}"
+  base = sys.modules["shapely.geometry.base"]
+  real_distance = base.BaseGeometry.distance
+  calls = {"n": 0}
+
+  def counted(self, *args, **kwargs):
+    calls["n"] += 1
+    return real_distance(self, *args, **kwargs)
+
+  def build(methods):
+    saved = {name: getattr(topology_class, name) for name in methods}
+    phases = {}
+    try:
+      for name, method in methods.items():
+        setattr(topology_class, name, method)
+      topo = topology_class.__new__(topology_class)
+      topo.tileable = unit
+      topo.n_tiles = unit.tiles.shape[0]
+      base.BaseGeometry.distance = counted
+      calls["n"] = 0
+      topo._initialise_points_into_tiles()
+      topo._setup_vertex_tile_relations()
+      phases["scalar distances"] = calls["n"]
+    finally:
+      base.BaseGeometry.distance = real_distance
+      for name, method in saved.items():
+        setattr(topology_class, name, method)
+    structure = dict(
+      tiles=[(t.ID, list(t.corners)) for t in topo.tiles],
+      vertices=sorted((k, round(v.point.x, 9), round(v.point.y, 9),
+                       sorted(v.tiles), sorted(v.neighbours))
+                      for k, v in topo.points.items()))
+    return structure, phases["scalar distances"], len(topo.points)
+
+  vendored_structure, vendored_calls, vertices = build(
+    {"_initialise_points_into_tiles": topology_class._initialise_points_into_tiles,
+     "_setup_vertex_tile_relations": topology_class._setup_vertex_tile_relations})
+  upstream_structure, upstream_calls, _vertices = build(upstream)
+  assert upstream_calls > vertices, (
+    f"PREMISE: upstream's scans made {upstream_calls} scalar distance calls "
+    f"for {vertices} vertices, so the count cannot tell the two apart")
+  for key in vendored_structure:
+    assert vendored_structure[key] == upstream_structure[key], (
+      f"patch 10 builds a different structure from upstream's scans: the "
+      f"{key} disagree")
+  # NOT ZERO: once a tile's few incident vertices are known, the per-side
+  # test still asks each of them against each side one call at a time, which
+  # patch 10 leaves as upstream wrote it -- measured 1,519 calls against
+  # upstream's 36,021 on this scaffold. A revert of either hunk puts the
+  # whole-vertex scans back and the count past a tenth of upstream's.
+  assert vendored_calls * 10 < upstream_calls, (
+    f"the vendored scans made {vendored_calls} scalar distance calls against "
+    f"upstream's {upstream_calls}: they are asking vertex by vertex again")
+
+
 def test_the_library_still_misreads_a_copy_by_its_centre():
   """CANARY: patch 7's upstream defect is still in the library's own loop.
 
@@ -97135,6 +97244,8 @@ def main():
         test_a_topology_match_does_its_work_once)
   check("a symmetry filter compares against every unique at once",
         test_a_symmetry_filter_compares_against_every_unique_at_once)
+  check("the vertex scans ask one distance each",
+        test_the_vertex_scans_ask_one_distance_each)
   check("the library still misreads a copy by its centre",
         test_the_library_still_misreads_a_copy_by_its_centre)
   check("a weave's scaffold fills each hole with one tile",
