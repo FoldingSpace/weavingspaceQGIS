@@ -233,10 +233,10 @@ shows the crest (C-334, C-336, C-337) -- every sentence was approved,
 and rc17 carries the lot; its first build found eight failures in
 ground the targeted runs had passed (T-145, T-146, C-338).
 
-**VENDOR PATCH 8 IS BUILT** (`a7f59e3`): whole-hole weave scaffolds had made a large
-plain weave's Topology tab never land (230.7 cpu s on `plain weave abcd|efgh`, over
-half an hour on `abcde|fghi`); the vendored match now does its work once, exactly,
-21.3 s and 197.5 s (docs/PERFORMANCE.md).
+**VENDOR PATCHES 8-10 ARE BUILT** (`a7f59e3`, `4a1e4d0`, `9a50b7f`): whole-hole weave
+scaffolds had made a large plain weave's Topology tab never land (230.7 cpu s on
+`plain weave abcd|efgh`, over half an hour on `abcde|fghi`); the construction now does
+its per-object work once, exactly, 12.0 s and 68.5 s (docs/PERFORMANCE.md).
 
 ### Still owed before the next candidate
 
@@ -405,11 +405,10 @@ IT WAITS ON A RECURRENCE and is deferred until one comes: `TilingTask`
 records when its worker enters and leaves `run()`, so the next stall
 answers the shape by being read rather than guessed at.
 
-**TAKE UPSTREAM'S TOPOLOGY REWRITE WHEN IT MERGES, AND RETIRE PATCHES 7 AND 8 WITH
+**TAKE UPSTREAM'S TOPOLOGY REWRITE WHEN IT MERGES, AND RETIRE PATCHES 7 TO 10 WITH
 IT** -- the maintainer's to decide and upstream's to merge. Its `experimental`
-branch (329cd2f) builds `hex-colouring 7` in 0.32 cpu s against 2.6 with patch 8,
-and nine-strand whole-hole weave scaffolds in 24 s against three minutes, without
-patch 7. OWED BEFORE IT CAN BE TAKEN, measured in
+branch (329cd2f) builds `hex-colouring 7` in 0.32 cpu s against 1.7 with patches
+8-10, and nine-strand whole-hole weave scaffolds in 24 s against 68, without patch 7. OWED BEFORE IT CAN BE TAKEN, measured in
 docs/process/study-upstream-topology-rewrite-2026-09-14.md: a matplotlib guard for
 `topology_plot.py` and `np.atan2` spelt `np.arctan2` for QGIS's NumPy 1.26 (both
 worth offering upstream); `tile_matching_transforms` comes back empty, and the

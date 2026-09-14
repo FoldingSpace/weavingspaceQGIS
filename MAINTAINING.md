@@ -2282,7 +2282,7 @@ the scipy spline, the tool NAMING them rather than writing a broken vendor
 | **5a-5d** | a caller may DECLARE which rotations it will ask for; default `None` is today's behaviour exactly | the same note |
 | **6** | the overlay clips only the tiles that straddle a zone boundary | `docs/process/upstream-note-the-overlay-clips-what-it-already-knows.md` |
 | **7** | a tile is matched to its patch copies by centroid, not by an incentre that wanders on a rectangle; exact on every design that builds, and it lets weave scaffolds build | `docs/process/upstream-note-an-edge-is-deleted-while-a-tile-still-names-it.md` |
-| **8** | `Topology._match_geoms_under_transform` moves the source once, holds an edge list's centroids and asks one array distance; identical structure on eleven designs, and whole-hole weave scaffolds build in minutes rather than never; retire it with upstream's rewrite | `docs/process/study-upstream-topology-rewrite-2026-09-14.md` |
+| **8-10** | `Topology`'s construction does its per-object work once: the match under a transform holds centroids and boxes (8), the symmetry filter compares against every unique at once (9), the two vertex scans ask one array distance each (10); identical structure, and a nine-strand whole-hole weave scaffold builds in 68 s where it never finished; retire all three with upstream's rewrite | `docs/process/study-upstream-topology-rewrite-2026-09-14.md` |
 
 **AND TWO PAIRS OF THEM CHAIN**: patch 6 anchors on the block patch 3
 produces, and 5b on the tail of the method 4b produces. Fine on a
@@ -2302,10 +2302,10 @@ patch 2 was retired, rather than re-anchoring it. Each carries its measurement
 and its probe in `docs/PERFORMANCE.md`, so "is this still worth carrying" is a
 question with an answer.
 
-AND PATCHES 4, 5, 6 AND 8 ARE EXACT RATHER THAN MERELY FAST, so safe to
+AND PATCHES 4-6 AND 8-10 ARE EXACT RATHER THAN MERELY FAST, so safe to
 re-apply blind: each probe compares tile by tile or structure by structure --
 64 comparisons for patch 4, 12 plus a control that bites for 5, 37,511 tiles
-for 6, eleven topologies and a sabotage control for 8 -- beside registered
+for 6, eleven topologies, a sabotage control and an oracle compiled from the anchor for 8-10 -- beside registered
 tests and catalogue entries. If a re-vendor makes one stop applying, run its probe
 before deciding what to do: a patch that no longer changes the output
 is one upstream has adopted. (A convex-hull performance fix used to live here too; on

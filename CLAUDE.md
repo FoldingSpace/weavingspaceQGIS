@@ -2242,8 +2242,8 @@ asserting on exact upstream anchors and NAMING any patch whose anchor
 no longer matches instead of writing a broken vendor. FIVE FAMILIES
 ARE CARRIED, not one: the optional matplotlib/scipy imports (1a-1e),
 which are about our packaging, PERFORMANCE PATCHES offered upstream
--- the join lookup (3), the grid disc (4a-4d), declared rotations (5a-5d),
-the overlay (6) and a topology match done once (8) -- and ONE CORRECTNESS
+-- the join lookup (3), grid disc (4), declared rotations (5), overlay (6),
+and Topology's match, symmetry filter and vertex scans (8-10) -- and ONE CORRECTNESS
 PATCH, a tile matched to its copies by centroid (7).
 The table in MAINTAINING.md says which is which and where each was
 offered; the measurements and probes are in docs/PERFORMANCE.md.

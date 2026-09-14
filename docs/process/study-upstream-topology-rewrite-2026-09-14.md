@@ -136,6 +136,12 @@ sabotage control that reads DIFFERS
     plain weave abcdef|ghijkl, whole  >600     164.8
     plain weave abcde|fghi, whole    >1800     197.5
 
+PATCHES 9 AND 10 followed the next two profiles (`4a1e4d0`, `9a50b7f`): the
+symmetry filter compared against every unique at once, and the two vertex scans
+asking one array distance each, byte-identical in structure. With all three,
+`plain weave abcde|fghi` with whole holes builds in 68.5 s, `hex-colouring 7` in
+1.7 s, and `twill weave a|b` with whole holes in 6.2 s.
+
 The edge lines built fall from 85,800 to 1,575 on `plain weave a|b`, which is
 T x E + E for its 44 transforms and 35 base edges, and that count is what the
 guard holds (`test_a_topology_match_does_its_work_once`).
@@ -148,10 +154,9 @@ the branch's own history carries a revert for breaking some tilings (5039818);
 patch 8 closes the regression exactly, on the construction we have measured.
 
 **FOR 0.24.5: TAKE THE REWRITE WHEN IT MERGES**, as its own piece of work with a
-differential over the catalogue: still sixty times on the slowest tiling where
-patch 8 gives seven, nine-strand weave scaffolds in 24 s where patch 8 leaves
-three minutes, and the scaffolds building without patch 7 -- and retire patches
-7 and 8 with it. Owed
+differential over the catalogue: still five times on the slowest tiling after
+patches 8-10, nine-strand weave scaffolds in 24 s where they leave 68, and the
+scaffolds building without patch 7 -- and retire patches 7 to 10 with it. Owed
 before then, and upstream's to answer: the twill's missing symmetry, a way to
 have the transforms back (or orbits the refinement can be rebuilt on), and the
 `np.atan2` spelling.

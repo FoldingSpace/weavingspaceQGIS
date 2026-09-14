@@ -666,11 +666,16 @@ Patch 8 moves the source once, holds an edge list's centroids and asks one array
 transform identical on eleven designs, with a sabotage control
 (`tools/probes/does_a_faster_match_build_the_same_topology.py`):
 
-    design                          before     after     cpu seconds, QGIS 4.0.3
-    hex-colouring 7                   17.5       2.6
-    twill weave a|b, whole holes      69.4      13.1
-    plain weave abcd|efgh, whole     235.3      21.3
-    plain weave abcde|fghi, whole    >1800     197.5
+    design                          before     patch 8   patches 8-10   cpu s, QGIS 4.0.3
+    hex-colouring 7                   17.5       2.6         1.7
+    twill weave a|b, whole holes      69.4      13.1         6.2
+    plain weave abcd|efgh, whole     235.3      21.3        12.0
+    plain weave abcde|fghi, whole    >1800     197.5        68.5
+
+PATCHES 9 AND 10 took what patch 8 left: the symmetry filter's 5.26 million
+`np.allclose` calls become one array comparison against the stacked uniques
+(9), and the two vertex scans' 3.4 million scalar distances one array call
+each (10); structure digests are byte-identical to the vendor before them.
 
 WHAT IS LEFT is the rest of the construction's per-object loops, and upstream's
 experimental rewrite answers it wholesale -- `hex-colouring 7` in 0.32 s and
@@ -681,7 +686,7 @@ the plugin leans on (docs/process/study-upstream-topology-rewrite-2026-09-14.md)
 
 **`Topology.__init__` is eager and expensive**: 0.8s to 21s depending on
 the design's shape rather than its element count, with `hex-colouring 7`
-the worst in the catalogue -- 2.6 s since patch 8, above. Decomposed across five arms in
+the worst in the catalogue -- 1.7 s since patches 8-10, above. Decomposed across five arms in
 docs/TOPOLOGY.md, which shows the cost belongs to the LIBRARY rather
 than to this machine or to our wrapper, and that upstream's experimental
 branch roughly halves it.
