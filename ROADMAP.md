@@ -223,6 +223,19 @@ WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
 rather than a transform applied after, so there is no un-thinned unit
 to edit and thin later. That is the R-40 boundary, measured.
 
+**BUILD NOTES FOR THE INSET TOPOLOGY (2026-09-13).** THE SKELETON, NOT THE
+SCAFFOLD: filling a weave's daylight exists because a thin weave has no
+gap-free form to build from, while an inset design does -- the same design
+before its last two steps -- and an inset joins every gap to every other, so
+filler would be one connected region that is no tile (C-352). THE WEAVE PATH
+ALREADY DOES IT for a strand inset: `_queue_topology` puts `tile_inset` on the
+cloth after the replay; a tiling needs the same for both of its insets, the
+topology taken from `_build_unit` without them. ONE QUESTION IT RAISES: the
+dual chain takes each dual of the INSET unit, so once an inset design carries
+a topology the button would offer a dual the map cannot take (row 17's shape);
+until decided, the dual is refused on an inset design. The stamp keeps its
+inset terms until the differential is written.
+
 **OUTSTANDING: WHAT PROTOTYPING THOSE ASKS FOUND, AND ONE QUESTION ANSWERED.**
 
 - THE ARGUMENT BOXES DRAWN OVER THE DO CHOOSER are FIXED (ledger row 23).

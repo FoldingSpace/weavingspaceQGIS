@@ -1305,6 +1305,25 @@ trustworthy as the arithmetic its colours and its axes are chosen by
 `tools/probes/stacking_edge_manipulations_on_a_weave.py`, and its
 figure is `docs/process/images/holes-as-tiles/stacked-edge-edits.png`.
 
+## An inset takes the skeleton route, not the scaffold: 2026-09-13
+
+The maintainer asked whether the weave's scaffolding, which fills daylight
+with temporary tiles, is the better way to give an inset design a topology.
+It is not, for two reasons already measured. A thin weave is scaffolded
+because there is no gap-free form of it to build from: strand width is an
+argument to `make_unit`, not a transform applied afterwards (R-40). An inset
+IS a transform applied afterwards -- the last two steps of `_build_unit` --
+so the same design without them is a tiling, and building from it gives the
+real structure with nothing invented. And an inset opens a channel between
+every pair of tiles, joining every gap to every other (the 6% inset measured
+under C-352), so filler would be a single connected region rather than tiles
+with corners. The skeleton route was measured buildable on three designs
+across zigzag, rotate and nudge at tile insets of 1% and 5% and group insets
+to 10% (C-346, "An inset takes the tab away, and it need not" above), and a
+strand's tile inset already travels this way, put on the cloth after the
+replay. So a tiling's insets follow the weave's: topology from the skeleton,
+edits replayed there, insets applied to the result.
+
 ## Round ten's measurements: 2026-09-12 and 13
 
 Twenty-one product defects were closed in the weave topology and the
