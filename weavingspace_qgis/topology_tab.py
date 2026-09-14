@@ -984,7 +984,12 @@ class TopologyView(QWidget):
     topology = self._drawn()
     if topology is None:
       painter.setPen(QPen(QColor("#666666")))
-      painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
+      # WRAPPED INSIDE A MARGIN: a refusal is two sentences, and drawn on
+      # one line it ran off both sides of the drawing (found while the
+      # maintainer's asks of 2026-09-13 were mocked up).
+      room = self.rect().adjusted(18, 18, -18, -18)
+      painter.drawText(room, int(Qt.AlignmentFlag.AlignCenter
+                                 | Qt.TextFlag.TextWordWrap),
                        self._message)
       painter.end()
       return
@@ -2612,19 +2617,22 @@ class TopologyPanel(QWidget):
     reading_stack.setContentsMargins(0, 0, 0, 0)
     reading_stack.setSpacing(2)
     for label, value in (
-        ("Count, like a hole made by a 'missing' strand", "like-a-drop"),
+        ("Count, like a hole made by a 'missing' strand/tile", "like-a-drop"),
         ("Ignore, like an inset", "like-an-inset")):
       button = QRadioButton(label)
       button.setToolTip(
-        "Whether strand-width gaps count in the structure, like a hole made "
-        "by a 'missing' strand.")
+        "Whether gaps between tiles or strands count, like a hole left by "
+        "a missing strand/tile.")
       self.aspect_reading.addButton(button)
       button.setProperty("reading", value)
       reading_stack.addWidget(button)
       if value == "like-a-drop":
         button.setChecked(True)
     self.aspect_reading.buttonToggled.connect(self._on_aspect_reading_chosen)
-    grid.addWidget(QLabel("Gaps from strand width"), 0, 0)
+    # NAMED FOR TILES AS WELL AS STRANDS (maintainer's ask, 2026-09-13):
+    # the question is about the gaps already between the pieces of a
+    # design, which a tiling's inset opens as surely as a weave's width.
+    grid.addWidget(QLabel("Gaps between existing tiles/strands"), 0, 0)
     grid.addWidget(readings, 0, 1)
 
     # AND THE SECOND READING OF THE SAME STRUCTURE sits beneath it, for
@@ -2638,8 +2646,8 @@ class TopologyPanel(QWidget):
     # a cloth has none, warp and weft differing physically whatever the
     # picture does. So the choice is between the picture's symmetry and
     # the cloth's, which is the question itself.
-    # THE LABEL NAMES WHAT IS DECIDED, as `Gaps from strand width`
-    # does, and the OPTIONS name the symmetry at stake. A label saying
+    # THE LABEL NAMES WHAT IS DECIDED, as the gaps label above does,
+    # and the OPTIONS name the symmetry at stake. A label saying
     # "considered separately" was weighed and refused: it states one of
     # the two answers, so it contradicts the chooser whenever the other
     # is picked, and it would widen the label column four rows share.
@@ -2698,7 +2706,14 @@ class TopologyPanel(QWidget):
         button.setChecked(True)
     self.strand_families.buttonToggled.connect(
       self._on_strand_families_chosen)
-    grid.addWidget(QLabel("Warp and weft classes"), 1, 0)
+    # SHOWN ONLY FOR A WEAVE (maintainer's ask, 2026-09-13): a tiling has
+    # no warp and no weft, so the row asked a question with no meaning
+    # there and pushed the class controls down. Hidden rather than
+    # removed, so the grid keeps its rows and the dialog says which map
+    # is a weave through `show_the_weave_readings`.
+    self._families_label = QLabel("Warp and weft classes")
+    self._families_box = families
+    grid.addWidget(self._families_label, 1, 0)
     grid.addWidget(families, 1, 1)
 
     self.class_combo = QComboBox()
@@ -3648,6 +3663,20 @@ class TopologyPanel(QWidget):
     button = self.aspect_reading.checkedButton()
     data = button.property("reading") if button is not None else None
     return data if data else "like-a-drop"
+
+  def show_the_weave_readings(self, weave: bool) -> None:
+    """Show the warp-and-weft toggle for a weave and hide it otherwise.
+
+    Args:
+      weave: True where the design in force is a weave at depth 0, which
+        the dialog decides; a tiling and any dual are not.
+
+    Returns:
+      None; the toggle's label and buttons are shown or hidden, and the
+      rows beneath move up into the space on a tiling.
+    """
+    self._families_label.setVisible(weave)
+    self._families_box.setVisible(weave)
 
   def put_the_readings(self, reading, families) -> None:
     """Move both weave choosers to a record's values, announcing nothing.

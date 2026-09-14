@@ -810,6 +810,10 @@ MAX_WINDOW_WIDTH = 1480
 # this one the window could be taller than the screen -- with the
 # buttons along its bottom edge unreachable.
 SCREEN_SHARE = 0.95
+# HOW MUCH TALLER THE WINDOW GROWS ON THE TOPOLOGY TAB, handed back on
+# leaving it (maintainer's ask, 2026-09-13; the mockup they approved was
+# taken at this figure). Bounded by the screen like every other growth.
+TOPOLOGY_TAB_EXTRA_HEIGHT = 220
 
 # THE WIDTH EACH COLUMN MAY NEVER GO BELOW, which is the width the
 # constructor gives it. `_fit_table_width` grows a column to what its
@@ -3010,20 +3014,42 @@ class WeavingSpaceDialog(QDialog):
       box.valueChanged.connect(self._queue_preview)
       return box
 
-    def pair(label, a, b):
-      """Two controls side by side on one labelled form row.
+    # EACH BOX IS NAMED BESIDE IT, IN TWO COLUMNS THAT LINE UP DOWN THE
+    # BLOCK. (Maintainer's ask, 2026-09-13, approved as a mockup.) A row
+    # read "Scale Left-Right / Up-Down" and left the reader to pair the
+    # two halves of the label with the two boxes; now the form label
+    # names the transformation and each box carries its own word. The
+    # sub-labels of each column share one width, set after the rows are
+    # built, so every left box and every right box stands on one line.
+    left_names, right_names = [], []
+
+    def pair(label, left_name, a, right_name, b):
+      """Two named controls side by side on one labelled form row.
 
       Args:
-        label: the form label, as the user reads it.
+        label: the form label, naming the transformation.
+        left_name: the word naming the left-hand box.
         a: the left-hand widget.
+        right_name: the word naming the right-hand box.
         b: the right-hand one.
 
       Returns:
-        None; the row is added to the modifiers form.
+        None; the row is added to the modifiers form and its two
+        sub-labels to the column lists that are aligned afterwards.
       """
       row = QHBoxLayout()
       row.setContentsMargins(0, 0, 0, 0)
+      first, second = QLabel(left_name), QLabel(right_name)
+      # A sub-label names the box it stands before, for a reader and for
+      # a screen reader alike.
+      first.setBuddy(a)
+      second.setBuddy(b)
+      left_names.append(first)
+      right_names.append(second)
+      row.addWidget(first)
       row.addWidget(a)
+      row.addSpacing(12)
+      row.addWidget(second)
       row.addWidget(b)
       # The same stretch the Design tab's rows carry, for the same
       # reason: without it these boxes take half a window each.
@@ -3049,6 +3075,11 @@ class WeavingSpaceDialog(QDialog):
     # it the same stretch, and the same width, as the pairs below.
     rotate_row = QHBoxLayout()
     rotate_row.setContentsMargins(0, 0, 0, 0)
+    # AN EMPTY SUB-LABEL, so Rotate's box stands in the left column of
+    # boxes below it; it takes the column's width with the others.
+    rotate_gap = QLabel("")
+    left_names.append(rotate_gap)
+    rotate_row.addWidget(rotate_gap)
     rotate_row.addWidget(self.mod_rotate)
     rotate_row.addStretch(1)
     mform.addRow("Rotate (°)", rotate_row)
@@ -3084,19 +3115,20 @@ class WeavingSpaceDialog(QDialog):
     # the screen rather than the ground. A pattern is turned and
     # stretched on a screen, and a map that has been rotated in a
     # layout has no east.
-    pair("Scale Left-Right / Up-Down", self.mod_scale_x, self.mod_scale_y)
+    pair("Scale", "Left-Right", self.mod_scale_x, "Up-Down", self.mod_scale_y)
     self.mod_skew_x = spin(-45, 45, 0, 1)
     self.mod_skew_x.setToolTip("Slant the pattern left-right.")
     self.mod_skew_y = spin(-45, 45, 0, 1)
     self.mod_skew_y.setToolTip("Slant the pattern up-down.")
-    pair("Skew Left-Right / Up-Down (°)", self.mod_skew_x, self.mod_skew_y)
+    pair("Skew (°)", "Left-Right", self.mod_skew_x, "Up-Down", self.mod_skew_y)
     self.mod_p_inset = spin(0, 10, 0, 0.1)
     self.mod_p_inset.setToolTip(
       "Opens a gap around each whole unit (tilings only).")
     self.mod_t_inset = spin(0, 5, 0, 0.1)
     self.mod_t_inset.setToolTip(
       "Opens a thin gap around every tile or strand.")
-    pair("Inset group / tiles (%)", self.mod_p_inset, self.mod_t_inset)
+    pair("Inset (%)", "Group", self.mod_p_inset, "Tiles/strands",
+         self.mod_t_inset)
     self.mod_glyph = QCheckBox("Scale as glyph (independent of tiling)")
     self.mod_glyph.setToolTip(
       "Shrink each unit in place, into separate glyphs.")
@@ -3121,12 +3153,19 @@ class WeavingSpaceDialog(QDialog):
     widest = max(box.sizeHint().width() for box in modifier_boxes)
     for box in modifier_boxes:
       box.setFixedWidth(widest)
+    # AND ONE WIDTH PER COLUMN OF SUB-LABELS, taken from the widest word
+    # in it for the same reason, so the boxes after them line up. Kept
+    # on the dialog because a width in pixels is a claim about a font,
+    # and `_follow_the_font` re-measures it.
+    self._modifier_names = (left_names, right_names)
+    self._equalise_the_modifier_names()
 
     # AND ONE LABEL COLUMN ACROSS BOTH BLOCKS. They are two separate
     # QFormLayouts stacked in a QVBoxLayout, so each sized its label
     # column to its own widest label and nothing lined up across the
     # boundary: "Number of elements" at 119px above
-    # "Skew Left-Right / Up-Down (°)" at 180.
+    # "Skew Left-Right / Up-Down (°)" at 180, as the skew row was then
+    # labelled.
     self._align_the_label_columns(form, mform)
     # ...and kept for the show-time pass, which is the only moment the
     # two blocks' CONTAINER offsets are known: the group box frames
@@ -3565,6 +3604,10 @@ class WeavingSpaceDialog(QDialog):
     # slot is swallowed and takes the rest of that slot with it, so two
     # duties on one signal are two connections.
     tabs.currentChanged.connect(self._size_to_the_current_tab)
+    # ...and a third duty, the height the Topology tab is given and
+    # handed back, on its own connection for the same reason.
+    self._height_before_topology = None
+    tabs.currentChanged.connect(self._fit_the_height_to_the_topology_tab)
     self._gate_experimental_tabs()
     # Anything recorded while the tabs were still being built now has
     # somewhere to appear.
@@ -3711,6 +3754,45 @@ class WeavingSpaceDialog(QDialog):
     wanted = self._width_for_the_current_tab()
     if wanted > self.width():
       self.resize(*self._within_the_screen(wanted, self.height()))
+
+  def _fit_the_height_to_the_topology_tab(self, index: int) -> None:
+    """Grow the window on the Topology tab, and give the height back after.
+
+    Args:
+      index: the tab now showing.
+
+    Returns:
+      None; the window's height may change.
+
+    THE TOPOLOGY TAB WANTS ROOM THE OTHERS DO NOT. (Maintainer's ask,
+    2026-09-13: the height should jump taller while somebody works on the
+    topology and return to something smaller when they leave.) Its
+    drawing and its column of controls both grow with height, while the
+    Design tab is short and a tall window there is empty space. So
+    arriving adds `TOPOLOGY_TAB_EXTRA_HEIGHT`, bounded by the screen, and
+    leaving puts back the height the window had on arrival -- unless it
+    has been dragged since, which is the person's choice and is kept.
+    """
+    topology_index = getattr(self, "_topology_tab_index", None)
+    if topology_index is None:
+      return
+    if index == topology_index:
+      if self._height_before_topology is None:
+        before = self.height()
+        _width, grown = self._within_the_screen(
+          self.width(), before + TOPOLOGY_TAB_EXTRA_HEIGHT)
+        if grown > before:
+          self.resize(self.width(), grown)
+        # WHAT THE WINDOW ACTUALLY TOOK, which a minimum or a window
+        # manager may make other than what was asked, so leaving can
+        # tell the height this gave from one somebody dragged to.
+        self._height_before_topology = (before, self.height())
+      return
+    if self._height_before_topology is not None:
+      before, grown = self._height_before_topology
+      self._height_before_topology = None
+      if self.height() == grown and grown > before:
+        self.resize(self.width(), before)
 
   def _within_the_screen(self, width: int, height: int):
     """Bound a size the window is about to take by the screen it is on.
@@ -3867,6 +3949,29 @@ class WeavingSpaceDialog(QDialog):
     if event.type() == QEvent.Type.FontChange:
       self._follow_the_font()
 
+  def _equalise_the_modifier_names(self) -> None:
+    """Give each column of the Transformations block's box names one width.
+
+    Returns:
+      None; each sub-label's fixed width is set to the widest in its
+      column, so the boxes after them stand on one line. Measured from
+      `sizeHint`, which is the text in the current font, so a second call
+      settles rather than grows.
+    """
+    for column in getattr(self, "_modifier_names", ()):
+      live = []
+      for name in column:
+        try:
+          live.append((name, name.sizeHint().width()))
+        except RuntimeError:
+          # a label whose C++ object has gone; nothing to measure
+          continue
+      if not live:
+        continue
+      column_width = max(width for _name, width in live)
+      for name, _width in live:
+        name.setFixedWidth(column_width)
+
   def _follow_the_font(self) -> None:
     """Re-apply the widths that were measured in pixels.
 
@@ -3904,6 +4009,9 @@ class WeavingSpaceDialog(QDialog):
       widest = max(b.sizeHint().width() for b in boxes)
       for b in boxes:
         b.setFixedWidth(widest)
+    # AND THE WORDS NAMING THOSE BOXES, whose columns are the same kind
+    # of snapshot.
+    self._equalise_the_modifier_names()
     # THE OTHER THREE SNAPSHOTS, which the first version of this
     # method missed. (2026-08-31, found by a hunt at this very repair,
     # with a built-at-that-font control arm.) Measured at 20pt on a
@@ -7253,6 +7361,13 @@ class WeavingSpaceDialog(QDialog):
     # thread and costs nothing until somebody ticks the experimental
     # box.
     self._restore_topology_edits()
+    # WARP AND WEFT ARE OFFERED ONLY FOR A WEAVE, asked of the design's
+    # own terms rather than of the unit: a weave's dual carries the
+    # weave's unit class and is a tiling (`_weave_terms_at`).
+    panel = getattr(self, "topology_panel", None)
+    if panel is not None and hasattr(panel, "show_the_weave_readings"):
+      panel.show_the_weave_readings(
+        self._weave_terms_at(self._dual_depth()) is not None)
     self._queue_topology()
     # WHAT THIS COST, so the next debounce can be at least this long.
     # See PREVIEW_DEBOUNCE_MS: the wait is a floor rather than a fixed

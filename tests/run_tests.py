@@ -12983,6 +12983,167 @@ def test_no_two_controls_on_the_topology_tab_share_a_place():
       QgsProject.instance().removeAllMapLayers()
 
 
+def test_warp_and_weft_are_offered_only_for_a_weave():
+  """The Topology tab asks about warp and weft on a weave and nowhere else.
+
+  Regression: "Warp and weft classes" was shown on a tiling, which has neither. [user]
+
+  The maintainer's ask of 2026-09-13. "Warp and weft
+  classes" was shown on every design, a tiling included, where it asks a
+  question with no meaning and pushes the class controls down the tab.
+  It is shown for a weave, hidden for a tiling, and hidden again when a
+  weave is changed back into a tiling -- the last arm is what tells a
+  rule that follows the design from one that is only set once.
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    panel = dlg.topology_panel
+
+    def offered():
+      return (panel._families_label.isVisibleTo(panel),
+              panel._families_box.isVisibleTo(panel))
+
+    assert dlg.kind_combo.currentText() == "tiling", \
+      f"PREMISE: the dialog opens on {dlg.kind_combo.currentText()!r}"
+    assert offered() == (False, False), \
+      f"on a tiling the warp-and-weft row is shown: {offered()}"
+    dlg.kind_combo.setCurrentText("weave")
+    _tick(200)
+    dlg.n_spin.setValue(2)
+    _tick(200)
+    _choose_family(dlg, "plain weave a|b")
+    _tick(400)
+    assert dlg._current_spec().get("type") == "weave", \
+      "PREMISE: the design did not become a weave"
+    assert offered() == (True, True), \
+      f"on a weave the warp-and-weft row is hidden: {offered()}"
+    dlg.kind_combo.setCurrentText("tiling")
+    _tick(400)
+    assert dlg._current_spec().get("type") != "weave", \
+      "PREMISE: the design did not go back to a tiling"
+    assert offered() == (False, False), \
+      f"back on a tiling the warp-and-weft row is still shown: {offered()}"
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
+def test_the_window_grows_on_the_topology_tab_and_gives_the_height_back():
+  """Arriving on the Topology tab adds height, and leaving returns it.
+
+  Regression: the window kept the Design tab's height on the Topology tab. [user]
+
+  The maintainer's ask of 2026-09-13 -- while somebody works
+  on the topology the window should jump taller, and return to something
+  smaller when they leave the tab. Three arms: arrival grows the window,
+  leaving puts back the height it had, and a height the person dragged
+  to while on the tab is theirs and is kept when they leave.
+  """
+  from weavingspace_qgis import dialog as dialog_module
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(300)
+    # ROOM TO GROW, or the screen's bound decides the arm rather than
+    # the rule: the offscreen platform's screen is small.
+    room = dlg.screen().availableGeometry().height() \
+      * dialog_module.SCREEN_SHARE
+    start = max(dlg.minimumSizeHint().height(),
+                int(room) - dialog_module.TOPOLOGY_TAB_EXTRA_HEIGHT - 40)
+    dlg.resize(dlg.width(), start)
+    _tick(200)
+    before = dlg.height()
+    assert before + dialog_module.TOPOLOGY_TAB_EXTRA_HEIGHT <= room, \
+      (f"PREMISE: a {before}px window cannot grow by "
+       f"{dialog_module.TOPOLOGY_TAB_EXTRA_HEIGHT}px on a {room:.0f}px screen")
+
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    arrived = dlg.height()
+    assert arrived >= before + dialog_module.TOPOLOGY_TAB_EXTRA_HEIGHT - 2, \
+      f"the window went from {before}px to {arrived}px on the Topology tab"
+    dlg._tabs.setCurrentIndex(0)
+    _tick(300)
+    assert abs(dlg.height() - before) <= 2, \
+      (f"leaving the Topology tab left the window at {dlg.height()}px, "
+       f"not the {before}px it had")
+
+    # THE DRAGGED ARM: a height chosen on the tab is kept.
+    dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+    _tick(300)
+    dragged = dlg.height() - 60
+    dlg.resize(dlg.width(), dragged)
+    _tick(200)
+    assert abs(dlg.height() - dragged) <= 2, \
+      f"PREMISE: the window would not take the {dragged}px drag"
+    dlg._tabs.setCurrentIndex(0)
+    _tick(300)
+    assert abs(dlg.height() - dragged) <= 2, \
+      (f"a height the person dragged to ({dragged}px) was replaced by "
+       f"{dlg.height()}px on leaving the tab")
+  finally:
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
+def test_a_refusal_in_the_topology_drawing_wraps_inside_it():
+  """A sentence drawn where there is no topology stays inside the drawing.
+
+  Regression: the drawing's refusal ran off both sides of it, on one line. [review]
+
+  Found while the maintainer's asks of 2026-09-13 were mocked
+  up. The drawing painted its refusal -- two sentences, what is wrong and
+  what to move -- on one centred line, so at the tab's own width both
+  ends ran past the edges and neither sentence could be read. The ink is
+  asked of the rendered widget: it must keep clear of both sides and run
+  to more than one line.
+  """
+  from qgis.PyQt.QtGui import QColor
+  from weavingspace_qgis import topology_edits
+  from weavingspace_qgis.topology_tab import TopologyView
+  view = TopologyView()
+  try:
+    view.resize(420, 360)
+    view._message = topology_edits._why_not(ValueError("no"), None)
+    assert "\n" in view._message and len(view._message) > 120, \
+      f"PREMISE: the refusal is not the long two-line sentence: {view._message!r}"
+    view.show()
+    _tick(100)
+    image = view.grab().toImage()
+    ground = QColor("#fafafa").rgb()
+    columns, rows = set(), set()
+    for y in range(0, image.height(), 2):
+      for x in range(image.width()):
+        if image.pixel(x, y) != ground:
+          columns.add(x)
+          rows.add(y)
+    assert columns, "PREMISE: nothing was drawn at all"
+    assert min(columns) > 4 and max(columns) < image.width() - 5, \
+      (f"the refusal's ink runs from x={min(columns)} to x={max(columns)} "
+       f"in a {image.width()}px drawing, off its edges")
+    assert max(rows) - min(rows) > 3 * view.fontMetrics().height(), \
+      (f"the refusal is drawn {max(rows) - min(rows)}px tall, which is "
+       f"not the several lines two wrapped sentences take")
+  finally:
+    view.close()
+    view.deleteLater()
+    _tick(50)
+
+
 def test_a_plain_click_inside_the_selection_keeps_it():
   """Pointing at what is already selected does not narrow the selection.
 
@@ -15118,10 +15279,12 @@ def _measure_the_design_tabs_widths():
   # and up-down. (Maintainer, 2026-08-29.)
   from qgis.PyQt.QtWidgets import QLabel
   labels = {w.text() for w in dlg.findChildren(QLabel)}
-  assert "Scale Left-Right / Up-Down" in labels, \
-    f"the scale row is labelled {[t for t in labels if 'Scale' in t]}"
-  assert "Skew Left-Right / Up-Down (°)" in labels, \
-    f"the skew row is labelled {[t for t in labels if 'Skew' in t]}"
+  # Since 2026-09-13 the row names the transformation and each box its
+  # own direction (the maintainer's two-column rows).
+  for wanted in ("Scale", "Skew (°)", "Left-Right", "Up-Down"):
+    assert wanted in labels, \
+      f"no {wanted!r} label; the Transformations block reads " \
+      f"{sorted(t for t in labels if t)[:20]}"
   compass = [t for t in labels if "EW" in t or "NS" in t]
   assert not compass, f"compass points survive in {compass}"
   dlg.close()
@@ -15425,6 +15588,58 @@ def test_cancelling_frees_the_dialog_at_once():
     "has to wait for work they asked to stop"
   _settle(dlg)
   dlg.close()
+
+
+def test_the_transformation_boxes_stand_in_two_columns():
+  """Every box in the Transformations block lines up with the boxes above it.
+
+  Regression: Scale, Skew and Inset each read as one label over two boxes, leaving the reader to pair them. [user]
+
+  The maintainer's ask of 2026-09-13, approved as a mockup.
+  Scale, Skew and Inset each read as one label over two boxes ("Scale
+  Left-Right / Up-Down"), leaving the reader to pair the halves of the
+  label with the boxes. Each box now carries its own word -- Left-Right,
+  Up-Down, Group, Tiles/strands -- and the words of each column share
+  one width, so the left boxes, Rotate's included, stand on one line and
+  the right boxes on another. The words differ in natural width ("Group"
+  against "Left-Right"), which is what makes the columns fail to line up
+  unless they are given one width.
+  """
+  from qgis.PyQt.QtWidgets import QLabel
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.show()
+    _tick(400)
+
+    def left_edge(widget):
+      return widget.mapTo(dlg, widget.rect().topLeft()).x()
+
+    names = {w.text(): w for w in dlg.findChildren(QLabel)}
+    # THE PREMISE: the words really do differ in width, or equal columns
+    # would line up by accident and the assertions below prove nothing.
+    natural = {word: names[word].sizeHint().width()
+               for word in ("Group", "Left-Right", "Up-Down", "Tiles/strands")
+               if word in names}
+    assert len(natural) == 4, f"the box names found are {sorted(natural)}"
+    assert natural["Group"] != natural["Left-Right"], \
+      f"'Group' and 'Left-Right' are both {natural['Group']}px wide"
+    for word in ("Scale", "Skew (°)", "Inset (%)"):
+      assert word in names, f"no row labelled {word!r}"
+    left = {name: left_edge(getattr(dlg, name)) for name in
+            ("mod_rotate", "mod_scale_x", "mod_skew_x", "mod_p_inset")}
+    right = {name: left_edge(getattr(dlg, name)) for name in
+             ("mod_scale_y", "mod_skew_y", "mod_t_inset")}
+    assert len(set(left.values())) == 1, \
+      f"the left-hand boxes start at different places: {left}"
+    assert len(set(right.values())) == 1, \
+      f"the right-hand boxes start at different places: {right}"
+    assert min(right.values()) > max(left.values()), \
+      f"the right-hand column {right} is not right of the left {left}"
+  finally:
+    dlg.close()
 
 
 def test_every_design_control_is_reachable():
@@ -77294,7 +77509,7 @@ def test_an_unassigned_element_beside_elements_sharing_one_field():
 def test_an_inset_that_swallows_tiles_leaves_no_half_map():
   """Insetting the tiles until there is nothing left to draw.
 
-  "Inset group / tiles (%)" shrinks each tile inside its own place in
+  "Inset (%)"'s tiles/strands box shrinks each tile inside its own place in
   the pattern, and the control allows up to five per cent of the
   spacing. On a striped family that is enough to consume the stripes
   entirely: at sixteen stripes to a 500-unit repeat each is 31 units
@@ -95902,6 +96117,12 @@ def main():
         test_a_held_drag_says_so_on_the_drawing)
   check("no two controls on the topology tab share a place",
         test_no_two_controls_on_the_topology_tab_share_a_place)
+  check("warp and weft are offered only for a weave",
+        test_warp_and_weft_are_offered_only_for_a_weave)
+  check("the window grows on the topology tab and gives the height back",
+        test_the_window_grows_on_the_topology_tab_and_gives_the_height_back)
+  check("a refusal in the topology drawing wraps inside it",
+        test_a_refusal_in_the_topology_drawing_wraps_inside_it)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
@@ -96539,6 +96760,8 @@ def main():
         test_cancelling_frees_the_dialog_at_once)
   check("every design control is reachable",
         test_every_design_control_is_reachable)
+  check("the transformation boxes stand in two columns",
+        test_the_transformation_boxes_stand_in_two_columns)
   check("every control starts where it should",
         test_every_control_starts_where_it_should)
   check("every control accepts the range it should",

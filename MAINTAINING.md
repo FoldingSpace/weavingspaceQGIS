@@ -626,9 +626,9 @@ is why `plain weave a|b` answers one direction under both readings and
 is what the suite asserts
 (`tools/probes/an_edit_aimed_at_one_strand_family.py`).
 
-**WHAT THE TAB SHOWS.** `Gaps from strand width` and, beneath it,
-`Warp and weft classes` sit above the class controls, since the readings
-decide what the classes ARE. Both are VERTICAL TOGGLES of two radio
+**WHAT THE TAB SHOWS.** `Gaps between existing tiles/strands` and, on a
+weave only (`show_the_weave_readings`, from `_weave_terms_at`), `Warp and
+weft classes` sit above the class controls, since they decide what the classes ARE. Both are VERTICAL TOGGLES of two radio
 buttons in a `QButtonGroup`, the value riding on each button (`reading`,
 `families`); `buttonToggled` fires for the button going off as well, and
 only the one coming on is answered. Each drops the selection and reaches
@@ -642,8 +642,7 @@ for its widest item, so naming the groups in the options took the
 window's minimum to 1665px at 13pt against a 1480 ceiling; stacked radios
 cost the widest line. Each option is ONE literal with any line break
 placed in code, because `tools/text_review.py` normalises whitespace and
-keeps only strings of three spaces or more (C-357). The gaps chooser
-became a toggle on 2026-09-13 to match, its approved literals unchanged.
+keeps only strings of three spaces or more (C-357).
 
 ### A weave's structure after round ten: what every door now goes through
 
@@ -2008,6 +2007,8 @@ control's width with what it asked for, keeps the glyph checkbox as its
 positive control (the region chooser had been, and was the defect
 itself), and restores the style in a `finally`.
 
+**THE TOPOLOGY TAB BORROWS HEIGHT** and `_fit_the_height_to_the_topology_tab`
+hands it back unless the window was dragged (maintainer, 2026-09-13).
 **THE WINDOW IS SIZED BY THE TAB IN FRONT, AND GROWS WITHOUT
 SHRINKING** (maintainer's ask, 2026-08-30): `_size_to_the_current_tab`
 makes the page in front `Preferred` and every other `Ignored`, so

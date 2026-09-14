@@ -2851,6 +2851,49 @@ MUTATIONS = [
        test="test_the_reference_venv_is_built_on_a_python_the_library_accepts",
        why="a deleted reference venv is rebuilt from Python 3.9 and the "
            "reference comparison fails after the whole suite"),
+  dict(name="the-transformation-names-share-a-column-width", file=DIALOG,
+       old="""        name.setFixedWidth(column_width)""",
+       new="""        pass  # mutation: each name keeps its own width""",
+       test="test_the_transformation_boxes_stand_in_two_columns",
+       why="the Transformations block's boxes standing at ragged places, "
+           "so a reader cannot follow a column of Left-Right boxes down "
+           "the tab"),
+  dict(name="warp-and-weft-follow-the-design", file=TOPOLOGY_TAB,
+       old="""    self._families_label.setVisible(weave)
+    self._families_box.setVisible(weave)""",
+       new="""    pass  # mutation: the row is shown for every design""",
+       test="test_warp_and_weft_are_offered_only_for_a_weave",
+       why="a tiling's Topology tab asking about warp and weft, which it "
+           "does not have, above the class controls"),
+  dict(name="the-topology-tab-grows-the-window", file=DIALOG,
+       old="""        if grown > before:
+          self.resize(self.width(), grown)""",
+       new="""        pass  # mutation: arriving grows nothing""",
+       test="test_the_window_grows_on_the_topology_tab_and_gives_the_height_back",
+       why="the Topology tab opening at the Design tab's short height, its "
+           "drawing and controls cramped"),
+  dict(name="leaving-the-topology-tab-gives-the-height-back", file=DIALOG,
+       old="""      if self.height() == grown and grown > before:
+        self.resize(self.width(), before)""",
+       new="""      pass  # mutation: leaving keeps the tall window""",
+       test="test_the_window_grows_on_the_topology_tab_and_gives_the_height_back",
+       why="the window staying tall after leaving the Topology tab, empty "
+           "space below the Design tab"),
+  dict(name="a-height-dragged-on-the-topology-tab-is-kept", file=DIALOG,
+       old="""      if self.height() == grown and grown > before:""",
+       new="""      if grown > before:""",
+       test="test_the_window_grows_on_the_topology_tab_and_gives_the_height_back",
+       why="a height somebody dragged the window to being taken back "
+           "when they leave the Topology tab"),
+  dict(name="a-refusal-in-the-drawing-wraps", file=TOPOLOGY_TAB,
+       old="""      room = self.rect().adjusted(18, 18, -18, -18)
+      painter.drawText(room, int(Qt.AlignmentFlag.AlignCenter
+                                 | Qt.TextFlag.TextWordWrap),""",
+       new="""      room = self.rect()
+      painter.drawText(room, int(Qt.AlignmentFlag.AlignCenter),""",
+       test="test_a_refusal_in_the_topology_drawing_wraps_inside_it",
+       why="the reason a design has no topology running off both sides of "
+           "the drawing, unreadable"),
   dict(name="the-argument-boxes-start-below-the-do-chooser",
        file="weavingspace_qgis/topology_tab.py",
        old="""    self._first_argument_row = 6""",
@@ -4681,7 +4724,7 @@ MUTATIONS = [
        why="a cancelled run handing the dialog back at once, rather "
            "than when the abandoned work happens to finish"),
   dict(name="scale-controls-in-a-layout", file=DIALOG,
-       old='    pair("Scale Left-Right / Up-Down", self.mod_scale_x, '
+       old='    pair("Scale", "Left-Right", self.mod_scale_x, "Up-Down", '
            'self.mod_scale_y)',
        new="    pass  # mutation: the Scale controls reach no layout",
        test="test_every_design_control_is_reachable",
@@ -11055,10 +11098,11 @@ MUTATIONS = [
            "meets it as a run that did nothing"),
   dict(name="the-topology-refusal-names-the-control",
        file="weavingspace_qgis/topology_edits.py",
-       old="""  return (
-    "This design has gaps between its tiles, and a topology can only "
-    "be worked out for a design whose tiles meet. Set the strand "
-    "width to 1.0, or the tile inset to 0, to work on its topology.")""",
+       old="""  return "\\n".join((
+    "This design has gaps between its tiles. A topology can only be "
+    "worked out for a design whose tiles meet.",
+    "Set the insets to 0, or a weave's strand width to 1.0, to work on "
+    "its topology."))""",
        new="""  return str(exc)  # mutation: hand back the library's own words""",
        test="test_a_topology_edit_reaches_the_map",
        why="the library says 'Vertex ... Tiles: [] is not in list', "

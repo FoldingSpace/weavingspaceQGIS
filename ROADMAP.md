@@ -166,29 +166,14 @@ shipped version owes nothing.)
 the Topology tab, its local gates green and CI published past three
 harness faults on the maintainer's word (docs/process/defects-2026-09-12.md).
 
-**OUTSTANDING: THE MAINTAINER'S ASKS OF 2026-09-13 (evening), after rc21.**
-Recorded so none is lost; the UI ones want a prototype image approved
-before they are built, and all new wording goes through text review.
-
-- DESIGN TAB, TWO-COLUMN MODIFIER ROWS. "Scale Left-Right / Up-Down" and
-  the similar lines become one label with its boxes side by side --
-  `Scale   Left-Right [box]   Up-Down [box]` -- and so on down the tab,
-  with every column of boxes and choosers still lining up vertically.
-  A PROTOTYPE IMAGE IS OWED FIRST, for approval.
-- DESIGN TAB, THE INSET LINE says "tiles/strands" where it says "tiles".
-- TOPOLOGY TAB: "Warp and weft classes" is HIDDEN on a tiling, and the
-  class controls move up into the space it leaves.
-- TOPOLOGY TAB, THE GAPS REFUSAL: "...can only be worked out for a design
-  whose tiles meet." and the next sentence go on TWO LINES, the break at
-  that period placed in code; and "Set the strand width" becomes wording
-  that applies beyond strands (it appeared on a tiling with a group
-  inset), such as the insets or an aspect ratio.
-- TOPOLOGY TAB: "Gaps from strand width" becomes "Gaps between existing
-  tiles/strands" or similar, and "a hole made by a 'missing' strand"
-  becomes "strand/tile".
-- THE WINDOW GROWS TALLER ON THE TOPOLOGY TAB AND RETURNS ON LEAVING IT
-  (the maintainer's clarification of the height ask), while the width goes
-  on growing and staying. Prototyped as 220 px on arrival.
+**THE MAINTAINER'S UI ASKS OF 2026-09-13 ARE BUILT, THEIR WORDING AWAITING
+REVIEW.** The mockups were approved on 2026-09-13 (late): the Design tab's
+named box columns, warp and weft hidden on a tiling, the two-line refusal
+wrapped in the drawing, the gaps label and option, and the window growing
+220 px on the Topology tab. OUTSTANDING: the five new sentences in the text
+review queue, which is the maintainer's act. The short box names (Left-Right,
+Tiles/strands) fall below the queue's three-space filter (R-71) and were
+approved in the mockup.
 
 **TOPOLOGY EDITS ON A DESIGN WITH AN INSET (INTO 0.24.4, 2026-09-13). THE PRINCIPLE IS
 RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
@@ -238,11 +223,8 @@ inset terms until the differential is written.
 
 **OUTSTANDING: WHAT PROTOTYPING THOSE ASKS FOUND, AND ONE QUESTION ANSWERED.**
 
-- THE ARGUMENT BOXES DRAWN OVER THE DO CHOOSER are FIXED (ledger row 23).
-- AND THE DRAWING'S REFUSAL SENTENCE was painted on one unwrapped line and
-  cut off at both sides; prototyped with word wrap inside a margin. The
-  prototype hides warp and weft by the unit's class, which a weave's DUAL
-  shares, so the build should ask the dialog whether the map is a weave.
+- THE ARGUMENT BOXES DRAWN OVER THE DO CHOOSER are FIXED (ledger row 23),
+  AND THE DRAWING'S REFUSAL now wraps inside a margin (built with the asks).
 - ASKED AND DECIDED: a group inset on a laves tiling gets a topology by
   the skeleton route, moved into 0.24.4 and being built (entry above).
 

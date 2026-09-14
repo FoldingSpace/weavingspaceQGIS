@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-593 defect(s) with a regression test.
+597 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -846,6 +846,8 @@ there is no separate list to remember.
   guarded by `test_a_project_opened_under_an_open_dialog_is_taken_over`
 - **every table rebuild redrew a swatch for every ramp in the style library. Measured 2026-08-16 under cProfile on one test: 306,558 icon draws, 311,613 style-library lookups and 2.45 million fillRect calls, all on the GUI thread; the same test needs 63 distinct swatches. Survivable at 0.24.2's 461 rebuilds, it became three-quarters of the cost that pushed every CI suite leg past its 600-second stall ceiling when 0.24.3 nearly tripled the rebuild count.**  
   guarded by `test_a_ramp_swatch_is_drawn_once_and_follows_the_library`
+- **the drawing's refusal ran off both sides of it, on one line.**  
+  guarded by `test_a_refusal_in_the_topology_drawing_wraps_inside_it`
 - **`_settle_layer_choice` (0f6f5c0) and `_layers_removed` (c0b91e9) hooked the project without the retirement gate that `_on_project_read` already had, so every dialog ever opened rebuilt its tile unit on every project change. Measured 2026-08-16 over one test: `_layers_removed` fired 231 times across 22 dialogs, which is sum(0..21), and unit rebuilds ran 1,282 times against 461 at v0.24.2. Real geometry, on the GUI thread, for retired windows.**  
   guarded by `test_a_retired_dialog_rebuilds_nothing_when_the_project_moves`
 - **none yet; this pins the scope of a change made 2026-08-16, because a nudge that fired on ordinary data would silently move every boundary value up one class across every map this plugin draws.**  
@@ -1227,8 +1229,12 @@ there is no separate list to remember.
   guarded by `test_the_symmetries_are_drawn_and_gate_what_cannot_move`
 - **the table drew Qt's row-number gutter beside the tile ids, which the user reported as a messy second numbering.**  
   guarded by `test_the_table_headers_read_as_designed`
+- **Scale, Skew and Inset each read as one label over two boxes, leaving the reader to pair them.**  
+  guarded by `test_the_transformation_boxes_stand_in_two_columns`
 - **the Unclassed colour editor faded its table with a QGraphicsOpacityEffect, which composites offscreen while the table scrolls by blitting, so previously-painted class bounds stayed visible behind the current ones. Reported with a screenshot against 0.24.3rc5.**  
   guarded by `test_the_unclassed_list_fades_without_a_graphics_effect`
+- **the window kept the Design tab's height on the Topology tab.**  
+  guarded by `test_the_window_grows_on_the_topology_tab_and_gives_the_height_back`
 - **the zigzag count box offered odd counts, and class b of the default design opened a gap at each of them, reported only after the edit was applied. Settled by grilling, 2026-09-05.**  
   guarded by `test_the_zigzag_count_box_offers_even_counts_only`
 - **the zigzag handle stood 60px off its edge whatever the amplitude, so its position claimed an amplitude it did not have and read as belonging to nothing.**  
@@ -1237,14 +1243,16 @@ there is no separate list to remember.
   guarded by `test_the_zigzag_handle_keeps_its_amplitude_when_moved_along`
 - **an edit made after one that opened gaps was refused outright, because the topology was rebuilt between edits and Topology refuses a design with gaps -- so a saved design carrying such a sequence did not come back as the design that was saved.**  
   guarded by `test_topology_edits_come_back_from_the_file`
+- **"Warp and weft classes" was shown on a tiling, which has neither.**  
+  guarded by `test_warp_and_weft_are_offered_only_for_a_weave`
 
 ## Which shape of test found them
 
 - the mutation campaign: 208
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
-- reported by a user: 59
-- reading the code: 18
+- reported by a user: 62
+- reading the code: 19
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10
 - race and stress testing: 6
