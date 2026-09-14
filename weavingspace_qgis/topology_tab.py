@@ -2748,6 +2748,10 @@ class TopologyPanel(QWidget):
     self.how_combo.currentIndexChanged.connect(self._rebuild_arguments)
     grid.addWidget(QLabel("Do"), 5, 0)
     grid.addWidget(self.how_combo, 5, 1)
+    # THE ARGUMENT BOXES START BELOW "Do", named here beside the row they
+    # follow: they were laid from a fixed 4, and the warp-and-weft row added
+    # above moved the symmetry line and "Do" down onto them.
+    self._first_argument_row = 6
 
     self._argument_rows = []
     # WHAT THE BOXES SAID, so a rebuild does not silently hand back
@@ -3438,7 +3442,8 @@ class TopologyPanel(QWidget):
       return
     remembered = self._argument_memory.get(key, {})
     for row, (name, label, low, high, default, step) in enumerate(
-        edits_module.MANIPULATIONS[key]["args"], start=4):
+        edits_module.MANIPULATIONS[key]["args"],
+        start=self._first_argument_row):
       caption = QLabel(label)
       # THE AMPLITUDE BOX SHOWS THE CREST'S DISTANCE and holds `h`
       # (maintainer's ruling, 2026-09-06): three decimals, since the

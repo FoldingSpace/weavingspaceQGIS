@@ -12903,6 +12903,86 @@ def test_a_zigzag_too_deep_is_clamped_rather_than_dropped():
     "neither arm proves anything"
 
 
+def test_no_two_controls_on_the_topology_tab_share_a_place():
+  """Every control on the Topology tab has a grid cell of its own.
+
+  The manipulation's argument boxes are laid into the tab's grid below the
+  rows above them, from a hard-coded row. Adding the warp-and-weft row
+  moved the symmetry line and the Do chooser down while the boxes stayed,
+  so on every design the boxes were drawn over both: "Do" read "Dp-Down"
+  and the symmetry sentence ran through "Left-Right".
+
+  THE EXPECTATION IS STRUCTURAL: for every manipulation the tab offers,
+  the visible widgets in the grid are asked for the cells they occupy, and
+  no cell may hold two. A tiling and a weave are both driven, since the
+  weave shows the warp-and-weft row the fault came in with.
+
+  Regression: the Topology tab's argument boxes were drawn over the symmetry line and the Do chooser, their first row fixed at 4 after a row was added above them. [user]
+  """
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+
+  def collisions(panel):
+    grid = panel._argument_grid
+    seen, clashes = {}, []
+    for index in range(grid.count()):
+      item = grid.itemAt(index)
+      widget = item.widget() if item is not None else None
+      if widget is None or not widget.isVisibleTo(panel):
+        continue
+      row, column, rows, columns = grid.getItemPosition(index)
+      for r in range(row, row + max(rows, 1)):
+        for c in range(column, column + max(columns, 1)):
+          if (r, c) in seen:
+            clashes.append((r, c, seen[(r, c)], type(widget).__name__))
+          seen[(r, c)] = type(widget).__name__
+    return clashes
+
+  for kind in ("tiling", "weave"):
+    layer = make_region_layer()
+    QgsProject.instance().addMapLayer(layer)
+    dlg = WeavingSpaceDialog(iface=_Iface())
+    try:
+      dlg.live_check.setChecked(False)
+      dlg.opt_experimental.setChecked(True)
+      dlg.show()
+      _tick(200)
+      if kind == "weave":
+        dlg.kind_combo.setCurrentText("weave")
+        _tick(200)
+        dlg.n_spin.setValue(2)
+        _tick(200)
+        _choose_family(dlg, "plain weave a|b")
+        _tick(300)
+      dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+      _tick(200)
+      assert _the_topology_tab_is_quiet(dlg), f"PREMISE: the {kind}'s tab never went quiet"
+      panel = dlg.topology_panel
+      assert panel._topology is not None, f"PREMISE: the {kind} holds no topology"
+      driven = 0
+      for target in ("vertex", "edge"):
+        labels = panel._labels_of(target)
+        if not labels:
+          continue
+        panel._select_classes(target, labels[0])
+        _tick(80)
+        for position in range(panel.how_combo.count()):
+          panel.how_combo.setCurrentIndex(position)
+          _tick(80)
+          assert panel._argument_rows, (
+            f"PREMISE: {panel.how_combo.currentData()} laid no argument box")
+          driven += 1
+          clashes = collisions(panel)
+          assert not clashes, (
+            f"on the {kind}, with {panel.how_combo.currentData()} chosen, "
+            f"two controls share a place on the Topology tab: {clashes}")
+      assert driven >= 2, f"PREMISE: only {driven} manipulations were driven"
+    finally:
+      dlg.close()
+      dlg.deleteLater()
+      _tick(50)
+      QgsProject.instance().removeAllMapLayers()
+
+
 def test_a_plain_click_inside_the_selection_keeps_it():
   """Pointing at what is already selected does not narrow the selection.
 
@@ -31942,6 +32022,36 @@ def test_the_release_digest_watches_what_ships():
       "the artefact is a gate people learn to route around"
   finally:
     shutil.move(backup, doc)
+
+
+def test_the_reference_venv_is_built_on_a_python_the_library_accepts():
+  """A missing `.venv-reference` is built from a Python of 3.10 or newer.
+
+  `release.py` rebuilt a deleted reference venv with its own interpreter,
+  the system Python 3.9.6 on the machine that found it, and the vendored
+  library's `dataclass(slots=True)` refused it: the reference comparison
+  died after the whole suite had passed.
+
+  THE CHOOSER IS DRIVEN WITH STAGED VERSIONS, so no second interpreter is
+  needed: a 3.9 candidate is passed over for a newer one, none but 3.9
+  gives None, and the stage is asked, by its source, whether it builds
+  the venv from the chooser's answer rather than from `sys.executable`.
+
+  Regression: release.py rebuilt .venv-reference from the system Python 3.9, which the vendored library refuses, and the reference comparison failed after the suite had passed. [user]
+  """
+  import inspect
+  release = _release_module("release")
+  versions = {"old": (3, 9), "new": (3, 14), "broken": None}
+  assert release.reference_interpreter(
+    ["old", "new"], versions.get) == "new", (
+    "a Python 3.9 was chosen to build the reference venv over a 3.14")
+  assert release.reference_interpreter(
+    ["broken", "old"], versions.get) is None, (
+    "the chooser answered with a Python the vendored library cannot import into")
+  source = inspect.getsource(release)
+  assert '[base, "-m", "venv", venv_dir]' in source \
+      and "base = reference_interpreter()" in source, (
+    "the reference venv stage no longer builds from the chooser's answer")
 
 
 def test_a_release_needs_a_matching_candidate():
@@ -95790,6 +95900,8 @@ def main():
         test_the_drop_closes_the_gap_a_frame_of_travel_left)
   check("a held drag says so on the drawing",
         test_a_held_drag_says_so_on_the_drawing)
+  check("no two controls on the topology tab share a place",
+        test_no_two_controls_on_the_topology_tab_share_a_place)
   check("a plain click inside the selection keeps it",
         test_a_plain_click_inside_the_selection_keeps_it)
   check("several classes can be moved together",
@@ -96911,6 +97023,8 @@ def main():
         test_a_pin_is_never_adopted_onto_the_ladders_own_edge)
   check("the release digest watches what ships",
         test_the_release_digest_watches_what_ships)
+  check("the reference venv is built on a python the library accepts",
+        test_the_reference_venv_is_built_on_a_python_the_library_accepts)
   check("a release needs a matching candidate",
         test_a_release_needs_a_matching_candidate)
   check("a candidate is published only when it is gated",

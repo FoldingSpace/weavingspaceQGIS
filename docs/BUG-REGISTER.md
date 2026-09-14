@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-591 defect(s) with a regression test.
+593 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -1193,6 +1193,8 @@ there is no separate list to remember.
   guarded by `test_every_way_of_editing_the_topology_moves_the_drawing`
 - **2026-08-19, the maintainer's report. Twenty-five areas and a four-element unit: the guard answered 208,521 where icon mode drew 100, so Generate was refused outright and live update had already paused itself.**  
   guarded by `test_icon_mode_is_not_counted_as_a_tiling`
+- **the Topology tab's argument boxes were drawn over the symmetry line and the Do chooser, their first row fixed at 4 after a row was added above them.**  
+  guarded by `test_no_two_controls_on_the_topology_tab_share_a_place`
 - **none yet -- this guards a control added with the rule it has to keep.**  
   guarded by `test_one_live_update_switch_seen_from_two_tabs`
 - **an edit could be aimed at one class or at every class of a kind and at nothing between, though the library's selector and the saved record have always taken several.**  
@@ -1213,6 +1215,8 @@ there is no separate list to remember.
   guarded by `test_the_plugin_opened_before_the_data_still_works`
 - **a class bound pinned outside its column left the outermost class empty, and the ramp was spread across it -- so the palest and darkest shades were drawn on classes no tile could wear and the map used only the middle of the ramp.**  
   guarded by `test_the_ramp_spans_the_classes_a_tile_can_wear`
+- **release.py rebuilt .venv-reference from the system Python 3.9, which the vendored library refuses, and the reference comparison failed after the suite had passed.**  
+  guarded by `test_the_reference_venv_is_built_on_a_python_the_library_accepts`
 - **the Topology tab told the default design's dual to set its strand width to 1.0 -- a sentence about a control the design does not have and a gap it does not have. Field report 5, 2026-09-05.**  
   guarded by `test_the_refusal_tells_gaps_from_a_library_refusal`
 - **the size guard measured a circle enclosing the region's bounding box rather than the ground the region covers, so a sparse region -- which most real data is -- was refused at a spacing the library tiles happily; a colleague of the maintainer could not draw their map at all.**  
@@ -1239,7 +1243,7 @@ there is no separate list to remember.
 - the mutation campaign: 208
 - a bug hunt pointed in a named direction: 168
 - not written down at the time: 88
-- reported by a user: 57
+- reported by a user: 59
 - reading the code: 18
 - running the suite somewhere other than the machine it was written on: 10
 - the functional suite, run whole: 10

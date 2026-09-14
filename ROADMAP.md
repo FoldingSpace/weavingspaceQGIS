@@ -190,23 +190,48 @@ before they are built, and all new wording goes through text review.
   (the maintainer's clarification of the height ask), while the width goes
   on growing and staying. Prototyped as 220 px on arrival.
 
+**TOPOLOGY EDITS ON A DESIGN WITH AN INSET (INTO 0.24.4, 2026-09-13). THE PRINCIPLE IS
+RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
+that the gap be written here rather than inferred from a rule reading
+as though it were in force). `can_build` refuses any gapped design, so
+TODAY an inset takes the Topology tab away outright, which is a large
+loss: insetting is how a tiled map is made to read as separate
+elements, so the two things somebody most wants to combine are the two
+the plugin will not. It is buildable, `_build_unit` applying the
+insets LAST and every step before them preserving the tiling: build
+the topology from the un-inset unit, replay the edits there, inset the
+result. The three rulings are in CLAUDE.md, the measurements C-346 and
+docs/TOPOLOGY.md. WHAT IS OWED BEFORE ANY CODE, in this order:
+
+- A DIFFERENTIAL PROVING THE TOPOLOGY IS THE SAME AT EVERY INSET
+  VALUE, class labels included, since the whole design rests on the
+  topology being a function of the design WITHOUT its insets.
+- `_topology_stamp` THEN DROPS ITS TWO INSET TERMS, in the same commit
+  as that differential or not at all: a key narrowing is the shape
+  behind three of this project's wrong maps. `_geometry_signature`
+  KEEPS them, and the two keys answering differently about one term is
+  the point rather than an oversight.
+- THE THIRD FRAME IN THE FILE, per ruling 3, which the stale-table
+  drop, the `topology_design` key and the both-or-neither test must
+  each learn about. Read M-4 first: the drop was wrong four times and
+  redesigned rather than patched a fifth, and "both or neither" needs
+  a meaning when there are three.
+- THE VALIDITY JUDGEMENT RE-AIMED AT THE SKELETON, with a guard,
+  since judging the inset design reads every inset design as torn.
+
+WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
+rather than a transform applied after, so there is no un-thinned unit
+to edit and thin later. That is the R-40 boundary, measured.
+
 **OUTSTANDING: WHAT PROTOTYPING THOSE ASKS FOUND, AND ONE QUESTION ANSWERED.**
 
-- A DEFECT IN rc21: the manipulation's argument
-  boxes are laid from grid row 4, and `d8f38b7` put the warp-and-weft row
-  above them, so they are drawn OVER the symmetry line and the "Do"
-  chooser on every design. Prototyped fix: start them below "Do". Wants a
-  guard that no two of the tab's rows share a place.
+- THE ARGUMENT BOXES DRAWN OVER THE DO CHOOSER are FIXED (ledger row 23).
 - AND THE DRAWING'S REFUSAL SENTENCE was painted on one unwrapped line and
   cut off at both sides; prototyped with word wrap inside a margin. The
   prototype hides warp and weft by the unit's class, which a weave's DUAL
   shares, so the build should ask the dialog whether the map is a weave.
-- ASKED, AND ANSWERED FROM THE RECORD: why a group inset on a laves tiling
-  gets no topology. `can_build` refuses any gapped design; the route is
-  ruled (build from the un-inset unit, replay, inset afterwards) and is
-  the 0.24.5 entry "TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET", with its
-  owed differential and three frames. Whether it moves to this version is
-  the maintainer's decision.
+- ASKED AND DECIDED: a group inset on a laves tiling gets a topology by
+  the skeleton route, moved into 0.24.4 and being built (entry above).
 
 **NOTHING ELSE OUTSTANDING IN CODE BEFORE THOSE.** The honest preview, which was the
 last of it, is built and its entry is below; the palette and the stall
@@ -460,39 +485,6 @@ combinations, which is also where the deprioritised custom weave type
 and its matrix entry would live, and where the cap above is properly
 answered.
 
-**TOPOLOGY EDITS ON A DESIGN THAT HAS AN INSET. THE PRINCIPLE IS
-RULED AND THE CODE HAS NOT CAUGHT UP** (maintainer's ask, 2026-09-08,
-that the gap be written here rather than inferred from a rule reading
-as though it were in force). `can_build` refuses any gapped design, so
-TODAY an inset takes the Topology tab away outright, which is a large
-loss: insetting is how a tiled map is made to read as separate
-elements, so the two things somebody most wants to combine are the two
-the plugin will not. It is buildable, `_build_unit` applying the
-insets LAST and every step before them preserving the tiling: build
-the topology from the un-inset unit, replay the edits there, inset the
-result. The three rulings are in CLAUDE.md, the measurements C-346 and
-docs/TOPOLOGY.md. WHAT IS OWED BEFORE ANY CODE, in this order:
-
-- A DIFFERENTIAL PROVING THE TOPOLOGY IS THE SAME AT EVERY INSET
-  VALUE, class labels included, since the whole design rests on the
-  topology being a function of the design WITHOUT its insets.
-- `_topology_stamp` THEN DROPS ITS TWO INSET TERMS, in the same commit
-  as that differential or not at all: a key narrowing is the shape
-  behind three of this project's wrong maps. `_geometry_signature`
-  KEEPS them, and the two keys answering differently about one term is
-  the point rather than an oversight.
-- THE THIRD FRAME IN THE FILE, per ruling 3, which the stale-table
-  drop, the `topology_design` key and the both-or-neither test must
-  each learn about. Read M-4 first: the drop was wrong four times and
-  redesigned rather than patched a fifth, and "both or neither" needs
-  a meaning when there are three.
-- THE VALIDITY JUDGEMENT RE-AIMED AT THE SKELETON, with a guard,
-  since judging the inset design reads every inset design as torn.
-
-WEAVES ARE NOT IN THIS: strand width is an argument to `make_unit`
-rather than a transform applied after, so there is no un-thinned unit
-to edit and thin later. That is the R-40 boundary, measured.
-
 **ARE A WEAVE'S ASPECT GAPS TOPOLOGICAL HOLES? THE DECISION IS THE
 MAINTAINER'S AND DAVID'S, AND IT CAN NOW BE MADE BY LOOKING.** Both
 readings are built, guarded and driven, and so is the second and
@@ -556,11 +548,8 @@ of R-93 until one is seen offscreen. A CANDIDATE'S BODY COUNTS CHECKS, NOT TESTS
 `publish_candidate.gate_numbers` counts the testing report's PASS lines,
 and three checks run from inside other tests (`sharded=False`), so rc21's
 page says 876 of 876 where every shard's own tally sums to 873 and CI says
-873; the body should read the suites' verdict lines or say "checks". AND
-`release.py` REBUILDS A MISSING `.venv-reference` WITH ITS OWN INTERPRETER,
-the system Python 3.9 here, which the vendored library's
-`dataclass(slots=True)` refuses: it should find a Python of 3.10 or newer
-or refuse in words before the stage (P-26).
+873; the body should read the suites' verdict lines or say "checks". (`release.py`'s reference venv now comes
+from a Python of 3.10 or newer, or it refuses in words; P-26.)
 
 **THE SYMMETRY GROUP A TILING'S CLASSES ARE TAKEN UNDER -- LEFT FOR NOW,
 ON THE MAINTAINER'S DECISION OF 2026-09-12.** The Topology tab builds

@@ -1627,6 +1627,53 @@ def matching_receipt(version, digest):
   return None
 
 
+REFERENCE_FLOOR = (3, 10)
+
+
+def reference_interpreter(candidates=None, version_of=None):
+  """A Python new enough to build `.venv-reference`, or None.
+
+  Args:
+    candidates: interpreter paths to try, in order of preference; None
+      tries this process's own interpreter and then `python3.14` down to
+      `python3.10` found on the PATH.
+    version_of: a callable taking a path and returning its (major, minor)
+      or None where it will not start; None asks each interpreter itself.
+
+  Returns:
+    The first candidate whose version is at least `REFERENCE_FLOOR`, or
+    None where none is -- and the caller refuses in words rather than
+    building a venv the vendored library cannot import into.
+
+  WHY NOT `sys.executable` ALONE: release.py is run under the system
+  `python3`, which on the machine that found this was 3.9.6, and the
+  vendored library's `dataclass(slots=True)` needs 3.10. A deleted venv
+  was rebuilt from it and the reference comparison died after the whole
+  suite had passed (docs/PUBLISHING.md, P-26).
+  """
+  if candidates is None:
+    candidates = [sys.executable] + [
+      found for found in (shutil.which(f"python3.{minor}")
+                          for minor in range(14, 9, -1)) if found]
+  if version_of is None:
+    def version_of(path):
+      try:
+        out = subprocess.run(
+          [path, "-c", "import sys; print(*sys.version_info[:2])"],
+          capture_output=True, text=True, timeout=30,
+          env={k: v for k, v in os.environ.items()
+               if k not in ("PYTHONHOME", "PYTHONPATH")})
+        major, minor = out.stdout.split()
+        return int(major), int(minor)
+      except Exception:                                 # noqa: BLE001
+        return None
+  for path in candidates:
+    version = version_of(path)
+    if version is not None and tuple(version) >= REFERENCE_FLOOR:
+      return path
+  return None
+
+
 def main():
   """Cut a release from the command line, gate by gate.
 
@@ -1861,8 +1908,15 @@ def main():
       clean = dict(os.environ)
       for leaked in ("PYTHONHOME", "PYTHONPATH"):
         clean.pop(leaked, None)
+      base = reference_interpreter()
+      if base is None:
+        sys.exit(
+          "RELEASE ABORTED: no Python of 3.10 or newer was found to build "
+          ".venv-reference, and the vendored library needs one "
+          "(dataclass slots). Create it by hand, e.g. `python3.14 -m venv "
+          ".venv-reference`, or set REFERENCE_PYTHON.")
       run("create reference venv",
-          [sys.executable, "-m", "venv", venv_dir], clean)
+          [base, "-m", "venv", venv_dir], clean)
       run("install reference packages",
           [os.path.join(venv_dir, "bin", "pip"), "install", "--quiet",
            "geopandas", "matplotlib", "networkx", "mapclassify"],

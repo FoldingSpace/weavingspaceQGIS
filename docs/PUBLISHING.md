@@ -368,10 +368,11 @@ disk: the suite writes a GeoPackage per test, and a full volume fails
 tests that cannot make a temporary folder and leaves shards with no
 verdict line at all. No process of your own still holding a core: a
 probe left running contends with every measurement after it. And a
-`.venv-reference` on Python 3.10 or newer: `release.py` rebuilds a
-missing one with the interpreter it was started under, and the vendored
-library's `dataclass(slots=True)` refuses 3.9, so create it by hand
-with a newer Python rather than deleting it to save space. (P-26.)
+`.venv-reference` on Python 3.10 or newer, which the vendored
+library's `dataclass(slots=True)` needs: `release.py` rebuilds a missing
+one from the newest `python3.1x` it finds and refuses in words where
+there is none, so a deleted venv costs a download rather than a build.
+(P-26.)
 
 ## What a release stopped doing, and why that is not a weakening
 

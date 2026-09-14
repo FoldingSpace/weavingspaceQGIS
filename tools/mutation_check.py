@@ -2844,6 +2844,20 @@ MUTATIONS = [
   # the landing the term also discards. What would have to move: the
   # leave-alone branch and the owed-build wait together.
 
+  dict(name="the-reference-venv-needs-a-new-enough-python",
+       file="release.py",
+       old="""    if version is not None and tuple(version) >= REFERENCE_FLOOR:""",
+       new="""    if version is not None:""",
+       test="test_the_reference_venv_is_built_on_a_python_the_library_accepts",
+       why="a deleted reference venv is rebuilt from Python 3.9 and the "
+           "reference comparison fails after the whole suite"),
+  dict(name="the-argument-boxes-start-below-the-do-chooser",
+       file="weavingspace_qgis/topology_tab.py",
+       old="""    self._first_argument_row = 6""",
+       new="""    self._first_argument_row = 4""",
+       test="test_no_two_controls_on_the_topology_tab_share_a_place",
+       why="the Topology tab's argument boxes are drawn over the symmetry "
+           "line and the Do chooser"),
   dict(name="a-restore-that-moves-no-reading-keeps-the-selection",
        file="weavingspace_qgis/topology_tab.py",
        old="""    if (self.aspect_reading_in_force(),
