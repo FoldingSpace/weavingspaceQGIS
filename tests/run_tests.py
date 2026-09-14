@@ -12938,6 +12938,10 @@ def test_a_plain_click_inside_the_selection_keeps_it():
       if getattr(panel, "_topology", None) is not None:
         break
     assert panel._topology is not None, "PREMISE: no topology"
+    # A LANDING MUST NOT ARRIVE BETWEEN AN ARM'S SELECT AND ITS CLICK: the
+    # wait above exits on the first topology, while the box and the tab
+    # may each have queued one more. Quiet first (T-132).
+    assert _the_topology_tab_is_quiet(dlg), "PREMISE: the tab never went quiet"
 
     def ticked():
       return tuple(panel.class_list.item(i).text()
@@ -12964,7 +12968,11 @@ def test_a_plain_click_inside_the_selection_keeps_it():
       after_outside = ticked()
 
       # INSIDE A SET OF SEVERAL CHANGES NOTHING.
-      panel._select_classes(target, first + second)
+      # A LIST, as every product caller passes several classes: a joined
+      # string is the old selector form, which a landing reads as ONE
+      # missing label and moves to the first class (measured 2026-09-13;
+      # the Linux stable leg met it on rc21's commit).
+      panel._select_classes(target, [first, second])
       _tick(80)
       held, boxes = panel._selection, ticked()
       assert len(boxes) == 2, f"PREMISE: two {target} boxes ticked, got {boxes!r}"
