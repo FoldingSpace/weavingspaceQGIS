@@ -11226,17 +11226,13 @@ MUTATIONS = [
            "meets it as a run that did nothing"),
   dict(name="the-topology-refusal-names-the-control",
        file="weavingspace_qgis/topology_edits.py",
-       old="""  return "\\n".join((
-    "This design has gaps between its tiles. A topology can only be "
-    "worked out for a design whose tiles meet.",
-    "Set the insets to 0, or a weave's strand width to 1.0, to work on "
-    "its topology."))""",
+       old="""  return ("This design has gaps between its tiles. A topology can only be "
+          "worked out for a design whose tiles meet.")""",
        new="""  return str(exc)  # mutation: hand back the library's own words""",
        test="test_a_topology_edit_reaches_the_map",
        why="the library says 'Vertex ... Tiles: [] is not in list', "
-           "which names its internals and tells nobody which control "
-           "to move; the plugin's sentence names the strand width and "
-           "the inset, which are what actually opened the gaps"),
+           "which names its internals; the plugin's sentence says what "
+           "is wrong in the person's terms"),
   dict(name="the-window-is-bounded-by-its-screen", file=DIALOG,
        old="""    return (min(width, int(room.width() * SCREEN_SHARE)),
             min(height, int(room.height() * SCREEN_SHARE)))""",

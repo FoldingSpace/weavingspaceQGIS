@@ -235,11 +235,6 @@ ground the targeted runs had passed (T-145, T-146, C-338).
 
 ### Still owed before the next candidate
 
-**THE REFUSAL'S SECOND SENTENCE IS NOW WRONG FOR A TILING**, the maintainer's
-to reword: "Set the insets to 0, or a weave's strand width to 1.0" names two
-controls that no longer take the tab away. What still does: tiles scaled in
-place, a `grid N` with a remainder, a weave scaffold the library refuses.
-
 **Queue item 6**: judge `moving-the-warp-and-weft-chooser-rebuilds-the-topology`
 and `a-file-holding-a-motif-gets-a-fresh-one` on a quiet machine (HUNG before).
 And the changelog owes sentences for the UI asks, whole weave gaps, patch 7

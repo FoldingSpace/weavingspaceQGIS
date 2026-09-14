@@ -372,15 +372,13 @@ def _why_not(exc: Exception, unit=None) -> str:
     return (
       "This design's tiles meet, but the library could not work out "
       "its structure, so there is nothing here to edit.")
-  # TWO SENTENCES ON TWO LINES, the break placed here in code rather
-  # than inside a literal (maintainer's ask, 2026-09-13): what is wrong,
-  # then what to move. `tools/text_review.py` normalises whitespace, so a
-  # newline inside a reviewed literal would come back as a space.
-  return "\n".join((
-    "This design has gaps between its tiles. A topology can only be "
-    "worked out for a design whose tiles meet.",
-    "Set the insets to 0, or a weave's strand width to 1.0, to work on "
-    "its topology."))
+  # WHAT IS WRONG, AND NO LONGER WHAT TO MOVE (maintainer, 2026-09-14).
+  # The second sentence named the insets and a weave's strand width, and
+  # neither takes the tab away since insets take the skeleton route and a
+  # thin weave is scaffolded; what still does -- tiles scaled as glyphs, a
+  # grid with a remainder, a weave the library refuses -- is no one control.
+  return ("This design has gaps between its tiles. A topology can only be "
+          "worked out for a design whose tiles meet.")
 
 
 def _topology_class():

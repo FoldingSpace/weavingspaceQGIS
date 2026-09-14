@@ -3851,8 +3851,10 @@ def test_a_topology_edit_reaches_the_map():
     f"and the list is not composing")
 
   # AND A WEAVE AT THE PLUGIN'S OWN DEFAULT CANNOT, which is the case
-  # the refusal exists for: the sentence must name the CONTROL, since
-  # the library's own words quote its internals.
+  # the refusal exists for: the sentence must be the plugin's, since the
+  # library's own words quote its internals. It named the controls to move
+  # until the maintainer dropped that half (2026-09-14): neither control it
+  # named takes the tab away any more.
   weave = next(s for s in catalog.TILINGS_BY_N[4].values()
                if s["type"] == "weave")
   can, why = topology_edits.can_build(
@@ -3860,8 +3862,15 @@ def test_a_topology_edit_reaches_the_map():
   assert not can, \
     "a weave at the default strand width now carries a topology, so " \
     "the refusal below is describing something that cannot happen"
-  assert "strand width" in why and "inset" in why, \
-    f"the refusal does not say which control to move: {why!r}"
+  try:
+    topology_edits._topology_class()(
+      catalog.make_unit(weave, spacing=500, crs=3857), True)
+    library_says = ""
+  except Exception as exc:                            # noqa: BLE001
+    library_says = str(exc)
+  assert library_says, "PREMISE: the library itself raises nothing here"
+  assert why.strip() and library_says not in why, \
+    f"the refusal hands back the library's own words: {why!r}"
 
   # the shelf keeps designs apart, which is what stops an edit made on
   # one family being replayed onto another
@@ -13569,8 +13578,9 @@ def test_a_refusal_in_the_topology_drawing_wraps_inside_it():
   try:
     view.resize(420, 360)
     view._message = topology_edits._why_not(ValueError("no"), None)
-    assert "\n" in view._message and len(view._message) > 120, \
-      f"PREMISE: the refusal is not the long two-line sentence: {view._message!r}"
+    assert view.fontMetrics().horizontalAdvance(view._message) > 420, \
+      f"PREMISE: the refusal fits on one line, so nothing needs wrapping: " \
+      f"{view._message!r}"
     view.show()
     _tick(100)
     image = view.grab().toImage()
@@ -13585,9 +13595,9 @@ def test_a_refusal_in_the_topology_drawing_wraps_inside_it():
     assert min(columns) > 4 and max(columns) < image.width() - 5, \
       (f"the refusal's ink runs from x={min(columns)} to x={max(columns)} "
        f"in a {image.width()}px drawing, off its edges")
-    assert max(rows) - min(rows) > 3 * view.fontMetrics().height(), \
+    assert max(rows) - min(rows) > 1.5 * view.fontMetrics().height(), \
       (f"the refusal is drawn {max(rows) - min(rows)}px tall, which is "
-       f"not the several lines two wrapped sentences take")
+       f"one line: a sentence wider than the drawing was not wrapped")
   finally:
     view.close()
     view.deleteLater()
