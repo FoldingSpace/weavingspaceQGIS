@@ -1522,13 +1522,14 @@ Confirmed with the user via an explicit design review:
 - The region-outlines layer is drawn cased, a wide white line under a
   narrow black one, so boundaries stay legible over pale and dark
   parts of the pattern alike.
-- The design view draws NO outline around its tiles. The preview
-  exists to judge whether the shapes read as distinct elements by
-  colour and form, and a dark hairline round every tile competes with
-  exactly that; it also thickens relative to the tiles as the spacing
-  gets finer, so a detailed pattern became a mesh. Tile boundaries on
-  the MAP are a separate control and unaffected. (User instruction,
-  2026-08-09.)
+- **The design view parts its tiles with a thin PALE line.**
+  (Maintainer's ruling, 2026-09-15, superseding "no outline" of
+  2026-08-09, after elements on one colour scheme merged into one
+  field.) The old ruling's reasons bind the line's form: a cosmetic
+  one-pixel pen, so it cannot thicken into a mesh at a finer spacing,
+  inked from the fill as the tile ids are -- semi-transparent white,
+  faint dark only on the palest fills -- never a dark hairline. Tile
+  boundaries on the MAP are a separate control. (C-363.)
 - The colour-legibility warnings (two elements a reader may not be
   able to separate, in ordinary vision or with a red-green
   deficiency) are OPT-IN, behind "Warn about lack of legibility in

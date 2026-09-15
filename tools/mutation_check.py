@@ -4999,7 +4999,7 @@ MUTATIONS = [
        why="the legibility opinion being asked for rather than "
            "offered unbidden on every map"),
   dict(name="preview-brush", file=DIALOG,
-       old="      painter.setBrush(QBrush(QColor(colour)))",
+       old="      painter.setBrush(QBrush(fill))",
        new="      pass  # mutation: no fill is ever set",
        test="test_the_preview_actually_draws_what_it_is_given",
        why="the preview filling its tiles at all; without a brush the design view is an empty box"),
@@ -11279,6 +11279,13 @@ MUTATIONS = [
        why="the library says 'Vertex ... Tiles: [] is not in list', "
            "which names its internals; the plugin's sentence says what "
            "is wrong in the person's terms"),
+  dict(name="the-design-view-parts-its-tiles-with-a-thin-line", file=DIALOG,
+       old="""      pen.setCosmetic(True)
+      painter.setPen(pen)""",
+       new="""      painter.setPen(Qt.PenStyle.NoPen)  # mutation: no line between tiles""",
+       test="test_the_design_view_draws_no_tile_outlines",
+       why="elements given one colour scheme merging into a single field in "
+           "the design view, so the design cannot be read"),
   dict(name="the-window-is-bounded-by-its-screen", file=DIALOG,
        old="""    return (min(width, int(room.width() * SCREEN_SHARE)),
             min(height, int(room.height() * SCREEN_SHARE)))""",

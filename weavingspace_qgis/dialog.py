@@ -1630,17 +1630,26 @@ class TilePreview(QWidget):
       colour = self._id_colours.get(
         tid, bridge.ID_COLOURS[
           self._ids.index(tid) % len(bridge.ID_COLOURS)])
-      painter.setBrush(QBrush(QColor(colour)))
-      # No outline. The design view shows a unit and its neighbours as
-      # areas of colour, and a dark line around every tile competes
-      # with the thing being judged: whether the shapes read as
-      # distinct elements by their COLOUR and form. A hairline also
-      # thickens relative to the tiles as the pattern gets finer, so
-      # at small spacings the preview turned into a mesh. Tile
-      # boundaries on the MAP are a separate, deliberate control
-      # ("Draw tile boundaries" on the Data & colours tab) and are
-      # unaffected by this.
-      painter.setPen(Qt.PenStyle.NoPen)
+      fill = QColor(colour)
+      painter.setBrush(QBrush(fill))
+      # A THIN LINE ROUND EVERY TILE, PALE RATHER THAN DARK. (Maintainer's
+      # ruling, 2026-09-15, superseding the no-outline ruling of
+      # 2026-08-09: elements given one colour scheme merged into a single
+      # field and the design could not be read.) The earlier ruling's two
+      # reasons still bind the line's form. It is a COSMETIC pen, one
+      # screen pixel at every spacing, so it cannot thicken into a mesh as
+      # the pattern gets finer; and it takes its ink from the fill the way
+      # the tile ids do -- half-transparent white on most fills, a faint
+      # dark line only on very pale ones -- so it separates tiles without
+      # laying a dark grid over the colours being judged. Tile boundaries
+      # on the MAP remain their own control.
+      luminance = (0.299 * fill.red() + 0.587 * fill.green()
+                   + 0.114 * fill.blue())
+      edge = QColor(255, 255, 255, 160) if luminance < 215 \
+        else QColor(0, 0, 0, 70)
+      pen = QPen(edge, 1)
+      pen.setCosmetic(True)
+      painter.setPen(pen)
       painter.drawPath(path)
 
     # subtle tile-id labels on the central unit, as in the web app's

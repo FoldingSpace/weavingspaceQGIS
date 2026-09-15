@@ -1112,8 +1112,6 @@ there is no separate list to remember.
   guarded by `test_the_categorical_editor_offers_no_pin_but_does_copy`
 - **tests/run_tests.py gained os._exit at the end of main() on 2026-08-11, which skipped the write in tools/coverage_per_test.py; three sharded recorders ran the whole suite, wrote no file, and the rc5 candidate aborted 35 minutes in at the merge stage with "nothing to merge". The last good record was a day old, and the release would otherwise have measured mutants against it.**  
   guarded by `test_the_coverage_record_survives_the_suite_exiting`
-- **the design view drew a dark outline around every tile, which fights the colour comparison the view is for.**  
-  guarded by `test_the_design_view_draws_no_tile_outlines`
 - **none yet; this guards a feature added in 0.24.3 rather than a defect that happened.**  
   guarded by `test_the_pin_shows_which_way_it_is_set`
 - **the preview's painting had almost no coverage, and removing its brush, pen, render hint or fitting arithmetic changed a picture no test looked at.**  
@@ -1223,6 +1221,8 @@ there is no separate list to remember.
   guarded by `test_the_amplitude_box_shows_the_crests_distance`
 - **the coverage notice's count is checked against the areas actually absent from the output, in tiled and icon modes, after a field report that it disagreed with the map.**  
   guarded by `test_the_coverage_notice_counts_what_the_map_is_missing`
+- **tiles of elements sharing a colour scheme merged into one field in the design view, so the design could not be read (maintainer, 2026-09-15).**  
+  guarded by `test_the_design_view_draws_no_tile_outlines`
 - **"Map the dual instead" tiled the dual OVER the source's own group, with holes, and left the Topology tab blank. Field report 5, 2026-09-05.**  
   guarded by `test_the_dual_button_lands_the_dual_in_its_own_group`
 - **"Map the dual" drew the default design's dual with holes over 23% of the map. Field report 5, 2026-09-05.**  
@@ -1268,8 +1268,8 @@ there is no separate list to remember.
 
 - the mutation campaign: 209
 - a bug hunt pointed in a named direction: 168
-- not written down at the time: 88
-- reported by a user: 64
+- not written down at the time: 87
+- reported by a user: 65
 - reading the code: 24
 - the functional suite, run whole: 11
 - running the suite somewhere other than the machine it was written on: 10

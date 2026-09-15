@@ -397,6 +397,7 @@ quote them, do not renumber them.
 - **C-360** — Parallel repair branches are merged one at a time and re-judged on the merged tree  <sub>minted</sub>
 - **C-361** — The twill's QGIS refusal was the incentre offset  <sub>minted</sub>
 - **C-362** — the inset topology as built, and the prototile an edit does not move  <sub>minted</sub>
+- **C-363** — The design view drew no outline, until one colour scheme merged its tiles  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -12134,3 +12135,34 @@ repair rebuilds the prototile from the tiles before the tile inset,
 wherever tiles overhang it by more than a millionth of the cell -- before
 the tile inset, since a union of inset tiles carries the channels and
 would bite twice along every inner edge.
+
+### C-363 — The design view drew no outline, until one colour scheme merged its tiles
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-363).</sub>
+
+The superseded settled decision, as it stood in CLAUDE.md until 2026-09-15:
+
+- The design view draws NO outline around its tiles. The preview
+  exists to judge whether the shapes read as distinct elements by
+  colour and form, and a dark hairline round every tile competes with
+  exactly that; it also thickens relative to the tiles as the spacing
+  gets finer, so a detailed pattern became a mesh. Tile boundaries on
+  the MAP are a separate control and unaffected. (User instruction,
+  2026-08-09.)
+
+What changed it: on 2026-09-15 the maintainer sent a screenshot of the
+design view with four elements on one colour scheme, which read as a
+single green field with the element letters floating in it, and asked
+that the previews always draw a thin line round the elements. The two
+reasons of the old ruling were kept as constraints on the line's form:
+a cosmetic one-pixel pen, so it cannot thicken with a finer spacing, and
+ink taken from the fill as the tile ids take theirs -- white at 160 of
+255 on most fills, black at 70 on the palest -- rather than a dark
+hairline. The maintainer approved the semi-transparent form over plain
+white or mid grey. `test_the_design_view_draws_no_tile_outlines` keeps
+its name and now asserts both halves: tiles given one colour are parted
+by paler pixels, and the design's own colours carry no dark mesh; the
+catalogue entry `the-design-view-parts-its-tiles-with-a-thin-line`
+removes the pen and is caught.
+
+(The account.)

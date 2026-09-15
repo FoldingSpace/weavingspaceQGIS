@@ -17007,57 +17007,85 @@ def test_the_preview_actually_draws_what_it_is_given():
 
 
 def test_the_design_view_draws_no_tile_outlines():
-  """The preview shows areas of colour, not a mesh.
+  """The preview separates its tiles with a thin pale line, not a mesh.
 
-  A dark hairline around every tile competes with the thing the
-  design view exists to judge: whether the shapes read as distinct
-  elements. It also thickens relative to the tiles as the spacing
-  gets finer, so a detailed pattern turned into a grid of lines.
+  (Name kept so the registration and the catalogue find it; the rule is
+  the maintainer's of 2026-09-15.) Elements given one colour scheme
+  merged into a single field in the design view, so its tiles now carry
+  a line. The ruling it supersedes still binds the line's FORM: a dark
+  hairline round every tile competes with judging the shapes by colour,
+  and thickens relative to the tiles as the spacing gets finer.
 
-  Checked by rendering the preview and looking for the outline
-  colour, rather than by inspecting the paint calls: what matters is
-  what reaches the pixels. The old outline was #333333 at 0.7px, so
-  its exact shade may never appear in a rendering; the test therefore
-  asks the broader question — are there DARK pixels tracing the tile
-  edges — by counting how many sampled pixels are darker than any
-  fill the preview uses.
+  TWO HALVES, BECAUSE THE RULE HAS TWO. Every element is given ONE
+  colour and the rendering must still hold pixels paler than that fill
+  and unlike the background, which only a line between tiles can make.
+  And with the design's own colours nothing appreciably darker than the
+  darkest fill may cover more than the labels do, which is the mesh the
+  old ruling refused. Asked of the pixels, not the paint calls.
 
-  Regression: the design view drew a dark outline around every tile, which fights the colour comparison the view is for.
- [unrecorded]
+  Regression: tiles of elements sharing a colour scheme merged into one field in the design view, so the design could not be read (maintainer, 2026-09-15). [user]
   """
   from qgis.PyQt.QtGui import QColor, QImage, QPainter
   from weavingspace_qgis.dialog import WeavingSpaceDialog
   layer = make_region_layer()
   QgsProject.instance().addMapLayer(layer)
   dlg = WeavingSpaceDialog(iface=None)
-  dlg.live_check.setChecked(False)
-  dlg.layer_combo.setLayer(layer)
-  _tick(300)
-  dlg._rebuild_unit()
-  _tick(200)
-  assert dlg.preview._polys, "nothing was drawn in the preview"
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.layer_combo.setLayer(layer)
+    _tick(300)
+    dlg._rebuild_unit()
+    _tick(200)
+    assert dlg.preview._polys, "nothing was drawn in the preview"
 
-  image = QImage(420, 420, QImage.Format.Format_RGB32)
-  image.fill(QColor("#ffffff"))
-  painter = QPainter(image)
-  dlg.preview.render(painter)
-  painter.end()
+    def render(background):
+      image = QImage(420, 420, QImage.Format.Format_RGB32)
+      image.fill(QColor(background))
+      painter = QPainter(image)
+      dlg.preview.render(painter)
+      painter.end()
+      return image
 
-  fills = [QColor(c) for c in dlg.preview._id_colours.values()]
-  darkest_fill = min((c.lightness() for c in fills), default=255)
-  # anything appreciably darker than every fill can only be ink: the
-  # outline, or the tile-id labels
-  ink = 0
-  for x in range(0, image.width(), 3):
-    for y in range(0, image.height(), 3):
-      if QColor(image.pixel(x, y)).lightness() < darkest_fill - 40:
-        ink += 1
-  sampled = (image.width() // 3) * (image.height() // 3)
-  assert ink < sampled * 0.02, \
-    f"{ink} of {sampled} sampled pixels are darker than any fill "\
-    f"({ink / sampled:.1%}); the design view is drawing outlines "\
-    f"around its tiles"
-  dlg.close()
+    # HALF ONE: one colour for every element, and the tiles still part.
+    real = dict(dlg.preview._id_colours)
+    one = "#5a8a4a"
+    dlg.preview._id_colours = {tid: one for tid in real}
+    try:
+      image = render("#ff00ff")
+    finally:
+      dlg.preview._id_colours = real
+    fill = QColor(one)
+    painted = paler = 0
+    for x in range(image.width()):
+      for y in range(image.height()):
+        c = QColor(image.pixel(x, y))
+        if (c.red(), c.green(), c.blue()) == (255, 0, 255):
+          continue
+        painted += 1
+        if (c.red() > fill.red() + 30 and c.green() > fill.green() + 30
+            and c.blue() > fill.blue() + 30 and c.green() < 250):
+          paler += 1
+    assert painted, "PREMISE: the one-colour rendering painted nothing"
+    assert paler > painted * 0.01, (
+      f"only {paler} of {painted} painted pixels are paler than the one "
+      f"fill every element was given, so tiles sharing a colour merge "
+      f"into one field with no line between them")
+
+    # HALF TWO: with the design's own colours, no dark mesh.
+    image = render("#ffffff")
+    fills = [QColor(c) for c in real.values()]
+    darkest_fill = min((c.lightness() for c in fills), default=255)
+    ink = 0
+    for x in range(0, image.width(), 3):
+      for y in range(0, image.height(), 3):
+        if QColor(image.pixel(x, y)).lightness() < darkest_fill - 40:
+          ink += 1
+    sampled = (image.width() // 3) * (image.height() // 3)
+    assert ink < sampled * 0.02, \
+      f"{ink} of {sampled} sampled pixels are darker than any fill "\
+      f"({ink / sampled:.1%}); the design view draws a dark mesh"
+  finally:
+    dlg.close()
 
 
 def test_colour_legibility_warnings_are_opt_in():
