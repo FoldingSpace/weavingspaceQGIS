@@ -95692,6 +95692,105 @@ def test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it():
     dlg.deleteLater()
 
 
+def test_a_drawing_of_the_previous_design_offers_no_dual():
+  """Between a change of design and its landing, the dual is not offered.
+
+  The tab goes on drawing the previous design's structure until the new
+  design's build lands, and the dual button went on offering that
+  design's dual: on the Windows runner a weave's button stood enabled on
+  the default design's structure while the weave's own build ran, so a
+  press would have tiled the dual of a design no longer on screen.
+
+  STAGED, NOT RACED: the new design's build is HELD, so the interval is
+  there on every machine. Two answers: in the interval the button is
+  withheld and a press made anyway lands no group; after the landing the
+  button says what the new design's own offer says, so the withholding
+  cannot stick.
+
+  Regression: the dual button offered the previous design's dual while the new design's structure was still being worked out (Windows runner, 2026-09-15). [second-machine]
+  """
+  import threading
+  import time as _time
+  from weavingspace_qgis import topology_edits as te
+  from weavingspace_qgis.dialog import WeavingSpaceDialog
+  original = te.build
+  QgsProject.instance().addMapLayer(make_region_layer())
+  dlg = WeavingSpaceDialog(iface=_Iface())
+  release = threading.Event()
+  held = []
+
+  def holding_build(*args, **kwargs):
+    """The real build, held until the test lets it go -- off the main
+    thread only, since a build the press itself makes on the main thread
+    would wait for a release only the main thread can give."""
+    if threading.current_thread() is threading.main_thread():
+      return original(*args, **kwargs)
+    held.append(True)
+    release.wait(120.0 * CONTENTION)
+    return original(*args, **kwargs)
+
+  try:
+    dlg.live_check.setChecked(False)
+    dlg.opt_experimental.setChecked(True)
+    dlg.show()
+    _tick(200)
+    dlg.n_spin.setValue(4)
+    _tick(200)
+    _choose_family(dlg, "laves 3.3.4.3.4")
+    _tick(300)
+    assert _wait_for_the_topology(dlg), "PREMISE: the first design built nothing"
+    assert _the_topology_tab_is_quiet(dlg), "PREMISE: the first build never went quiet"
+    panel = dlg.topology_panel
+    first = panel._topology
+    assert panel.dual_button.isEnabled(), (
+      f"PREMISE: the first design's dual is not offered, so nothing can be "
+      f"withheld: {panel.dual_button.toolTip()!r}")
+
+    te.build = holding_build
+    _choose_family(dlg, "hex-colouring 4")
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while not held and _time.monotonic() < deadline:
+      _tick(100)
+    assert held, "PREMISE: the new design's build was never started"
+    assert panel._topology is first, \
+      "PREMISE: the drawing moved before the held build landed"
+    groups_before = {g.name() for g in
+                     QgsProject.instance().layerTreeRoot().findGroups()}
+    assert not panel.dual_button.isEnabled(), (
+      "the dual button offers the previous design's dual while the new "
+      "design's structure is still being worked out")
+    dlg._generate_the_dual()             # a press made anyway
+    _tick(300)
+    groups_after = {g.name() for g in
+                    QgsProject.instance().layerTreeRoot().findGroups()}
+    assert groups_after == groups_before and not dlg._mapping_the_dual(), (
+      f"a press against the previous design's drawing made "
+      f"{sorted(groups_after - groups_before)}")
+
+    release.set()
+    te.build = original
+    deadline = _time.monotonic() + 120.0 * CONTENTION
+    while panel._topology is first and _time.monotonic() < deadline:
+      _tick(100)
+    _settle_topology(dlg, seconds=60)
+    assert panel._topology is not first, "PREMISE: the new design never landed"
+    offered = te.dual_on_offer(panel._topology)[0] is not None
+    assert panel.dual_button.isEnabled() == offered, (
+      f"after the landing the button reads enabled="
+      f"{panel.dual_button.isEnabled()} where the new design's own offer "
+      f"says {offered}, so the withholding outlived its interval")
+  finally:
+    release.set()
+    te.build = original
+    # A RUN THE PRESS LAUNCHED, where the refusal is broken, is let finish
+    # before the window closes: a close with a run in flight waits for it,
+    # and a guard that hangs on its own failure reports nothing.
+    _settle(dlg, seconds=60)
+    dlg.close()
+    dlg.deleteLater()
+    _tick(50)
+
+
 def test_a_design_with_no_meaningful_dual_saves_no_dual():
   """A thin weave's Save writes its motif and no dual; a full-width one writes both.
 
@@ -98868,6 +98967,8 @@ def main():
         test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws)
   check("a thin weave's dual is not offered where the map cannot take it",
         test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it)
+  check("a drawing of the previous design offers no dual",
+        test_a_drawing_of_the_previous_design_offers_no_dual)
   check("a design with no meaningful dual saves no dual",
         test_a_design_with_no_meaningful_dual_saves_no_dual)
   check("a weave's dual group takes the classes of a tiling",

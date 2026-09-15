@@ -2999,6 +2999,25 @@ class TopologyPanel(QWidget):
     """
     self.working.setText("Working out the design's structure…")
 
+  def withhold_the_dual(self) -> None:
+    """Take the dual button away while the drawing is of another design.
+
+    Returns:
+      None. The button is disabled with the reason in its tooltip; the
+      next landing gives it back through `_offer_the_dual`, which is the
+      one place it is offered.
+
+    ONLY WHERE THE DESIGN HAS MOVED, which the dialog decides. A build is
+    often queued again for the design already drawn, and withholding the
+    dual then would take a good offer away for nothing. What this is for
+    is the interval after a change of design, where the structure on
+    screen is still the previous design's (the Windows runner,
+    2026-09-15: a weave's button offered the default design's dual while
+    the weave's own build ran).
+    """
+    self.dual_button.setEnabled(False)
+    self.dual_button.setToolTip("Working out the design's structure…")
+
   def say_the_build_has_not_started(self) -> None:
     """Say that the work was handed over and has not begun.
 

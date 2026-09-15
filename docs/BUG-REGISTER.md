@@ -5,7 +5,7 @@ the tests themselves, so it cannot drift from what is actually
 guarded. To add an entry, write the line in the test's docstring;
 there is no separate list to remember.
 
-606 defect(s) with a regression test.
+607 defect(s) with a regression test.
 
 ## Found by comparing rendered output against the reference in Lab space
 
@@ -895,6 +895,8 @@ there is no separate list to remember.
 
 ## Found by running the suite somewhere other than the machine it was written on
 
+- **the dual button offered the previous design's dual while the new design's structure was still being worked out (Windows runner, 2026-09-15).**  
+  guarded by `test_a_drawing_of_the_previous_design_offers_no_dual`
 - **none yet -- the hang it answers was in CI, and this asserts the answer stays wired in.**  
   guarded by `test_a_hanging_test_is_named_rather_than_silent`
 - **a topology build landing between the click that chose a class and the press that grabbed its handle moved the chooser to another class and the handles across the drawing, so the drag did nothing at all.**  
@@ -1271,8 +1273,8 @@ there is no separate list to remember.
 - not written down at the time: 87
 - reported by a user: 65
 - reading the code: 24
+- running the suite somewhere other than the machine it was written on: 11
 - the functional suite, run whole: 11
-- running the suite somewhere other than the machine it was written on: 10
 - race and stress testing: 6
 - a family audit of the claims the software makes: 5
 - a multi-step session test: 5

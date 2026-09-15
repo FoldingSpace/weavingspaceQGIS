@@ -1996,6 +1996,11 @@ class WeavingSpaceDialog(QDialog):
     # no topology at all. None means nothing has been attempted, which
     # is the honest starting state.
     self._topology_built_for = None
+    # WHICH DESIGN THE TAB'S DRAWING IS OF: the stamp of the last build
+    # handed to the panel. Between a change of design and the next
+    # landing it differs from the stamp on screen, and the dual is not
+    # offered in that interval (see `withhold_the_dual`).
+    self._topology_shown_for = None
     # WHICH DESIGN A BUILD HAS ALREADY ANSWERED "NOTHING TO RESTORE"
     # ABOUT, keyed exactly as `_edited_unit_for` is so the two can be
     # compared against one question. It is what stops `_generate`'s
@@ -24799,6 +24804,7 @@ class WeavingSpaceDialog(QDialog):
       self._topology_built_for = stamp
       if error is not None:
         panel.set_unit(None, None, "The topology could not be worked out.")
+        self._topology_shown_for = stamp
       elif stamp != self._topology_stamp():
         # SUPERSEDED, and silently: the design moved while this was
         # being worked out, so what came back describes something else.
@@ -24847,6 +24853,7 @@ class WeavingSpaceDialog(QDialog):
         # THE EDITED TOPOLOGY IS THE CHAINED OBJECT, so its classes are
         # the ones the person has been aiming with, and it exists even
         # where the design's gaps would refuse a rebuild.
+        self._topology_shown_for = stamp
         panel.set_unit(built.get("edited") or built.get("unit"),
                        built.get("edited_topology")
                        or built.get("topology"),
@@ -25018,6 +25025,8 @@ class WeavingSpaceDialog(QDialog):
     # landing the panel still holds the PREVIOUS design's topology,
     # and that interval is what the sentence is for.
     panel.say_a_build_is_coming()
+    if getattr(self, "_topology_shown_for", None) != stamp:
+      panel.withhold_the_dual()
 
   def _adopt_edited_unit(self, edited, result_crs) -> None:
     """Make the topology-edited unit the one the plugin draws from.
@@ -25267,6 +25276,20 @@ class WeavingSpaceDialog(QDialog):
         "press again once it has landed.")
       return
     panel = getattr(self, "topology_panel", None)
+    # A STRUCTURE THAT IS NOT OF THE DESIGN ON SCREEN OFFERS NO DUAL. The
+    # tab goes on holding the previous design's topology until a build
+    # lands, so between a change of design and that landing the offer
+    # below would be asked of a design somebody has left (the Windows
+    # runner, 2026-09-15: a weave pressed against the default design's
+    # structure). The tab records which design its drawing is of when a
+    # build lands, and a drawing of another design offers nothing; the
+    # tab withdraws the button for the same interval, and this is the
+    # door behind it.
+    if (getattr(panel, "_topology", None) is not None
+        and getattr(self, "_topology_shown_for", None)
+        != self._topology_stamp()):
+      self._report_quietly("Working out the design's structure…")
+      return
     dual, why = topology_edits.dual_on_offer(
       getattr(panel, "_topology", None))
     if dual is None:

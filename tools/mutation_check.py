@@ -11286,6 +11286,21 @@ MUTATIONS = [
        test="test_the_design_view_draws_no_tile_outlines",
        why="elements given one colour scheme merging into a single field in "
            "the design view, so the design cannot be read"),
+  dict(name="a-change-of-design-withholds-the-previous-dual", file=DIALOG,
+       old="""    if getattr(self, "_topology_shown_for", None) != stamp:
+      panel.withhold_the_dual()""",
+       new="""    pass  # mutation: the previous design's dual stays offered""",
+       test="test_a_drawing_of_the_previous_design_offers_no_dual",
+       why="the dual button offering the previous design's dual while the "
+           "new design's structure is still being worked out"),
+  dict(name="a-press-against-a-stale-drawing-lands-no-dual", file=DIALOG,
+       old="""    if (getattr(panel, "_topology", None) is not None
+        and getattr(self, "_topology_shown_for", None)
+        != self._topology_stamp()):""",
+       new="""    if False:  # mutation: a stale drawing's dual is taken""",
+       test="test_a_drawing_of_the_previous_design_offers_no_dual",
+       why="a press landing the dual of a design somebody has already "
+           "changed away from"),
   dict(name="the-window-is-bounded-by-its-screen", file=DIALOG,
        old="""    return (min(width, int(room.width() * SCREEN_SHARE)),
             min(height, int(room.height() * SCREEN_SHARE)))""",
