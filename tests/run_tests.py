@@ -14364,8 +14364,11 @@ def test_the_refusal_tells_gaps_from_a_library_refusal():
     "PREMISE: the inset design still covers its cell, so there is no gap"
   topology, why = topology_edits.build(inset)
   assert topology is None, "PREMISE: the inset design still built a topology"
-  assert "gaps between its tiles" in why and "strand width" in why, \
-    f"a design with real gaps lost the sentence naming the control: {why!r}"
+  # The sentence says WHAT IS WRONG and no longer which control to move
+  # (maintainer, 2026-09-14), so the arm asks for the gaps sentence and
+  # that it is not the other answer's.
+  assert "gaps between its tiles" in why and "tiles meet, but" not in why, \
+    f"a design with real gaps lost the sentence naming its gaps: {why!r}"
 
   # ARM 2: tiles that meet, and a library that still refuses.
   topology, why = topology_edits.build(unit)
@@ -14776,6 +14779,14 @@ def test_the_library_still_misreads_a_copy_by_its_centre():
   (patched) loop building the same unit as the control. Measured
   2026-09-13 on vendor 6190917.
 
+  AND IT ASKS SEVERAL WEAVES ON THE PLATFORM IT RUNS ON. On 2026-09-14 the
+  Linux runner's QGIS built `plain weave a|b` with the upstream loop, which
+  read as "patch 7 may be redundant" while this Mac still raised: the
+  defect turns on where GEOS puts an incentre. So the canary passes where
+  any of three weaves still raises, skips loudly off macOS where none does,
+  and fails on macOS -- the machine that runs the release gate -- only when
+  none raises there.
+
   Regression: not a defect in the plugin -- a canary, per .claude/skills/dependency-bug-workaround, so the day upstream mends the loop the suite says so and patch 7 comes out. [suite]
   """
   import ast
@@ -14799,28 +14810,47 @@ def test_the_library_still_misreads_a_copy_by_its_centre():
   scope = {"tiling_utils": vendored.tiling_utils, "geom": vendored.geom}
   exec(compile(source, "upstream patch 7 anchor", "exec"), scope)
 
-  spec = catalog.TILINGS_BY_N[2]["plain weave a|b"]
-  unit, kinds, note = topology_edits.scaffolded_weave(spec, 1000.0, 0.75)
-  assert unit is not None, f"PREMISE: the weave did not scaffold: {note}"
-  built = vendored.Topology(unit, True)
-  assert built is not None, "PREMISE: the patched library did not build the weave"
+  # SEVERAL WEAVES, AND THE PLATFORM NAMED, because where the incentre
+  # search lands on a rectangle's midline is what a GEOS build moves
+  # (C-356): the Linux runner's QGIS built `plain weave a|b` with the
+  # upstream loop on 2026-09-14 while this Mac raised on it. The defect is
+  # present wherever ANY of these still raises.
+  import shapely
+  designs = [(2, "plain weave a|b"), (2, "twill weave a|b"),
+             (4, "basket weave ab|cd")]
+  raised, built_here = {}, []
   patched = vendored.Topology._match_reference_tile_vertices
-  vendored.Topology._match_reference_tile_vertices = scope["upstream_match"]
-  try:
-    raised = None
+  for count, name in designs:
+    unit, _kinds, note = topology_edits.scaffolded_weave(
+      catalog.TILINGS_BY_N[count][name], 1000.0, 0.75)
+    assert unit is not None, f"PREMISE: {name} did not scaffold: {note}"
+    assert vendored.Topology(unit, True) is not None, \
+      f"PREMISE: the patched library did not build {name}"
+    vendored.Topology._match_reference_tile_vertices = scope["upstream_match"]
     try:
       vendored.Topology(unit, True)
+      built_here.append(name)
     except Exception as exc:                          # noqa: BLE001
-      raised = exc
-  finally:
-    vendored.Topology._match_reference_tile_vertices = patched
-  assert raised is not None, (
-    "GOOD NEWS, PROBABLY: upstream's own copy-matching loop now builds a "
-    "weave scaffold whose strands are rectangles, so patch 7 in "
-    "tools/vendor_weavingspace.py may be redundant. Confirm with "
-    "tools/probes/which_designs_the_centre_offset_misreads.py and retire "
-    "the patch with this test. Do NOT relax this assertion to make the "
-    "suite green.")
+      raised[name] = type(exc).__name__
+    finally:
+      vendored.Topology._match_reference_tile_vertices = patched
+  if raised:
+    return
+  where = f"GEOS {shapely.geos_version_string} on {sys.platform}"
+  if sys.platform != "darwin":
+    _skip_loudly(
+      "test_the_library_still_misreads_a_copy_by_its_centre",
+      f"upstream's own copy-matching loop built all of {built_here} under "
+      f"{where}, which reaches no misread copy; the Mac that runs the "
+      f"release gate still judges this canary")
+    return
+  raise AssertionError(
+    f"GOOD NEWS, PROBABLY: upstream's own copy-matching loop now builds "
+    f"every weave scaffold tried ({built_here}) under {where}, so patch 7 "
+    f"in tools/vendor_weavingspace.py may be redundant. Confirm with "
+    f"tools/probes/which_designs_the_centre_offset_misreads.py and retire "
+    f"the patch with this test. Do NOT relax this assertion to make the "
+    f"suite green.")
 
 
 def test_a_weave_s_scaffold_fills_each_hole_with_one_tile():
@@ -94313,7 +94343,9 @@ def test_a_reading_changed_under_a_standing_edit_redraws_the_map():
   from shapely.ops import unary_union
   from weavingspace_qgis import catalog, topology_edits as te
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  name, count = WEAVE_TAB_MATRIX_WEAVE
+  # THE GLUED WEAVE, since a plain weave's whole holes glue no edge
+  # labels together and this test's class must stand for two.
+  name, count = WEAVE_TAB_GLUED_WEAVE
   spec = catalog.TILINGS_BY_N[count][name]
 
   def digest(dlg):
@@ -95214,7 +95246,9 @@ def test_a_save_just_after_a_reading_switch_writes_the_new_motif():
   from shapely.ops import unary_union
   from weavingspace_qgis import catalog, topology_edits as te
   from weavingspace_qgis.dialog import WeavingSpaceDialog
-  name, count = WEAVE_TAB_MATRIX_WEAVE
+  # THE GLUED WEAVE, since a plain weave's whole holes glue no edge
+  # labels together and this test's class must stand for two.
+  name, count = WEAVE_TAB_GLUED_WEAVE
   spec = catalog.TILINGS_BY_N[count][name]
 
   layer = make_region_layer()
@@ -96269,11 +96303,16 @@ def test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone():
   assert te.labels_in("aa", {"a", "b"}) == ("aa",)
   assert te.labels_in("ab", {"a", "b"}, made_against="aaaabb") == ("ab",)
 
-  spec = catalog.TILINGS_BY_N[4]["basket weave ab|cd"]
+  # A HYPHEN WEAVE, whose holes stay cut and whose classes therefore run
+  # past `z`: the default basket weave carried 62 edge classes until each
+  # hole became one tile (2026-09-13), and carries 16 now, while `basket
+  # weave ab|c-` carries 104 at aspects 0.75 and 0.5 alike (measured
+  # 2026-09-14 under QGIS 4.0.3).
+  spec = catalog.TILINGS_BY_N[3]["basket weave ab|c-"]
   topology, _unit, _kinds, glue, note = te.weave_topology(
     spec, 1000.0, 0.75, reading=te.ASPECT_LIKE_A_DROP,
     families=te.WARP_AND_WEFT_APART)
-  assert topology is not None, f"the basket weave built nothing: {note}"
+  assert topology is not None, f"the hyphen basket weave built nothing: {note}"
   labels = {e.label for e in topology.edges.values() if e.label}
   assert {"a", "aa", "b"} <= labels, (
     f"PREMISE: this design no longer carries both `a` and `aa`: "
