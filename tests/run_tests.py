@@ -4163,7 +4163,17 @@ def _wait_for_the_topology(dlg, seconds: float = 40.0,
     panel = getattr(dlg, "topology_panel", None)
     if panel is None:
       break                     # explained below, like every other giving up
-    if panel._topology is not None:
+    # A DRAWING OF THE DESIGN ON SCREEN, not merely a drawing: after a
+    # change of design the tab holds the previous design's topology until
+    # the new build lands, and since 2026-09-15 withholds the dual in that
+    # interval -- so a caller reading the offer after this returned early
+    # read the interval (the Linux coverage leg, on a group chosen back).
+    # A drawing counts once it was handed over for this stamp, or once no
+    # build is running or wanted.
+    if panel._topology is not None and (
+        getattr(dlg, "_topology_shown_for", None) == dlg._topology_stamp()
+        or (getattr(dlg, "_topology_task", None) is None
+            and not getattr(dlg, "_topology_wanted", False))):
       return True
     if (panel.note.text() or "").strip():
       return True
