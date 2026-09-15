@@ -95669,7 +95669,15 @@ def test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it():
       f"aspect={dlg.opt_aspect.value()} kind={dlg.kind_combo.currentText()!r}; "
       f"the tab's unit has {getattr(getattr(panel._topology, 'tileable', None), 'tiles', []).__len__()} "
       f"tiles; its own plain build: "
-      f"{'built' if topology_edits.build(dlg._unit_before_topology)[0] is not None else 'refused'})")
+      f"{'built' if topology_edits.build(dlg._unit_before_topology)[0] is not None else 'refused'}; "
+      f"the tab's unit is tiling_type="
+      f"{getattr(getattr(panel._topology, 'tileable', None), 'tiling_type', None)!r} "
+      f"strands={getattr(getattr(panel._topology, 'tileable', None), 'strands', None)!r} "
+      f"aspect={getattr(getattr(panel._topology, 'tileable', None), 'aspect', None)!r}; "
+      f"the dialog's unit is tiling_type={getattr(dlg._unit_before_topology, 'tiling_type', None)!r}; "
+      f"last build was for the design on screen: "
+      f"{dlg._topology_built_for == dlg._topology_stamp()}; a build is running: "
+      f"{dlg._topology_task is not None})")
     assert panel.dual_button.toolTip(), \
       "the disabled button does not say why"
     dlg._generate_the_dual()             # the press the button would make
