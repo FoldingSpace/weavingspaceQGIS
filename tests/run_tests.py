@@ -18222,7 +18222,9 @@ def test_the_preview_wait_widens_for_a_slow_rebuild():
     cell("a real rebuild records what it cost",
          dlg._last_rebuild_ms > 0,
          f"the dialog has drawn a preview and reports "
-         f"{dlg._last_rebuild_ms!r} ms, so nothing is measuring it")
+         f"{dlg._last_rebuild_ms!r} ms, so nothing is measuring it "
+         f"(unit built: {dlg._unit is not None}; monotonic clock "
+         f"resolution {time.get_clock_info('monotonic').resolution} s)")
     cell("and a rebuild here is cheap enough for the floor to apply",
          dlg._last_rebuild_ms < PREVIEW_DEBOUNCE_CEILING_MS,
          f"a rebuild on this fixture took {dlg._last_rebuild_ms:.0f} "
@@ -60542,8 +60544,19 @@ def test_a_typed_odd_count_is_even_at_every_door():
       box.lineEdit().selectAll()
       QTest.keyClicks(box, "3")
       _tick(120)
-      assert abs(box.value() - 3.0) < 1e-9, (
-        f"PREMISE: typing 3 left the box at {box.value()}")
+      if abs(box.value() - 3.0) >= 1e-9:
+        # WHAT WAS FOUND, since this premise fails on the Linux and Windows
+        # runners and not here (2026-09-14): whether the keys can have
+        # reached the box at all.
+        from qgis.PyQt.QtWidgets import QApplication
+        raise AssertionError(
+          f"PREMISE: typing 3 left the box at {box.value()}; text="
+          f"{box.lineEdit().text()!r} enabled={box.isEnabled()} "
+          f"visible={box.isVisible()} focus={box.hasFocus()} "
+          f"focus_widget={type(QApplication.focusWidget()).__name__} "
+          f"tracking={box.keyboardTracking()} "
+          f"active_window={box.isActiveWindow()} "
+          f"range=({box.minimum()}, {box.maximum()}) step={box.singleStep()}")
 
     # DOOR ONE: straight to Apply.
     type_three()
@@ -95607,7 +95620,10 @@ def test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it():
     assert not panel.dual_button.isEnabled(), (
       f"the dual button is offered on a thin weave whose own unit carries "
       f"no topology, so a press tiles the design itself in a dual group; "
-      f"its tooltip reads {panel.dual_button.toolTip()!r}")
+      f"its tooltip reads {panel.dual_button.toolTip()!r} (the tab's "
+      f"topology stands on scaffolding: "
+      f"{topology_edits.stands_on_scaffolding(panel._topology)}; "
+      f"offer asked now: {topology_edits.dual_on_offer(panel._topology)[1]!r})")
     assert panel.dual_button.toolTip(), \
       "the disabled button does not say why"
     dlg._generate_the_dual()             # the press the button would make
