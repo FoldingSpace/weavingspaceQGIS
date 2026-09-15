@@ -1489,6 +1489,11 @@
   "excerpt": "You can try again, or install these packages into QGIS's Pyt",
   "where": "weavingspace_qgis/plugin.py"
  },
+ "780f0455fbf1ddba": {
+  "approved": "2026-09-14",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "78745481edf68bd8": {
   "approved": "2026-08-08",
   "excerpt": ". Is that field really categorical?",

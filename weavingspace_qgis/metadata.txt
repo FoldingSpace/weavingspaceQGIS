@@ -46,212 +46,222 @@ server=False
 ; changelog becomes a list nobody finishes.
 ; (Maintainer's instruction, 2026-08-13.)
 changelog=0.24.4 Saving a map is now something you do rather than
-    something that happens to you, and a map you have saved can be
-    opened again and carried on with.
+    something that happens to you. A map you have saved can be opened
+    again and carried on with.
     Saving: choosing a file says where a map would go and writes
     nothing. Nothing is written until you press Save, which puts every
     element layer into one GeoPackage with its symbology embedded,
     tidies away tables the design no longer has, and records the
     design so the file can be opened on its own later. Press Load on
-    the row beneath to open one back. Generate draws the map; live
-    update never writes at all, so a file you chose for later is
-    still yours until you say otherwise. Save asks first where the
-    file holds data from another map, and unticking Include the
-    source data takes that copy out of the file rather than leaving
-    it there. Nothing ends while a save is still going: QGIS waits
-    rather than closing under it, closing the plugin asks first, and
-    a window says what is being waited for with a button to stop it,
-    which leaves the file as it was rather than half written.
+    the row beneath to open one back. Generate draws the map. Live
+    update never writes at all, so a file you chose for later is still
+    yours until you say otherwise. Save asks first where the file
+    holds data from another map. Unticking Include the source data
+    takes that copy out of the file. Nothing ends while a save is
+    still going: QGIS waits rather than closing under it. Closing the
+    plugin asks first. A window says what is being waited for, with a
+    button to stop the save that leaves the file as it was rather than
+    half written.
     Designs: a tiling can now carry more than twenty-six elements,
-    running a to z and then aa to zz, and every list you meet reads
-    them in that order. A weave keeps one character per strand, and
-    the catalogue currently has options for up to twelve elements for
-    a weave. Select all beside the variable column
-    assigns every element in one press. A column of numbers that
-    arrived as text, through a spreadsheet or a join, can now be
-    classed as numbers rather than getting one colour per value.
+    running a to z and then aa to zz. Every list you meet reads them
+    in that order. A weave keeps one character per strand. The
+    catalogue has weaves of up to twelve elements. Select all beside
+    the variable column assigns every element in one press. A column
+    of numbers that arrived as text, through a spreadsheet or a join,
+    can now be classed as numbers rather than getting one colour per
+    value. Choosing an element count no weave family has now says that
+    your design is a tiling, where it used to move the tiling-or-weave
+    switch without a word.
     What it puts right: an element taking its classes from another
     element followed it a run late, so the two drew one column in two
     sets of colours until you pressed Generate again. Clearing the
-    output box quietly started a second map. A ramp tried on a row
-    and taken off again came back on the next change of style. A
-    plugin you had disabled went on running until QGIS restarted,
-    writing into your project and posting messages about a window you
-    could no longer open.
-    A layer duplicated in the panel could be replaced instead of the
-    original, and a copy of one was left standing over the new map
-    after a re-tile, never updated again and with nothing said. And a
-    map opened from a file could be lost by saving it.
+    output box started a second map. A ramp tried on a row and taken
+    off again came back on the next change of style. A plugin you had
+    disabled went on running until QGIS restarted, writing into your
+    project and posting messages about a window you could no longer
+    open. A layer duplicated in the panel could be replaced instead of
+    the original. A copy of one could also be left standing over the
+    new map after a re-tile, where it was never updated again. A map
+    opened from a file could be lost by saving it.
     Sharing: with two maps open that two people had sent you, going
-    back to the first re-tiled it from the second one's data, into
-    the first one's file. Saving into a file somebody else had
-    changed since you opened it could take an element out of it and
-    say only that it had saved; it now writes what it can, leaves
-    their work where it is, and tells you which element it could not
-    save.
-    And what else it puts right: the plugin could close QGIS outright
-    after being opened several times in one session. Saving a large
-    map left the window looking as though it had hung; it now says
-    what it is doing, and the slowest part of it, working out the
-    design's structure, happens behind the window instead of freezing
-    it. Assignment table columns cut their text short
-    at ordinary desktop font sizes. The Create as new group checkbox
-    is gone: the group chooser's Create new entry is now the only way
-    to ask for a second map, so nothing can disagree about where a run
-    lands.
-    And a Save pressed while the map was about to be redrawn saved
-    the map you had just changed away from; it is now kept and done
-    once the new map has landed.
+    back to the first re-tiled it from the second one's data, into the
+    first one's file. Saving into a file somebody else had changed
+    since you opened it could take an element out of it and say only
+    that it had saved. It now writes what it can, leaves their work
+    where it is, and tells you which element it could not save. Saving
+    into a GeoPackage holding somebody else's map could also delete
+    their element layers on the second press, along with their own
+    copy of their data. Nothing of theirs is removed now.
+    More repairs: the plugin could close QGIS outright after being
+    opened several times in one session. Saving a large map left the
+    window looking as though it had hung. It now says what it is
+    doing. Working out the design's structure, the slowest part of a
+    save, now happens behind the window instead of freezing it. Saving
+    a map whose design had changed since it was drawn took the
+    design's structure out of the file. A Save pressed while the map
+    was about to be redrawn saved the map you had just changed away
+    from. It is now kept, and done once the new map has landed.
+    Assignment table columns cut their text short at ordinary desktop
+    font sizes.
+    Files and groups: the Create as new group checkbox is gone. The
+    group chooser's Create new entry is now the only way to ask for a
+    second map, so one control decides where a run lands. A map opened
+    from a file could be written back under table names worked out
+    from the controls rather than from the file's own record. Save As
+    onto a new file left behind the copy of the data a sender had
+    included. Asking for a new group kept the output file of the map
+    before it.
     Experimental features: a box on Map options turns on three tabs
-    that are not finished yet — Messages, Topology and Legend. Until
+    that are not finished yet (Messages, Topology and Legend). Until
     you tick it their titles are greyed and they cannot be opened.
-    Messages lists everything the plugin has said this session,
-    newest first, with the answer beside any question it asked you.
+    Messages lists everything the plugin has said this session, newest
+    first, with the answer beside any question it asked you.
     The structure of a design: the Topology tab draws the repeating
-    unit's own structure — its edges, its vertices, and the classes
-    they fall into — and lets you change it: nudge or push a vertex,
-    rotate, scale or zigzag an edge. Drag a handle on the drawing, or
-    type a number and press Apply. Each change is listed oldest first
-    and can be taken off one at a time or cleared. What you see is the
-    design as you have edited it, with the original ghosted
-    underneath, and the unit before any inset or strand width is
-    applied rather than the map on the ground.
+    unit's own structure (its edges, its vertices, and the classes
+    they fall into). It lets you change that structure: nudge or push
+    a vertex, or rotate, scale or zigzag an edge. Drag a handle on the
+    drawing, or type a number and press Apply. Each change is listed
+    oldest first and can be taken off one at a time or cleared. What
+    you see is the design as you have edited it, with the original
+    ghosted underneath. It is the repeating unit before any inset is
+    applied, not the map on the ground.
     Aiming an edit: click an edge or a vertex on the drawing to choose
-    its class. Shift-click adds another class to the selection, and a
-    list beside the chooser says which are in hand, so one change can
-    move several classes at once.
-    Symmetries: a switch draws the design's own symmetries — a
-    rotation centre as a shape of its own order, a mirror as a line
-    across the drawing — and each tile's symmetry group is named
-    beside the class list. Where a design's symmetry holds a class in
-    place, the push that could not move it is greyed with the reason,
-    rather than offering a control that does nothing.
-    The dual: the tab draws the dual of a design, and Generate the
-    dual and tile it makes a map of it in a layer group of its own,
-    named for the group it came from, with the design's own map left
-    as it was. Where a design has no dual to tile — an inset opens
-    gaps, and a design with gaps has none — the button says why and
-    stays off.
-    Design names: the Archimedean and Laves families now read with
-    their common names as well as their formal ones — laves 3.3.4.3.4
-    (cairo), archimedean 4.8.8 (truncated square) — so a design you
-    know by name can be found by it. Maps saved before this open
-    exactly as they did.
-    Speed: a large map is drawn in about a third of the time it took.
-    Saving a map with many elements, and opening one again, are much
-    faster than they were: the file is opened once for the whole map
-    rather than once for every element in it. Both say which layer
-    they are on as they go.
-    The pattern library is updated to the latest version of the work
-    behind it.
-    In the Topology tab: dragging in it
-    moved the design by a different amount from the one the drawing
-    showed, so nothing seemed to happen until you let go and then the
-    design jumped. A drag went on changing what it meant while you
-    held the pointer still. A drag past a control's range recorded a
-    number the box would not show. The dual was drawn once in the
-    middle of the pattern instead of repeating with it. A design
-    finishing in the background while you were dragging put the old
-    design back under your hand and dropped what you had selected.
-    Somebody else's file: saving into a GeoPackage holding their
-    map could delete their element layers on the second press, and
-    their own copy of their data with them. Nothing of theirs is
-    removed now.
-    Two more: saving a map whose design had changed since it was drawn took
-    the design's structure out of the file. Choosing an element count
-    no weave family has now says that your design is a tiling, rather
-    than moving the tiling-or-weave switch without a word.
+    its class. Shift-click adds another class to the selection. A list
+    beside the chooser says which classes are in hand, so one change
+    can move several at once.
+    Symmetries: a switch draws the design's own symmetries (a rotation
+    centre as a shape of its own order, a mirror as a line across the
+    drawing). Each tile's symmetry group is named beside the class
+    list. Where a design's symmetry holds a class in place, the push
+    that could not move it is greyed, with the reason beside it.
+    Dragging an edit: a handle dragged on the Topology tab now
+    previews only the change that will be recorded. Where the design
+    cannot take the move any further the number holds and the tile
+    outlines turn amber; where the previewed design would no longer
+    tile they turn red and dotted. A sentence across the foot of the
+    drawing says which it is and why. Letting go settles the change
+    toward where you left the pointer, so the result no longer depends
+    on how fast you moved the mouse.
+    Rotating and scaling an edge: both moved each edge on its own,
+    which pulled the tiling apart, so the result usually could not be
+    edited again. They now move each shared vertex once, so the design
+    goes on tiling. Where a design's own symmetry leaves the move
+    nowhere to go, the tab says so.
+    The zigzag: the handle now stands where the wave's crest falls,
+    half as far out as it stood before, so the drawing and the map
+    agree about the depth. The count runs in even steps. Every count
+    is one drag along the edge away. The Amplitude box reads the
+    crest's distance from the edge.
+    Pushing a vertex: the vertex now follows the pointer, where it
+    used to move by a gain you could not see.
+    Repairs to the Topology tab: dragging moved the design by a
+    different amount from the one the drawing showed, so nothing
+    seemed to happen until you let go and then the design jumped. A
+    drag went on changing what it meant while you held the pointer
+    still. A drag past a control's range recorded a number the box
+    would not show. A design finishing in the background while you
+    were dragging put the old design back under your hand and dropped
+    what you had selected. An edit aimed at a class with a two-letter
+    name, such as aa, no longer moves the class a as well. A selection
+    of several classes survives the structure being worked out again.
+    Insets on the Topology tab: a design with an inset used to lose
+    the tab until both insets were set to 0. The tab now works on the
+    design as it stands before the insets, with the inset design
+    ghosted beneath it. Your edits are made there. The insets go back
+    on afterwards. A file saved from such a design holds the design
+    before its insets as a layer of its own, beside the finished
+    design and its dual.
+    The dual: the tab draws the dual of a design. Generate the dual
+    and tile it makes a map of it in a layer group of its own, named
+    for the group it came from, with the design's own map left as it
+    was. Where a design has no dual to tile, the button says why and
+    stays off. You can take the dual of a dual. Each level keeps its
+    own edits. The way back to an earlier geometry is that geometry's
+    own group in the chooser. A design with insets has a dual: it is
+    taken of the design without its insets, and the insets are then
+    applied to it. A weave with gaps has no dual. The button now says
+    so, where it used to make a map of the weave itself and file it in
+    a group named as its dual. Nor is a dual saved in the file beside
+    such a map. The dual of a weave at full width is treated as the
+    tiling it is, so its classes are those of a tiling rather than of
+    warp and weft.
+    Repairs to duals: the dual was drawn once in the middle of the
+    pattern instead of repeating with it. A dual group made from an
+    edited design no longer waits on work it cannot use before saying,
+    wrongly, that your changes had been left off the map. Changing a
+    dual group's design no longer bends the new design by the edits
+    made on the old one. Choosing another group while a dual was still
+    being prepared could carry the first map's file into the second
+    group's Save box, so the next Save overwrote the first map with
+    the second. Each group now keeps its own file.
     Typing a weave's strands: a Strands box beside the design takes a
-    code like ab-|cd, where the bar separates directions, brackets
-    combine labels into one strand sliced lengthwise, and a hyphen
-    leaves a deliberate gap. The letters you type are the elements
-    your map will carry, so the element count follows the code rather
-    than the other way round, and a code the plugin cannot use says
-    why instead of drawing something else. Codes run to twelve
-    elements.
+    code like ab-|cd. The bar separates directions, brackets combine
+    labels into one strand sliced lengthwise, and a hyphen leaves a
+    deliberate gap. The letters you type are the elements your map
+    will carry, so the element count follows the code rather than the
+    other way round. A code the plugin cannot use says why instead of
+    drawing something else. Codes run to twelve elements. A code whose
+    brackets cross a bar, or close before they open, is refused, where
+    it used to be read as a strand named with a bracket. On a cube
+    weave, a code must name all three directions, at an element count
+    for which the catalogue has a cube weave. A hyphen you type counts
+    as a missing strand, as a hyphen in a family's own code does.
     Weaves on the Topology tab: many weaves can now be worked on
     there, where the tab used to refuse every one of them. The gaps
     between strands are filled with temporary pieces while the
-    structure is worked out, and those pieces are dropped again
+    structure is worked out. Those pieces are dropped again
     afterwards, so the weave keeps its gaps and only your edits change
-    it. A weave whose structure cannot be worked out says so
-    instead of leaving the tab empty.
+    it. A weave whose structure cannot be worked out says so instead
+    of leaving the tab empty. Gaps used to be cut by the edge of the
+    repeating unit, so the drawing showed a cluster of tiny cells
+    where there was one gap. Each gap is now one piece, except in a
+    weave whose code has a hyphen. Several twill weaves the tab could
+    not work out before now reach it. Opening the tab on a weave with
+    gaps no longer freezes QGIS for tens of seconds.
     What a weave's structure is made of: two controls above the class
-    list decide it. Gaps from strand width asks whether the daylight
-    between strands is a hole in the structure, like a hole made by a
-    'missing' strand, or is closed up as though the strands on either
-    side of it touched, like an inset. Warp and weft classes chooses
-    between the drawing's full symmetry, where a mirror can swap warp
-    for weft, and the direction-preserving subgroup, which keeps the
-    two apart as a loom does. A weave starts with them apart. Changing
-    either works the structure out again and offers you a different
+    list decide it. Gaps between existing tiles/strands asks whether
+    the daylight between strands counts as a hole in the structure,
+    like a hole made by a 'missing' strand, or is ignored as though
+    the strands on either side of it touched, like an inset. Warp and
+    weft classes, shown for a weave only, chooses between the
+    drawing's full symmetry, where a mirror can swap warp for weft,
+    and the direction-preserving subgroup, which keeps the two apart
+    as a loom does. A weave starts with them apart. Changing either
+    control works the structure out again and offers you a different
     set of classes to aim an edit at.
-    Dragging an edit: dragging a handle on the
-    Topology tab now previews only the change that will be
-    recorded. Where the design cannot take the move any further the
-    number holds and the tile outlines turn amber; where the
-    previewed design would no longer tile they turn red and dotted;
-    and a sentence across the foot of the drawing says which it is
-    and why. Letting go settles the change toward where you left the
-    pointer, so what you end up with no longer depends on how fast
-    you moved the mouse.
-    Rotating and scaling an edge: both moved each edge on its own,
-    which pulled the tiling apart, so the result usually could not be
-    edited again. They now move each shared vertex once, and the
-    design goes on tiling. Where a design's own symmetry leaves the
-    move nowhere to go, it says so rather than tearing the pattern.
-    The zigzag: the handle now stands where the wave's crest actually
-    falls, which is half as far out as it stood before, so the
-    drawing and the map agree about the depth. The count runs in even
-    steps now. Every count is one drag along the edge away, and the
-    Amplitude box reads the crest's distance from the edge.
-    Pushing a vertex: the ground now follows the pointer, rather than
-    moving by a gain you could not see.
-    Duals: taking the dual of a dual now works, each level keeps its
-    own edits, and the way back to an earlier geometry is that
-    geometry's own group in the chooser.
-    Files and groups: a map opened from a file could be
-    written back under table names worked out from the controls
-    rather than from the file's own record. Save As onto a new file
-    left behind the copy of the data a sender had included. Asking
-    for a new group kept the output file of the map before it.
-    Weaves on the Topology tab: an edit made with the gaps from strand
-    width ignored now moves every side of each gap on the map, where
+    Repairs to weaves on the tab: an edit made with the gaps between
+    strands ignored now moves every side of each gap on the map, where
     before it moved only one side while the drawing showed both. A
     class chosen under that reading also lights and clicks as a whole.
-    An edit aimed at a class with a two-letter name, such as aa, no
-    longer moves the class a as well. After an edit, the temporary
-    pieces that fill a weave's gaps (there only so that its structure
-    can be worked out) were drawn and saved as layers of their own;
-    the map and the file now hold the weave alone. A weave that was
-    rotated, scaled or skewed lost that setting on the map after an
-    edit, though not on the tab; it now keeps it in both places.
-    Changing either of the two weave controls while an edit stands now
-    redraws the map under the new choice. Both controls are saved with
-    the map, so a weave opened again comes back under the choices it
-    was edited in. A selection of several classes survives the
-    structure being worked out again. At full strand width, warp and
-    weft are kept apart when the control says so. And opening the tab
-    on a weave with gaps no longer freezes QGIS for tens of seconds.
-    Strands codes: a code whose brackets cross a bar, or close before
-    they open, is now refused, where before it was read as a strand
-    named with a bracket. On a cube weave, a code must name all three
-    directions. It must also name a number of elements at which the
-    catalogue has a cube weave. A hyphen you type now counts as a
-    missing strand, as a hyphen in a family's own code does.
-    Duals: a weave with gaps has no dual. The button says so now; it
-    used to make a map of the weave itself, filed in a group named as
-    its dual. Nor is a dual saved in the file beside such a map. The
-    dual of a weave at full width is treated as the tiling it is, so
-    its classes are those of a tiling rather than of warp and weft. A
-    dual group made from an edited design no longer waits on work it
-    cannot use before saying, wrongly, that your changes had been left
-    off the map. Changing a dual group's design no longer bends the
-    new design by the edits made on the old one. Choosing another
-    group while a dual was still being prepared could carry the first
-    map's file into the second group's Save box, so that the next Save
-    overwrote the first map with the second; each group now keeps its
-    own file.
+    After an edit, the temporary pieces that fill a weave's gaps were
+    drawn and saved as layers of their own; the map and the file now
+    hold the weave alone. A weave that was rotated, scaled or skewed
+    lost that setting on the map after an edit, though not on the tab.
+    It now keeps it in both places. Changing either weave control
+    while an edit stands now redraws the map under the new choice.
+    Both controls are saved with the map, so a weave opened again
+    comes back under the choices it was edited in. At full strand
+    width, warp and weft are kept apart when the control says so.
+    Design names: the Archimedean and Laves families now carry their
+    common names beside their formal ones, as in laves 3.3.4.3.4
+    (cairo) and archimedean 4.8.8 (truncated square), so a design you
+    know by name can be found by it. Maps saved before this open
+    exactly as they did.
+    The Transformations box: the Scale, Skew and Inset rows now name
+    each of their two boxes (Left-Right and Up-Down, or Group and
+    Tiles/strands), where one label used to cover both.
+    The window: it grows taller while the Topology tab is open. It
+    gives the height back when you leave, unless you have resized it
+    yourself.
+    Speed: a large map is drawn in about a third of the time it took.
+    Saving a map with many elements, and opening one again, are much
+    faster: the file is opened once for the whole map rather than once
+    for every element in it. Both say which layer they are on as they
+    go. Working out a design's structure is faster too, most of all on
+    larger designs. The hex-colouring 7 design takes under two seconds
+    where it took seventeen.
+    The weavingspace library the patterns come from is updated to its
+    latest version.
     0.24.3 You decide how your data is classed: which values are
     drawn at all, where the first and last classes end, and what
     becomes of the areas left out.

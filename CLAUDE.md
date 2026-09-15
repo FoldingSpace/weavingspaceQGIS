@@ -1,5 +1,11 @@
 # Context for AI assistants working on this repo
 
+After the project's CLAUDE.md is finished reading, you need to read all
+of the  project procedural documentation .md files (except -archive or
+mutation ones) before resuming/starting any other work. This is critical
+context for any work you do. If you start other work before you're done
+reading, it needs to be redone after you're done reading. Thanks!
+
 QGIS plugin port of the weavingspace library / mapweaver web app
 (tiled & woven multivariate maps, O'Sullivan & Bergmann). Read
 MAINTAINING.md first — it has the architecture map, the invariants, and

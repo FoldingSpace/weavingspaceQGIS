@@ -218,19 +218,26 @@ def continuous_integration():
   though the work in hand had been tested. The distance from HEAD is
   therefore part of every answer, and the word green is used only where
   the run is ON HEAD.
+
+  AN UNANSWERED QUESTION IS NOT AN ANSWER. A failed `gh` call once read
+  "ok" and CLOSED the owed CI item, which is C-37's substitution of a
+  failure for a verdict. So "not asked" and an answer that is not JSON
+  return None, which `one_pass` reads as "keep the last pass's verdict"
+  rather than flipping it either way on a network blip; a branch with no
+  runs is an answer, and is owed.
   """
   branch, head = subject()
   code, out = run(["gh", "run", "list", "--branch", branch, "--limit", "1",
                    "--json", "status,conclusion,headSha,workflowName"],
                   timeout=60)
   if code in (124, 127):
-    return False, f"CI not asked ({out[:50]})"
+    return None, f"CI not asked ({out[:50]})"
   try:
     runs = json.loads(out or "[]")
   except json.JSONDecodeError:
-    return False, f"CI answered something that is not JSON: {out[:50]}"
+    return None, f"CI answered something that is not JSON: {out[:50]}"
   if not runs:
-    return False, "no CI run on this branch yet"
+    return True, "no CI run on this branch yet"
   newest = runs[0]
   sha = (newest.get("headSha") or "")[:7]
   where = f"{newest.get('workflowName', '?')} on {sha}"
@@ -263,8 +270,14 @@ CHECKS = (
 )
 
 
-def one_pass():
+def one_pass(before=None):
   """Re-derive every thread from scratch.
+
+  Args:
+    before: the previous pass's owed set, or None where there was none.
+      Read only for a check that could not be ASKED (it returned None):
+      such a thread keeps its previous verdict, and with no previous pass
+      it counts as owed, since an unknown is not a settled thread.
 
   Returns:
     (owed, lines) -- the set of thread names currently owed, and one
@@ -279,9 +292,13 @@ def one_pass():
       is_owed, sentence = ask()
     except Exception as exc:                       # noqa: BLE001
       is_owed, sentence = True, f"the check itself raised {type(exc).__name__}"
+    unanswered = is_owed is None
+    if unanswered:
+      is_owed = before is None or name in before
     if is_owed:
       owed.add(name)
-    lines.append(f"[{branch} {head}] {'OWED' if is_owed else '  ok'}  "
+    mark = "  ? " if unanswered else ("OWED" if is_owed else "  ok")
+    lines.append(f"[{branch} {head}] {mark}  "
                  f"{name:13} {sentence}")
   return owed, lines
 
@@ -326,7 +343,7 @@ def main():
     os.remove(STATE)
 
   if args.once or args.interval is None:
-    owed, lines = one_pass()
+    owed, lines = one_pass(read_state())
     print("\n".join(lines))
     write_state(owed)
     print(f"\n{len(owed)} thread(s) owed: {', '.join(sorted(owed)) or 'none'}")
@@ -334,7 +351,7 @@ def main():
 
   before = read_state()
   while True:
-    owed, lines = one_pass()
+    owed, lines = one_pass(before)
     if before is None or owed != before:
       print(f"---- {time.strftime('%H:%M:%S')} ----")
       print("\n".join(lines))

@@ -62,8 +62,11 @@ PAIRS = [
   # first two, and 7,048 before any), made to the maintainer's measure
   # that the file be as context-efficient as it can be while still
   # transmitting each lesson's rule, its logic and some of its evidence.
-  # A fifth above where it stands, as the others.
-  ("CLAUDE.md", "CLAUDE-archived.md", "C", 2350),
+  # A fifth above where it stands, as the others. Raised from 2350 to
+  # 2360 on 2026-09-14 for the maintainer's own opening paragraph (read
+  # every procedural document before any work), which the file held at
+  # 2,349 lines had no room for; the rest of the file is unchanged.
+  ("CLAUDE.md", "CLAUDE-archived.md", "C", 2360),
   # 2,048 after the fourth pass of 2026-09-05, which read the file end
   # to end against the measure and took the journey out of each
   # mechanism while keeping its rule, table and measurement; the
