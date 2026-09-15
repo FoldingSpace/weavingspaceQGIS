@@ -135,10 +135,9 @@ jobs:
         run: call "%QGIS_SHIM%" -u tools/probes/which_weave_topologies_build_here.py
 
       - name: The failing tests, and nothing else
-        # THE PLATFORM-ONLY REDS on 3965eb6 (2026-09-14), each passing on the
-        # Mac: a typed odd count that never reached its box (Linux and
-        # Windows), a preview rebuild timed at 0.0 ms, and a thin weave's
-        # dual offered after its map landed (Windows). Each failure message
-        # now says what it found.
+        # BISECTING THE WINDOWS-ONLY DUAL RED of 7edb446 (2026-09-15): it passes
+        # alone and fails in the full suite, so it runs here after the eighteen
+        # tests registered just before it. Red here narrows the culprit to
+        # these; green sends the search further back.
         shell: cmd
-        run: call "%QGIS_SHIM%" -u tools/run_some.py test_a_typed_odd_count_is_even_at_every_door test_the_preview_wait_widens_for_a_slow_rebuild test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it
+        run: call "%QGIS_SHIM%" -u tools/run_some.py test_an_edit_aimed_at_a_glued_class_moves_every_side_of_the_hole test_an_edit_aimed_at_a_two_letter_class_moves_that_class_alone test_an_edited_weave_draws_its_cloth_and_not_its_scaffolding test_an_edited_weave_keeps_its_rotation test_a_weaves_dual_asks_no_search_of_a_rectangle test_a_save_just_after_a_reading_switch_writes_the_new_motif test_a_full_width_weave_keeps_warp_and_weft_apart test_a_typed_hyphen_leaves_its_ground_dropped test_a_landing_keeps_a_selection_of_several_classes test_a_glued_class_is_lit_and_clicked_as_the_class test_a_weaves_readings_come_back_with_its_record test_a_landing_held_under_a_press_keeps_the_glued_reading test_a_reading_changed_under_a_standing_edit_redraws_the_map test_a_unit_can_be_copied_with_new_tiles_whatever_kind_it_is test_a_typed_strands_code_draws_the_elements_it_names test_a_strands_code_that_cannot_be_used_changes_nothing test_a_strands_code_the_box_accepts_builds_exactly_its_letters test_a_cube_strands_code_the_box_accepts_is_the_code_the_map_draws test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it
