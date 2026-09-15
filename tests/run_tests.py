@@ -60539,7 +60539,20 @@ def test_a_typed_odd_count_is_even_at_every_door():
                   if b.property("argument") == "n")
 
     def type_three():
+      # A BOX THAT IS NOT YET SHOWN TAKES NO KEYS. A topology landing
+      # rebuilds the argument boxes, and Qt shows a child added to a
+      # visible window only on its next pass through the event loop; on
+      # the Linux stable runner (2026-09-15) the keys arrived at a box
+      # reading visible=False and focus=False. So the build is let land,
+      # the tab is put in front, and the box is asked for until it shows.
+      import time as _time
+      _settle_topology(dlg, seconds=60)
+      dlg._tabs.setCurrentIndex(dlg._topology_tab_index)
+      deadline = _time.monotonic() + 30.0 * CONTENTION
       box = n_box()
+      while not box.isVisible() and _time.monotonic() < deadline:
+        _tick(100)
+        box = n_box()
       box.setFocus()
       box.lineEdit().selectAll()
       QTest.keyClicks(box, "3")
@@ -95623,7 +95636,12 @@ def test_a_thin_weaves_dual_is_not_offered_where_the_map_cannot_take_it():
       f"its tooltip reads {panel.dual_button.toolTip()!r} (the tab's "
       f"topology stands on scaffolding: "
       f"{topology_edits.stands_on_scaffolding(panel._topology)}; "
-      f"offer asked now: {topology_edits.dual_on_offer(panel._topology)[1]!r})")
+      f"offer asked now: {topology_edits.dual_on_offer(panel._topology)[1]!r}; "
+      f"the dialog holds family={dlg._family_key()!r} n={dlg.n_spin.value()} "
+      f"aspect={dlg.opt_aspect.value()} kind={dlg.kind_combo.currentText()!r}; "
+      f"the tab's unit has {getattr(getattr(panel._topology, 'tileable', None), 'tiles', []).__len__()} "
+      f"tiles; its own plain build: "
+      f"{'built' if topology_edits.build(dlg._unit_before_topology)[0] is not None else 'refused'})")
     assert panel.dual_button.toolTip(), \
       "the disabled button does not say why"
     dlg._generate_the_dual()             # the press the button would make
