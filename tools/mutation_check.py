@@ -3029,14 +3029,17 @@ MUTATIONS = [
            "does not have, above the class controls"),
   dict(name="the-topology-tab-grows-the-window", file=DIALOG,
        old="""        if grown > before:
-          self.resize(self.width(), grown)""",
+          # Through the clamp again, as every resize here is: a size
+          # that fits comes back untouched, and the platform probe's
+          # guard asks for the bound at the call.
+          self.resize(*self._within_the_screen(self.width(), grown))""",
        new="""        pass  # mutation: arriving grows nothing""",
        test="test_the_window_grows_on_the_topology_tab_and_gives_the_height_back",
        why="the Topology tab opening at the Design tab's short height, its "
            "drawing and controls cramped"),
   dict(name="leaving-the-topology-tab-gives-the-height-back", file=DIALOG,
        old="""      if self.height() == grown and grown > before:
-        self.resize(self.width(), before)""",
+        self.resize(*self._within_the_screen(self.width(), before))""",
        new="""      pass  # mutation: leaving keeps the tall window""",
        test="test_the_window_grows_on_the_topology_tab_and_gives_the_height_back",
        why="the window staying tall after leaving the Topology tab, empty "

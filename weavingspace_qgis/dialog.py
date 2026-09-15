@@ -3782,7 +3782,10 @@ class WeavingSpaceDialog(QDialog):
         _width, grown = self._within_the_screen(
           self.width(), before + TOPOLOGY_TAB_EXTRA_HEIGHT)
         if grown > before:
-          self.resize(self.width(), grown)
+          # Through the clamp again, as every resize here is: a size
+          # that fits comes back untouched, and the platform probe's
+          # guard asks for the bound at the call.
+          self.resize(*self._within_the_screen(self.width(), grown))
         # WHAT THE WINDOW ACTUALLY TOOK, which a minimum or a window
         # manager may make other than what was asked, so leaving can
         # tell the height this gave from one somebody dragged to.
@@ -3792,7 +3795,7 @@ class WeavingSpaceDialog(QDialog):
       before, grown = self._height_before_topology
       self._height_before_topology = None
       if self.height() == grown and grown > before:
-        self.resize(self.width(), before)
+        self.resize(*self._within_the_screen(self.width(), before))
 
   def _within_the_screen(self, width: int, height: int):
     """Bound a size the window is about to take by the screen it is on.

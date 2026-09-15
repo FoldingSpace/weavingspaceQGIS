@@ -225,9 +225,18 @@ def continuous_integration():
   return None, which `one_pass` reads as "keep the last pass's verdict"
   rather than flipping it either way on a network blip; a branch with no
   runs is an answer, and is owed.
+
+  AND A RUN IN FLIGHT IS NOT A VERDICT, AND THE NEWEST RUN IS NOT ALL OF
+  THEM. Asked of the newest run alone, this read "ok, CI in_progress" on a
+  fresh push while the tests workflow was still queued behind the mutation
+  one. Every workflow on HEAD's own full sha is read now: any red is owed
+  as "CI red", any still running is owed as "CI running", and only all of
+  them green is ok. The third element names the thread differently for
+  those two states, so a run that finishes red CHANGES the owed set and
+  ends the watch rather than passing as one more pass of "owed".
   """
   branch, head = subject()
-  code, out = run(["gh", "run", "list", "--branch", branch, "--limit", "1",
+  code, out = run(["gh", "run", "list", "--branch", branch, "--limit", "20",
                    "--json", "status,conclusion,headSha,workflowName"],
                   timeout=60)
   if code in (124, 127):
@@ -238,20 +247,28 @@ def continuous_integration():
     return None, f"CI answered something that is not JSON: {out[:50]}"
   if not runs:
     return True, "no CI run on this branch yet"
-  newest = runs[0]
-  sha = (newest.get("headSha") or "")[:7]
-  where = f"{newest.get('workflowName', '?')} on {sha}"
-  code, behind = git("rev-list", "--count", f"{sha}..HEAD") if sha else (1, "")
-  if code == 0 and behind and int(behind) > 0:
-    where += f", {behind} behind {head}"
-  on_head = code == 0 and behind == "0"
-  if newest.get("status") != "completed":
-    return False, f"CI {newest.get('status')} ({where})"
-  if newest.get("conclusion") == "success":
-    return (False, f"CI green ({where})") if on_head else (
-      True, f"CI passed on an OLDER commit ({where}); nothing has seen {head}")
-  return True, f"CI {newest.get('conclusion')} ({where})"
-
+  _c, full = git("rev-parse", "HEAD")
+  mine = [r for r in runs if r.get("headSha") == full]
+  if not mine:
+    newest = runs[0]
+    sha = (newest.get("headSha") or "")[:7]
+    code, behind = git("rev-list", "--count", f"{sha}..HEAD") if sha else (1, "")
+    where = f"{newest.get('workflowName', '?')} on {sha}"
+    if code == 0 and behind and behind != "0":
+      where += f", {behind} behind {head}"
+    return True, (f"CI {newest.get('conclusion') or newest.get('status')} "
+                  f"({where}); nothing has seen {head}")
+  running = sorted(r.get("workflowName", "?") for r in mine
+                   if r.get("status") != "completed")
+  failed = sorted(f"{r.get('workflowName', '?')} {r.get('conclusion')}"
+                  for r in mine if r.get("status") == "completed"
+                  and r.get("conclusion") != "success")
+  if failed:
+    return True, f"CI red on {head}: {', '.join(failed)}", "CI red"
+  if running:
+    return True, f"CI running on {head}: {', '.join(running)}", "CI running"
+  names = ", ".join(sorted(r.get("workflowName", "?") for r in mine))
+  return False, f"CI green on {head} ({names})"
 
 CHECKS = (
   ("unpushed", unpushed),
@@ -289,14 +306,20 @@ def one_pass(before=None):
   owed, lines = set(), []
   for name, ask in CHECKS:
     try:
-      is_owed, sentence = ask()
+      answer = ask()
     except Exception as exc:                       # noqa: BLE001
-      is_owed, sentence = True, f"the check itself raised {type(exc).__name__}"
+      answer = (True, f"the check itself raised {type(exc).__name__}")
+    is_owed, sentence = answer[0], answer[1]
+    # A check may name the owed STATE, so a change between two owed
+    # states (running to red) still changes the set and ends the watch.
+    label = answer[2] if len(answer) > 2 else name
     unanswered = is_owed is None
     if unanswered:
-      is_owed = before is None or name in before
+      label = next((b for b in (before or ()) if b == name
+                    or b.startswith(name + " ")), name)
+      is_owed = before is None or label in before
     if is_owed:
-      owed.add(name)
+      owed.add(label)
     mark = "  ? " if unanswered else ("OWED" if is_owed else "  ok")
     lines.append(f"[{branch} {head}] {mark}  "
                  f"{name:13} {sentence}")
