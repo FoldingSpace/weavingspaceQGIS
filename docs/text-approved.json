@@ -494,6 +494,11 @@
   "excerpt": "The style file does not contain categorized symbology.",
   "where": "weavingspace_qgis/bridge.py"
  },
+ "29c4768083dfc0b9": {
+  "approved": "2026-09-15",
+  "excerpt": "; Shown in the QGIS plugin manager. Keep the newest version ",
+  "where": "weavingspace_qgis/metadata.txt"
+ },
  "29e44fdb122fe52a": {
   "approved": "2026-08-26",
   "excerpt": "We welcome reports of anything else that surprises you.",

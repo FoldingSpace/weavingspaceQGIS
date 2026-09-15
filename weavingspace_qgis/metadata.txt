@@ -250,6 +250,8 @@ changelog=0.24.4 Saving a map is now something you do rather than
     The Transformations box: the Scale, Skew and Inset rows now name
     each of their two boxes (Left-Right and Up-Down, or Group and
     Tiles/strands), where one label used to cover both.
+    The design view: tiles are now parted by a thin, pale line, so
+    elements that share a colour scheme can still be told apart.
     The window: it grows taller while the Topology tab is open. It
     gives the height back when you leave, unless you have resized it
     yourself.
