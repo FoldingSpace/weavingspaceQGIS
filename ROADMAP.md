@@ -388,6 +388,36 @@ and **THE `publish_candidate` QUESTION IS MOOT** (R-31). Accounts R-85.
 
 ## 0.24.5 — three tabs asked for, and what was deferred here from 0.24.4
 
+**ONE TABLE FOR WHAT A DESIGN IS, ON `for-0.24.5/design-terms`.** Five
+enumerations of a design's terms stand in `dialog.py` -- both signatures,
+the topology stamp, the record and the edit key -- each widened by hand as
+terms arrived, and a term the table cannot express is appended beside it:
+the topology edits, the dual's frozen list, and the two weave readings in
+three copies of one guard. That is the shape most of round ten's
+twenty-one defects were made of (C-358), and it is why `glue` is held by
+no store at all. The branch declares each design term ONCE -- its field,
+its source, the rung at which it acts, and its conditions where they
+differ -- in `weavingspace_qgis/design_terms.py`, which carries no Qt,
+and derives all four tuples from that. The rungs are `unit`, `modifier`,
+`map` and `paint`, and every consumer is a PREFIX of them: the stamp
+takes two, the geometry signature three, the run signature four, the
+record the persisted ones. The dialog goes on reading its own widgets and
+hands over what it could read, so the module never raises, as
+`_topology_edit_key` must not.
+BEFORE IT MERGES: the old implementations are kept beside the new for the
+duration and a sweep asserts the derived tuple equals the old one term for
+term -- on a tiling, a weave under both readings, a dual at depth one, an
+inset design and a design with edits on the shelf -- and then the old
+copies go; the sweep is registered and a catalogue entry proves it can
+fail by dropping a rung from a row; the mechanism goes to MAINTAINING.md
+and the ruling to CLAUDE.md with both derived documents regenerated in the
+same commit; and the tests-that-cannot-fail trigger is fired at the new
+assertions, a batch written in one sitting. The full suite waits for the
+candidate gate. NOT IN IT: the per-element half (the tiling study's C1),
+the shelf, the landing and the save. THE READINGS' ASYMMETRY IS
+REPRODUCED RATHER THAN TIDIED, or a reading moved with an empty shelf
+costs a re-tile. No second machine sees a `for-**` branch (R-58).
+
 **RECOVER A TOPOLOGY BUILD THAT NEVER LANDS -- AND SAY FIRST WHICH
 SHAPE IT IS, BECAUSE THE READINGS SO FAR CANNOT.** (Owed from
 2026-09-07; the recurrence is under "Later, or never".) The save path's
