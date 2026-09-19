@@ -398,6 +398,7 @@ quote them, do not renumber them.
 - **C-361** — The twill's QGIS refusal was the incentre offset  <sub>minted</sub>
 - **C-362** — the inset topology as built, and the prototile an edit does not move  <sub>minted</sub>
 - **C-363** — The design view drew no outline, until one colour scheme merged its tiles  <sub>minted</sub>
+- **C-364** — A ruling that changes a structure's shape invalidates every fixture that counted it  <sub>minted</sub>
 
 
 ### C-1 — The unversioned zip the push gate itself wrote into dist/
@@ -12164,5 +12165,28 @@ its name and now asserts both halves: tiles given one colour are parted
 by paler pixels, and the design's own colours carry no dark mesh; the
 catalogue entry `the-design-view-parts-its-tiles-with-a-thin-line`
 removes the pen and is caught.
+
+(The account.)
+
+### C-364 — A ruling that changes a structure's shape invalidates every fixture that counted it
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (C-364).</sub>
+
+Whole weave gaps (74e821b, 2026-09-13) rejoined each hole a measured cell
+had cut, which changed how many classes a scaffolded weave has: `plain
+weave a|b` went from ten edge classes to two, and the default basket weave
+from sixty-two to sixteen. Four guards written before it went on asking for
+the old structure, and each passed on this Mac until a full suite ran on
+2026-09-15, because no full suite runs outside a candidate. Two wanted a
+glued class standing for two labels on a plain weave, which whole holes
+glue none of; one wanted a two-letter class on a design that no longer
+reaches `z`; one wanted the old refusal's second sentence. They were found
+by CI's coverage leg -- the mutation workflow's, which runs the whole suite
+on Linux three ways -- within an hour of the first push after the ruling.
+
+The rows and what each owed are docs/process/defects-2026-09-15.md. The
+transferable part is the ORDER of the question: after a ruling that changes
+the SHAPE of a structure, the fixtures that count that structure are the
+first place to look, before any code is read.
 
 (The account.)

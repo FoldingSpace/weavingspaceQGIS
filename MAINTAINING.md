@@ -1637,6 +1637,24 @@ a fixed order, so turn and zigzag stand at 30 and 60 along one normal (M-29).
 MERGING SCALE AND ROTATE INTO ONE END HANDLE IS REFUSED: one handle would
 have to say two things (docs/TOPOLOGY.md).
 
+### Which design the drawing is of, and what follows from it
+
+`_topology_shown_for` is the stamp of the build the panel was last handed,
+written where `panel.set_unit` is called and nowhere else. The tab keeps
+drawing the PREVIOUS design until a new build lands, and the dual button
+offered that design's dual through the interval, so a press tiled the dual
+of a design nobody was looking at (the Windows runner, 2026-09-15).
+
+**THE QUESTION IS WHETHER THE DRAWING IS OF THE DESIGN ON SCREEN, NOT
+WHETHER A BUILD IS RUNNING.** `_queue_topology` calls
+`panel.withhold_the_dual()` only where the queued stamp differs from the
+shown one, since withholding on any build reddened six dual tests at once.
+
+**AND THE DOOR BEHIND THE BUTTON ASKS THE SAME QUESTION**, a disabled
+button being not the only way in: `_generate_the_dual` refuses such a press,
+and `_wait_for_the_topology` returns only on a drawing handed over for the
+stamp on screen.
+
 ### What a drag means, and in whose units
 
 Four things had to agree before a drag meant what it looked like, and

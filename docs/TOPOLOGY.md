@@ -1451,6 +1451,37 @@ tile directions, and 4 when handed the weave's terms once directions come
 from the design -- which is why that repair and the dual group's own were
 found to hold one harm twice.
 
+## The offer follows the drawing, not the design: 2026-09-15
+
+The tab holds the PREVIOUS design's topology until a new design's build
+lands, which is deliberate -- the sentence "Working out the design's
+structure…" is there for exactly that interval, and greying the tab was
+tried and taken out in 2026-09-01. What was not deliberate is that the
+dual button went on offering the drawn design's dual through it, so a
+press between a change of design and its landing tiled the dual of a
+design nobody was looking at.
+
+FOUND BY THE WINDOWS RUNNER, AND ONLY THERE. The failing reading names
+what the tab held: `tiling_type='laves'` on a dialog whose controls said
+`plain weave a|b` at strand width 0.75, with the weave's own build still
+running and the last finished build for another design. This Mac never
+showed it in the same nineteen tests, run in the same order; Windows
+showed it twice in four attempts and then passed three repeats of the
+sequence, which is what says it is a race rather than an order.
+
+WHAT IT TURNS ON, and it is one line of state: `_topology_shown_for`, the
+stamp of the build the panel was last handed. A build queued for a
+DIFFERENT design withholds the button until its landing; a build queued
+again for the design already drawn leaves the offer alone. The first
+repair withheld it for both and six dual tests went red, which is the
+measurement that separated the two questions.
+
+AND THE GUARD STAGES THE INTERVAL RATHER THAN RACING FOR IT: the new
+design's build is held off the main thread, so the window exists on every
+machine. A build the press itself makes runs ON the main thread, and
+holding that one deadlocks the test -- reported as HUNG rather than as a
+failure, and named by `sample` in a minute.
+
 ## Symmetry, and what a crystallographic reading would give
 
 `docs/process/wallpaper-groups-and-what-we-do.md` sets out what the

@@ -187,6 +187,7 @@ quote them, do not renumber them.
 - **T-154** — A fixture in a form the product no longer writes  <sub>minted</sub>
 - **T-155** — A probe patched the library under a second import name  <sub>minted</sub>
 - **T-156** — an expected side computed through the helper under test  <sub>minted</sub>
+- **T-157** — A waiter that returns on any answer returns inside the interval  <sub>minted</sub>
 
 
 ### T-1 — THE HARNESS'S STYLE IS PART OF THE MEASUREMENT, EXACTLY AS ITS FONT IS
@@ -7375,3 +7376,23 @@ with the repair removed, and passed with it. This is "write the expected
 side from the settings, never from `_build_unit`" one level down: a helper
 extracted to give two callers one owner is shared by the test as well,
 unless the test is written not to call it.
+
+### T-157 — A waiter that returns on any answer returns inside the interval
+
+<sub>Minted with `tools/doc_archive.py --mint`; the account goes here, verbatim, and the live half quotes (T-157).</sub>
+
+`_wait_for_the_topology` returned as soon as the tab held ANY topology.
+That was right while the tab's drawing could only be the design on screen
+or nothing. On 2026-09-15 the plugin learnt to withhold the dual button
+while the drawing is of a design somebody has left, and the waiter's answer
+became a state a caller must not read: a test that chose a group back,
+waited, and read the dual offer read the interval instead, and failed on
+Linux's coverage leg where this Mac was fast enough to miss it.
+
+The waiter now returns on a drawing handed over for the stamp on screen, or
+on no build running or wanted. The shape recurs whenever a product gains a
+NEW intermediate state: every helper that waits for "an answer" has to be
+re-read against it, because the helper's own predicate was written when the
+intermediate state did not exist.
+
+(The account.)

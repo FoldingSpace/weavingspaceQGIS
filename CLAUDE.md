@@ -1116,6 +1116,9 @@ The accounts are C-267 and the ids beside each rule.
   sentence the product says is retuned by the next sentence (C-209).
 
 **Fixtures, premises and moments.**
+- **A RULING THAT CHANGES A STRUCTURE'S SHAPE INVALIDATES EVERY FIXTURE
+  THAT COUNTED IT**: whole weave gaps took the basket weave from sixty-two
+  edge classes to sixteen, and four guards kept asking for the old (C-364).
 - **MAGNITUDE IS A FIXTURE DIMENSION**: arithmetic right between 0 and
   50 and wrong at 1e12 shipped green three times, and a relative
   epsilon is an absolute gap. A record holding two claims is tested

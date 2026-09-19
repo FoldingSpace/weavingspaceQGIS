@@ -161,10 +161,15 @@ shipped version owes nothing.)
 
 ## 0.24.4 — next
 
-**rc21 IS PUBLISHED** (2026-09-13, pre-release `v0.24.4rc21` on
-`54b3f9c`): round ten's twenty-two repairs, the Strands box and weaves on
-the Topology tab, its local gates green and CI published past three
-harness faults on the maintainer's word (docs/process/defects-2026-09-12.md).
+**rc23 IS PUBLISHED** (2026-09-15, pre-release `v0.24.4rc23` on
+`1b0520b`): the inset topology with its dual ruling, whole weave gaps and
+patch 7, vendor patches 8 to 10, the approved changelog, the design view's
+line between tiles, and the nine defects CI found in all of it
+(docs/process/defects-2026-09-15.md). EVERY WORKFLOW GREEN ON ITS COMMIT,
+which is the first candidate of this version that is; the local gates were
+889 of 889, the gallery 13 of 13 and the comparison green. rc21 (2026-09-13,
+`54b3f9c`) carried round ten's twenty-two repairs and was published past
+three harness faults on the maintainer's word.
 
 **THE MAINTAINER'S UI ASKS OF 2026-09-13 ARE BUILT AND THEIR WORDING
 APPROVED** (`e589f00`, the option and tooltip reworded to "count as holes").
@@ -238,15 +243,21 @@ scaffolds had made a large plain weave's Topology tab never land (230.7 cpu s on
 `plain weave abcd|efgh`, over half an hour on `abcde|fghi`); the construction now does
 its per-object work once, exactly, 12.0 s and 68.5 s (docs/PERFORMANCE.md).
 
-### Before the next candidate
+### Before a release, or the next candidate
 
-NOTHING OUTSTANDING IN CODE as of 2026-09-14. The two HUNG catalogue entries were
-judged on a quiet machine: `a-file-holding-a-motif-gets-a-fresh-one` caught, and
-`moving-the-warp-and-weft-chooser-rebuilds-the-topology` SURVIVED -- the matrix
-moved its choosers before the design's first topology landed, so the landing's
-stamp check rebuilt for it -- and is caught since the cell waits for that landing.
-What remains is a person's: the changelog sentences for the UI asks, whole weave
-gaps, patch 7, the inset topology with its dual ruling, and patches 8 to 10.
+NOTHING OUTSTANDING IN CODE as of 2026-09-15, and rc23 answered what stood
+here: the changelog is written and approved, the two HUNG catalogue entries
+were judged caught on a quiet machine, and CI is green on the candidate's own
+commit. What is left is FEEDBACK -- somebody making a map with rc23 -- which
+is what a candidate is for.
+
+**ONE THING TO WATCH RATHER THAN FIX.** The Windows suite crashed once, with
+an access violation inside `_adopt_row_symbology` while a test reopened a
+project (`55df4b1`), in code this round did not touch and which passed on
+Windows in the two rounds either side. Nothing was changed for it: a repair
+aimed at a fault that cannot be reproduced is protection nobody can show
+works. If it recurs, the targeted Windows run is the instrument, and the
+reading to take is the faulthandler dump the crash already prints.
 
 ### Closed: the two suite failures and the harness race
 

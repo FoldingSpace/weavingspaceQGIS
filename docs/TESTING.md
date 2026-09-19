@@ -608,6 +608,11 @@ The accounts are T-135.
   times a measured figure, and four shared wait helpers had no such
   factor, so an allowance sized on this Mac is one this Mac will never
   meet (T-24, T-113, T-88).
+- A PRODUCT THAT GAINS AN INTERMEDIATE STATE RETIRES EVERY WAITER THAT
+  PREDATES IT: the topology waiter returned on any drawing, and once the
+  tab began withholding the dual while the drawing is of a design somebody
+  has left, a test that waited and read the offer read the interval
+  (T-157).
 - A WAITER'S EXIT CONDITION MUST NOT BE ALREADY TRUE AT THE MOMENT OF
   ASKING. The absence of a build task is true before a build is queued
   as well as after it lands; a panel holding an answer holds the
